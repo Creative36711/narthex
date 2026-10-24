@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.54
+// @version      1.4.55
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -277,7 +277,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.54";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.55";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -5145,7 +5145,7 @@
     return `Журнал ответа ${who} (${id}): ${link} — прочитай, если нужны детали ответа.`;
   }
 
-  function coordinatorPrompt(mission, role, queueSummary, turnId, note = "", answerLine = "", drafts = "", ready = "") {
+  function coordinatorPrompt(mission, role, queueSummary, turnId, note = "", answerLine = "", drafts = "", ready = "", rework = "") {
     return [
       technicalInfo(role),
       "",
@@ -5154,6 +5154,7 @@
       `Очередь: ${queueSummary}`,
       returnBlock(mission),
       ready,
+      rework,
       drafts,
       answerLine,
       note ? `Комментарий: ${note}` : "",
@@ -5162,7 +5163,8 @@
       "Мастер и Архитектор пишут только черновики: Draft — предложение, а не приказ. Работу исполнителю выдаёшь ты, не дожидаясь Мастера.",
       "Движок ставит Running и Submitted. Accepted и Rework ставишь ты. Ready ставишь тоже ты — и новой карточке, и черновику, который решил выдать.",
       "next называй ролью той карточки, которую выдаёшь: у готовой она написана в списке «Готовы к выдаче», у новой — та, что ты поставил в «Кому». Назвать чужую роль — значит остановить ход подсказкой вместо выдачи.",
-      "Карточку, по которой уже есть ответ (Submitted или Accepted), обратно в Ready не возвращай — это повторная выдача той же работы.",
+      "Rework — не выдача: карточка с этим статусом исполнителю не уходит. Хочешь переделать — верни её в Ready и очисти «Submitted At», «PR», «Run ID», иначе выдача откажет.",
+      "Карточку, которую ты уже принял (Accepted), обратно в Ready не возвращай — это повторная выдача той же работы.",
       "Оракул и инварианты менять нельзя: только ADR proposed и пауза миссии.",
       "",
       "Твой ход. Один ответ — законченный ход:",
@@ -5586,12 +5588,69 @@
       return sa - sb;
     });
     if (!rows.length) return "Готовы к выдаче: ничего — Ready пуст.";
+    // Ready со следами прошлого ответа выглядит готовой, но выдача по ней
+    // откажет: движок не знает, новая это работа или забытая старая. Скажем
+    // это здесь, а не паузой через две попытки.
     const shown = rows.slice(0, C.readyLineMax).map((card) => {
       const seq = card.properties?.["Sequence"]?.number;
-      return `${taskTitle(card)} (${taskRole(card) || "роль не задана"}, Sequence ${seq ?? "—"})`;
+      const stale = staleMarks(card);
+      const warn = stale.length ? ` — остались ${stale.join(", ")}: выдача откажет, очисти` : "";
+      return `${taskTitle(card)} (${taskRole(card) || "роль не задана"}, Sequence ${seq ?? "—"})${warn}`;
     });
     const more = rows.length > shown.length ? `; и ещё ${rows.length - shown.length}` : "";
     return `Готовы к выдаче: ${shown.join("; ")}${more}.`;
+  }
+
+  /**
+   * Rework — статус, а не очередь.
+   *
+   * 25.10 Координатор поставил NAR-2.5 в Rework за форму ответа: код уже был в
+   * main, а в отчёте не хватало цитат. Из Rework карточка сама никуда не
+   * уходит — транспорт выдаёт только Ready, — а в промпте стояло «карточку с
+   * ответом обратно в Ready не возвращай». Два правила вместе запирали карточку
+   * навсегда. Теперь причина и путь назад названы прямо: вернуть в Ready можно,
+   * но сначала надо снять следы прошлого ответа.
+   */
+  const reworkCause = (card) => {
+    const answer = rt(card.properties?.["Ответ"]).replace(/\s+/g, " ").trim();
+    if (!answer) return "«Ответ» пуст — причина не записана";
+    return answer.length > 160 ? `${answer.slice(0, 160)}…` : answer;
+  };
+
+  /**
+   * Следы прошлого ответа, из-за которых выдача откажет.
+   *
+   * Читаются здесь, а не через `rt`: строка попадает в промпт Координатора, а
+   * пробы вырезают этот блок отдельно — лишняя зависимость ломала бы их
+   * песочницу ради одной строки.
+   */
+  const textOf = (prop) => (prop?.rich_text || prop?.title || []).map((x) => x.plain_text || "").join("");
+  const staleMarks = (card) => {
+    const marks = [];
+    if (card.properties?.["Submitted At"]?.date?.start) marks.push("«Submitted At»");
+    if (card.properties?.["PR"]?.url) marks.push("«PR»");
+    if (textOf(card.properties?.["Run ID"])) marks.push("«Run ID»");
+    return marks;
+  };
+
+  function reworkLine(cards) {
+    const rows = [...(cards || [])].sort((a, b) => {
+      const sa = Number(a.properties?.["Sequence"]?.number ?? 0);
+      const sb = Number(b.properties?.["Sequence"]?.number ?? 0);
+      return sa - sb;
+    });
+    if (!rows.length) return "";
+    const shown = rows.slice(0, C.readyLineMax).map(
+      (card) => `${taskTitle(card)} (${taskRole(card) || "роль не задана"}) — причина: ${reworkCause(card)}`,
+    );
+    const more = rows.length > shown.length ? `; и ещё ${rows.length - shown.length}` : "";
+    return (
+      `На доработке (Rework): ${shown.join("; ")}${more}. ` +
+      "Rework сам не выдаётся — исполнителю уходит только Ready. Чтобы работа пошла заново: " +
+      "верни карточку в Ready И очисти «Submitted At», «PR», «Run ID», иначе выдача откажет " +
+      "(в карточке остались следы прошлого ответа). Если переделывать нечего — прими, запиши в «Ответ», " +
+      "почему, и оставь карточку принятой."
+    );
   }
 
   async function coordinatorStep(role, expect, manual = false) {
@@ -5806,7 +5865,7 @@
     // статуса, Agent URL или самой роли.
     const directory = await roleRows().catch(() => []);
     const drafts = draftLine(queue.draft || [], directory);
-    await sendToRole(role, coordinatorPrompt(mission, role, summary, turnId, note, answerLine, drafts, readyLine(queue.ready)), "plan", mission.id, {
+    await sendToRole(role, coordinatorPrompt(mission, role, summary, turnId, note, answerLine, drafts, readyLine(queue.ready), reworkLine(queue.rework)), "plan", mission.id, {
       missionId: mission.id,
       turnId,
       title: "план Координатора",
