@@ -102,15 +102,36 @@ const unknownProbes = registry.caps.filter((cap: Json) => cap.probe !== null && 
 check('пробы возможностей существуют в npm scripts', unknownProbes.length === 0,
   unknownProbes.map((cap: Json) => `${cap.id}: ${cap.probe}`).join(', '))
 
-const legacyMapCaps = campaignCaps({ features: { map: true } })
-check(
-  'legacy features map:true читается как caps:[map]',
-  legacyMapCaps.length === 1 && legacyMapCaps[0] === 'map' && featureOn({ features: { map: true } }, 'map'),
-)
-check('кампания без обоих полей сохраняет legacy-набор механик',
+const listProfile = { features: ['combat'] }
+const listCaps = campaignCaps(listProfile)
+const mapProfile = { features: { map: true } }
+const legacyMapCaps = campaignCaps(mapProfile)
+const explicitProfile = { caps: ['map'] }
+const explicitCaps = campaignCaps(explicitProfile)
+let malformedProfileError = ''
+try {
+  campaignCaps({ features: 'combat' })
+} catch (error) {
+  malformedProfileError = error instanceof Error ? error.message : String(error)
+}
+console.log('\nпрофили возможностей (compatibility report)')
+console.log(`features: ["combat"] -> caps: ${JSON.stringify(listCaps)}; combat=${featureOn(listProfile, 'combat')}`)
+console.log(`features: {"map":true} -> caps: ${JSON.stringify(legacyMapCaps)}; combat=${featureOn(mapProfile, 'combat')}; map=${featureOn(mapProfile, 'map')}`)
+console.log(`caps: ["map"] -> caps: ${JSON.stringify(explicitCaps)}; combat=${featureOn(explicitProfile, 'combat')}; map=${featureOn(explicitProfile, 'map')}`)
+console.log(`features: "combat" -> rejected: ${malformedProfileError || 'NO ERROR'}`)
+check('features list maps to exactly its registered capabilities',
+  listCaps.length === 1 && listCaps[0] === 'combat' && featureOn(listProfile, 'combat'))
+check('legacy features map preserves omitted=true semantics',
+  legacyMapCaps.length === 8 &&
+    ['map', 'inventory', 'needs', 'skills', 'relationships', 'trade', 'combat', 'time'].every((id) => legacyMapCaps.includes(id)) &&
+    featureOn(mapProfile, 'combat') && featureOn(mapProfile, 'inventory'))
+check('explicit caps list takes precedence and remains exact',
+  explicitCaps.length === 1 && explicitCaps[0] === 'map' && featureOn(explicitProfile, 'map') && !featureOn(explicitProfile, 'combat'))
+check('unrecognized profile format fails loudly instead of returning an empty caps list',
+  malformedProfileError.includes('expected string[] or a boolean map'))
+check('campaign without either profile keeps the pre-registry default',
   ['map', 'inventory', 'needs', 'skills', 'relationships', 'trade', 'combat', 'time'].every((id) => featureOn({}, id)))
-check('featureOn включается только для зарегистрированной возможности из caps',
-  featureOn({ caps: ['map'] }, 'map') && !featureOn({ caps: ['map'] }, 'combat'))
+
 
 const badRuntime = registry.caps.filter((c: Json) => !registry.runtimes.includes(capRuntime(c)))
 const badStatus = registry.caps.filter((c: Json) => !registry.statuses.includes(c.status))

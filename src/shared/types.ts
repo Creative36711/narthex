@@ -583,6 +583,7 @@ export interface ItemCategoryDef {
  * Тумблеры скрывают подсистему и в движке, и в интерфейсе игрока.
  */
 export type CapabilityId = string
+export type CampaignFeatureList = CapabilityId[]
 
 export interface CampaignFeatures {
   /** карта мира и путешествия между локациями */
@@ -602,6 +603,9 @@ export interface CampaignFeatures {
   /** отображение часов и времени суток (ход времени остаётся) */
   time?: boolean
 }
+
+/** Accepted legacy profile encodings: feature-name list or boolean feature map. */
+export type CampaignFeatureProfile = CampaignFeatures | CampaignFeatureList
 
 // Runtime implementation lives with the capability registry; this re-export
 // preserves imports in the editor and player until their UI wiring is migrated.
