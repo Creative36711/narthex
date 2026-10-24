@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.46
+// @version      1.4.47
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -269,7 +269,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.46";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.47";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -1963,7 +1963,7 @@
         ? `CF_COORDINATOR_RESULT {"mission_id":"${expect.missionId || expect.ref}","turn_id":"${expect.turnId || ""}","status":"completed","next":"<роль|done>"}`
         : role.fn === "Auditor"
           ? `CF_AGENT_RESULT {"dispatch_id":"${expect.ref}","run_id":"${expect.runId || ""}","status":"submitted","check":0,"report":"<путь к отчёту>"}`
-          : `CF_AGENT_RESULT {"dispatch_id":"${expect.ref}","run_id":"${expect.runId || ""}","status":"submitted","check":0,"report":"<путь>","pr":<номер PR>,"merged":true}`;
+          : `CF_AGENT_RESULT {"dispatch_id":"${expect.ref}","run_id":"${expect.runId || ""}","status":"submitted","check":0,"report":"<путь>","pr":<номер PR|null>,"merged":true}`;
     const about = expect.title ? ` по «${expect.title}»` : "";
     const variants = [
       [
@@ -4121,6 +4121,25 @@
   const hasMergedClaim = (result) =>
     !!result && (result.merged === true || String(result.status || "").toLowerCase() === "merged");
 
+  /**
+   * «У этой работы нет PR» — сказано в маркере явно.
+   *
+   * Отчёт, аудит, запись решения в Notion: кода нет, мержить нечего. Пропуск
+   * `pr` значит «забыл» и по-прежнему ведёт в Rework, а вот `"pr": null`,
+   * `"none"`, `"-"` или `"нет"` — это заявка «PR не будет», и ждать мерж по ней
+   * нельзя: исполнитель честно ничего не пушил (Arena, 24.10: Build/Release на
+   * карточке-отчёте получил «Please open a pull request…» на пустом месте).
+   *
+   * Аудитору PR не нужен никогда: он не меняет репозиторий. Это правило живёт
+   * в `submitExecutor` по `role.fn`, а не здесь.
+   */
+  const prDeclined = (result) => {
+    if (!result || !("pr" in result)) return false;
+    const pr = result.pr;
+    if (pr === null || pr === undefined) return true;
+    return /^(none|null|no|нет|—|-)$/i.test(String(pr).trim());
+  };
+
   // ───────────────────────── техническая информация ─────────────────────────
   /**
    * Блок, который ScriptCat дописывает в КАЖДОЕ исходящее сообщение.
@@ -4295,12 +4314,15 @@
       "4. PR и мерж — сам, командами:",
       "   gh pr create --fill --base main   # если PR уже есть — пропусти",
       "   gh pr merge --squash --delete-branch",
+      "   Своих изменений в репозитории нет (отчёт, аудит-справка, запись решения): PR не открывай,",
+      "   пустой PR ради галочки не нужен — в маркере поставь \"pr\": null.",
       "5. Проверка: команда, код возврата, путь к отчёту. Если задание молчит в чём-то,",
       "   реши сам и запиши решение в docs/decisions/<миссия>.md — останавливаться не нужно.",
       "6. Последней строкой ответа — ровно один маркер:",
       `CF_AGENT_RESULT {"dispatch_id":"${task.id}","run_id":"${runId}","status":"submitted","check":0,"report":"<путь>","pr":<номер PR>,"merged":true}`,
       "`pr` и `merged: true` обязательны, если PR слит: без них «слит» не отличить от",
-      "«закрыт без мержа» — снаружи оба случая выглядят одинаково.",
+      "«закрыт без мержа» — снаружи оба случая выглядят одинаково. Работа без PR —",
+      "`\"pr\": null`: пропущенный `pr` считается забытым, а не отсутствующим.",
     ];
   }
 
@@ -4533,8 +4555,17 @@
     }
 
     // Аудитор не открывает PR: ждать мерж и нажимать Continue нечего.
-    // Иначе цикл встал бы на 5 минут на каждом аудите.
-    const merged = role.fn === "Auditor" ? "none" : await ensureMerged(page, result);
+    // Иначе цикл встал бы на 5 минут на каждом аудите. Тем же путём идёт
+    // исполнитель, который в маркере прямо сказал, что PR не будет
+    // (`"pr": null`): отчёт, аудит, запись решения — мержить нечего.
+    const noPr = role.fn === "Auditor" || prDeclined(result);
+    const merged = noPr ? "none" : await ensureMerged(page, result);
+    if (prDeclined(result) && role.fn !== "Auditor") {
+      log(
+        `PR не ждём: ${role.name} заявил работу без PR (pr: null) — принято по отчёту, ` +
+          "кнопки Create/Merge не трогал.",
+      );
+    }
 
     // PR закрыт. Так выглядит и ручной мерж через GitHub, и отказ от работы:
     // различаем по маркеру. Без заявки о мерже работа в main не попала —

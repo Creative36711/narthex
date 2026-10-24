@@ -119,4 +119,4 @@ assert.equal(
 );
 assert.equal(pickTarget({ expect: { roleId: 'неизвестно' }, rolesList: list }).name, 'Coordinator', 'неизвестная роль — не блокируем шаг');
 
-console.log('OK: narthex 1.4.46 — «Шаг» ведёт к тому, чей ответ ждут, а автоцикл живёт только в текущей вкладке');
+console.log('OK: narthex 1.4.47 — «Шаг» ведёт к тому, чей ответ ждут, а автоцикл живёт только в текущей вкладке');

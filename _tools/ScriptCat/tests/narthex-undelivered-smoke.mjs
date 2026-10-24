@@ -161,5 +161,5 @@ assert.match(src, /"Dispatch State": \{ select: \{ name: "Running" \} \}/, 'вы
 assert.match(src, /if \(rolled\) \{\n\s+GM_setValue\(K\.pending, null\);/, 'очередь снимается только вместе со статусом');
 
 console.log(
-  'OK: narthex 1.4.46 — ход, не дошедший до исполнителя, возвращает карточку в Ready, а не держит её 45 минут',
+  'OK: narthex 1.4.47 — ход, не дошедший до исполнителя, возвращает карточку в Ready, а не держит её 45 минут',
 );
