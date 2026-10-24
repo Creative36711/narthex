@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.48
+// @version      1.4.49
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -36,7 +36,8 @@
  *              уходит в Rework с причиной, а цикл продолжается.
  *   Timeout  — за prWaitMs мерж не появился: пауза, решение за человеком.
  *
- * Требует шлюза Drive v1.5 и Notion-токена с доступом к трём источникам.
+ * Требует шлюза Drive v1.5, Notion-токена с доступом к трём источникам и
+ * GitHub-токена на чтение PR: репозиторий приватный, анонимно он отвечает 404.
  */
 
 (() => {
@@ -85,6 +86,9 @@
     pause: "cfn-pause-context",
     ntfyTopic: "cfn-ntfy-topic",
     ntfyToken: "cfn-ntfy-token",
+    ghToken: "cfn-github-token",
+    ghAsk: "cfn-github-ask",
+    lastResult: "cfn-last-result",
     errSeen: "cfn-error-seen",
     step: "cfn-step-request",
     debug: "cfn-debug",
@@ -103,6 +107,7 @@
     clear: "cfn-clear",
     reset: "cfn-reset",
     ntfy: "cfn-ntfy",
+    gh: "cfn-gh",
     count: "cfn-log-count",
     debug: "cfn-debug-toggle",
   };
@@ -270,7 +275,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.48";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.49";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -819,6 +824,7 @@
         <button id="${ui.step}" title="Один шаг цикла" style="${btnStyle()}">Шаг</button>
         <button id="${ui.toggle}" style="${btnStyle()}">▶ Включить</button>
         <button id="${ui.ntfy}" title="Уведомления ntfy: тихие вехи и громкие тревоги" style="${btnStyle()}">🔔</button>
+        <button id="${ui.gh}" title="GitHub: токен для приватного репозитория и возврат карточки после ложного отказа" style="${btnStyle()}">🐙</button>
         <button id="${ui.debug}" title="Отладка в консоли браузера (F12)" style="${btnStyle()}">🐞</button>
         <button id="${ui.reset}" title="Сбросить очередь и ожидание прошлых попыток (журнал и настройки останутся)" style="${btnStyle()}">↺</button>
         <button id="${ui.clear}" title="Очистить журнал; очередь снимается кнопкой ↺" style="${btnStyle()}">🧹</button>
@@ -844,6 +850,7 @@
       paintDebugButton();
     };
     document.getElementById(ui.ntfy).onclick = () => ntfyDialog();
+    document.getElementById(ui.gh).onclick = () => githubDialog();
     document.getElementById(ui.stop).onclick = () => {
       GM_setValue(K.paused, "");
       GM_setValue(K.pause, null);
@@ -861,6 +868,7 @@
     renderLog();
     setStatus();
     paintDebugButton();
+    maybeGhDialog();
   }
 
   async function toggleAuto() {
@@ -927,6 +935,11 @@
       );
       if (gatewayIsOld(gatewayVersion)) {
         log("Шлюз старше 1.5: логи уедут в корень Диска. Обновите drive-gateway.gs.", true);
+      }
+      if (!ghToken()) {
+        log("Токен GitHub не задан: приватный репозиторий анонимно не виден, PR не проверить. Кнопка 🐙.", false, {
+          tone: "warn",
+        });
       }
     } catch (e) {
       log(`Настройка сохранена, но проверка не прошла: ${e.message}`, true);
@@ -1068,6 +1081,123 @@
     return "width:100%;box-sizing:border-box;background:#0f1115;color:#e7eaee;border:1px solid #343a46;border-radius:6px;padding:4px 6px;font:12px ui-monospace,Menlo,Consolas,monospace";
   }
 
+  // ───────────────────────────── GitHub ─────────────────────────────
+  /**
+   * Токен GitHub и возврат карточки после ложного отказа.
+   *
+   * 24.10 Мастер нажал «Шаг» и не увидел, что скрипту не хватает доступа:
+   * проверка молча получила 404 от приватного репозитория и отправила готовую
+   * работу в Rework. Теперь скрипт говорит об этом сам — в журнале и этим
+   * диалогом, — а кнопка «Вернуть карточку» исправляет уже случившееся.
+   */
+  function githubDialog() {
+    document.getElementById("cfn-gh-dialog")?.remove();
+    const box = document.createElement("div");
+    box.id = "cfn-gh-dialog";
+    box.style.cssText = [
+      "position:fixed", "right:14px", "bottom:150px", "z-index:2147483001", "width:400px",
+      "max-height:70vh", "overflow:auto",
+      "background:#15171c", "color:#e7eaee", "border:1px solid #2b2f38", "border-radius:10px",
+      "padding:10px", "font:12px/1.5 ui-monospace,Menlo,Consolas,monospace",
+      "box-shadow:0 10px 30px rgba(0,0,0,.45)",
+    ].join(";");
+    box.innerHTML = `
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+        <strong>🐙 GitHub</strong>
+        <span style="opacity:.5;font-size:10px">v${SCRIPT_VERSION}</span>
+        <span style="flex:1"></span>
+        <button id="cfn-gh-close" title="Закрыть" style="${btnStyle()}">✕</button>
+      </div>
+      <div style="opacity:.7;margin-bottom:8px">
+        <code>${C.repo}</code> приватный, поэтому без токена GitHub отвечает «404 —
+        такого PR нет». Токен нужен только на чтение: fine-grained с правом
+        <b>Pull requests: read</b> (и доступом к репозиторию) либо classic с <code>repo</code>.
+        Хранится в ScriptCat, в журнал не попадает.
+      </div>
+      <label style="display:block;margin-bottom:6px">Токен GitHub<br>
+        <input id="cfn-gh-token" type="password" placeholder="github_pat_…" style="${inputStyle()}"></label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button id="cfn-gh-save" style="${btnStyle()}">Сохранить</button>
+        <button id="cfn-gh-check" style="${btnStyle()}">Проверить доступ</button>
+        <button id="cfn-gh-recover" style="${btnStyle()}">Вернуть карточку</button>
+        <button id="cfn-gh-adopt" title="Ответ уже в чате, а ожидание потеряно" style="${btnStyle()}">Взять ответ</button>
+        <button id="cfn-gh-open" style="${btnStyle()}">Открыть токены</button>
+        <button id="cfn-gh-off" style="${btnStyle()}">Забыть токен</button>
+      </div>
+      <div id="cfn-gh-note" style="margin-top:8px;min-height:32px;white-space:pre-wrap;opacity:.9;font-size:11px;line-height:1.45"></div>`;
+    document.body.appendChild(box);
+
+    const input = box.querySelector("#cfn-gh-token");
+    const note = box.querySelector("#cfn-gh-note");
+    const say = (text, error = false) => {
+      note.textContent = text;
+      note.style.color = error ? "#ff9a9a" : "#bfe6c4";
+    };
+    input.value = ghToken();
+    say(ghToken() ? `Токен сохранён: ${ghMask(ghToken())}.` : "Токена нет: проверка PR по GitHub пока не работает.");
+
+    box.querySelector("#cfn-gh-close").onclick = () => box.remove();
+    box.querySelector("#cfn-gh-save").onclick = () => {
+      GM_setValue(K.ghToken, input.value.trim());
+      say(ghToken() ? `Сохранено: ${ghMask(ghToken())}. Проверьте доступ кнопкой ниже.` : "Токен удалён.");
+    };
+    box.querySelector("#cfn-gh-off").onclick = () => {
+      GM_setValue(K.ghToken, "");
+      input.value = "";
+      say("Токен удалён: PR будет проверяться анонимно, для приватного репозитория — никак.", true);
+    };
+    box.querySelector("#cfn-gh-open").onclick = () =>
+      window.open("https://github.com/settings/personal-access-tokens/new", "_blank", "noopener");
+    box.querySelector("#cfn-gh-check").onclick = async () => {
+      const token = input.value.trim();
+      say(token ? "Проверяю доступ к репозиторию…" : "Токена в поле нет — проверяю анонимный доступ…");
+      try {
+        const repo = await request("GET", `https://api.github.com/repos/${C.repo}`, githubHeaders(token));
+        const rights = repo && repo.permissions ? Object.keys(repo.permissions).filter((k) => repo.permissions[k]) : [];
+        say(
+          `Доступ есть: ${repo.full_name}, ${repo.private ? "приватный" : "публичный"}` +
+            (rights.length ? `, права: ${rights.join(", ")}` : "") +
+            ". Если токен новый — нажмите «Сохранить».",
+        );
+      } catch (e) {
+        const code = Number((e && e.status) || 0);
+        say(
+          code === 404
+            ? `Репозиторий не виден (HTTP 404): токен не выдан на ${C.repo} или просрочен.`
+            : code === 401
+              ? "Токен не принят (HTTP 401): проверьте, что скопирован целиком и не истёк."
+              : `Проверка не прошла: ${(e && e.message) || e}`,
+          true,
+        );
+      }
+    };
+    box.querySelector("#cfn-gh-recover").onclick = async () => {
+      say("Перепроверяю последнюю заявку о мерже…");
+      try {
+        const res = await recoverLastClaim();
+        say(res.text, !res.ok);
+      } catch (e) {
+        say(`Вернуть не удалось: ${e.message}`, true);
+      }
+    };
+    box.querySelector("#cfn-gh-adopt").onclick = async () => {
+      say("Ищу ответ на этой странице…");
+      try {
+        const res = await adoptPageAnswer();
+        say(res.text, !res.ok);
+      } catch (e) {
+        say(`Ответ не взят: ${e.message}`, true);
+      }
+    };
+  }
+
+  /** Один раз после ложного отказа сами показываем, где взять токен. */
+  function maybeGhDialog() {
+    if (!GM_getValue(K.ghAsk, 0)) return;
+    GM_setValue(K.ghAsk, 0);
+    setTimeout(() => githubDialog(), 400);
+  }
+
   // ───────────────────────────── HTTP ─────────────────────────────
   /** Сбой на уровне сети: запрос не дошёл. Повторять имеет смысл. */
   const networkish = (text) => /сеть|таймаут|failed to fetch|network|load failed/i.test(String(text || ""));
@@ -1090,10 +1220,16 @@
             parsed = r.responseText;
           }
           if (r.status >= 200 && r.status < 300) resolve(parsed);
-          else reject(new Error(`HTTP ${r.status}: ${(parsed && (parsed.message || parsed.error)) || r.statusText}`));
+          else {
+            const err = new Error(`HTTP ${r.status}: ${(parsed && (parsed.message || parsed.error)) || r.statusText}`);
+            // Код нужен вызывающему: 404 приватного репозитория и 404 «PR нет» —
+            // разные вещи, и различает их только наличие токена (1.4.49).
+            err.status = Number(r.status) || 0;
+            reject(err);
+          }
         },
-        onerror: () => reject(new Error("сеть недоступна или хост не разрешён в @connect")),
-        ontimeout: () => reject(new Error("таймаут запроса")),
+        onerror: () => reject(Object.assign(new Error("сеть недоступна или хост не разрешён в @connect"), { status: 0 })),
+        ontimeout: () => reject(Object.assign(new Error("таймаут запроса"), { status: 0 })),
       });
     });
   }
@@ -4068,8 +4204,19 @@
     // 24.10 на экране Build/Release висела активная «Create PR» (Arena не
     // знает о PR, слитом через `gh`), и отличить сделанную работу от
     // выдуманной было нечем. Теперь состояние спрашиваем у GitHub.
-    const check = await verifyMergeClaim(result);
+    const check = await verifyMergeClaim(result, ghToken());
     lastMergeCheck = check;
+    // Проверка не дошла до GitHub (нет токена, отказ прав, сеть). Заявку это не
+    // отменяет: без проверки действует прежнее правило, но мастер должен знать,
+    // что «слит» принято на слово, и что делать.
+    if (check.status === "unknown" && check.needsToken) {
+      log(
+        `GitHub не проверил ${prLabelOf(result)}: ${check.why}. Заявка принимается по маркеру; ` +
+          "чтобы проверять по GitHub, вставьте токен в 🐙.",
+        false,
+        { tone: "warn", ntfy: "quiet", title: "Narthex: GitHub без токена" },
+      );
+    }
     if (check.status === "open" || check.status === "closed" || check.status === "missing") {
       log(
         `Заявка «${prLabelOf(result)} слит» не подтвердилась: ${check.why}. ` +
@@ -4123,6 +4270,20 @@
     return "closed";
   }
 
+  /**
+   * Токен GitHub.
+   *
+   * 24.10 репозиторий `Creative36711/narthex` оказался приватным: анонимный
+   * запрос к API отвечает на него «404 Not Found» — так же, как на PR, которого
+   * нет. 1.4.48 приняла этот ответ за правду и отправила готовую работу
+   * (PR #37) в Rework. Токен читает состояние PR; хранится в ScriptCat и в
+   * журнал не попадает.
+   */
+  const ghToken = () => String(GM_getValue(K.ghToken, "") || "").trim();
+
+  /** Подпись токена для журнала и диалога: сам токен не показываем. */
+  const ghMask = (token) => (token ? `${token.slice(0, 4)}…${token.slice(-4)}` : "не задан");
+
   /** Ссылка на PR: принимаем и номер, и готовый URL. */
   function prUrl(pr) {
     const value = String(pr ?? "").trim().replace(/^#/, "");
@@ -4153,16 +4314,25 @@
     return num ? { repo: C.repo, number: Number(num[1]) } : null;
   }
 
+  /** Заголовки GitHub API. Без токена запрос остаётся анонимным (60 в час). */
+  function githubHeaders(token) {
+    const headers = {
+      Accept: "application/vnd.github+json",
+      "User-Agent": "narthex-scriptcat",
+      "X-GitHub-Api-Version": "2022-11-28",
+    };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    return headers;
+  }
+
   /**
    * Состояние PR по GitHub API.
    *
-   * Репозиторий публичный, поэтому токен не нужен: 60 запросов в час хватает
-   * с запасом — проверка идёт один раз за ход. Сам ScriptCat раньше «не имел
-   * доступа к API GitHub», и заявка агента принималась на веру.
+   * Проверка идёт один раз за ход. Приватному репозиторию нужен токен:
+   * без него GitHub отвечает 404 независимо от того, есть PR или нет.
    */
-  async function githubPr(repo, number) {
-    const headers = { Accept: "application/vnd.github+json", "User-Agent": "narthex-scriptcat" };
-    return request("GET", `https://api.github.com/repos/${repo}/pulls/${number}`, headers);
+  async function githubPr(repo, number, token = "") {
+    return request("GET", `https://api.github.com/repos/${repo}/pulls/${number}`, githubHeaders(token));
   }
 
   /**
@@ -4170,14 +4340,17 @@
    *
    * `status`: merged — GitHub подтвердил; open / closed / missing — заявка
    * ложная, принимать её нельзя; unknown — проверить не удалось (сеть, лимит,
-   * нет номера), и тогда остаётся прежнее правило «верим маркеру, но говорим
-   * об этом в журнале».
+   * нет номера, нет токена), и тогда остаётся прежнее правило «верим маркеру,
+   * но говорим об этом в журнале».
+   *
+   * `needsToken` — проверка упёрлась в доступ, а не в состояние PR: приватный
+   * репозиторий без токена отвечает 404, и это нельзя читать как «PR нет».
    */
-  async function verifyMergeClaim(result) {
+  async function verifyMergeClaim(result, token = "") {
     const ref = prRef(result);
     if (!ref) return { status: "unknown", why: "в маркере нет номера PR" };
     try {
-      const pr = await githubPr(ref.repo, ref.number);
+      const pr = await githubPr(ref.repo, ref.number, token);
       if (!pr || typeof pr !== "object") return { status: "unknown", why: "GitHub ответил пустым ответом" };
       const merged = pr.merged === true || Boolean(pr.merged_at);
       if (merged) return { status: "merged", why: `PR #${ref.number} слит ${pr.merged_at || ""}`.trim(), pr };
@@ -4186,9 +4359,141 @@
       return { status: "open", why: `PR #${ref.number} ещё открыт`, pr };
     } catch (e) {
       const raw = String((e && e.message) || e);
-      if (/HTTP 404/.test(raw)) return { status: "missing", why: `PR #${ref.number} не найден в ${ref.repo}` };
-      return { status: "unknown", why: `GitHub не ответил: ${raw}` };
+      const code = Number((e && e.status) || (raw.match(/HTTP (\d{3})/) || [])[1] || 0);
+      // 404 без токена — «не видно», а не «нет»: именно на этом 24.10 готовый
+      // PR #37 уехал в Rework. Проверять наличие PR вправе только токен.
+      if (code === 404 && !token)
+        return {
+          status: "unknown",
+          needsToken: true,
+          why: `PR #${ref.number} анонимно не виден: ${ref.repo} приватный — нужен токен GitHub (🐙)`,
+        };
+      if (code === 404) {
+        // Прежде чем сказать «PR нет», убеждаемся, что токен вообще видит
+        // репозиторий: иначе «нет прав» снова станет «нет работы».
+        try {
+          await request("GET", `https://api.github.com/repos/${ref.repo}`, githubHeaders(token));
+        } catch (e2) {
+          return {
+            status: "unknown",
+            needsToken: true,
+            why: `ни PR #${ref.number}, ни сам ${ref.repo} токену не видны — проверьте доступ к репозиторию`,
+          };
+        }
+        return { status: "missing", why: `PR #${ref.number} не найден в ${ref.repo}` };
+      }
+      if (code === 401 || code === 403)
+        return {
+          status: "unknown",
+          needsToken: true,
+          why: `GitHub не принял токен (HTTP ${code}): проверьте срок и право «Pull requests: read»`,
+        };
+      if (!code) return { status: "unknown", why: `GitHub не ответил: ${raw}` };
+      return { status: "unknown", why: `GitHub ответил HTTP ${code}`, code };
     }
+  }
+
+  /**
+   * Вернуть карточку, которую проверка ошибочно отправила в Rework.
+   *
+   * 24.10 NAR-1.13 лежала в Rework при слитом PR #37: работа в main, а
+   * Координатор уже готовил повторную выдачу. Кнопка 🐙 → «Вернуть карточку»
+   * спрашивает GitHub ещё раз и, если мерж подтверждён, ставит ровно то, что
+   * поставила бы удачная проверка: Submitted, Submitted At, PR и отметку в
+   * «Ответ». Ready не трогаем: если карточку уже выдали заново, решает Мастер.
+   */
+  async function recoverLastClaim() {
+    const last = GM_getValue(K.lastResult, null);
+    if (!last || !last.dispatch_id) return { ok: false, text: "Нет запомненной выдачи: возвращать нечего." };
+    const check = await verifyMergeClaim(last.result || last, ghToken());
+    if (check.status !== "merged")
+      return { ok: false, text: `GitHub мерж не подтверждает: ${check.why}. Карточка не тронута.` };
+    const page = await notion("GET", `pages/${last.dispatch_id}`);
+    const state = taskState(page);
+    const name = last.task || last.dispatch_id;
+    if (state === "Submitted" || state === "Accepted") return { ok: true, text: `«${name}» уже ${state} — всё на месте.` };
+    if (state === "Ready")
+      return {
+        ok: false,
+        text: `«${name}» уже вернулась в Ready: её могли выдать заново. Правку не делаю — решение за Мастером.`,
+      };
+    const link = prUrl((check.pr && check.pr.html_url) || last.pr);
+    const note =
+      `Восстановлено после ложного отказа проверки: GitHub подтвердил мерж ${link || `PR #${last.pr}`}` +
+      ` (${check.why}). Повторная работа по карточке не нужна.`;
+    const props = {
+      "Dispatch State": { select: { name: "Submitted" } },
+      "Ответ": { rich_text: [{ type: "text", text: { content: note } }] },
+      "Submitted At": { date: { start: nowIso() } },
+    };
+    if (link) props["PR"] = { url: link };
+    await patch(last.dispatch_id, props);
+    GM_setValue(`cfn-done:${last.dispatch_id}:${last.run_id}`, true);
+    GM_setValue(K.lastResult, { ...last, recoveredAt: Date.now(), verdict: "Submitted" });
+    log(`«${name}» возвращена в Submitted: GitHub подтвердил мерж ${link || ""}`.trim(), false, {
+      tone: "ok",
+      ntfy: "quiet",
+      title: "Narthex: карточка восстановлена",
+    });
+    return { ok: true, text: `Готово: «${name}» снова Submitted, ${link || `PR #${last.pr}`}.` };
+  }
+
+  /**
+   * Ответ уже в чате, а ожидания нет.
+   *
+   * Скрипт перезапускался, страницу перезагружали, прошлая попытка снимала
+   * ожидание — а агент ответил, и карточка осталась в Running. Тогда
+   * Координатор ждёт ход, которого никто не начнёт, и через 45 минут карточка
+   * уедет в Ready как «брошенная» — то есть работа пойдёт по второму кругу.
+   * Кнопка «Взять ответ» читает последний маркер этой страницы и отдаёт его
+   * обычному пути submitExecutor. Ничего не додумывает: нужен маркер, карточка
+   * в Running, тот же адресат и отсутствие отметки «уже обработано».
+   */
+  async function adoptPageAnswer() {
+    const roleId = roleFromPath();
+    if (!roleId) return { ok: false, text: "Откройте страницу агента: брать ответ не с кого." };
+    const list = await roles();
+    const role = list.find((r) => norm(r.id) === norm(roleId));
+    if (!role) return { ok: false, text: "Страница не привязана к активной роли — проверьте «Agent URL»." };
+    if (role.fn === "Coordinator")
+      return { ok: false, text: "Это страница Координатора: его ход читается кнопкой «Шаг», а не отсюда." };
+    const all = messages();
+    const last = [...all].reverse().find((n) => !isUserNode(n));
+    if (!last) return { ok: false, text: "В чате нет ответов агента." };
+    const result = parseMarker(messageRaw(last), "CF_AGENT_RESULT") || parseMarker(messageRaw(last), "CF_COORDINATOR_RESULT");
+    if (!result) return { ok: false, text: "В последнем ответе нет маркера выдачи — читать нечего." };
+    const ref = norm(result.dispatch_id || result.turn_id || result.mission_id);
+    if (!isUuid(ref)) return { ok: false, text: `В маркере битый id («${ref || "нет"}») — прочитать ответ по нему нельзя.` };
+    const run = norm(result.run_id);
+    if (GM_getValue(`cfn-done:${ref}:${run}`, false))
+      return { ok: false, text: "Эта выдача уже обработана — второй раз не читаю." };
+    const page = await notion("GET", `pages/${ref}`);
+    const state = taskState(page);
+    if (state !== "Running")
+      return { ok: false, text: `Карточка уже «${state || "без состояния"}» — читать нечего.` };
+    const owner = norm(rt(page.properties["Recipient Agent ID"]));
+    if (owner && owner !== norm(role.id))
+      return { ok: false, text: "Ответ принадлежит другому агенту — не беру." };
+    // Граница — сообщение перед ответом: в журнал попадёт только он.
+    const at = all.indexOf(last);
+    const watermark = at > 0 ? nodeId(all[at - 1]) : "";
+    const expect = {
+      ref,
+      runId: run,
+      roleId: role.id,
+      roleName: role.name,
+      kind: "dispatch",
+      sentAt: Date.now(),
+      verified: true,
+      watermark,
+      tries: 0,
+      lastReplySig: "",
+      lastReplyAt: 0,
+      adopted: true,
+    };
+    GM_setValue(K.expect, expect);
+    await submitExecutor(role, expect, true);
+    return { ok: true, text: `Ответ ${role.name} взят в работу: журнал, проверка PR и карточка — обычным путём.` };
   }
 
   /** Последняя проверка заявки — причина для карточки Rework. */
@@ -4637,6 +4942,27 @@
     // (`"pr": null`): отчёт, аудит, запись решения — мержить нечего.
     const noPr = role.fn === "Auditor" || prDeclined(result);
     const merged = noPr ? "none" : await ensureMerged(page, result);
+    // Что решила проверка — запоминаем до записи в Notion. Если она ошиблась,
+    // 🐙 → «Вернуть карточку» перепроверит GitHub и вернёт Submitted, не гоняя
+    // исполнителя по второму кругу.
+    GM_setValue(K.lastResult, {
+      at: Date.now(),
+      dispatch_id: result.dispatch_id,
+      run_id: result.run_id,
+      pr: result.pr ?? null,
+      merged: result.merged === true,
+      task: taskTitle(page),
+      logId,
+      verdict: merged,
+      why: (lastMergeCheck && lastMergeCheck.why) || "",
+      result: {
+        pr: result.pr ?? null,
+        merged: result.merged === true,
+        status: result.status ?? null,
+        report: result.report ?? null,
+      },
+    });
+    if (!noPr && lastMergeCheck && lastMergeCheck.needsToken) GM_setValue(K.ghAsk, Date.now());
     if (prDeclined(result) && role.fn !== "Auditor") {
       log(
         `PR не ждём: ${role.name} заявил работу без PR (pr: null) — принято по отчёту, ` +

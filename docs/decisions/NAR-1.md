@@ -837,4 +837,30 @@
   `narthex-continue-claim-smoke.mjs`, `narthex-pr-claim-smoke.mjs`,
   `narthex-completion-plaque-smoke.mjs`.
 
-_(следующая запись — D-054)_
+### D-054 · Приватный репозиторий: 404 — это не «PR нет», а «не видно»
+
+- **Неясно:** 24.10 1.4.48 отправила NAR-1.13 в `Rework`: «PR #37 не найден в
+  Creative36711/narthex». PR был слит (`8c93677`, 16:16 UTC). `curl` с токеном
+  получал 200, а из браузера приходил 404: `Creative36711/narthex` приватный, а
+  GitHub отвечает 404 одинаково — и на несуществующий PR, и на невидимый
+  репозиторий. Скрипт не различал «нет доступа» и «нет PR».
+- **Решил:** различать доступ и состояние. Токен GitHub хранится в ScriptCat
+  (кнопка 🐙) и уходит заголовком `Authorization: Bearer`; 404 без токена —
+  `unknown` с `needsToken` (заявка принимается по маркеру, диалог открывается
+  сам), 404 с токеном — `missing`, 401/403 — `unknown`. Код ответа кладётся в
+  `err.status`, а не парсится из текста. Плюс возврат уже испорченной карточки:
+  🐙 → «Вернуть карточку» перепроверяет последнюю выдачу (`cfn-last-result`) и
+  ставит `Submitted` с `PR`, `Submitted At` и отметкой в «Ответ»; `Ready` не
+  трогает — перевыданную карточку решает Мастер. Там же — «Взять ответ»: если
+  агент ответил, а ожидание потеряно (перезапуск, перезагрузка, снятая прошлая
+  попытка), последний маркер страницы читается обычным путём `submitExecutor`
+  при условии `Running`, совпадения адресата и отсутствия `cfn-done`.
+- **Откат:** `K.ghToken` / `K.ghAsk` / `K.lastResult`, `ghToken` / `ghMask`,
+  `githubHeaders`, `githubPr(repo, number, token)`,
+  `verifyMergeClaim(result, token)`, `recoverLastClaim`, `githubDialog`,
+  `maybeGhDialog`, `adoptPageAnswer`, `err.status` в `requestOnce`; пробы
+  `narthex-merge-verify-smoke.mjs` (расширена),
+  `narthex-github-recover-smoke.mjs` (новая),
+  `narthex-continue-claim-smoke.mjs`, `narthex-pr-claim-smoke.mjs`.
+
+_(следующая запись — D-055)_

@@ -121,4 +121,4 @@ const reminderTo = src.indexOf('  /**', reminderFrom + 10);
 const markerBlock = src.slice(reminderFrom, reminderTo);
 assert.doesNotMatch(markerBlock, FORBIDDEN, 'в напоминании о маркере нет кнопок');
 
-console.log('OK: narthex 1.4.48 — агенту не рассказывают про кнопки, задание берётся из карточки, журнал попытки заполняется сразу');
+console.log('OK: narthex 1.4.49 — агенту не рассказывают про кнопки, задание берётся из карточки, журнал попытки заполняется сразу');
