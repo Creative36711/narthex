@@ -1,4 +1,4 @@
-// Проба 1.4.49: «слит» в маркере — заявка, а не факт; 404 без токена — не «PR нет».
+// Проба 1.4.50: «слит» в маркере — заявка, а не факт; 404 без токена — не «PR нет».
 //
 // 24.10 на странице Build/Release висела активная «Create PR»: Arena не знает
 // о PR, который агент слил через `gh`. Тогда транспорт верил маркеру на слово.
@@ -10,9 +10,9 @@
 // Здесь проверяется:
 //   • номер PR берётся и числом, и ссылкой, и с чужим репозиторием;
 //   • состояние спрашивается у GitHub с токеном и без;
-//   • 404 без токена = «не проверили», 404 с токеном = «нет PR»;
+//   • 404 без токена = «не проверили», и 404 с токеном — тоже не «нет PR»;
 //   • 401/403 — тоже «не проверили», а не отказ в работе;
-//   • ложная заявка (open / closed / missing) не принимается и даёт Rework;
+//   • ложная заявка (open / closed) не принимается и даёт Rework;
 //   • в журнале сказано, подтвердил GitHub мерж или нет.
 
 import { readFileSync } from 'node:fs';
@@ -21,7 +21,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // ── 1. Версия и разрешение хоста ───────────────────────────────────────────
-assert.match(src, /@version\s+1\.4\.49/, 'версия 1.4.49');
+assert.match(src, /@version\s+1\.4\.50/, 'версия 1.4.50');
 assert.match(src, /\/\/ @connect\s+api\.github\.com/, 'api.github.com разрешён в @connect');
 
 // ── 2. Номер и репозиторий PR ──────────────────────────────────────────────
@@ -54,7 +54,7 @@ assert.equal(prRef(null), null, 'без ответа — тоже');
 const verifyFrom = src.indexOf('  async function verifyMergeClaim(result, token = "") {');
 // Границей служит следующая функция, а не её докблок: слова «вернуть карточку»
 // встречаются раньше, в комментарии про Ready.
-const verifyTo = src.indexOf('  async function recoverLastClaim() {');
+const verifyTo = src.indexOf('  async function recoverLastClaim(adopt = true) {');
 assert.ok(verifyFrom > 0 && verifyTo > verifyFrom, 'verifyMergeClaim на месте');
 
 function makeVerify(answer, repoAnswer = { full_name: 'Creative36711/narthex', private: true }) {
@@ -85,9 +85,11 @@ assert.equal(open.status, 'open', 'открытый PR — не мерж');
 const closed = await makeVerify({ merged: false, state: 'closed' }).verifyMergeClaim({ pr: 37 }, 'ghp_token');
 assert.equal(closed.status, 'closed', 'закрытый без мержа — тоже не мерж');
 
-// Токен есть — 404 значит именно «нет PR».
+// Токен есть, репозиторий виден, а PR не читается. Это всё равно не «нет PR»:
+// 24.10 на таком ответе слитый PR #37 уехал в Rework, поэтому статус — unknown.
 const missing = await makeVerify(new Error('HTTP 404: Not Found')).verifyMergeClaim({ pr: 37 }, 'ghp_token');
-assert.equal(missing.status, 'missing', 'с токеном 404 — «PR не найден»');
+assert.equal(missing.status, 'unknown', '404 на PR не доказывает, что PR нет');
+assert.equal(missing.notFound, true, 'но это названо: PR не читается');
 
 // Токена нет — тот же 404 значит «приватный репозиторий не виден».
 const hidden = await makeVerify(new Error('HTTP 404: Not Found')).verifyMergeClaim({ pr: 37 });
@@ -106,11 +108,11 @@ assert.match(hidden.why, /приватный|токен/i, 'в причине с
 
 // Код в ошибке важнее текста: ScriptCat не всегда кладёт «HTTP 404» в message.
 const byStatus = Object.assign(new Error('Not Found'), { status: 404 });
-assert.equal(
-  (await makeVerify(byStatus).verifyMergeClaim({ pr: 37 }, 'ghp_token')).status,
-  'missing',
-  'код берётся из e.status, а не только из текста',
-);
+{
+  const byCode = await makeVerify(byStatus).verifyMergeClaim({ pr: 37 }, 'ghp_token');
+  assert.equal(byCode.status, 'unknown', 'код берётся из e.status, а не только из текста');
+  assert.equal(byCode.notFound, true, 'и 404 по коду — тоже «не читается», а не «нет»');
+}
 
 for (const code of [401, 403]) {
   const denied = Object.assign(new Error(`HTTP ${code}: Bad credentials`), { status: code });
@@ -228,4 +230,4 @@ assert.ok(
 );
 assert.match(src, /K\.ghAsk/, 'после нехватки токена скрипт сам показывает, где его взять');
 
-console.log('OK: narthex 1.4.49 — заявка о мерже проверяется по GitHub, 404 без токена не считается отказом');
+console.log('OK: narthex 1.4.50 — заявка о мерже проверяется по GitHub, 404 без токена не считается отказом');

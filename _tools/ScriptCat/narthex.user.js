@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.49
+// @version      1.4.50
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -275,7 +275,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.49";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.50";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -4217,7 +4217,17 @@
         { tone: "warn", ntfy: "quiet", title: "Narthex: GitHub без токена" },
       );
     }
-    if (check.status === "open" || check.status === "closed" || check.status === "missing") {
+    if (check.notFound) {
+      // Самая дорогая ошибка суток: слитый PR #37 объявили отсутствующим, и
+      // готовая работа уехала в Rework. 404 не доказывает, что PR нет.
+      log(
+        `GitHub не читает ${prLabelOf(result)}: ${check.why}. ` +
+          "Заявка принимается по маркеру, карточку в Rework за 404 не отправляю.",
+        true,
+        { tone: "warn", ntfy: "quiet", title: "Narthex: PR не виден по API" },
+      );
+    }
+    if (check.status === "open" || check.status === "closed") {
       log(
         `Заявка «${prLabelOf(result)} слит» не подтвердилась: ${check.why}. ` +
           "Карточка вернётся в Rework — работа в main не попала.",
@@ -4338,10 +4348,11 @@
   /**
    * Проверка «PR слит» из маркера.
    *
-   * `status`: merged — GitHub подтвердил; open / closed / missing — заявка
-   * ложная, принимать её нельзя; unknown — проверить не удалось (сеть, лимит,
-   * нет номера, нет токена), и тогда остаётся прежнее правило «верим маркеру,
-   * но говорим об этом в журнале».
+   * `status`: merged — GitHub подтвердил; open / closed — заявка ложная,
+   * принимать её нельзя; unknown — проверить не удалось (сеть, лимит, нет
+   * номера, нет токена, PR не читается), и тогда остаётся прежнее правило
+   * «верим маркеру, но говорим об этом в журнале». Статуса «PR нет» больше
+   * нет: 404 означает только «не видно».
    *
    * `needsToken` — проверка упёрлась в доступ, а не в состояние PR: приватный
    * репозиторий без токена отвечает 404, и это нельзя читать как «PR нет».
@@ -4380,7 +4391,14 @@
             why: `ни PR #${ref.number}, ни сам ${ref.repo} токену не видны — проверьте доступ к репозиторию`,
           };
         }
-        return { status: "missing", why: `PR #${ref.number} не найден в ${ref.repo}` };
+        // 404 — это «не видно», а не «нет». Отсутствие PR по нему не
+        // доказывается: 24.10 такой ответ уже отправил слитый PR #37 в Rework.
+        // Поэтому статус остаётся unknown, и карточку за него не отбираем.
+        return {
+          status: "unknown",
+          notFound: true,
+          why: `PR #${ref.number} в ${ref.repo} не читается (404), но отсутствие PR этим не доказывается`,
+        };
       }
       if (code === 401 || code === 403)
         return {
@@ -4402,7 +4420,7 @@
    * поставила бы удачная проверка: Submitted, Submitted At, PR и отметку в
    * «Ответ». Ready не трогаем: если карточку уже выдали заново, решает Мастер.
    */
-  async function recoverLastClaim() {
+  async function recoverLastClaim(adopt = true) {
     const last = GM_getValue(K.lastResult, null);
     if (!last || !last.dispatch_id) return { ok: false, text: "Нет запомненной выдачи: возвращать нечего." };
     const check = await verifyMergeClaim(last.result || last, ghToken());
@@ -4411,7 +4429,6 @@
     const page = await notion("GET", `pages/${last.dispatch_id}`);
     const state = taskState(page);
     const name = last.task || last.dispatch_id;
-    if (state === "Submitted" || state === "Accepted") return { ok: true, text: `«${name}» уже ${state} — всё на месте.` };
     if (state === "Ready")
       return {
         ok: false,
@@ -4421,6 +4438,71 @@
     const note =
       `Восстановлено после ложного отказа проверки: GitHub подтвердил мерж ${link || `PR #${last.pr}`}` +
       ` (${check.why}). Повторная работа по карточке не нужна.`;
+
+    // Журнал важнее карточки: Координатор принимает по нему. 24.10 в 19:57
+    // случилось ровно это — карточка уже была возвращена в Submitted, а в
+    // журнале остался блок «Заявка о мерже не подтвердилась», и Координатор
+    // снова поставил Rework, хотя PR #37 лежал в main. Опровержение пишется
+    // отдельным маркером, поэтому повторный клик его не дублирует.
+    let logFix = "";
+    if (last.logId) {
+      const marker = `<!-- CF_DISPATCH ${last.dispatch_id}:${last.run_id}:recovered -->`;
+      try {
+        const wrote = await gateway("append", last.logId, {
+          marker,
+          entry: `\n\n${marker}\n## Проверка мержа исправлена\n\n${note}\n`,
+        });
+        logFix = wrote && wrote.duplicate ? " Опровержение уже было в журнале." : " Опровержение записано в журнал.";
+      } catch (e) {
+        logFix = ` Опровержение в журнал записать не удалось: ${e.message}.`;
+      }
+    }
+
+    if (state === "Submitted" || state === "Accepted") {
+      log(`«${name}» уже ${state}: журнал проверен${logFix ? "," : ""}${logFix}`, false, { tone: "ok" });
+      return { ok: true, text: `«${name}» уже ${state}.${logFix}` };
+    }
+
+    // Rework — это отказ, при котором ответ агента так и не был прочитан
+    // (24.10: работа в main, а карточка ушла в Rework). Такую карточку
+    // возвращаем не в Submitted, а в Running: иначе ответ останется в чате
+    // невычитанным, и следующая выдача станет дублем (🐙 → «Взять ответ»).
+    if (state === "Rework" || state === "Running") {
+      if (state === "Rework") {
+        const props = {
+          "Dispatch State": { select: { name: "Running" } },
+          "Ответ": { rich_text: [{ type: "text", text: { content: note } }] },
+        };
+        if (link) props["PR"] = { url: link };
+        await patch(last.dispatch_id, props);
+      }
+      GM_setValue(`cfn-done:${last.dispatch_id}:${last.run_id}`, false);
+      GM_setValue(K.lastResult, { ...last, recoveredAt: Date.now(), verdict: "Running" });
+      let taken = "";
+      try {
+        const here = adopt && typeof roleFromPath === "function" ? roleFromPath() : "";
+        if (here && norm(here) === norm(last.roleId)) {
+          const got = await adoptPageAnswer();
+          taken =
+            got && got.ok
+              ? " Ответ прочитан и оформлен обычным путём."
+              : ` Ответ сразу не прочитан: ${(got && got.text) || "неизвестно"}.`;
+        } else {
+          taken =
+            ` Откройте страницу «${last.roleName || "исполнителя"}» и нажмите «Взять ответ»:` +
+            " карточка снова Running, ответ ждёт.";
+        }
+      } catch (e) {
+        taken = ` Ответ сразу не прочитан: ${e.message}. Кнопка «Взять ответ» на странице роли.`;
+      }
+      log(`«${name}» возвращена в Running: GitHub подтвердил мерж ${link || ""}`.trim() + logFix, false, {
+        tone: "ok",
+        ntfy: "quiet",
+        title: "Narthex: карточка возвращена в работу",
+      });
+      return { ok: true, text: `Готово: «${name}» снова Running, ${link || `PR #${last.pr}`}.${logFix}${taken}` };
+    }
+
     const props = {
       "Dispatch State": { select: { name: "Submitted" } },
       "Ответ": { rich_text: [{ type: "text", text: { content: note } }] },
@@ -4430,12 +4512,39 @@
     await patch(last.dispatch_id, props);
     GM_setValue(`cfn-done:${last.dispatch_id}:${last.run_id}`, true);
     GM_setValue(K.lastResult, { ...last, recoveredAt: Date.now(), verdict: "Submitted" });
-    log(`«${name}» возвращена в Submitted: GitHub подтвердил мерж ${link || ""}`.trim(), false, {
+    log(`«${name}» возвращена в Submitted: GitHub подтвердил мерж ${link || ""}`.trim() + logFix, false, {
       tone: "ok",
       ntfy: "quiet",
       title: "Narthex: карточка восстановлена",
     });
-    return { ok: true, text: `Готово: «${name}» снова Submitted, ${link || `PR #${last.pr}`}.` };
+    return { ok: true, text: `Готово: «${name}» снова Submitted, ${link || `PR #${last.pr}`}.${logFix}` };
+  }
+
+  /**
+   * Ложный отказ чинится сам, не дожидаясь Мастера.
+   *
+   * 24.10 транспорт дважды возвращал слитую работу в Rework: человек узнавал
+   * об этом от Координатора, а не от скрипта. Если последняя проверка сказала
+   * «заявка не подтвердилась», а GitHub теперь говорит «слит», это уже
+   * известный дефект — карточка и журнал исправляются без кликов. Ответ при
+   * этом не берётся: его читают кнопкой на странице роли, иначе ход пойдёт
+   * мимо очереди.
+   */
+  let healedThisPage = false;
+  async function selfHealClaim() {
+    if (healedThisPage) return;
+    const last = GM_getValue(K.lastResult, null);
+    if (!last || last.verdict !== "claim-rejected" || last.recoveredAt) return;
+    healedThisPage = true;
+    const check = await verifyMergeClaim(last.result || last, ghToken());
+    if (check.status !== "merged") return;
+    log(
+      `Проверка ошиблась: GitHub подтвердил мерж ${prLabelOf(last.result || last)} — ` +
+        "возвращаю карточку и исправляю журнал.",
+      false,
+      { tone: "ok", ntfy: "quiet", title: "Narthex: ложный отказ исправлен" },
+    );
+    await recoverLastClaim(false);
   }
 
   /**
@@ -4953,6 +5062,8 @@
       merged: result.merged === true,
       task: taskTitle(page),
       logId,
+      roleId: role.id,
+      roleName: role.name,
       verdict: merged,
       why: (lastMergeCheck && lastMergeCheck.why) || "",
       result: {
@@ -5716,6 +5827,13 @@
         );
         return;
       }
+    }
+    // Ложный отказ проверки мержа чинится сам: иначе карточка ждёт Мастера,
+    // а работа уже лежит в main (24.10 так было дважды).
+    try {
+      await selfHealClaim();
+    } catch (e) {
+      log(`Самопроверка последнего отказа не удалась: ${e.message}`, true);
     }
     // Незавершённая отправка живёт в очереди и не зависит от автоцикла:
     // иначе после перехода на страницу адресата задание никто не досылал.

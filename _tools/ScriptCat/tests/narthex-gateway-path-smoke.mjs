@@ -184,4 +184,4 @@ const load = ({ gm, fetchImpl }) => {
   assert.match(submit, /GM_setValue\(K\.expect, null\)/, 'ожидание действительно снимается');
 }
 
-console.log('OK: narthex 1.4.49 — шлюз Drive идёт через расширение, сеть повторяется, ошибка называет источник');
+console.log('OK: narthex 1.4.50 — шлюз Drive идёт через расширение, сеть повторяется, ошибка называет источник');
