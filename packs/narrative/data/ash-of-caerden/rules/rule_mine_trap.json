@@ -1,0 +1,20 @@
+{
+  "id": "rule_mine_trap",
+  "label": "Ловушка в шахте",
+  "once": true,
+  "conditions": [{ "type": "player_enters_scene", "scene": "scene_mine_deep" }],
+  "effects": [
+    {
+      "type": "skill_check_gate",
+      "skill": "spot",
+      "difficulty": 40,
+      "success_effects": [
+        { "type": "show_message", "text": "Под слоем пыли вы вовремя замечаете натянутую бечеву: самострел вора всё ещё сторожит его добычу. Вы аккуратно обходите ловушку." }
+      ],
+      "fail_effects": [
+        { "type": "change_hp", "delta": -3 },
+        { "type": "show_message", "text": "Щёлк! Старый самострел бьёт из темноты — болт вспарывает плечо (−3 HP). Вор сторожил свою добычу даже после смерти." }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "item_claymore",
+  "type": "item",
+  "category": "weapon",
+  "label": "Клеймора",
+  "description": "Двуручный меч горцев. Клинок Йорека помнит не один десяток стычек.",
+  "weight": 3.5,
+  "value": {
+    "silver": 60
+  },
+  "stackable": false,
+  "weapon_data": {
+    "skill": "sword",
+    "damage": "1d8+1",
+    "damage_bonus": true,
+    "range": 1,
+    "attacks_per_round": 1,
+    "parry_capable": true,
+    "label": "Клеймора"
+  }
+}

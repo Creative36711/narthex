@@ -1,0 +1,22 @@
+{
+  "id": "encounter_camp_fight_surprise",
+  "label": "Бой в лагере — внезапность (тайный путь)",
+  "once": false,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "start_combat",
+      "enemies": [
+        { "entity": "npc_yorek", "count": 1 },
+        { "entity": "npc_bandit", "count": 1 }
+      ],
+      "arena": "arena_camp",
+      "intro": "Вы ударили из тыла — половина банды дрыхнет в палатках и не успевает к оружию. Против вас только Йорек и один дозорный!",
+      "on_victory": [
+        { "type": "set_flag", "flag": "camp_cleared" },
+        { "type": "remove_entity", "entity": "npc_yorek" }
+      ]
+    }
+  ]
+}

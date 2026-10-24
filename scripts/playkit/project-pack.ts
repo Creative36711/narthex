@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path'
 import { CAPABILITY_REGISTRY } from '../../src/core/caps'
 import { resolveProjectCapabilityModes } from '../../src/core/pack/capability-modes'
 import {
+  resolvePackRegistry,
   resolveProjectPack,
   type PackManifest,
   type PackRegistryFile,
@@ -25,6 +26,17 @@ function sourceRoot(): string | null {
 
 async function readJson<T>(path: string): Promise<T> {
   return JSON.parse(await readFile(path, 'utf8')) as T
+}
+
+/** Installed pack metadata for explain; IDs and capabilities come only from data. */
+export async function readInstalledPackCatalogue(): Promise<PackManifest[]> {
+  const root = sourceRoot()
+  if (!root) return []
+  const registry = await readJson<PackRegistryFile>(join(root, 'packs/registry.json'))
+  const discovered = await Promise.all(registry.packs.map((id) =>
+    readJson<PackManifest>(join(root, 'packs', id, 'pack.json')),
+  ))
+  return resolvePackRegistry(registry, discovered)
 }
 
 /**

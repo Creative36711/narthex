@@ -32,7 +32,7 @@ import { PRNG } from '../../src/core/prng'
 import { newCharChoice } from '../../src/core/charcreate'
 import { ENGINE_VERSION } from '../../src/shared/versions'
 import { analyzeCampaign, formatGraphReport } from './analyze'
-import { resolveProjectCapabilityModesForCheck, resolveProjectPackForCheck } from './project-pack'
+import { readInstalledPackCatalogue, resolveProjectCapabilityModesForCheck, resolveProjectPackForCheck } from './project-pack'
 
 const PLAYKIT_VERSION = '0.1.0'
 const DEFAULT_ORIGIN = 'http://cf-play.local/'
@@ -1412,11 +1412,27 @@ async function cmdVerify(dir: string, expectEngine: string | null, honestOnly: b
   return 0
 }
 
+async function cmdExplainCatalogue(): Promise<number> {
+  const packs = await readInstalledPackCatalogue()
+  if (!packs.length) die('explain: каталог packs/registry.json недоступен')
+  for (const pack of packs) {
+    console.log(`${pack.id} — ${pack.title} · v${pack.version} · runtime ${pack.runtime}`)
+    console.log(`  capabilities: ${(pack.caps ?? []).join(', ') || 'нет'}`)
+    console.log(`  panels: ${pack.provides.panels.map((panel) => panel.id).join(', ')}`)
+    console.log(`  validators: ${pack.provides.validators.map((validator) => validator.id).join(', ')}`)
+    console.log(`  probes: ${pack.provides.probes.map((probe) => probe.id).join(', ')}`)
+    const seams = pack.provides.seams ?? []
+    if (seams.length) console.log(`  seams: ${seams.map((seam) => `${String(seam.id)} (${String(seam.kind)})`).join(', ')}`)
+  }
+  return 0
+}
+
 // ──────────────────────────────── main ──────────────────────────────────────
 
 const USAGE = [
-  'команды: check | graph | dialogue | run | explore | sweep | verify',
+  'команды: check | graph | dialogue | run | explore | sweep | verify | explain',
   '',
+  '  node cf-play.mjs explain  --catalogue',
   '  node cf-play.mjs check    <папка кампании> [--seeds 1-5] [--steps 300] [--routes dir] [--pack-registry file] [--out runs/check]',
   '',
   '  node cf-play.mjs graph    <папка кампании> [--out dir] [--json]',
@@ -1440,6 +1456,11 @@ async function main(): Promise<void> {
   const outDir = flagText(flags, 'out') ? resolve(String(flagText(flags, 'out'))) : null
   const debug = !!flags.debug
   const asJson = !!flags.json
+
+  if (command === 'explain') {
+    if (!flags.catalogue) die('explain: укажите --catalogue')
+    process.exit(await cmdExplainCatalogue())
+  }
 
   if (command === 'verify') {
     if (!campaignDir) die('verify: укажите папку прогона (с result.json)')

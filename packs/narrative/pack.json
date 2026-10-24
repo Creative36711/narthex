@@ -1,7 +1,7 @@
 {
   "id": "narrative",
   "title": "Сюжет и ветвление",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "runtime": "turn",
   "provides": {
     "kind": true,
@@ -45,6 +45,16 @@
           "map"
         ],
         "order": 40
+      },
+      {
+        "id": "quests",
+        "title": "Квесты",
+        "slot": "center",
+        "schema": "schema/quest.schema.json",
+        "caps": [
+          "quests"
+        ],
+        "order": 50
       }
     ],
     "validators": [
@@ -73,6 +83,15 @@
         "description": "Все переходы диалога ведут в существующие узлы.",
         "caps": [
           "dialogue"
+        ]
+      },
+      {
+        "id": "dangling-quest-stage",
+        "title": "Переход в несуществующую стадию",
+        "severity": "error",
+        "description": "Каждый переход квеста ведёт в объявленную стадию того же квеста.",
+        "caps": [
+          "quests"
         ]
       }
     ],
@@ -109,50 +128,54 @@
         "kind": "run",
         "budget_ms": 60000,
         "checks": [
-          "маршруты из routes/*.json проходят без падений",
-          "на каждом шаге движок возвращает допустимое состояние",
-          "прогон детерминирован по seed"
+          "маршрут по сценам, диалогам и квестам реальной кампании проходит без паузы",
+          "на каждом шаге хост возвращает допустимое состояние",
+          "прогон детерминирован по seed",
+          "20 прогонов из 20 с одним seed дают одинаковый хеш состояния",
+          "включённый и выключенный view дают одинаковый хеш состояния"
         ],
         "caps": [
           "narrative"
+        ]
+      },
+      {
+        "id": "quest-transitions",
+        "title": "Переходы стадий квестов",
+        "kind": "run",
+        "budget_ms": 5000,
+        "checks": [
+          "старт квеста выбирает первую объявленную стадию",
+          "флаги, предметы и вход в локацию продвигают стадии детерминированно",
+          "финальные стадии получают сохраняемый статус completed или failed"
+        ],
+        "caps": [
+          "quests"
         ]
       }
     ],
     "seams": [
       {
-        "id": "on_tick",
+        "id": "narrative.sim",
         "kind": "sim",
-        "signature": "(ctx: EngineCtx, dt: number) => void",
-        "description": "Вызывается на каждом шаге симуляции до систем ядра.",
+        "signature": "(ctx: PackSimContext<NarrativeState, NarrativeEvent>) => NarrativeState",
+        "description": "Чистый переход сцен, диалогов и квестов на неизменяемых данных кампании.",
         "caps": [
-          "time"
+          "narrative",
+          "scenes",
+          "dialogue",
+          "quests"
         ]
       },
       {
-        "id": "on_interact",
-        "kind": "sim",
-        "signature": "(ctx: EngineCtx, scene: string, slot: string) => boolean | void",
-        "description": "Перехват клика по слоту до стандартной реакции. true — событие обработано кодом.",
-        "caps": [
-          "scenes"
-        ]
-      },
-      {
-        "id": "combat.resolve_attack",
-        "kind": "sim",
-        "signature": "(ctx: EngineCtx, attack: AttackInput) => AttackResult",
-        "description": "Полная замена расчёта атаки. Сейв и журнал остаются формата ядра.",
-        "caps": [
-          "combat"
-        ]
-      },
-      {
-        "id": "render.scene",
+        "id": "narrative.view",
         "kind": "view",
-        "signature": "(ctx: RenderCtx) => void",
-        "description": "Рисование поверх сцены. Не влияет на состояние и не проверяется headless.",
+        "signature": "(ctx: PackViewContext<NarrativeState, NarrativeFrame>) => void",
+        "description": "Проекция сцены, активного диалога и журнала только в draw-порт.",
         "caps": [
-          "scenes"
+          "narrative",
+          "scenes",
+          "dialogue",
+          "quests"
         ]
       }
     ]

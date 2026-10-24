@@ -1,0 +1,67 @@
+{
+  "id": "scene_mine_entrance",
+  "label": "Вход в шахту",
+  "location": "loc_mine",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_default",
+      "label": "Штольня",
+      "image": "assets/img/scenes/mine_entrance.jpg",
+      "condition": null
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_wrench",
+      "label": "Ржавый ключ на крепи",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 380,
+      "y": 430,
+      "w": 130,
+      "h": 110,
+      "default_entity": "item_wrench",
+      "condition": {
+        "not_flag": "wrench_taken"
+      }
+    }
+  ],
+  "navigation": [
+    {
+      "area": {
+        "x": 660,
+        "y": 270,
+        "w": 270,
+        "h": 300
+      },
+      "go_to_scene": "scene_mine_deep",
+      "label": "Спуститься в глубину ↓"
+    },
+    {
+      "area": {
+        "x": 20,
+        "y": 300,
+        "w": 150,
+        "h": 320
+      },
+      "label": "К лесу (3 ч)",
+      "open_map": true
+    },
+    {
+      "area": {
+        "x": 20,
+        "y": 620,
+        "w": 260,
+        "h": 80
+      },
+      "open_map": true,
+      "label": "🗺 Карта долины"
+    }
+  ]
+}

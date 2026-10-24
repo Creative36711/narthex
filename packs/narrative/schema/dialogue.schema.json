@@ -1,5 +1,26 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Narrative dialogue document",
   "type": "object",
+  "required": ["nodes"],
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "label": { "type": "string" },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "sections": { "type": "array" },
+          "choices": { "type": "array" },
+          "goto": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
   "additionalProperties": true
 }
