@@ -5,6 +5,7 @@ import { parseRuleFile } from '../shared/ruleFiles'
 import { compareVersions } from '../shared/versions'
 import { DEFAULT_EMOTION } from '../shared/types'
 import { skillLabel } from '../shared/skills'
+import type { ProjectPackInput, ProjectPackResolution } from '../core/pack/registry'
 import type {
   ArenaDef,
   Effect,
@@ -81,8 +82,13 @@ export type EditorSection =
   | 'codex'
   | 'packs'
 
+type ProjectPackResolver = (project: ProjectPackInput) => ProjectPackResolution
+
 export class EditorStore {
   basePath: string // "/campaigns/ash-of-caerden"
+  project: ProjectPackInput = { kind: 'narrative' }
+  packResolution: ProjectPackResolution | null = null
+  private readonly resolvePack?: ProjectPackResolver
   // до load() — безопасные пустые значения: рендер между сменой кампании
   // и загрузкой не должен падать (фидбек №4–5 шестого раунда)
   meta: CampaignMeta = { id: '', title: '' } as CampaignMeta
@@ -114,8 +120,9 @@ export class EditorStore {
   /** верхний лимит сохраняемого снимка в символах JSON — страховка от квоты localStorage (~5 МБ в браузерах) */
   private static readonly AI_BASELINE_LIMIT = 4 * 1024 * 1024
 
-  constructor(basePath: string) {
+  constructor(basePath: string, resolvePack?: ProjectPackResolver) {
     this.basePath = basePath
+    this.resolvePack = resolvePack
   }
 
   subscribe(fn: () => void): () => void {
@@ -143,6 +150,28 @@ export class EditorStore {
         throw new Error(`Файл ${rel} отсутствует или повреждён (кампания записана не полностью?)`)
       }
     }
+    const projectResponse = await fetch(`${this.basePath}/project.json?t=${Date.now()}`)
+    if (projectResponse.ok) {
+      const projectText = await projectResponse.text()
+      try {
+        this.project = JSON.parse(projectText) as ProjectPackInput
+      } catch {
+        const contentType = projectResponse.headers.get('content-type') ?? ''
+        if (contentType.includes('text/html') || /^\s*<!doctype html/i.test(projectText)) {
+          this.project = { kind: 'narrative' }
+        } else {
+          throw new Error('Файл project.json повреждён.')
+        }
+      }
+    } else if (projectResponse.status === 404) {
+      // Format 1 predates project.json; its documented kind is narrative.
+      this.project = { kind: 'narrative' }
+    } else {
+      throw new Error(`Не удалось загрузить project.json: ${projectResponse.status}`)
+    }
+    this.packResolution = this.resolvePack?.(this.project) ?? null
+    if (this.packResolution?.status === 'missing') return
+
     this.meta = await getJson<CampaignMeta>('campaign.json')
     this.world = await getJson<WorldDef>('world.json')
     this.manifest = await getJson<ManifestDef>('manifest.json')

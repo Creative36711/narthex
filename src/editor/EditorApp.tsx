@@ -49,6 +49,8 @@ import type { CharChoice } from '../core/charcreate'
 import { EditorBookPanel } from './EditorBookPanel'
 import { DesignDocPanel } from './DesignDocPanel'
 import { PackCatalogPanel } from './PackCatalogPanel'
+import { PackMissingNotice } from './PackMissingNotice'
+import { resolveProjectPackForStudio } from './packCatalog'
 
 /**
  * Narthex — Editor Mode (Фаза 4, ТЗ 5).
@@ -166,7 +168,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   const fileInput = useRef<HTMLInputElement>(null)
   const folderInput = useRef<HTMLInputElement>(null)
 
-  const store = useMemo(() => new EditorStore(base), [base])
+  const store = useMemo(() => new EditorStore(base, resolveProjectPackForStudio), [base])
 
   const loaded = readyStore === store
 
@@ -551,6 +553,9 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       </div>
     )
   if (!loaded) return <div className="screen-center"><div className="loading">Загрузка кампании в редактор…</div></div>
+  if (store.packResolution?.status === 'missing') {
+    return <PackMissingNotice diagnostic={store.packResolution.diagnostic} onExit={onExit} />
+  }
 
   const recordPlaytestResult = async () => {
     const notes = await askTextArea('Результат плейтеста', {
