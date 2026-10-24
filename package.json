@@ -54,6 +54,8 @@
     "smoke:view-write": "tsx scripts/view-write-smoke.mts",
     "smoke:core": "tsx scripts/core-semantics-smoke.mts",
     "smoke:pack-missing": "tsx --tsconfig tsconfig.app.json scripts/smoke/pack-missing-smoke.mts",
+    "smoke:capability-modes": "tsx scripts/smoke/capability-modes-smoke.mts",
+    "probe:capability-modes": "tsx scripts/probe-capability-modes.mts",
     "check:core-graph": "tsx scripts/core-graph.mts",
     "audit:campaign": "tsx scripts/campaign-audit.mts",
     "smoke:dlg-script": "tsx scripts/dlg-script-smoke.mts",

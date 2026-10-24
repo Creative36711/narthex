@@ -1,10 +1,12 @@
 import type { EngineCtx } from './context'
+import { capabilityIsOff } from './caps'
 import { evalCondition } from './conditions'
 import { playUi } from '../shared/audio'
 
 export const quests = {
   // ─────────────── квесты (ТЗ 3.7) ───────────────
   startQuest(ctx: EngineCtx, questId: string): void {
+    if (capabilityIsOff(ctx.campaign.meta, 'quests')) return
     const quest = ctx.campaign.quests[questId]
     if (!quest || ctx.state.quests[questId]) return
     const first = quest.stages[0]
@@ -16,6 +18,7 @@ export const quests = {
   },
 
   advanceQuestTo(ctx: EngineCtx, questId: string, stageId: string): void {
+    if (capabilityIsOff(ctx.campaign.meta, 'quests')) return
     const quest = ctx.campaign.quests[questId]
     const qs = ctx.state.quests[questId]
     if (!quest || !qs || qs.status !== 'active' || qs.stage === stageId) return
@@ -37,6 +40,7 @@ export const quests = {
   },
 
   journalUpdate(ctx: EngineCtx, questId: string, textKey: string): void {
+    if (capabilityIsOff(ctx.campaign.meta, 'quests')) return
     const quest = ctx.campaign.quests[questId]
     const qs = ctx.state.quests[questId]
     if (!quest || !qs) return
@@ -49,6 +53,7 @@ export const quests = {
 
   /** Переходы стадий активных квестов (вызывается из checkRules). */
   checkQuestTransitions(ctx: EngineCtx): void {
+    if (capabilityIsOff(ctx.campaign.meta, 'quests')) return
     for (const [questId, qs] of Object.entries(ctx.state.quests)) {
       if (qs.status !== 'active') continue
       const quest = ctx.campaign.quests[questId]

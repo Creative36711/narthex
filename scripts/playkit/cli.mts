@@ -32,7 +32,7 @@ import { PRNG } from '../../src/core/prng'
 import { newCharChoice } from '../../src/core/charcreate'
 import { ENGINE_VERSION } from '../../src/shared/versions'
 import { analyzeCampaign, formatGraphReport } from './analyze'
-import { resolveProjectPackForCheck } from './project-pack'
+import { resolveProjectCapabilityModesForCheck, resolveProjectPackForCheck } from './project-pack'
 
 const PLAYKIT_VERSION = '0.1.0'
 const DEFAULT_ORIGIN = 'http://cf-play.local/'
@@ -748,6 +748,11 @@ interface RunResult {
 async function loadEngine(campaignDir: string, seed: string, _debug: boolean, injection: Injection) {
   installShims(campaignDir)
   const campaign = (await loadCampaign(DEFAULT_ORIGIN)) as AnyObj
+  const projectModes = await resolveProjectCapabilityModesForCheck(campaignDir)
+  if (projectModes?.activeCaps !== null && projectModes?.activeCaps !== undefined) {
+    campaign.meta.caps = projectModes.activeCaps
+  }
+  if (projectModes) campaign.meta.project_cap_options = projectModes.projectOptions
   const engine = new GameEngine(campaign as never) as AnyObj
   // seed задаётся до первого хода: rng создаётся в конструкторе случайным,
   // поэтому пересоздаём его и метим состояние — иначе прогон невоспроизводим.

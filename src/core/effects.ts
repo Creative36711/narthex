@@ -1,6 +1,6 @@
 import type { EngineCtx } from './context'
 import type { Effect, RuleDef } from '../shared/types'
-import { featureOn } from './caps'
+import { capabilityIsOff, featureOn } from './caps'
 import { evalCondition } from './conditions'
 import { quests } from './quests'
 import { skillCheck, CHECK_RESULT_LABEL, difficultyModifier } from './brp'
@@ -320,6 +320,7 @@ function applyEffect(this: EngineCtx, e: Effect, depth = 0): void {
       case 'start_quest': this.startQuest(e.quest); break
       case 'advance_quest': this.advanceQuestTo(e.quest, e.stage); break
       case 'fail_quest': {
+        if (capabilityIsOff(this.campaign.meta, 'quests')) break
         const qs = s.quests[e.quest]
         if (qs && qs.status === 'active') {
           qs.status = 'failed'
