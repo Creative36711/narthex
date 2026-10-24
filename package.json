@@ -70,6 +70,7 @@
     "pack:ai-kit": "tsx scripts/pack-ai-kit.mts",
     "sync:ai-kit": "tsx scripts/pack-ai-kit.mts --copy",
     "check:packs": "tsx scripts/check-packs.mts",
+    "probe:pack-host": "tsx scripts/pack-host-probe.mts",
     "check:contracts": "tsx scripts/contracts-check.mts && npm run check:packs",
     "check:brand": "tsx scripts/brand-guard.mts",
     "check:version": "tsx scripts/version.mts check",
