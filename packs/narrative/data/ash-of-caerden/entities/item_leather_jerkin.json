@@ -1,0 +1,11 @@
+{
+  "id": "item_leather_jerkin",
+  "type": "item",
+  "category": "armor",
+  "label": "Кожаный дублет",
+  "description": "Плотная дублёная кожа. Лучше, чем ничего.",
+  "weight": 2.0,
+  "value": { "silver": 15 },
+  "stackable": false,
+  "armor_data": { "points": 1 }
+}

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Narrative quest",
+  "type": "object",
+  "required": ["id", "label", "journal_entries", "stages"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "label": { "type": "string", "minLength": 1 },
+    "journal_entries": { "type": "object" },
+    "stages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "final": { "type": "boolean" },
+          "outcome": { "enum": ["success", "failure"] },
+          "transitions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["to", "conditions"],
+              "properties": {
+                "to": { "type": "string", "minLength": 1 },
+                "conditions": { "type": "array" }
+              },
+              "additionalProperties": true
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

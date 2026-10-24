@@ -1,0 +1,21 @@
+{
+  "id": "rule_weather_ashfall",
+  "label": "Пеплопад на опушке",
+  "once": true,
+  "conditions": [
+    {
+      "type": "player_enters_location",
+      "location": "loc_forest"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_weather",
+      "weather": "weather_ashfall"
+    },
+    {
+      "type": "show_message",
+      "text": "Ветер приносит с гор серые хлопья: начинается пеплопад. Дорога становится скользкой от сажи."
+    }
+  ]
+}

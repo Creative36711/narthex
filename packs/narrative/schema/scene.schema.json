@@ -1,5 +1,22 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Narrative scene",
   "type": "object",
+  "required": ["id", "location"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "location": { "type": "string", "minLength": 1 },
+    "navigation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "go_to_scene": { "type": "string", "minLength": 1 },
+          "open_map": { "type": "boolean" }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
   "additionalProperties": true
 }

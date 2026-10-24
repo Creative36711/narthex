@@ -1,0 +1,12 @@
+{
+  "id": "recipe_healing_salve",
+  "label": "Целебная мазь",
+  "description": "Растереть горную траву на медвежьем жиру — выйдет мазь, затягивающая раны.",
+  "inputs": [
+    { "item": "item_herb", "quantity": 2 }
+  ],
+  "skill": { "id": "first_aid", "difficulty": 35 },
+  "time_ticks": 2,
+  "output": { "item": "item_healing_salve", "quantity": 1 },
+  "message": "Густая мазь пахнет горькой травой. Раны будут затягиваться быстрее."
+}

@@ -1,0 +1,21 @@
+{
+  "id": "item_guard_spear",
+  "type": "item",
+  "category": "weapon",
+  "label": "Копьё стражи",
+  "description": "Уставное копьё городской стражи Каэрдена: ясеневое древко, кованый наконечник.",
+  "weight": 2.5,
+  "value": {
+    "silver": 18
+  },
+  "stackable": false,
+  "weapon_data": {
+    "skill": "spear",
+    "damage": "1d6+1",
+    "damage_bonus": true,
+    "range": 1,
+    "attacks_per_round": 1,
+    "parry_capable": true,
+    "label": "Копьё стражи"
+  }
+}
