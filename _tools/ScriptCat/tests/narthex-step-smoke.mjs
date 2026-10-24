@@ -16,7 +16,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.52/, 'версия 1.4.52');
+assert.match(src, /@version\s+1\.4\.53/, 'версия 1.4.53');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
@@ -466,7 +466,7 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   await api.consumePending(true);
   assert.equal(out.rollback.calls.length, 1, 'неудачная отправка снимает статус карточки');
   assert.match(out.rollback.calls[0].why, /сообщение не ушло/, 'причина записана в журнал попытки');
-  // 1.4.52: ход не сбрасывается — текст остаётся в очереди с пометкой, и
+  // 1.4.53: ход не сбрасывается — текст остаётся в очереди с пометкой, и
   // «Продолжить» отправит его этой же карточке, без нового хода Координатора.
   assert.equal(out.sets.get("cfn-pending").undelivered, true, 'очередь сохранена и помечена');
   assert.equal(out.sets.get("cfn-expect").undelivered, true, 'ожидание сохранено: Run ID нужен для возврата в Running');
