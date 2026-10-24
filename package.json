@@ -38,6 +38,7 @@
     "smoke:voice-dedup": "tsx scripts/voice-dedup-smoke.mts",
     "smoke:narrative-intro": "tsx scripts/narrative-intro-and-ai-features-smoke.mts",
     "smoke:encounters-loader": "tsx scripts/encounters-loader-smoke.mts",
+    "smoke:manifest-order": "tsx scripts/manifest-order-smoke.mts",
     "smoke:engine-version": "tsx scripts/engine-version-smoke.mts",
     "smoke:hero-appearance": "tsx scripts/hero-appearance-smoke.mts",
     "smoke:theme-contrast": "tsx scripts/theme-contrast-smoke.mts",

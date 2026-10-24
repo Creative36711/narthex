@@ -55,13 +55,54 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
   const scenes: Record<string, SceneDef> = {}
   const entities: Record<string, EntityDef> = {}
   const rules: Record<string, RuleDef> = {}
+  const ruleOrder: string[] = []
   const arenas: Record<string, ArenaDef> = {}
   const quests: Record<string, QuestDef> = {}
   const encounters: Record<string, EncounterTableDef> = {}
+  const encounterOrder: string[] = []
+  const addEncounter = (table: EncounterTableDef) => {
+    if (!Object.prototype.hasOwnProperty.call(encounters, table.id)) encounterOrder.push(table.id)
+    encounters[table.id] = table
+  }
   const cutscenes: Record<string, CutsceneDef> = {}
   const recipes: Record<string, RecipeDef> = {}
   const codex: Record<string, CodexEntryDef> = {}
   const dialogues: Record<string, string> = {}
+
+  // Fetch in parallel, then apply in manifest order. Mutating shared dictionaries
+  // inside each async callback makes insertion order depend on network completion.
+  const [loadedEncounterFiles, loadedRuleFiles] = await Promise.all([
+    Promise.all((manifest.encounters ?? []).map(async (f) => {
+      let tables: EncounterFileDef
+      try {
+        tables = await getJSON<EncounterFileDef>(`${basePath}/encounters/${f}`)
+      } catch {
+        tables = await getJSON<EncounterFileDef>(`${basePath}/rules/${f}`)
+      }
+      return tables.encounter_tables
+    })),
+    Promise.all(manifest.rules.map(async (f) => ({
+      file: f,
+      verdict: parseRuleFile(f, await getJSON<unknown>(`${basePath}/rules/${f}`)),
+    }))),
+  ])
+
+  for (const tables of loadedEncounterFiles) {
+    for (const table of tables) addEncounter(table)
+  }
+  for (const { file, verdict } of loadedRuleFiles) {
+    for (const warning of verdict.warnings) console.warn(`[narthex] ${warning}`)
+    if (verdict.kind === 'rule') {
+      if (rules[verdict.rule.id]) {
+        console.warn(`[narthex] rules/${file}: дубль id «${verdict.rule.id}» — файл пропущен.`)
+        continue
+      }
+      rules[verdict.rule.id] = verdict.rule
+      ruleOrder.push(verdict.rule.id)
+    } else if (verdict.kind === 'encounters') {
+      for (const table of verdict.tables) addEncounter(table)
+    }
+  }
 
   await Promise.all([
     ...(manifest.arenas ?? []).map(async (f) => {
@@ -71,15 +112,6 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
     ...(manifest.quests ?? []).map(async (f) => {
       const q = await getJSON<QuestDef>(`${basePath}/quests/${f}`)
       quests[q.id] = q
-    }),
-    ...(manifest.encounters ?? []).map(async (f) => {
-      let tables: EncounterFileDef
-      try {
-        tables = await getJSON<EncounterFileDef>(`${basePath}/encounters/${f}`)
-      } catch {
-        tables = await getJSON<EncounterFileDef>(`${basePath}/rules/${f}`)
-      }
-      for (const t of tables.encounter_tables) encounters[t.id] = t
     }),
     ...(manifest.cutscenes ?? []).map(async (f) => {
       const c = await getJSON<CutsceneDef>(`${basePath}/cutscenes/${f}`)
@@ -101,23 +133,6 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
       const e = await getJSON<EntityDef>(`${basePath}/entities/${f}`)
       entities[e.id] = migrateEntity(e)
     }),
-    ...manifest.rules.map(async (f) => {
-      const raw = await getJSON<unknown>(`${basePath}/rules/${f}`)
-      // файл из manifest.rules может оказаться таблицей встреч или битым
-      // правилом (ИИ-агент путает разделы манифеста): разбираем честно,
-      // чтобы движок и редактор не падали на `undefined.conditions`
-      const verdict = parseRuleFile(f, raw)
-      for (const w of verdict.warnings) console.warn(`[narthex] ${w}`)
-      if (verdict.kind === 'rule') {
-        if (rules[verdict.rule.id]) {
-          console.warn(`[narthex] rules/${f}: дубль id «${verdict.rule.id}» — файл пропущен.`)
-          return
-        }
-        rules[verdict.rule.id] = verdict.rule
-      } else if (verdict.kind === 'encounters') {
-        for (const t of verdict.tables) encounters[t.id] = t
-      }
-    }),
     ...manifest.dialogues.map(async (f) => {
       dialogues[`dialogues/${f}`] = await getText(`${basePath}/dialogues/${f}`)
     }),
@@ -127,7 +142,7 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
   // переходы «в локацию» из сцен и т.п.
   migrateCampaign(meta, world, scenes)
 
-  return { meta, world, scenes, entities, rules, arenas, quests, encounters, cutscenes, recipes, codex, dialogues, basePath }
+  return { meta, world, scenes, entities, rules, ruleOrder, arenas, quests, encounters, encounterOrder, cutscenes, recipes, codex, dialogues, basePath }
 }
 
 /**
