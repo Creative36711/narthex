@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и новый адрес ntfy.
-assert.match(src, /@version\s+1\.4\.32/, 'версия 1.4.32');
+assert.match(src, /@version\s+1\.4\.33/, 'версия 1.4.33');
 assert.match(src, /@connect\s+ntfy\.sh/, 'ntfy.sh разрешён в @connect');
 
 // 2. Журнал: ограничен, очищается, счётчик виден.
@@ -43,7 +43,9 @@ const tick = src.slice(tickStart, tickEnd);
 assert.match(tick, /if \(isPaused\(\)\) \{/, 'пауза блокирует тик');
 assert.match(tick, /if \(monitorVisibleErrors\(\)\) return;/, 'ошибка проверяется до любого шага');
 assert.ok(tick.indexOf('monitorVisibleErrors') < tick.indexOf('await setup(false)'), 'проверка ошибки идёт первой');
-assert.match(tick, /pause\(`Ошибка цикла: \$\{e\.message\}`/, 'любое исключение превращается в паузу, а не в тихую запись');
+assert.match(tick, /pause\(\s*`Цикл остановлен\. /, 'любое исключение превращается в паузу, а не в тихую запись');
+assert.match(tick, /Технически: \$\{raw\}/, 'техническая строка сохраняется для разбора');
+assert.doesNotMatch(tick, /Ошибка цикла: \$\{e\.message\}/, 'нечитаемой строки «Ошибка цикла: HTTP 400» больше нет');
 
 // 5. Ошибки на экране: оба источника и защита от повторной паузы.
 const monitor = src.slice(src.indexOf('function monitorVisibleErrors()'), src.indexOf('// ───────────────────────────── отправка'));
@@ -93,4 +95,4 @@ assert.match(src, /Тихий тест/, 'тихий тест доступен �
 assert.match(src, /Громкий тест/, 'громкий тест доступен из панели');
 assert.ok(!src.includes('location.reload()'), 'видимая ошибка не перезагружает страницу');
 
-console.log('OK: narthex 1.4.32 — журнал чистится, маркер напоминается, ошибка ставит паузу и ждёт Мастера');
+console.log('OK: narthex 1.4.33 — журнал чистится, маркер напоминается, ошибка ставит паузу и ждёт Мастера');

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.32
+// @version      1.4.33
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -59,6 +59,7 @@
     markerReminders: 2, // напоминаний до паузы: дальше решает Мастер
     minAnswerChars: 200, // маркер без отчёта — не ответ: короче — просим отчёт заново
     draftLineMax: 6, // сколько черновиков Координатор видит списком в промпте
+    insertRetries: 3, // с какой попытки вставки в редактор звать Мастера (раньше — сами)
     pendingTtlMs: 600000, // отправка старше 10 минут не досылается: адресат её не получил
     replyWaitMs: 1800000, // 30 минут без единого сообщения — повод остановиться
     sendVerifyMs: 6000, // сколько ждём своё сообщение в чате после нажатия Send
@@ -1022,9 +1023,41 @@
     });
   }
 
+  const isUuid = (value) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(value || "").trim());
+
+  /**
+   * Id из строки-маркера не адресуют запись.
+   *
+   * 24.10 Kernel прислал «4036f0cf-5705-ba9f-79ed-59fe3b8e» вместо id карточки,
+   * и цикл встал на HTTP 400 «path.page_id should be a valid uuid» — работа была
+   * сделана, а ход потерялся в паузе. Истина — та выдача, которую движок сам
+   * поставил в Running: её id и run_id подставляются вместо чужих.
+   */
+  function adoptIds(result, expect) {
+    const fixed = { ...result };
+    const stray = [];
+    if (!isUuid(fixed.dispatch_id) || norm(fixed.dispatch_id) !== norm(expect.ref)) {
+      stray.push(`dispatch_id «${fixed.dispatch_id || "нет"}»`);
+      fixed.dispatch_id = expect.ref;
+    }
+    if (expect.runId && norm(fixed.run_id) !== norm(expect.runId)) {
+      stray.push(`run_id «${fixed.run_id || "нет"}»`);
+      fixed.run_id = expect.runId;
+    }
+    return { result: fixed, stray };
+  }
+
   async function notion(method, path, body) {
     const token = GM_getValue(K.notion, "");
     if (!token) throw new Error("Не задан Notion token: откройте ?cf-auth-setup=1 и нажмите ⚙.");
+    // Страховка от чужого текста в адресе: 24.10 исполнитель прислал в маркере
+    // id с опечаткой, и Notion ответил HTTP 400 «path.page_id should be a valid
+    // uuid», а цикл встал на паузу с нечитаемой причиной. Лучше остановиться
+    // здесь и сказать по-русски, что именно не так.
+    const segment = String(path).match(/^(?:pages|blocks|data_sources)\/([^/?#]+)/);
+    if (segment && !isUuid(segment[1]))
+      throw new Error(`в адресе записи битый id «${segment[1]}» — запрос не отправлен`);
     return request(method, `https://api.notion.com/v1/${path}`, {
       Authorization: `Bearer ${token}`,
       "Notion-Version": C.notionV,
@@ -2668,6 +2701,9 @@
 
   // Одно и то же ожидание не должно заливать журнал каждые пару секунд.
   let pendingNoticeAt = 0;
+  // Отказы вставки считаются подряд: плашка или поздняя отрисовка проходят
+  // следующим тиком через 15 секунд, и будить Мастера из-за них незачем.
+  let insertFail = { at: 0, count: 0 };
   const pendingSay = (pending, text, error = false) => {
     if (pendingNoticeAt === pending.at) return;
     pendingNoticeAt = pending.at;
@@ -2763,14 +2799,23 @@
       const report = domReport();
       GM_setValue("cfn-send-debug", { at: Date.now(), detail: "вставка не удалась", text: String(pending.text).slice(0, 300), report });
       console.warn("[Narthex] снимок разметки при отказе вставки:", report);
-      pendingSay(
-        pending,
-        "Не удалось вставить задание в редактор: оно осталось в очереди." +
-          (dialog ? " Поверх чата открыт диалог Arena — закройте его и нажмите «Шаг»." : ""),
-        true,
-      );
+      if (insertFail.at !== pending.at) insertFail = { at: pending.at, count: 0 };
+      insertFail.count += 1;
+      const attempt = insertFail.count;
+      const hint = dialog ? " Поверх чата открыт диалог Arena — закройте его." : "";
+      if (attempt === 1 || attempt >= C.insertRetries) {
+        pendingNoticeAt = pending.at; // чтобы pendingSay не сказал то же второй раз
+        log(
+          attempt < C.insertRetries
+            ? `Не удалось вставить задание в редактор — повторю через 15 секунд, задание в очереди.${hint}`
+            : `Вставка не проходит ${attempt}-й раз: задание в очереди и само не уйдёт.${hint} Нажмите «Шаг».`,
+          attempt >= C.insertRetries,
+          attempt >= C.insertRetries ? {} : { ntfy: false },
+        );
+      }
       return true;
     }
+    insertFail = { at: 0, count: 0 };
     await sleep(600);
 
     // Водяной знак — id последнего сообщения ДО отправки. На странице
@@ -3509,7 +3554,14 @@
     }
     if (!hit) return markerMissing(role, expect, "CF_AGENT_RESULT", manual);
 
-    const result = hit.result;
+    const { result, stray } = adoptIds(hit.result, expect);
+    if (stray.length) {
+      log(
+        `В маркере чужой или битый id (${stray.join(", ")}) — беру свой из выдачи. Работа не потерялась.`,
+        false,
+        { ntfy: false },
+      );
+    }
     if (GM_getValue(`cfn-done:${result.dispatch_id}:${result.run_id}`, false)) return false;
 
     const page = await notion("GET", `pages/${result.dispatch_id}`);
@@ -4335,7 +4387,19 @@
         await submitExecutor(me, expect, fromToggle);
       }
     } catch (e) {
-      pause(`Ошибка цикла: ${e.message}`, { kind: "error" });
+      // «HTTP 400: path failed validation» Мастеру ничего не говорит. Сначала
+      // что случилось и что делать, потом техническая строка — она нужна,
+      // если придётся разбираться.
+      const raw = String((e && e.message) || e);
+      const plain = /битый id|valid uuid|path failed validation/i.test(raw)
+        ? "Notion не принял адрес записи: в нём оказался битый id — обычно это " +
+          "опечатка в строке-маркере ответа."
+        : "Шаг прервался на записи в Notion.";
+      pause(
+        `Цикл остановлен. ${plain} Ход не потерян: очередь и карточка на месте, ` +
+          `после «Продолжить» скрипт перечитает ответ.\nТехнически: ${raw}`,
+        { kind: "error" },
+      );
     } finally {
       busy = false;
       setStatus();
