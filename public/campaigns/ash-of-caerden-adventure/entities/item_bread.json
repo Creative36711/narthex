@@ -1,0 +1,15 @@
+{
+  "id": "item_bread",
+  "type": "item",
+  "category": "food",
+  "label": "Хлеб",
+  "description": "Краюха ржаного хлеба. Утоляет голод.",
+  "weight": 0.3,
+  "value": { "silver": 1 },
+  "stackable": true,
+  "on_use": {
+    "effects": [{ "type": "change_need", "need": "hunger", "delta": 30 }],
+    "consume": true,
+    "message": "Вы съели хлеб. Голод отступает."
+  }
+}
