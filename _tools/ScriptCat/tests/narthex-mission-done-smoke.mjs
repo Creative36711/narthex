@@ -170,4 +170,4 @@ assert.match(plaqueBlock, /if \(closed\) log\(/, 'строка журнала �
 assert.match(plaqueBlock, /«задача выполнена»/, 'формулировка осталась прежней');
 assert.doesNotMatch(plaqueBlock, /plaqueClosed/, 'счётчика закрытий больше нет');
 
-console.log('OK: narthex 1.4.45 — конец миссии зелёной строкой и пушем, возврат доработкой, плашка одной строкой');
+console.log('OK: narthex 1.4.46 — конец миссии зелёной строкой и пушем, возврат доработкой, плашка одной строкой');

@@ -1,4 +1,4 @@
-// Проба 1.4.45: агент спросил вместо работы — цикл отвечает сам.
+// Проба 1.4.46: агент спросил вместо работы — цикл отвечает сам.
 //
 // 24.10 в 17:25 Kernel на середине NAR-1.12 остановился и выставил опрос
 // «May I expand the write zone for this task?»: варианты, свободное поле и
@@ -7,7 +7,7 @@
 //
 // Здесь проверяется:
 //   • вопросы видны все сразу и вместе с вариантами, а не только первый;
-//   • на каждый вопрос уходит «Решай сам» в его собственное поле;
+//   • на каждый вопрос уходит универсальный ответ в его собственное поле;
 //   • вопросы и варианты попадают в журнал попытки (их читает Координатор);
 //   • повторный тик не отвечает на тот же вопрос второй раз;
 //   • `Skip` внутри группы вариантов не считается плашкой и не закрывает
@@ -21,14 +21,18 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // ── 1. Версия ──────────────────────────────────────────────────────────────
-assert.match(src, /@version\s+1\.4\.45/, 'версия 1.4.45');
+assert.match(src, /@version\s+1\.4\.46/, 'версия 1.4.46');
 
 // ── 2. Вопросы читаются целиком ────────────────────────────────────────────
-const pollFrom = src.indexOf('  const POLL_REPLY = "Решай сам";');
+const pollFrom = src.indexOf('  const POLL_REPLY = "Реши сам в рамках Scope');
 const pollTo = src.indexOf('  /**\n   * Ждём появления редактора.');
 assert.ok(pollFrom > 0 && pollTo > pollFrom, 'блок разбора опроса на месте');
 const pollBlock = src.slice(pollFrom, pollTo);
-assert.match(pollBlock, /POLL_REPLY = "Решай сам"/, 'ответ скрипта — «Решай сам»');
+assert.match(
+  pollBlock,
+  /POLL_REPLY = "Реши сам в рамках Scope карточки и продолжай; допущение запиши в отчёт\."/,
+  'ответ универсальный: решай сам в рамках Scope и запиши допущение',
+);
 assert.match(pollBlock, /querySelectorAll\('\[role="radiogroup"\]'\)/, 'вопросы ищутся по группам');
 assert.match(pollBlock, /\.at\(-1\);/, 'смотрим последнее сообщение агента');
 assert.match(pollBlock, /question: pollQuestionText\(group\)/, 'текст вопроса сохраняется');
@@ -38,8 +42,9 @@ const logged = [];
 const journal = [];
 const pauses = [];
 const events = [];
+let clock = 0;
 
-function makeGroup(question, options, { input = true, submitDisabled = false } = {}) {
+function makeGroup(question, options, { input = true, submitDisabled = false, staleFor = 0 } = {}) {
   const box = {
     value: '',
     ownerDocument: { defaultView: { Event: class Ev { constructor(type) { this.type = type; } } } },
@@ -57,7 +62,20 @@ function makeGroup(question, options, { input = true, submitDisabled = false } =
     ...extra,
   });
   const submit = button('Submit', 'Submit custom response', { disabled: submitDisabled });
+  // Клик в Arena очищает поле: по этому признаку скрипт и понимает, что ответ ушёл.
+  submit.click = function click() {
+    this.clicks += 1;
+    if (this.disabled) return;
+    this.sent = box.value; // что именно ушло — проверяем по этому
+    box.value = ''; // Arena очищает поле после Submit
+  };
   const skip = button('Skip', null);
+  // Submit в Arena включается только после того, как React примет текст.
+  // `staleFor` — сколько первых чтений кнопка ещё выключена.
+  if (staleFor) {
+    let reads = 0;
+    Object.defineProperty(submit, 'disabled', { get: () => (reads += 1) <= staleFor, configurable: true });
+  }
   const radios = options.map((o) => ({ innerText: o, textContent: o }));
   return {
     box,
@@ -86,7 +104,7 @@ function makePollApi(groups) {
   };
   const fn = new Function(
     'document', 'GM_getValue', 'GM_setValue', 'log', 'sleep', 'firstLine', 'textHash',
-    'nowIso', 'gateway', 'C', 'pause', 'location', 'window', 'nodeId', 'visible', 'getComputedStyle',
+    'nowIso', 'gateway', 'C', 'pause', 'location', 'window', 'nodeId', 'visible', 'getComputedStyle', 'Date',
     `${pollBlock}
      return { answerPolls, pollQuestions, pollLogEntry, POLL_REPLY };`,
   );
@@ -110,6 +128,8 @@ function makePollApi(groups) {
     (node) => node.id.replace('chat-message-', ''),
     () => true,
     () => ({ visibility: 'visible', display: 'block' }),
+    // Часы идут быстрее реальных: ожидание кнопки не должно растягивать пробу.
+    { now: () => (clock += 250) },
   );
 }
 
@@ -151,8 +171,8 @@ function makePollApi(groups) {
     { runId: 'run-1', ref: 'card-1', logId: 'log-1' },
   );
   assert.equal(result, 'answered', 'опрос разобран');
-  assert.equal(zone.box.value, 'Решай сам', 'в первое поле вписан ответ скрипта');
-  assert.equal(bundle.box.value, 'Решай сам', 'во второе поле тоже');
+  assert.equal(zone.submit.sent, api.POLL_REPLY, 'в первое поле вписан и отправлен ответ скрипта');
+  assert.equal(bundle.submit.sent, api.POLL_REPLY, 'во второе поле тоже');
   assert.equal(zone.submit.clicks, 1, 'первый вопрос отправлен кнопкой Submit');
   assert.equal(bundle.submit.clicks, 1, 'второй вопрос тоже');
   assert.ok(!events.includes('May I expand the write zone for this task?:input') === false, 'поле правится событием input, а не напрямую');
@@ -168,7 +188,7 @@ function makePollApi(groups) {
   assert.match(entry, /May I expand the write zone for this task\?/, 'первый вопрос в журнале');
   assert.match(entry, /Rebuild the tracked CLI bundle\?/, 'второй вопрос в журнале');
   assert.match(entry, /Keep current zone|Do not/, 'варианты ответов тоже записаны');
-  assert.match(entry, /Решай сам/, 'ответ скрипта записан');
+  assert.match(entry, /Реши сам в рамках Scope карточки/, 'ответ скрипта записан');
 }
 
 // 2.3. Повторный тик не отвечает второй раз: карточка остаётся в транскрипте.
@@ -202,10 +222,24 @@ function makePollApi(groups) {
   const result = await api.answerPolls({ name: 'Kernel' }, { runId: 'run-3', ref: 'card-3' });
   assert.equal(result, 'waiting', 'ответить некуда — работа не считается сделанной');
   assert.equal(noField.skip.clicks, 1, 'Skip нажимается только здесь');
-  assert.ok(logged.some((l) => /нажал Skip, вопросы записаны в журнал/.test(l.text)), 'причина названа');
+  assert.ok(logged.some((l) => /ответ на вопрос не отправился — нажал Skip, чтобы ход не стоял/.test(l.text)), 'причина названа');
 }
 
-// 2.6. Третий опрос за ход — пауза: это уже поломка, а не случайность.
+// 2.6. Submit включается не сразу — скрипт ждёт его и всё равно отправляет.
+// 24.10 в 18:50 текст «Решай сам» появился в поле, а кнопка осталась
+// выключенной: клик «одновременно с вставкой» ушёл в пустоту, и вопрос повис.
+{
+  store.clear();
+  logged.length = 0;
+  const slow = makeGroup('May I expand the write zone?', ['Yes', 'No'], { staleFor: 3 });
+  const api = makePollApi([slow]);
+  const result = await api.answerPolls({ name: 'Kernel' }, { runId: 'run-5', ref: 'card-5' });
+  assert.equal(result, 'answered', 'дождались включения кнопки и отправили');
+  assert.equal(slow.submit.sent, api.POLL_REPLY, 'текст ушёл именно через Submit');
+  assert.ok(!logged.some((l) => /нажал Skip/.test(l.text)), 'Skip не понадобился');
+}
+
+// 2.7. Третий опрос за ход — пауза: это уже поломка, а не случайность.
 {
   store.clear();
   pauses.length = 0;
@@ -278,4 +312,4 @@ assert.ok(
   'до поиска роли по имени',
 );
 
-console.log('OK: narthex 1.4.45 — опрос агента разбирается целиком, отвечает «Решай сам», пишется в журнал');
+console.log('OK: narthex 1.4.46 — опрос агента разбирается целиком, ответ уходит после Submit и пишется в журнал');

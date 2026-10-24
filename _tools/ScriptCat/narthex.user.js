@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.45
+// @version      1.4.46
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -269,7 +269,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.45";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.46";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -2812,11 +2812,13 @@
    * сдана, карточка висит в Running, ждать нечего.
    *
    * Отвечать за человека скрипт не берётся, но и молчать нельзя: он
-   * перечисляет вопросы и варианты в журнал попытки и отправляет «Решай сам» —
-   * ровно то, что ответил бы Мастер. `Skip` не годится: он закрывает весь
-   * опросник разом, и остальные вопросы пропали бы бесследно.
+   * перечисляет вопросы и варианты в журнал попытки и отправляет один и тот же
+   * универсальный ответ. Он повторяет то, что и так написано в промпте: решай
+   * сам в рамках Scope и запиши допущение. Такой ответ годится на любой вопрос
+   * агента — про зону, про формат, про выбор из вариантов. `Skip` не годится:
+   * он закрывает весь опросник разом, и остальные вопросы пропали бы бесследно.
    */
-  const POLL_REPLY = "Решай сам";
+  const POLL_REPLY = "Реши сам в рамках Scope карточки и продолжай; допущение запиши в отчёт.";
 
   const buttonLabel = (b) =>
     `${(b && b.getAttribute && b.getAttribute("aria-label")) || ""} ${(b && b.textContent) || ""}`.trim();
@@ -2870,15 +2872,38 @@
    * прототипа: без него кнопка Submit остаётся disabled и ответ не уходит.
    */
   function fillInput(input, value) {
-    const proto = Object.getPrototypeOf(input);
-    const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
-    if (setter) setter.call(input, value);
-    else input.value = value;
     const doc = input.ownerDocument || document;
     const view = doc.defaultView || window;
-    for (const name of ["input", "change"]) {
-      input.dispatchEvent(new view.Event(name, { bubbles: true }));
+    const set = (text) => {
+      const proto = Object.getPrototypeOf(input);
+      const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+      if (setter) setter.call(input, text);
+      else input.value = text;
+      for (const name of ["input", "change"]) {
+        input.dispatchEvent(new view.Event(name, { bubbles: true }));
+      }
+    };
+    // Пустая строка перед текстом: если прошлая попытка уже оставила здесь
+    // этот же текст, React не увидит изменения и не включит Submit.
+    if (String(input.value || "")) set("");
+    set(value);
+  }
+
+  /**
+   * Ждём, пока условие станет истинным.
+   *
+   * После вставки текста карточка перерисовывается, и кнопка Submit оживает не
+   * в тот же кадр: клик «одновременно с текстом» уходит в ещё выключенную
+   * кнопку, а текст остаётся висеть в поле (24.10, 18:50).
+   */
+  async function pollWait(check, timeoutMs = 4000, stepMs = 120) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const found = check();
+      if (found) return found;
+      await sleep(stepMs);
     }
+    return check() || null;
   }
 
   /** Запись в журнал попытки: вопрос агента — часть хода, его читает Координатор. */
@@ -2918,7 +2943,9 @@
     if (!found.length) return null;
     const who = (role && role.name) || "агент";
     // Ключ — ход агента: повторный тик не отвечает на тот же вопрос дважды.
-    const key = `cfn-poll:${(expect && (expect.runId || expect.turnId || expect.ref)) || location.pathname}`;
+    // Метки 1.4.45 сюда не читаются: они ставились без проверки, что Submit
+    // сработал, и на живом опросе Kernel заблокировали бы повтор.
+    const key = `cfn-poll2:${(expect && (expect.runId || expect.turnId || expect.ref)) || location.pathname}`;
     const handled = new Set(GM_getValue(key, []));
     const pending = found.filter((q) => !handled.has(`${q.id}:${q.question}`));
     if (!pending.length) return "waiting";
@@ -2936,44 +2963,78 @@
         );
       }
       let answered = 0;
+      const failed = [];
       for (const first of pending) {
-        // После Submit карточка перерисовывается: узлы первого вопроса уже
-        // отвязаны. Поэтому перед каждым ответом берём живые узлы заново —
-        // иначе второй вопрос получил бы текст в никуда и считался отвеченным.
-        const q = pollQuestions().find((x) => x.question === first.question) || null;
-        if (!q || !q.input || !q.submit) continue;
-        fillInput(q.input, POLL_REPLY);
-        await sleep(150);
-        if (q.submit.disabled) {
-          const view = (q.input.ownerDocument || document).defaultView || window;
-          q.input.dispatchEvent(new view.KeyboardEvent("keydown", { key: "Enter", code: "Enter", bubbles: true }));
-        } else {
-          q.submit.click();
+        // После Submit карточка перерисовывается: узлы вопроса уже отвязаны.
+        // Поэтому перед каждым ответом берём живые узлы заново.
+        const live = () => pollQuestions().find((x) => x.question === first.question) || null;
+        const q = live();
+        // Вопрос пропал — его уже закрыли, это не наша забота. Вопрос есть, а
+        // свободного поля нет — ответить некуда, и это уже потеря.
+        if (!q) continue;
+        if (!q.input) {
+          failed.push(first);
+          continue;
         }
-        handled.add(`${first.id}:${first.question}`);
-        answered += 1;
-        await sleep(400);
+        fillInput(q.input, POLL_REPLY);
+        // Ответ считается ушедшим, только если поле перестало держать наш
+        // текст или вопрос пропал из карточки. Иначе текст висит в поле, а
+        // Submit остаётся выключенным — это и случилось 24.10 в 18:50.
+        const sent = () => {
+          const now = live();
+          return !now || !now.input || String(now.input.value || "") !== POLL_REPLY;
+        };
+        let done = false;
+        for (let attempt = 1; attempt <= 3 && !done; attempt += 1) {
+          const button = await pollWait(() => {
+            const now = live();
+            return now && now.submit && now.submit.disabled === false && now.submit.isConnected !== false
+              ? now.submit
+              : null;
+          }, attempt === 1 ? 4000 : 2000);
+          if (button) button.click();
+          if (await pollWait(() => (sent() ? true : null), 2000)) done = true;
+          else if (attempt === 2 && q.input) {
+            const view = (q.input.ownerDocument || document).defaultView || window;
+            q.input.dispatchEvent(new view.KeyboardEvent("keydown", { key: "Enter", code: "Enter", bubbles: true }));
+            if (await pollWait(() => (sent() ? true : null), 1500)) done = true;
+          }
+        }
+        if (done) {
+          handled.add(`${first.id}:${first.question}`);
+          answered += 1;
+        } else {
+          failed.push(first);
+        }
+        await sleep(300);
       }
-      if (answered < pending.length) {
-        // Свободного ответа дать некуда. Skip закрывает сразу весь опросник,
-        // поэтому идём на него только здесь — когда вопросы уже перечислены
-        // в журнале, — и прямо говорим, что часть могла не прочитаться.
-        const skip = pending.find((q) => q.skip)?.skip;
+      if (!answered && failed.length) {
+        // Ни один ответ не ушёл. Опрос нельзя оставить висеть: он держит ход.
+        // Skip закрывает сразу весь опросник, поэтому идём на него только
+        // здесь — вопросы уже перечислены в журнале — и говорим, что теряем.
+        const skip = failed.find((q) => q.skip)?.skip;
         if (skip) {
           skip.click();
-          for (const q of pending) handled.add(`${q.id}:${q.question}`);
+          for (const q of failed) handled.add(`${q.id}:${q.question}`);
           log(
-            `${who}: свободного ответа в опросе нет — нажал Skip, вопросы записаны в журнал. ` +
-              "Если вопросов было несколько, прочитан только первый.",
+            `${who}: ответ на вопрос не отправился — нажал Skip, чтобы ход не стоял. ` +
+              "Вопрос и варианты записаны в журнал попытки.",
             true,
-            { tone: "warn" },
+            { tone: "warn", ntfy: "quiet", title: "Narthex: опрос закрыт кнопкой Skip" },
+          );
+        } else {
+          log(
+            `${who}: ответ на вопрос не отправился, и Skip не нашёлся — опрос держит ход. ` +
+              "Нажмите кнопку ответа в чате вручную.",
+            true,
+            { tone: "warn", ntfy: "loud", title: "Narthex: опрос держит ход" },
           );
         }
       }
-      GM_setValue(key, [...handled].slice(-20));
+      GM_setValue(key, [...handled].slice(-25));
       if (answered) {
         log(
-          `Ответил ${who} за Мастера: «${POLL_REPLY}» (вопросов ${answered}). ` +
+          `Ответил ${who} на опрос: «${firstLine(POLL_REPLY, 90)}» (вопросов ${answered}). ` +
             "Сам вопрос и варианты записаны в журнал попытки.",
           false,
           { tone: "warn" },

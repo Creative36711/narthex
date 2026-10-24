@@ -110,4 +110,4 @@ assert.equal(
 assert.doesNotMatch(ensureBlock, /GM_setValue\(key, true\);\s*\n\s*return "claimed";/, 'немедленного выхода больше нет');
 assert.match(claimBlock, /mergedFlag\(\) \|\| continueButton\(\)/, 'ждём и бейдж, и Continue');
 
-console.log('OK: narthex 1.4.45 — при мерже по маркеру Continue ждётся и нажимается, а не теряется');
+console.log('OK: narthex 1.4.46 — при мерже по маркеру Continue ждётся и нажимается, а не теряется');
