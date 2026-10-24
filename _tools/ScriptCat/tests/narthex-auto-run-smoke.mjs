@@ -80,7 +80,7 @@ assert.match(
 
 // ── 6. Журнал не забивается повторами ─────────────────────────────────────
 assert.match(src, /function logThrottled\(key, text, error = false, ms = 300_000\)/, 'есть тихий лог');
-assert.match(src, /logThrottled\("no-mission", "Нет активной миссии — ждём\."\)/, '«нет миссии» не пишется каждые 15 секунд');
+assert.match(src, /logThrottled\(\s*"no-mission",\s*"Миссий в работе нет\./, '«нет миссии» не пишется каждые 15 секунд и говорит, что делать');
 
 // ── 6.1. «done» с живыми карточками миссию не закрывает ───────────────────
 assert.match(src, /kind: "done-with-open"/, 'есть защита от преждевременного done');
@@ -146,4 +146,4 @@ const role = { id: 'architect', name: 'Architect', url: 'https://arena.ai/agent/
   assert.equal(h.pauses.length, 0, 'паузы нет');
 }
 
-console.log('OK: narthex 1.4.53 — автоцикл сам находит страницу, не петляет и не забивает журнал');
+console.log('OK: narthex 1.4.54 — автоцикл сам находит страницу, не петляет и не забивает журнал');
