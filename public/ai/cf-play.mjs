@@ -773,12 +773,12 @@ function migrateEntity(e2) {
   }
   return e2;
 }
-function migrateMeta(meta) {
-  for (const need of meta.needs ?? []) {
+function migrateMeta(meta2) {
+  for (const need of meta2.needs ?? []) {
     if (need.decay_when) need.decay_when = migrateNeedConditions(need.decay_when);
     if (need.restore_when) need.restore_when = migrateNeedConditions(need.restore_when);
   }
-  const cc = meta.char_creation;
+  const cc = meta2.char_creation;
   if (cc) {
     if (Array.isArray(cc.allowed_professions)) delete cc.allowed_professions;
     if (!Array.isArray(cc.mandatory_skills)) cc.mandatory_skills = cc.mandatory_skills ? [String(cc.mandatory_skills)] : [];
@@ -791,17 +791,17 @@ function migrateMeta(meta) {
     { id: "sad", label: "\u041F\u0435\u0447\u0430\u043B\u044C" },
     { id: "fear", label: "\u0421\u0442\u0440\u0430\u0445" }
   ];
-  meta.emotions = (meta.emotions ?? []).filter(
+  meta2.emotions = (meta2.emotions ?? []).filter(
     (e2) => !legacyBuiltins.some((b2) => b2.id === e2.id && b2.label === e2.label)
   );
-  return meta;
+  return meta2;
 }
 function migrateMusicRules(music) {
   if (music === void 0) return void 0;
   if (typeof music === "string") return music ? [{ tracks: [music] }] : void 0;
   return music;
 }
-function migrateNavigation(scene, world) {
+function migrateNavigation(scene, world2) {
   let changed = false;
   const out = scene.navigation.map((nav) => {
     const legacy = nav.go_to_location;
@@ -810,7 +810,7 @@ function migrateNavigation(scene, world) {
     const next = { ...nav };
     delete next.go_to_location;
     if (legacy === scene.location) {
-      const loc = findLocation(world, legacy);
+      const loc = findLocation(world2, legacy);
       const target = loc?.arrival_scene ?? loc?.scenes[0];
       if (target && target !== scene.id) next.go_to_scene = target;
       else next.open_map = true;
@@ -822,7 +822,7 @@ function migrateNavigation(scene, world) {
   if (changed) scene.navigation = out;
   return out;
 }
-function findLocation(world, id) {
+function findLocation(world2, id) {
   const walk2 = (regions) => {
     for (const r2 of regions) {
       const l2 = r2.locations.find((x2) => x2.id === id);
@@ -832,9 +832,9 @@ function findLocation(world, id) {
     }
     return void 0;
   };
-  return walk2(world.regions);
+  return walk2(world2.regions);
 }
-function allLocations(world) {
+function allLocations(world2) {
   const out = [];
   const walk2 = (regions) => {
     for (const r2 of regions) {
@@ -842,13 +842,13 @@ function allLocations(world) {
       if (r2.sub_regions) walk2(r2.sub_regions);
     }
   };
-  walk2(world.regions);
+  walk2(world2.regions);
   return out;
 }
-function migrateCampaign(meta, world, scenes) {
-  migrateMeta(meta);
-  for (const scene of Object.values(scenes)) migrateNavigation(scene, world);
-  for (const loc of allLocations(world)) {
+function migrateCampaign(meta2, world2, scenes) {
+  migrateMeta(meta2);
+  for (const scene of Object.values(scenes)) migrateNavigation(scene, world2);
+  for (const loc of allLocations(world2)) {
     const rules = migrateMusicRules(loc.music);
     if (rules === void 0) delete loc.music;
     else loc.music = rules;
@@ -861,7 +861,7 @@ var init_migrate = __esm({
 
 // src/shared/versions.ts
 function readEngineVersion() {
-  if ("0.8.0") return "0.8.0";
+  if ("0.9.0") return "0.9.0";
   const fromEnv = globalThis.process?.env?.npm_package_version;
   return fromEnv || "0.0.0-dev";
 }
@@ -930,19 +930,123 @@ var init_versions = __esm({
   }
 });
 
+// src/core/caps.ts
+function assertEnableable(id, source) {
+  const capability = capabilityById.get(id);
+  if (!capability) {
+    throw new TypeError(`Unknown capability "${id}" in campaign.meta.${source}; check the capability registry.`);
+  }
+  if (!ENABLED_STATUSES.has(capability.status)) {
+    throw new TypeError(`Capability "${id}" cannot be enabled from campaign.meta.${source} (status: ${capability.status}).`);
+  }
+  return capability;
+}
+function parseCapabilityList(value, source) {
+  if (!Array.isArray(value)) {
+    const kind = value === null ? "null" : typeof value;
+    throw new TypeError(`Invalid campaign.meta.${source}: expected an array of capability ids, received ${kind}.`);
+  }
+  const result = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const id of value) {
+    if (typeof id !== "string" || id.trim() === "") {
+      throw new TypeError(`Invalid campaign.meta.${source}: every capability id must be a non-empty string.`);
+    }
+    assertEnableable(id, source);
+    if (!seen.has(id)) {
+      result.push(id);
+      seen.add(id);
+    }
+  }
+  return result;
+}
+function campaignCaps(meta2) {
+  if (meta2.caps !== void 0) return parseCapabilityList(meta2.caps, "caps");
+  const features = meta2.features;
+  if (features === void 0) return [...LEGACY_DEFAULT_CAPS];
+  if (Array.isArray(features)) return parseCapabilityList(features, "features");
+  if (features === null || typeof features !== "object") {
+    const kind = features === null ? "null" : typeof features;
+    throw new TypeError(`Unsupported campaign.meta.features format: expected string[] or a boolean map, received ${kind}.`);
+  }
+  const prototype = Object.getPrototypeOf(features);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw new TypeError("Unsupported campaign.meta.features format: expected a plain boolean map.");
+  }
+  const enabled = new Set(LEGACY_DEFAULT_CAPS);
+  for (const [id, value] of Object.entries(features)) {
+    if (typeof value !== "boolean") {
+      throw new TypeError(`Invalid campaign.meta.features["${id}"]: expected a boolean, received ${value === null ? "null" : typeof value}.`);
+    }
+    assertEnableable(id, "features");
+    if (value) enabled.add(id);
+    else enabled.delete(id);
+  }
+  return [...enabled];
+}
+function featureOn(meta2, id) {
+  const capability = capabilityById.get(id);
+  if (!capability) throw new TypeError(`Unknown runtime capability "${id}"; check the capability registry.`);
+  return ENABLED_STATUSES.has(capability.status) && campaignCaps(meta2).includes(id);
+}
+var CAPABILITY_REGISTRY, capabilityById, LEGACY_DEFAULT_CAPS, ENABLED_STATUSES;
+var init_caps = __esm({
+  "src/core/caps.ts"() {
+    CAPABILITY_REGISTRY = [
+      { "id": "narrative", "title": "\u0413\u0440\u0430\u0444 \u0441\u0446\u0435\u043D, \u0444\u043B\u0430\u0433\u0438, \u0432\u0435\u0442\u0432\u043B\u0435\u043D\u0438\u0435", "pack": "narrative", "status": "stable", "since": 2, "enables": "campaign story graph and branching", "probe": "smoke:core" },
+      { "id": "scenes", "title": "\u0421\u0446\u0435\u043D\u044B \u0438 \u043F\u0435\u0440\u0435\u0445\u043E\u0434\u044B \u043C\u0435\u0436\u0434\u0443 \u043D\u0438\u043C\u0438", "pack": "narrative", "status": "stable", "since": 2, "enables": "scene state and navigation", "probe": "smoke:scene-editor" },
+      { "id": "dialogue", "title": "\u0414\u0438\u0430\u043B\u043E\u0433\u0438 \u0438 \u0432\u0435\u0442\u0432\u044F\u0449\u0438\u0435\u0441\u044F \u0440\u0435\u043F\u043B\u0438\u043A\u0438", "pack": "narrative", "status": "stable", "since": 2, "enables": "Ink dialogue and choices", "probe": "smoke:dlg-ui" },
+      { "id": "map", "title": "\u041A\u0430\u0440\u0442\u0430 \u043C\u0438\u0440\u0430 \u0438 \u043B\u043E\u043A\u0430\u0446\u0438\u0438", "pack": "narrative", "status": "stable", "since": 2, "enables": "world map and location travel", "probe": "smoke:travel-transition" },
+      { "id": "inventory", "title": "\u0418\u043D\u0432\u0435\u043D\u0442\u0430\u0440\u044C \u0438 \u043F\u0440\u0435\u0434\u043C\u0435\u0442\u044B", "pack": "narrative", "status": "stable", "since": 2, "enables": "inventory, equipment, and item use", "probe": "smoke:encumbrance" },
+      { "id": "needs", "title": "\u041F\u043E\u0442\u0440\u0435\u0431\u043D\u043E\u0441\u0442\u0438 \u0438 \u0438\u0445 \u0443\u0431\u044B\u0432\u0430\u043D\u0438\u0435", "pack": "narrative", "status": "stable", "since": 2, "enables": "tracked needs and their recovery", "probe": "smoke:time-semantics" },
+      { "id": "skills", "title": "\u041D\u0430\u0432\u044B\u043A\u0438 \u0438 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438", "pack": "narrative", "status": "stable", "since": 2, "enables": "skill checks and character growth", "probe": "smoke:core" },
+      { "id": "relationships", "title": "\u041E\u0442\u043D\u043E\u0448\u0435\u043D\u0438\u044F \u0441 \u043F\u0435\u0440\u0441\u043E\u043D\u0430\u0436\u0430\u043C\u0438", "pack": "narrative", "status": "stable", "since": 2, "enables": "NPC relationships and disposition", "probe": "smoke:ai-runtime" },
+      { "id": "trade", "title": "\u0422\u043E\u0440\u0433\u043E\u0432\u043B\u044F \u0438 \u0446\u0435\u043D\u044B", "pack": "narrative", "status": "stable", "since": 2, "enables": "trading and prices", "probe": "smoke:currency" },
+      { "id": "combat", "title": "\u041F\u043E\u0448\u0430\u0433\u043E\u0432\u044B\u0439 \u0431\u043E\u0439", "pack": "narrative", "status": "stable", "since": 2, "enables": "turn-based combat", "probe": "smoke:core" },
+      { "id": "quests", "title": "\u041A\u0432\u0435\u0441\u0442\u044B \u0438 \u0441\u0442\u0430\u0434\u0438\u0438", "pack": "narrative", "status": "stable", "since": 2, "enables": "quest stages and journal", "probe": "smoke:quest-journal-runtime" },
+      { "id": "cutscenes", "title": "\u041A\u0430\u0442\u0441\u0446\u0435\u043D\u044B", "pack": "narrative", "status": "stable", "since": 2, "enables": "queued campaign cutscenes", "probe": "smoke:cutscene-queue" },
+      { "id": "codex", "title": "\u041A\u043E\u0434\u0435\u043A\u0441 \u0438 \u0431\u0435\u0441\u0442\u0438\u0430\u0440\u0438\u0439", "pack": "narrative", "status": "stable", "since": 2, "enables": "codex entries and categories", "probe": "smoke:p2" },
+      { "id": "crafting", "title": "\u041A\u0440\u0430\u0444\u0442 \u0438 \u0440\u0435\u0446\u0435\u043F\u0442\u044B", "pack": "narrative", "status": "stable", "since": 2, "enables": "recipes and crafting actions", "probe": "smoke:craft-fail-time" },
+      { "id": "time", "title": "\u0418\u0433\u0440\u043E\u0432\u043E\u0435 \u0432\u0440\u0435\u043C\u044F \u0438 \u043A\u0430\u043B\u0435\u043D\u0434\u0430\u0440\u044C", "pack": "narrative", "status": "stable", "since": 2, "enables": "clock, calendar, and elapsed time", "probe": "smoke:time-semantics" },
+      { "id": "state-machine", "title": "\u041F\u043E\u0448\u0430\u0433\u043E\u0432\u044B\u0439 \u0430\u0432\u0442\u043E\u043C\u0430\u0442 \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u0439", "pack": "state-ui", "status": "planned", "since": 3, "enables": "generic state-machine runtime", "probe": null },
+      { "id": "cards", "title": "\u041A\u0430\u0440\u0442\u044B, \u043A\u043E\u043B\u043E\u0434\u044B, \u044D\u0444\u0444\u0435\u043A\u0442\u044B", "pack": "state-ui", "status": "planned", "since": 3, "enables": "card collections and effects", "probe": null },
+      { "id": "auto-battle", "title": "\u0410\u0432\u0442\u043E\u0431\u0430\u0442\u043B\u0435\u0440 \u0438 \u0441\u0438\u043C\u0443\u043B\u044F\u0446\u0438\u044F \u043F\u0430\u0440\u0442\u0438\u0438", "pack": "state-ui", "status": "planned", "since": 3, "enables": "automated battle simulation", "probe": null },
+      { "id": "turn-validation", "title": "\u0421\u0435\u0440\u0432\u0435\u0440\u043D\u0430\u044F \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u0445\u043E\u0434\u0430", "pack": "state-ui", "status": "planned", "since": 3, "enables": "authoritative server-side turn validation", "probe": null },
+      { "id": "grid", "title": "\u0421\u0435\u0442\u043A\u0430 \u0438 \u043A\u043B\u0435\u0442\u043A\u0438", "pack": "grid-strategy", "status": "planned", "since": 3, "enables": "grid cells and coordinates", "probe": null },
+      { "id": "pathfinding", "title": "\u041F\u043E\u0438\u0441\u043A \u043F\u0443\u0442\u0438 A*", "pack": "grid-strategy", "status": "planned", "since": 3, "enables": "A-star pathfinding", "probe": null },
+      { "id": "units", "title": "\u041E\u0442\u0440\u044F\u0434\u044B \u0438 \u044E\u043D\u0438\u0442\u044B", "pack": "grid-strategy", "status": "planned", "since": 3, "enables": "tactical units and squads", "probe": null },
+      { "id": "economy", "title": "\u041F\u043E\u0442\u043E\u043A\u043E\u0432\u0430\u044F \u044D\u043A\u043E\u043D\u043E\u043C\u0438\u043A\u0430", "pack": "grid-strategy", "status": "planned", "since": 3, "enables": "streaming strategy-game economy", "probe": null },
+      { "id": "ai-director", "title": "\u041F\u0440\u043E\u0442\u0438\u0432\u043D\u0438\u043A \u0438 \u0435\u0433\u043E \u043B\u043E\u0433\u0438\u043A\u0430", "pack": "grid-strategy", "status": "planned", "since": 3, "enables": "opponent and director logic", "probe": null },
+      { "id": "realtime-loop", "title": "\u0426\u0438\u043A\u043B \u0440\u0435\u0430\u043B\u044C\u043D\u043E\u0433\u043E \u0432\u0440\u0435\u043C\u0435\u043D\u0438", "pack": "endless-2d", "status": "planned", "since": 4, "enables": "real-time simulation loop", "probe": null },
+      { "id": "physics2d", "title": "\u0422\u0432\u0451\u0440\u0434\u044B\u0435 \u0442\u0435\u043B\u0430 2D", "pack": "endless-2d", "status": "planned", "since": 4, "enables": "2D rigid-body physics", "probe": null },
+      { "id": "procedural-gen", "title": "\u041F\u0440\u043E\u0446\u0435\u0434\u0443\u0440\u043D\u0430\u044F \u0433\u0435\u043D\u0435\u0440\u0430\u0446\u0438\u044F", "pack": "endless-2d", "status": "planned", "since": 4, "enables": "procedural content generation", "probe": null },
+      { "id": "mobile-input", "title": "\u0422\u0430\u0447-\u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u0435 \u0438 \u043C\u043E\u0431\u0438\u043B\u044C\u043D\u044B\u0439 \u044D\u043A\u0440\u0430\u043D", "pack": "endless-2d", "status": "planned", "since": 4, "enables": "touch-first mobile input", "probe": null },
+      { "id": "spatial3d", "title": "3D-\u0441\u0446\u0435\u043D\u0430 \u0438 \u043A\u0430\u043C\u0435\u0440\u0430", "pack": "spatial-3d", "status": "planned", "since": 5, "enables": "3D scene and camera", "probe": null },
+      { "id": "character-controller", "title": "\u041A\u043E\u043D\u0442\u0440\u043E\u043B\u043B\u0435\u0440 \u043F\u0435\u0440\u0441\u043E\u043D\u0430\u0436\u0430", "pack": "spatial-3d", "status": "planned", "since": 5, "enables": "3D character movement", "probe": null },
+      { "id": "skeletal-animation", "title": "\u0421\u043A\u0435\u043B\u0435\u0442\u043D\u0430\u044F \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u044F", "pack": "spatial-3d", "status": "planned", "since": 5, "enables": "skeletal animation", "probe": null },
+      { "id": "triggers", "title": "\u0422\u0440\u0438\u0433\u0433\u0435\u0440\u044B \u0438 \u0437\u043E\u043D\u044B", "pack": "spatial-3d", "status": "planned", "since": 5, "enables": "3D trigger volumes and zones", "probe": null },
+      { "id": "multiplayer-turn", "title": "\u0410\u0441\u0438\u043D\u0445\u0440\u043E\u043D\u043D\u044B\u0435 \u043A\u043E\u043C\u043D\u0430\u0442\u044B", "pack": null, "status": "reserved", "since": 6, "enables": "reserved asynchronous multiplayer sessions", "probe": null },
+      { "id": "multiplayer-realtime", "title": "\u0421\u0435\u0441\u0441\u0438\u0438 \u0432 \u0440\u0435\u0430\u043B\u044C\u043D\u043E\u043C \u0432\u0440\u0435\u043C\u0435\u043D\u0438", "pack": null, "status": "reserved", "since": 6, "enables": "reserved real-time multiplayer sessions", "probe": null }
+    ];
+    capabilityById = new Map(
+      CAPABILITY_REGISTRY.map((capability) => [capability.id, capability])
+    );
+    LEGACY_DEFAULT_CAPS = ["map", "inventory", "needs", "skills", "relationships", "trade", "combat", "time"];
+    ENABLED_STATUSES = /* @__PURE__ */ new Set(["stable", "experimental"]);
+  }
+});
+
 // src/shared/types.ts
-function featureOn(meta, key) {
-  return meta.features?.[key] !== false;
+function startTick(meta2) {
+  return meta2.starting_tick ?? 8;
 }
-function startTick(meta) {
-  return meta.starting_tick ?? 8;
-}
-function equipmentSlots(meta) {
-  return (meta.equipment_slots ?? []).map((s2) => ({ ...s2 }));
+function equipmentSlots(meta2) {
+  return (meta2.equipment_slots ?? []).map((s2) => ({ ...s2 }));
 }
 var DEFAULT_DICE_RULES, BUILTIN_CODEX_CATEGORIES, SAVE_VERSION, SAVE_ENVELOPE_VERSION;
 var init_types = __esm({
   "src/shared/types.ts"() {
+    init_caps();
     DEFAULT_DICE_RULES = {
       critical_divisor: 5,
       special_divisor: 2,
@@ -1190,12 +1294,12 @@ function entityLabel(campaign2, id) {
   const e2 = campaign2.entities[id];
   return e2?.label || id;
 }
-function slotLabel(meta, slotId) {
-  const slot = equipmentSlots(meta).find((s2) => s2.id === slotId);
+function slotLabel(meta2, slotId) {
+  const slot = equipmentSlots(meta2).find((s2) => s2.id === slotId);
   return slot?.label ?? slotId;
 }
 function repairState(state, campaign2, ctx2) {
-  const meta = campaign2.meta;
+  const meta2 = campaign2.meta;
   const ents = campaign2.entities;
   if (!state.player || typeof state.player !== "object") {
     ctx2.note("warning", "\u0412 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u0438 \u043D\u0435\u0442 \u0434\u0430\u043D\u043D\u044B\u0445 \u0433\u0435\u0440\u043E\u044F \u2014 \u0437\u0430\u0431\u0435\u0433 \u043D\u0430\u0447\u043D\u0451\u0442\u0441\u044F \u0437\u0430\u043D\u043E\u0432\u043E.");
@@ -1203,7 +1307,7 @@ function repairState(state, campaign2, ctx2) {
   }
   const p2 = state.player;
   if (!ents[p2.entity]) {
-    const fallback = meta.default_player;
+    const fallback = meta2.default_player;
     if (fallback && ents[fallback]) {
       ctx2.note("repaired", `\u0428\u0430\u0431\u043B\u043E\u043D \u0433\u0435\u0440\u043E\u044F \xAB${p2.entity}\xBB \u0443\u0434\u0430\u043B\u0451\u043D \u0438\u0437 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 \u2014 \u0432\u0437\u044F\u0442 \u0441\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u044B\u0439 \u0433\u0435\u0440\u043E\u0439.`);
       p2.entity = fallback;
@@ -1222,7 +1326,7 @@ function repairState(state, campaign2, ctx2) {
   } else {
     p2.inventory = [];
   }
-  const declaredSlots = new Set(equipmentSlots(meta).map((s2) => s2.id));
+  const declaredSlots = new Set(equipmentSlots(meta2).map((s2) => s2.id));
   for (const ent of Object.values(ents)) {
     if (ent.type === "item") {
       const s2 = ent.equip_slot || ent.slot;
@@ -1235,13 +1339,13 @@ function repairState(state, campaign2, ctx2) {
       if (!declaredSlots.has(slot)) {
         if (item && ents[item]) {
           p2.inventory.push({ item, quantity: 1 });
-          removed.push(`\u0441\u043B\u043E\u0442 \xAB${slotLabel(meta, slot)}\xBB (\u043F\u0440\u0435\u0434\u043C\u0435\u0442 \xAB${entityLabel(campaign2, item)}\xBB \u043F\u0435\u0440\u0435\u043C\u0435\u0449\u0451\u043D \u0432 \u0438\u043D\u0432\u0435\u043D\u0442\u0430\u0440\u044C)`);
+          removed.push(`\u0441\u043B\u043E\u0442 \xAB${slotLabel(meta2, slot)}\xBB (\u043F\u0440\u0435\u0434\u043C\u0435\u0442 \xAB${entityLabel(campaign2, item)}\xBB \u043F\u0435\u0440\u0435\u043C\u0435\u0449\u0451\u043D \u0432 \u0438\u043D\u0432\u0435\u043D\u0442\u0430\u0440\u044C)`);
         } else {
-          removed.push(`\u0441\u043B\u043E\u0442 \xAB${slotLabel(meta, slot)}\xBB`);
+          removed.push(`\u0441\u043B\u043E\u0442 \xAB${slotLabel(meta2, slot)}\xBB`);
         }
         delete p2.equipment[slot];
       } else if (!item || !ents[item]) {
-        removed.push(`${slotLabel(meta, slot)}: ${item ? entityLabel(campaign2, item) : "\u043F\u0443\u0441\u0442\u043E"}`);
+        removed.push(`${slotLabel(meta2, slot)}: ${item ? entityLabel(campaign2, item) : "\u043F\u0443\u0441\u0442\u043E"}`);
         delete p2.equipment[slot];
       }
     }
@@ -1251,7 +1355,7 @@ function repairState(state, campaign2, ctx2) {
   } else {
     p2.equipment = {};
   }
-  const known = /* @__PURE__ */ new Set([...(meta.skills ?? []).map((s2) => s2.id), ...Object.keys(BUILTIN_SKILL_LABELS)]);
+  const known = /* @__PURE__ */ new Set([...(meta2.skills ?? []).map((s2) => s2.id), ...Object.keys(BUILTIN_SKILL_LABELS)]);
   const dropSkills = (bag, out) => {
     if (!bag) return;
     for (const id of Object.keys(bag)) {
@@ -1271,7 +1375,7 @@ function repairState(state, campaign2, ctx2) {
   const needsNow = p2.needs && typeof p2.needs === "object" ? p2.needs : p2.needs = {};
   const added = [];
   const clamped = [];
-  for (const need of meta.needs ?? []) {
+  for (const need of meta2.needs ?? []) {
     const cur = needsNow[need.id];
     if (typeof cur !== "number") {
       needsNow[need.id] = need.max;
@@ -1286,12 +1390,12 @@ function repairState(state, campaign2, ctx2) {
   }
   if (added.length) ctx2.note("repaired", `\u0414\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u044B \u043D\u043E\u0432\u044B\u0435 \u043F\u043E\u0442\u0440\u0435\u0431\u043D\u043E\u0441\u0442\u0438 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438: ${listShort(added)} (\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u044F \u2014 \u043C\u0430\u043A\u0441\u0438\u043C\u0443\u043C).`);
   if (clamped.length) ctx2.note("repaired", `\u0417\u043D\u0430\u0447\u0435\u043D\u0438\u044F \u043F\u0440\u0438\u0432\u0435\u0434\u0435\u043D\u044B \u043A \u043D\u043E\u0432\u043E\u043C\u0443 \u043F\u0440\u0435\u0434\u0435\u043B\u0443: ${listShort(clamped)}.`);
-  const needIds = new Set((meta.needs ?? []).map((n2) => n2.id));
+  const needIds = new Set((meta2.needs ?? []).map((n2) => n2.id));
   const goneNeeds = Object.keys(needsNow).filter((id) => !needIds.has(id));
   for (const id of goneNeeds) delete needsNow[id];
   if (goneNeeds.length) ctx2.note("repaired", `\u0423\u0431\u0440\u0430\u043D\u044B \u043F\u043E\u0442\u0440\u0435\u0431\u043D\u043E\u0441\u0442\u0438, \u043A\u043E\u0442\u043E\u0440\u044B\u0445 \u0431\u043E\u043B\u044C\u0448\u0435 \u043D\u0435\u0442 \u0432 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438: ${listShort(goneNeeds)}.`);
   if (Array.isArray(p2.statuses)) {
-    const statusIds = new Set((meta.statuses ?? []).map((s2) => s2.id));
+    const statusIds = new Set((meta2.statuses ?? []).map((s2) => s2.id));
     const before = p2.statuses.length;
     p2.statuses = p2.statuses.filter((s2) => s2 && statusIds.has(s2.id));
     if (p2.statuses.length !== before) ctx2.note("repaired", "\u0421\u043D\u044F\u0442\u044B \u0441\u0442\u0430\u0442\u0443\u0441\u044B, \u043A\u043E\u0442\u043E\u0440\u044B\u0445 \u0431\u043E\u043B\u044C\u0448\u0435 \u043D\u0435\u0442 \u0432 \u0440\u0435\u0435\u0441\u0442\u0440\u0435 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438.");
@@ -1362,9 +1466,9 @@ function repairState(state, campaign2, ctx2) {
   };
   walkRegions(campaign2.world.regions);
   if (!locIds.has(state.location)) {
-    ctx2.note("repaired", `\u041B\u043E\u043A\u0430\u0446\u0438\u044F \xAB${state.location}\xBB \u0443\u0434\u0430\u043B\u0435\u043D\u0430 \u0438\u0437 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 \u2014 \u0433\u0435\u0440\u043E\u0439 \u043F\u0435\u0440\u0435\u043D\u0435\u0441\u0451\u043D \u043D\u0430 \u0441\u0442\u0430\u0440\u0442 (${meta.starting_location}).`);
-    state.location = meta.starting_location;
-    state.scene = meta.starting_scene;
+    ctx2.note("repaired", `\u041B\u043E\u043A\u0430\u0446\u0438\u044F \xAB${state.location}\xBB \u0443\u0434\u0430\u043B\u0435\u043D\u0430 \u0438\u0437 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 \u2014 \u0433\u0435\u0440\u043E\u0439 \u043F\u0435\u0440\u0435\u043D\u0435\u0441\u0451\u043D \u043D\u0430 \u0441\u0442\u0430\u0440\u0442 (${meta2.starting_location}).`);
+    state.location = meta2.starting_location;
+    state.scene = meta2.starting_scene;
   } else {
     const loc = locations.find((l2) => l2.id === state.location);
     if (!campaign2.scenes[state.scene] || !loc.scenes.includes(state.scene)) {
@@ -1376,7 +1480,7 @@ function repairState(state, campaign2, ctx2) {
     }
   }
   if (!regionIds.has(state.region)) {
-    state.region = meta.starting_region;
+    state.region = meta2.starting_region;
     ctx2.note("repaired", "\u0420\u0435\u0433\u0438\u043E\u043D \u0443\u0434\u0430\u043B\u0451\u043D \u0438\u0437 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 \u2014 \u043E\u0442\u043A\u0440\u044B\u0442 \u0441\u0442\u0430\u0440\u0442\u043E\u0432\u044B\u0439 \u0440\u0435\u0433\u0438\u043E\u043D.");
   }
   if (Array.isArray(state.revealed_locations)) {
@@ -1408,7 +1512,7 @@ function repairState(state, campaign2, ctx2) {
     for (const k2 of keys) delete state.desc_overrides[k2];
     if (keys.length) ctx2.note("repaired", "\u0423\u0431\u0440\u0430\u043D\u044B \u043E\u043F\u0438\u0441\u0430\u043D\u0438\u044F \u0443\u0434\u0430\u043B\u0451\u043D\u043D\u044B\u0445 \u043F\u0435\u0440\u0441\u043E\u043D\u0430\u0436\u0435\u0439 \u0438 \u043F\u0440\u0435\u0434\u043C\u0435\u0442\u043E\u0432.");
   }
-  if (state.weather && !(meta.weathers ?? []).some((w2) => w2.id === state.weather)) {
+  if (state.weather && !(meta2.weathers ?? []).some((w2) => w2.id === state.weather)) {
     delete state.weather;
     ctx2.note("repaired", "\u041F\u043E\u0433\u043E\u0434\u0430 \u0443\u0431\u0440\u0430\u043D\u0430: \u0442\u0430\u043A\u043E\u0439 \u043F\u043E\u0433\u043E\u0434\u044B \u0431\u043E\u043B\u044C\u0448\u0435 \u043D\u0435\u0442 \u0432 \u0440\u0435\u0435\u0441\u0442\u0440\u0435 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438.");
   }
@@ -1418,7 +1522,7 @@ function repairState(state, campaign2, ctx2) {
     if (state.codex_unlocked.length !== before) ctx2.note("repaired", "\u0418\u0437 \u043A\u043E\u0434\u0435\u043A\u0441\u0430 \u0443\u0431\u0440\u0430\u043D\u044B \u0437\u0430\u043F\u0438\u0441\u0438, \u043A\u043E\u0442\u043E\u0440\u044B\u0445 \u0431\u043E\u043B\u044C\u0448\u0435 \u043D\u0435\u0442 \u0432 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438.");
   }
   if (state.dispositions) {
-    const factionIds = new Set((meta.factions ?? []).map((f2) => f2.id));
+    const factionIds = new Set((meta2.factions ?? []).map((f2) => f2.id));
     const keys = Object.keys(state.dispositions).filter((id) => !factionIds.has(id) && !ents[id]);
     for (const k2 of keys) delete state.dispositions[k2];
     if (keys.length) ctx2.note("repaired", "\u0423\u0431\u0440\u0430\u043D\u044B \u043E\u0442\u043D\u043E\u0448\u0435\u043D\u0438\u044F \u0441 \u0444\u0440\u0430\u043A\u0446\u0438\u044F\u043C\u0438 \u0438 \u043F\u0435\u0440\u0441\u043E\u043D\u0430\u0436\u0430\u043C\u0438, \u043A\u043E\u0442\u043E\u0440\u044B\u0445 \u0431\u043E\u043B\u044C\u0448\u0435 \u043D\u0435\u0442 \u0432 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438.");
@@ -1456,8 +1560,8 @@ function makeEnvelope(state, campaignId, campaignVersion, prev) {
     state
   };
 }
-function checkSaveVersion(saveCampaignVersion, meta) {
-  const base = meta.save_base_version;
+function checkSaveVersion(saveCampaignVersion, meta2) {
+  const base = meta2.save_base_version;
   if (!base) return { kind: "ok", repaired: false };
   if (!saveCampaignVersion) return { kind: "ok", repaired: false };
   if (compareVersions(saveCampaignVersion, base) >= 0) return { kind: "ok", repaired: false };
@@ -1688,12 +1792,12 @@ var init_prng = __esm({
 });
 
 // src/core/time.ts
-function hourOfDay(tick, meta) {
-  return (tick % meta.ticks_per_day + meta.ticks_per_day) % meta.ticks_per_day;
+function hourOfDay(tick, meta2) {
+  return (tick % meta2.ticks_per_day + meta2.ticks_per_day) % meta2.ticks_per_day;
 }
-function timeOfDay(tick, meta) {
-  const t5 = meta.time_of_day ?? DEFAULT_THRESHOLDS;
-  const h2 = hourOfDay(tick, meta);
+function timeOfDay(tick, meta2) {
+  const t5 = meta2.time_of_day ?? DEFAULT_THRESHOLDS;
+  const h2 = hourOfDay(tick, meta2);
   if (h2 >= t5.night || h2 < t5.morning) return "night";
   if (h2 >= t5.evening) return "evening";
   if (h2 >= t5.day) return "day";
@@ -1860,6 +1964,5627 @@ var init_conditions = __esm({
   "src/core/conditions.ts"() {
     init_types();
     init_time();
+  }
+});
+
+// src/shared/synth.ts
+function audioCtx() {
+  if (broken) return null;
+  if (typeof window === "undefined") return null;
+  try {
+    if (!ctx) {
+      const AC = window.AudioContext ?? window.webkitAudioContext;
+      if (!AC) {
+        broken = true;
+        return null;
+      }
+      ctx = new AC();
+    }
+    return ctx;
+  } catch {
+    broken = true;
+    return null;
+  }
+}
+function unlockAudio() {
+  const c2 = audioCtx();
+  if (c2 && c2.state === "suspended") void c2.resume();
+}
+function renderSoundDoc(c2, doc) {
+  const key = JSON.stringify(doc.zzfx);
+  const hit = sfxCache.get(key);
+  if (hit) return hit;
+  const p2 = doc.zzfx ?? [];
+  const n2 = (i2, d2) => typeof p2[i2] === "number" && Number.isFinite(p2[i2]) ? p2[i2] : d2;
+  const vol = clamp(n2(0, 1), 0, 1);
+  const random = n2(1, 0.05);
+  const freq0 = Math.max(20, n2(2, 220));
+  const attack = Math.max(0, n2(3, 0));
+  const sustain = Math.max(0, n2(4, 0));
+  const decay = Math.max(0.01, n2(5, 0.1));
+  const shape = Math.max(0, Math.min(4, Math.round(n2(6, 0))));
+  const curve = n2(7, 1);
+  const slide = n2(8, 0);
+  const deltaSlide = n2(9, 0);
+  const pitchJump = n2(10, 0);
+  const pitchJumpTime = n2(11, 0);
+  const repeatTime = n2(12, 0);
+  const noiseAmt = clamp(n2(13, 0), 0, 1);
+  const fm = n2(14, 0);
+  const bitCrush = Math.round(n2(15, 0));
+  const delaySec = n2(16, 0);
+  const sustainVol = clamp(n2(17, 0.7), 0, 1);
+  const decayCurve = n2(18, 1);
+  const clip = clamp(n2(19, 0), 0, 1);
+  const sr = c2.sampleRate;
+  const envLen = attack + sustain + decay;
+  const repeats = repeatTime > 0 ? Math.max(1, Math.min(12, Math.round(envLen / repeatTime))) : 1;
+  const total = envLen * repeats + (delaySec > 0 ? delaySec * 3 : 0) + 0.02;
+  const len = Math.max(1, Math.ceil(total * sr));
+  const buf = c2.createBuffer(1, len, sr);
+  const out = buf.getChannelData(0);
+  const rnd = (0, import_seedrandom2.default)(`zzfx:${key}`);
+  const freqJitter = 1 + (rnd() * 2 - 1) * random;
+  let phase = 0;
+  let echo = delaySec > 0 ? new Array(Math.ceil(delaySec * sr)).fill(0) : [];
+  const echoAt = echo.length;
+  for (let i2 = 0; i2 < len; i2++) {
+    const tGlobal = i2 / sr;
+    const t5 = repeatTime > 0 ? tGlobal % repeatTime : tGlobal;
+    const tIn = repeatTime > 0 ? tGlobal / repeatTime : 0;
+    let env;
+    if (t5 < attack) env = attack > 0 ? t5 / attack : 1;
+    else if (t5 < attack + sustain) env = sustainVol + (1 - sustainVol) * 0.15;
+    else {
+      const dt2 = (t5 - attack - sustain) / decay;
+      env = dt2 >= 1 ? 0 : sustainVol * Math.pow(1 - dt2, 0.5 + decayCurve * 2);
+    }
+    if (env <= 0 && repeatTime <= 0 && t5 > attack + sustain + decay) {
+      out[i2] = 0;
+      continue;
+    }
+    let f2 = freq0 * freqJitter * Math.pow(2, (slide * t5 + 0.5 * deltaSlide * t5 * t5) / 12);
+    if (t5 >= pitchJumpTime && pitchJumpTime > 0) f2 *= Math.pow(2, pitchJump / 12);
+    if (t5 >= pitchJumpTime + 0.08 && pitchJumpTime > 0) f2 /= Math.pow(2, pitchJump / 12);
+    if (fm) f2 *= 1 + fm * Math.sin(2 * Math.PI * f2 * 2 * t5);
+    phase += 2 * Math.PI * f2 / sr;
+    if (repeatTime > 0 && tGlobal > 0 && t5 < tIn * 0) ;
+    const ph = phase % (2 * Math.PI);
+    const norm = ph / (2 * Math.PI);
+    let s2;
+    switch (shape) {
+      case 1:
+        s2 = norm < clamp(0.1 + curve * 0.4, 0.02, 0.98) ? 1 : -1;
+        break;
+      case 2:
+        s2 = 2 * norm - 1;
+        break;
+      case 3:
+        s2 = norm < 0.5 ? 4 * norm - 1 : 3 - 4 * norm;
+        break;
+      case 4:
+        s2 = rnd() * 2 - 1;
+        break;
+      default:
+        s2 = Math.sin(ph);
+    }
+    if (noiseAmt > 0) s2 = s2 * (1 - noiseAmt) + (rnd() * 2 - 1) * noiseAmt;
+    let v2 = s2 * env * vol;
+    if (bitCrush > 0) {
+      const q2 = Math.pow(2, Math.max(1, 16 - bitCrush)) / 32768;
+      v2 = Math.round(v2 / q2) * q2;
+    }
+    if (clip > 0) v2 = Math.max(-clip, Math.min(clip, v2)) * (clip > 0 ? 1 / Math.max(clip, 0.2) : 1) * clip;
+    if (echoAt > 0) {
+      const d2 = i2 - echoAt;
+      v2 += (echo[d2 % echoAt] ?? 0) * 0.35;
+      echo[i2 % echoAt] = v2;
+    }
+    out[i2] = Math.max(-1, Math.min(1, v2));
+  }
+  sfxCache.set(key, buf);
+  return buf;
+}
+function clamp(v2, a2, b2) {
+  return Math.max(a2, Math.min(b2, v2));
+}
+var import_seedrandom2, ctx, broken, sfxCache;
+var init_synth = __esm({
+  "src/shared/synth.ts"() {
+    import_seedrandom2 = __toESM(require_seedrandom2(), 1);
+    ctx = null;
+    broken = false;
+    sfxCache = /* @__PURE__ */ new Map();
+  }
+});
+
+// node_modules/react/cjs/react.production.js
+var require_react_production = __commonJS({
+  "node_modules/react/cjs/react.production.js"(exports) {
+    "use strict";
+    var REACT_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.transitional.element");
+    var REACT_PORTAL_TYPE = /* @__PURE__ */ Symbol.for("react.portal");
+    var REACT_FRAGMENT_TYPE = /* @__PURE__ */ Symbol.for("react.fragment");
+    var REACT_STRICT_MODE_TYPE = /* @__PURE__ */ Symbol.for("react.strict_mode");
+    var REACT_PROFILER_TYPE = /* @__PURE__ */ Symbol.for("react.profiler");
+    var REACT_CONSUMER_TYPE = /* @__PURE__ */ Symbol.for("react.consumer");
+    var REACT_CONTEXT_TYPE = /* @__PURE__ */ Symbol.for("react.context");
+    var REACT_FORWARD_REF_TYPE = /* @__PURE__ */ Symbol.for("react.forward_ref");
+    var REACT_SUSPENSE_TYPE = /* @__PURE__ */ Symbol.for("react.suspense");
+    var REACT_MEMO_TYPE = /* @__PURE__ */ Symbol.for("react.memo");
+    var REACT_LAZY_TYPE = /* @__PURE__ */ Symbol.for("react.lazy");
+    var REACT_ACTIVITY_TYPE = /* @__PURE__ */ Symbol.for("react.activity");
+    var REACT_VIEW_TRANSITION_TYPE = /* @__PURE__ */ Symbol.for("react.view_transition");
+    var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
+    function getIteratorFn(maybeIterable) {
+      if (null === maybeIterable || "object" !== typeof maybeIterable) return null;
+      maybeIterable = MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL] || maybeIterable["@@iterator"];
+      return "function" === typeof maybeIterable ? maybeIterable : null;
+    }
+    var ReactNoopUpdateQueue = {
+      isMounted: function() {
+        return false;
+      },
+      enqueueForceUpdate: function() {
+      },
+      enqueueReplaceState: function() {
+      },
+      enqueueSetState: function() {
+      }
+    };
+    var assign = Object.assign;
+    var emptyObject = {};
+    function Component(props, context, updater) {
+      this.props = props;
+      this.context = context;
+      this.refs = emptyObject;
+      this.updater = updater || ReactNoopUpdateQueue;
+    }
+    Component.prototype.isReactComponent = {};
+    Component.prototype.setState = function(partialState, callback) {
+      if ("object" !== typeof partialState && "function" !== typeof partialState && null != partialState)
+        throw Error(
+          "takes an object of state variables to update or a function which returns an object of state variables."
+        );
+      this.updater.enqueueSetState(this, partialState, callback, "setState");
+    };
+    Component.prototype.forceUpdate = function(callback) {
+      this.updater.enqueueForceUpdate(this, callback, "forceUpdate");
+    };
+    function ComponentDummy() {
+    }
+    ComponentDummy.prototype = Component.prototype;
+    function PureComponent(props, context, updater) {
+      this.props = props;
+      this.context = context;
+      this.refs = emptyObject;
+      this.updater = updater || ReactNoopUpdateQueue;
+    }
+    var pureComponentPrototype = PureComponent.prototype = new ComponentDummy();
+    pureComponentPrototype.constructor = PureComponent;
+    assign(pureComponentPrototype, Component.prototype);
+    pureComponentPrototype.isPureReactComponent = true;
+    var isArrayImpl = Array.isArray;
+    function noop() {
+    }
+    var ReactSharedInternals = { H: null, A: null, T: null, S: null };
+    var hasOwnProperty = Object.prototype.hasOwnProperty;
+    function ReactElement(type, key, props) {
+      var refProp = props.ref;
+      return {
+        $$typeof: REACT_ELEMENT_TYPE,
+        type,
+        key,
+        ref: void 0 !== refProp ? refProp : null,
+        props
+      };
+    }
+    function cloneAndReplaceKey(oldElement, newKey) {
+      return ReactElement(oldElement.type, newKey, oldElement.props);
+    }
+    function isValidElement(object) {
+      return "object" === typeof object && null !== object && object.$$typeof === REACT_ELEMENT_TYPE;
+    }
+    function escape(key) {
+      var escaperLookup = { "=": "=0", ":": "=2" };
+      return "$" + key.replace(/[=:]/g, function(match) {
+        return escaperLookup[match];
+      });
+    }
+    var userProvidedKeyEscapeRegex = /\/+/g;
+    function getElementKey(element, index) {
+      return "object" === typeof element && null !== element && null != element.key ? escape("" + element.key) : index.toString(36);
+    }
+    function resolveThenable(thenable) {
+      switch (thenable.status) {
+        case "fulfilled":
+          return thenable.value;
+        case "rejected":
+          throw thenable.reason;
+        default:
+          switch ("string" === typeof thenable.status ? thenable.then(noop, noop) : (thenable.status = "pending", thenable.then(
+            function(fulfilledValue) {
+              "pending" === thenable.status && (thenable.status = "fulfilled", thenable.value = fulfilledValue);
+            },
+            function(error) {
+              "pending" === thenable.status && (thenable.status = "rejected", thenable.reason = error);
+            }
+          )), thenable.status) {
+            case "fulfilled":
+              return thenable.value;
+            case "rejected":
+              throw thenable.reason;
+          }
+      }
+      throw thenable;
+    }
+    function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
+      var type = typeof children;
+      if ("undefined" === type || "boolean" === type) children = null;
+      var invokeCallback = false;
+      if (null === children) invokeCallback = true;
+      else
+        switch (type) {
+          case "bigint":
+          case "string":
+          case "number":
+            invokeCallback = true;
+            break;
+          case "object":
+            switch (children.$$typeof) {
+              case REACT_ELEMENT_TYPE:
+              case REACT_PORTAL_TYPE:
+                invokeCallback = true;
+                break;
+              case REACT_LAZY_TYPE:
+                return invokeCallback = children._init, mapIntoArray(
+                  invokeCallback(children._payload),
+                  array,
+                  escapedPrefix,
+                  nameSoFar,
+                  callback
+                );
+            }
+        }
+      if (invokeCallback)
+        return callback = callback(children), invokeCallback = "" === nameSoFar ? "." + getElementKey(children, 0) : nameSoFar, isArrayImpl(callback) ? (escapedPrefix = "", null != invokeCallback && (escapedPrefix = invokeCallback.replace(userProvidedKeyEscapeRegex, "$&/") + "/"), mapIntoArray(callback, array, escapedPrefix, "", function(c2) {
+          return c2;
+        })) : null != callback && (isValidElement(callback) && (callback = cloneAndReplaceKey(
+          callback,
+          escapedPrefix + (null == callback.key || children && children.key === callback.key ? "" : ("" + callback.key).replace(
+            userProvidedKeyEscapeRegex,
+            "$&/"
+          ) + "/") + invokeCallback
+        )), array.push(callback)), 1;
+      invokeCallback = 0;
+      var nextNamePrefix = "" === nameSoFar ? "." : nameSoFar + ":";
+      if (isArrayImpl(children))
+        for (var i2 = 0; i2 < children.length; i2++)
+          nameSoFar = children[i2], type = nextNamePrefix + getElementKey(nameSoFar, i2), invokeCallback += mapIntoArray(
+            nameSoFar,
+            array,
+            escapedPrefix,
+            type,
+            callback
+          );
+      else if (i2 = getIteratorFn(children), "function" === typeof i2)
+        for (children = i2.call(children), i2 = 0; !(nameSoFar = children.next()).done; )
+          nameSoFar = nameSoFar.value, type = nextNamePrefix + getElementKey(nameSoFar, i2++), invokeCallback += mapIntoArray(
+            nameSoFar,
+            array,
+            escapedPrefix,
+            type,
+            callback
+          );
+      else if ("object" === type) {
+        if ("function" === typeof children.then)
+          return mapIntoArray(
+            resolveThenable(children),
+            array,
+            escapedPrefix,
+            nameSoFar,
+            callback
+          );
+        array = String(children);
+        throw Error(
+          "Objects are not valid as a React child (found: " + ("[object Object]" === array ? "object with keys {" + Object.keys(children).join(", ") + "}" : array) + "). If you meant to render a collection of children, use an array instead."
+        );
+      }
+      return invokeCallback;
+    }
+    function mapChildren(children, func, context) {
+      if (null == children) return children;
+      var result = [], count = 0;
+      mapIntoArray(children, result, "", "", function(child) {
+        return func.call(context, child, count++);
+      });
+      return result;
+    }
+    function lazyInitializer(payload) {
+      if (-1 === payload._status) {
+        var ctor = payload._result, thenable = ctor();
+        thenable.then(
+          function(moduleObject) {
+            if (0 === payload._status || -1 === payload._status)
+              payload._status = 1, payload._result = moduleObject, void 0 === thenable.status && (thenable.status = "fulfilled", thenable.value = moduleObject);
+          },
+          function(error) {
+            if (0 === payload._status || -1 === payload._status)
+              payload._status = 2, payload._result = error, void 0 === thenable.status && (thenable.status = "rejected", thenable.reason = error);
+          }
+        );
+        -1 === payload._status && (payload._status = 0, payload._result = thenable);
+      }
+      if (1 === payload._status) return payload._result.default;
+      throw payload._result;
+    }
+    var reportGlobalError = "function" === typeof reportError ? reportError : function(error) {
+      if ("object" === typeof window && "function" === typeof window.ErrorEvent) {
+        var event = new window.ErrorEvent("error", {
+          bubbles: true,
+          cancelable: true,
+          message: "object" === typeof error && null !== error && "string" === typeof error.message ? String(error.message) : String(error),
+          error
+        });
+        if (!window.dispatchEvent(event)) return;
+      } else if ("object" === typeof process && "function" === typeof process.emit) {
+        process.emit("uncaughtException", error);
+        return;
+      }
+      console.error(error);
+    };
+    function startTransition(scope) {
+      var prevTransition = ReactSharedInternals.T, currentTransition = {};
+      currentTransition.types = null !== prevTransition ? prevTransition.types : null;
+      ReactSharedInternals.T = currentTransition;
+      try {
+        var returnValue = scope(), onStartTransitionFinish = ReactSharedInternals.S;
+        null !== onStartTransitionFinish && onStartTransitionFinish(currentTransition, returnValue);
+        "object" === typeof returnValue && null !== returnValue && "function" === typeof returnValue.then && returnValue.then(noop, reportGlobalError);
+      } catch (error) {
+        reportGlobalError(error);
+      } finally {
+        null !== prevTransition && null !== currentTransition.types && (prevTransition.types = currentTransition.types), ReactSharedInternals.T = prevTransition;
+      }
+    }
+    function addTransitionType(type) {
+      var transition = ReactSharedInternals.T;
+      if (null !== transition) {
+        var transitionTypes = transition.types;
+        null === transitionTypes ? transition.types = [type] : -1 === transitionTypes.indexOf(type) && transitionTypes.push(type);
+      } else startTransition(addTransitionType.bind(null, type));
+    }
+    var Children = {
+      map: mapChildren,
+      forEach: function(children, forEachFunc, forEachContext) {
+        mapChildren(
+          children,
+          function() {
+            forEachFunc.apply(this, arguments);
+          },
+          forEachContext
+        );
+      },
+      count: function(children) {
+        var n2 = 0;
+        mapChildren(children, function() {
+          n2++;
+        });
+        return n2;
+      },
+      toArray: function(children) {
+        return mapChildren(children, function(child) {
+          return child;
+        }) || [];
+      },
+      only: function(children) {
+        if (!isValidElement(children))
+          throw Error(
+            "React.Children.only expected to receive a single React element child."
+          );
+        return children;
+      }
+    };
+    exports.Activity = REACT_ACTIVITY_TYPE;
+    exports.Children = Children;
+    exports.Component = Component;
+    exports.Fragment = REACT_FRAGMENT_TYPE;
+    exports.Profiler = REACT_PROFILER_TYPE;
+    exports.PureComponent = PureComponent;
+    exports.StrictMode = REACT_STRICT_MODE_TYPE;
+    exports.Suspense = REACT_SUSPENSE_TYPE;
+    exports.ViewTransition = REACT_VIEW_TRANSITION_TYPE;
+    exports.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = ReactSharedInternals;
+    exports.__COMPILER_RUNTIME = {
+      __proto__: null,
+      c: function(size) {
+        return ReactSharedInternals.H.useMemoCache(size);
+      }
+    };
+    exports.addTransitionType = addTransitionType;
+    exports.cache = function(fn) {
+      return function() {
+        return fn.apply(null, arguments);
+      };
+    };
+    exports.cacheSignal = function() {
+      return null;
+    };
+    exports.cloneElement = function(element, config, children) {
+      if (null === element || void 0 === element)
+        throw Error(
+          "The argument must be a React element, but you passed " + element + "."
+        );
+      var props = assign({}, element.props), key = element.key;
+      if (null != config)
+        for (propName in void 0 !== config.key && (key = "" + config.key), config)
+          !hasOwnProperty.call(config, propName) || "key" === propName || "__self" === propName || "__source" === propName || "ref" === propName && void 0 === config.ref || (props[propName] = config[propName]);
+      var propName = arguments.length - 2;
+      if (1 === propName) props.children = children;
+      else if (1 < propName) {
+        for (var childArray = Array(propName), i2 = 0; i2 < propName; i2++)
+          childArray[i2] = arguments[i2 + 2];
+        props.children = childArray;
+      }
+      return ReactElement(element.type, key, props);
+    };
+    exports.createContext = function(defaultValue) {
+      defaultValue = {
+        $$typeof: REACT_CONTEXT_TYPE,
+        _currentValue: defaultValue,
+        _currentValue2: defaultValue,
+        _threadCount: 0,
+        Provider: null,
+        Consumer: null
+      };
+      defaultValue.Provider = defaultValue;
+      defaultValue.Consumer = {
+        $$typeof: REACT_CONSUMER_TYPE,
+        _context: defaultValue
+      };
+      return defaultValue;
+    };
+    exports.createElement = function(type, config, children) {
+      var propName, props = {}, key = null;
+      if (null != config)
+        for (propName in void 0 !== config.key && (key = "" + config.key), config)
+          hasOwnProperty.call(config, propName) && "key" !== propName && "__self" !== propName && "__source" !== propName && (props[propName] = config[propName]);
+      var childrenLength = arguments.length - 2;
+      if (1 === childrenLength) props.children = children;
+      else if (1 < childrenLength) {
+        for (var childArray = Array(childrenLength), i2 = 0; i2 < childrenLength; i2++)
+          childArray[i2] = arguments[i2 + 2];
+        props.children = childArray;
+      }
+      if (type && type.defaultProps)
+        for (propName in childrenLength = type.defaultProps, childrenLength)
+          void 0 === props[propName] && (props[propName] = childrenLength[propName]);
+      return ReactElement(type, key, props);
+    };
+    exports.createRef = function() {
+      return { current: null };
+    };
+    exports.forwardRef = function(render) {
+      return { $$typeof: REACT_FORWARD_REF_TYPE, render };
+    };
+    exports.isValidElement = isValidElement;
+    exports.lazy = function(ctor) {
+      return {
+        $$typeof: REACT_LAZY_TYPE,
+        _payload: { _status: -1, _result: ctor },
+        _init: lazyInitializer
+      };
+    };
+    exports.memo = function(type, compare) {
+      return {
+        $$typeof: REACT_MEMO_TYPE,
+        type,
+        compare: void 0 === compare ? null : compare
+      };
+    };
+    exports.startTransition = startTransition;
+    exports.unstable_useCacheRefresh = function() {
+      return ReactSharedInternals.H.useCacheRefresh();
+    };
+    exports.use = function(usable) {
+      return ReactSharedInternals.H.use(usable);
+    };
+    exports.useActionState = function(action, initialState, permalink) {
+      return ReactSharedInternals.H.useActionState(action, initialState, permalink);
+    };
+    exports.useCallback = function(callback, deps) {
+      return ReactSharedInternals.H.useCallback(callback, deps);
+    };
+    exports.useContext = function(Context) {
+      return ReactSharedInternals.H.useContext(Context);
+    };
+    exports.useDebugValue = function() {
+    };
+    exports.useDeferredValue = function(value, initialValue) {
+      return ReactSharedInternals.H.useDeferredValue(value, initialValue);
+    };
+    exports.useEffect = function(create, deps) {
+      return ReactSharedInternals.H.useEffect(create, deps);
+    };
+    exports.useEffectEvent = function(callback) {
+      return ReactSharedInternals.H.useEffectEvent(callback);
+    };
+    exports.useId = function() {
+      return ReactSharedInternals.H.useId();
+    };
+    exports.useImperativeHandle = function(ref, create, deps) {
+      return ReactSharedInternals.H.useImperativeHandle(ref, create, deps);
+    };
+    exports.useInsertionEffect = function(create, deps) {
+      return ReactSharedInternals.H.useInsertionEffect(create, deps);
+    };
+    exports.useLayoutEffect = function(create, deps) {
+      return ReactSharedInternals.H.useLayoutEffect(create, deps);
+    };
+    exports.useMemo = function(create, deps) {
+      return ReactSharedInternals.H.useMemo(create, deps);
+    };
+    exports.useOptimistic = function(passthrough, reducer) {
+      return ReactSharedInternals.H.useOptimistic(passthrough, reducer);
+    };
+    exports.useReducer = function(reducer, initialArg, init) {
+      return ReactSharedInternals.H.useReducer(reducer, initialArg, init);
+    };
+    exports.useRef = function(initialValue) {
+      return ReactSharedInternals.H.useRef(initialValue);
+    };
+    exports.useState = function(initialState) {
+      return ReactSharedInternals.H.useState(initialState);
+    };
+    exports.useSyncExternalStore = function(subscribe, getSnapshot, getServerSnapshot) {
+      return ReactSharedInternals.H.useSyncExternalStore(
+        subscribe,
+        getSnapshot,
+        getServerSnapshot
+      );
+    };
+    exports.useTransition = function() {
+      return ReactSharedInternals.H.useTransition();
+    };
+    exports.version = "19.3.0";
+  }
+});
+
+// node_modules/react/cjs/react.development.js
+var require_react_development = __commonJS({
+  "node_modules/react/cjs/react.development.js"(exports, module) {
+    "use strict";
+    "production" !== process.env.NODE_ENV && (function() {
+      function defineDeprecationWarning(methodName, info) {
+        Object.defineProperty(Component.prototype, methodName, {
+          get: function() {
+            console.warn(
+              "%s(...) is deprecated in plain JavaScript React classes. %s",
+              info[0],
+              info[1]
+            );
+          }
+        });
+      }
+      function getIteratorFn(maybeIterable) {
+        if (null === maybeIterable || "object" !== typeof maybeIterable)
+          return null;
+        maybeIterable = MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL] || maybeIterable["@@iterator"];
+        return "function" === typeof maybeIterable ? maybeIterable : null;
+      }
+      function warnNoop(publicInstance, callerName) {
+        publicInstance = (publicInstance = publicInstance.constructor) && (publicInstance.displayName || publicInstance.name) || "ReactClass";
+        var warningKey = publicInstance + "." + callerName;
+        didWarnStateUpdateForUnmountedComponent[warningKey] || (console.error(
+          "Can't call %s on a component that is not yet mounted. This is a no-op, but it might indicate a bug in your application. Instead, assign to `this.state` directly or define a `state = {};` class property with the desired state in the %s component.",
+          callerName,
+          publicInstance
+        ), didWarnStateUpdateForUnmountedComponent[warningKey] = true);
+      }
+      function Component(props, context, updater) {
+        this.props = props;
+        this.context = context;
+        this.refs = emptyObject;
+        this.updater = updater || ReactNoopUpdateQueue;
+      }
+      function ComponentDummy() {
+      }
+      function PureComponent(props, context, updater) {
+        this.props = props;
+        this.context = context;
+        this.refs = emptyObject;
+        this.updater = updater || ReactNoopUpdateQueue;
+      }
+      function noop() {
+      }
+      function testStringCoercion(value) {
+        return "" + value;
+      }
+      function checkKeyStringCoercion(value) {
+        try {
+          testStringCoercion(value);
+          var JSCompiler_inline_result = false;
+        } catch (e2) {
+          JSCompiler_inline_result = true;
+        }
+        if (JSCompiler_inline_result) {
+          JSCompiler_inline_result = console;
+          var JSCompiler_temp_const = JSCompiler_inline_result.error;
+          var JSCompiler_inline_result$jscomp$0 = "function" === typeof Symbol && Symbol.toStringTag && value[Symbol.toStringTag] || value.constructor.name || "Object";
+          JSCompiler_temp_const.call(
+            JSCompiler_inline_result,
+            "The provided key is an unsupported type %s. This value must be coerced to a string before using it here.",
+            JSCompiler_inline_result$jscomp$0
+          );
+          return testStringCoercion(value);
+        }
+      }
+      function getComponentNameFromType(type) {
+        if (null == type) return null;
+        if ("function" === typeof type)
+          return type.$$typeof === REACT_CLIENT_REFERENCE ? null : type.displayName || type.name || null;
+        if ("string" === typeof type) return type;
+        switch (type) {
+          case REACT_FRAGMENT_TYPE:
+            return "Fragment";
+          case REACT_PROFILER_TYPE:
+            return "Profiler";
+          case REACT_STRICT_MODE_TYPE:
+            return "StrictMode";
+          case REACT_SUSPENSE_TYPE:
+            return "Suspense";
+          case REACT_SUSPENSE_LIST_TYPE:
+            return "SuspenseList";
+          case REACT_ACTIVITY_TYPE:
+            return "Activity";
+          case REACT_VIEW_TRANSITION_TYPE:
+            return "ViewTransition";
+        }
+        if ("object" === typeof type)
+          switch ("number" === typeof type.tag && console.error(
+            "Received an unexpected object in getComponentNameFromType(). This is likely a bug in React. Please file an issue."
+          ), type.$$typeof) {
+            case REACT_PORTAL_TYPE:
+              return "Portal";
+            case REACT_CONTEXT_TYPE:
+              return type.displayName || "Context";
+            case REACT_CONSUMER_TYPE:
+              return (type._context.displayName || "Context") + ".Consumer";
+            case REACT_FORWARD_REF_TYPE:
+              var innerType = type.render;
+              type = type.displayName;
+              type || (type = innerType.displayName || innerType.name || "", type = "" !== type ? "ForwardRef(" + type + ")" : "ForwardRef");
+              return type;
+            case REACT_MEMO_TYPE:
+              return innerType = type.displayName || null, null !== innerType ? innerType : getComponentNameFromType(type.type) || "Memo";
+            case REACT_LAZY_TYPE:
+              innerType = type._payload;
+              type = type._init;
+              try {
+                return getComponentNameFromType(type(innerType));
+              } catch (x2) {
+              }
+          }
+        return null;
+      }
+      function getTaskName(type) {
+        if (type === REACT_FRAGMENT_TYPE) return "<>";
+        if ("object" === typeof type && null !== type && type.$$typeof === REACT_LAZY_TYPE)
+          return "<...>";
+        try {
+          var name = getComponentNameFromType(type);
+          return name ? "<" + name + ">" : "<...>";
+        } catch (x2) {
+          return "<...>";
+        }
+      }
+      function getOwner() {
+        var dispatcher = ReactSharedInternals.A;
+        return null === dispatcher ? null : dispatcher.getOwner();
+      }
+      function UnknownOwner() {
+        return Error("react-stack-top-frame");
+      }
+      function hasValidKey(config) {
+        if (hasOwnProperty.call(config, "key")) {
+          var getter = Object.getOwnPropertyDescriptor(config, "key").get;
+          if (getter && getter.isReactWarning) return false;
+        }
+        return void 0 !== config.key;
+      }
+      function defineKeyPropWarningGetter(props, displayName) {
+        function warnAboutAccessingKey() {
+          specialPropKeyWarningShown || (specialPropKeyWarningShown = true, console.error(
+            "%s: `key` is not a prop. Trying to access it will result in `undefined` being returned. If you need to access the same value within the child component, you should pass it as a different prop. (https://react.dev/link/special-props)",
+            displayName
+          ));
+        }
+        warnAboutAccessingKey.isReactWarning = true;
+        Object.defineProperty(props, "key", {
+          get: warnAboutAccessingKey,
+          configurable: true
+        });
+      }
+      function elementRefGetterWithDeprecationWarning() {
+        var componentName = getComponentNameFromType(this.type);
+        didWarnAboutElementRef[componentName] || (didWarnAboutElementRef[componentName] = true, console.error(
+          "Accessing element.ref was removed in React 19. ref is now a regular prop. It will be removed from the JSX Element type in a future release."
+        ));
+        componentName = this.props.ref;
+        return void 0 !== componentName ? componentName : null;
+      }
+      function ReactElement(type, key, props, owner, debugStack, debugTask) {
+        var refProp = props.ref;
+        type = {
+          $$typeof: REACT_ELEMENT_TYPE,
+          type,
+          key,
+          props,
+          _owner: owner
+        };
+        null !== (void 0 !== refProp ? refProp : null) ? Object.defineProperty(type, "ref", {
+          enumerable: false,
+          get: elementRefGetterWithDeprecationWarning
+        }) : Object.defineProperty(type, "ref", { enumerable: false, value: null });
+        type._store = {};
+        Object.defineProperty(type._store, "validated", {
+          configurable: false,
+          enumerable: false,
+          writable: true,
+          value: 0
+        });
+        Object.defineProperty(type, "_debugInfo", {
+          configurable: false,
+          enumerable: false,
+          writable: true,
+          value: null
+        });
+        Object.defineProperty(type, "_debugStack", {
+          configurable: false,
+          enumerable: false,
+          writable: true,
+          value: debugStack
+        });
+        Object.defineProperty(type, "_debugTask", {
+          configurable: false,
+          enumerable: false,
+          writable: true,
+          value: debugTask
+        });
+        Object.freeze && (Object.freeze(type.props), Object.freeze(type));
+        return type;
+      }
+      function cloneAndReplaceKey(oldElement, newKey) {
+        newKey = ReactElement(
+          oldElement.type,
+          newKey,
+          oldElement.props,
+          oldElement._owner,
+          oldElement._debugStack,
+          oldElement._debugTask
+        );
+        oldElement._store && (newKey._store.validated = oldElement._store.validated);
+        return newKey;
+      }
+      function validateChildKeys(node) {
+        isValidElement(node) ? node._store && (node._store.validated = 1) : "object" === typeof node && null !== node && node.$$typeof === REACT_LAZY_TYPE && ("fulfilled" === node._payload.status ? isValidElement(node._payload.value) && node._payload.value._store && (node._payload.value._store.validated = 1) : node._store && (node._store.validated = 1));
+      }
+      function isValidElement(object) {
+        return "object" === typeof object && null !== object && object.$$typeof === REACT_ELEMENT_TYPE;
+      }
+      function escape(key) {
+        var escaperLookup = { "=": "=0", ":": "=2" };
+        return "$" + key.replace(/[=:]/g, function(match) {
+          return escaperLookup[match];
+        });
+      }
+      function getElementKey(element, index) {
+        return "object" === typeof element && null !== element && null != element.key ? (checkKeyStringCoercion(element.key), escape("" + element.key)) : index.toString(36);
+      }
+      function resolveThenable(thenable) {
+        switch (thenable.status) {
+          case "fulfilled":
+            return thenable.value;
+          case "rejected":
+            throw thenable.reason;
+          default:
+            switch ("string" === typeof thenable.status ? thenable.then(noop, noop) : (thenable.status = "pending", thenable.then(
+              function(fulfilledValue) {
+                "pending" === thenable.status && (thenable.status = "fulfilled", thenable.value = fulfilledValue);
+              },
+              function(error) {
+                "pending" === thenable.status && (thenable.status = "rejected", thenable.reason = error);
+              }
+            )), thenable.status) {
+              case "fulfilled":
+                return thenable.value;
+              case "rejected":
+                throw thenable.reason;
+            }
+        }
+        throw thenable;
+      }
+      function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
+        var type = typeof children;
+        if ("undefined" === type || "boolean" === type) children = null;
+        var invokeCallback = false;
+        if (null === children) invokeCallback = true;
+        else
+          switch (type) {
+            case "bigint":
+            case "string":
+            case "number":
+              invokeCallback = true;
+              break;
+            case "object":
+              switch (children.$$typeof) {
+                case REACT_ELEMENT_TYPE:
+                case REACT_PORTAL_TYPE:
+                  invokeCallback = true;
+                  break;
+                case REACT_LAZY_TYPE:
+                  return invokeCallback = children._init, mapIntoArray(
+                    invokeCallback(children._payload),
+                    array,
+                    escapedPrefix,
+                    nameSoFar,
+                    callback
+                  );
+              }
+          }
+        if (invokeCallback) {
+          invokeCallback = children;
+          callback = callback(invokeCallback);
+          var childKey = "" === nameSoFar ? "." + getElementKey(invokeCallback, 0) : nameSoFar;
+          isArrayImpl(callback) ? (escapedPrefix = "", null != childKey && (escapedPrefix = childKey.replace(userProvidedKeyEscapeRegex, "$&/") + "/"), mapIntoArray(callback, array, escapedPrefix, "", function(c2) {
+            return c2;
+          })) : null != callback && (isValidElement(callback) && (null != callback.key && (invokeCallback && invokeCallback.key === callback.key || checkKeyStringCoercion(callback.key)), escapedPrefix = cloneAndReplaceKey(
+            callback,
+            escapedPrefix + (null == callback.key || invokeCallback && invokeCallback.key === callback.key ? "" : ("" + callback.key).replace(
+              userProvidedKeyEscapeRegex,
+              "$&/"
+            ) + "/") + childKey
+          ), "" !== nameSoFar && null != invokeCallback && isValidElement(invokeCallback) && null == invokeCallback.key && invokeCallback._store && !invokeCallback._store.validated && (escapedPrefix._store.validated = 2), callback = escapedPrefix), array.push(callback));
+          return 1;
+        }
+        invokeCallback = 0;
+        childKey = "" === nameSoFar ? "." : nameSoFar + ":";
+        if (isArrayImpl(children))
+          for (var i2 = 0; i2 < children.length; i2++)
+            nameSoFar = children[i2], type = childKey + getElementKey(nameSoFar, i2), invokeCallback += mapIntoArray(
+              nameSoFar,
+              array,
+              escapedPrefix,
+              type,
+              callback
+            );
+        else if (i2 = getIteratorFn(children), "function" === typeof i2)
+          for (i2 === children.entries && (didWarnAboutMaps || console.warn(
+            "Using Maps as children is not supported. Use an array of keyed ReactElements instead."
+          ), didWarnAboutMaps = true), children = i2.call(children), i2 = 0; !(nameSoFar = children.next()).done; )
+            nameSoFar = nameSoFar.value, type = childKey + getElementKey(nameSoFar, i2++), invokeCallback += mapIntoArray(
+              nameSoFar,
+              array,
+              escapedPrefix,
+              type,
+              callback
+            );
+        else if ("object" === type) {
+          if ("function" === typeof children.then)
+            return mapIntoArray(
+              resolveThenable(children),
+              array,
+              escapedPrefix,
+              nameSoFar,
+              callback
+            );
+          array = String(children);
+          throw Error(
+            "Objects are not valid as a React child (found: " + ("[object Object]" === array ? "object with keys {" + Object.keys(children).join(", ") + "}" : array) + "). If you meant to render a collection of children, use an array instead."
+          );
+        }
+        return invokeCallback;
+      }
+      function mapChildren(children, func, context) {
+        if (null == children) return children;
+        var result = [], count = 0;
+        mapIntoArray(children, result, "", "", function(child) {
+          return func.call(context, child, count++);
+        });
+        return result;
+      }
+      function lazyInitializer(payload) {
+        if (-1 === payload._status) {
+          var resolveDebugValue = null, rejectDebugValue = null, ioInfo = payload._ioInfo;
+          null != ioInfo && (ioInfo.start = ioInfo.end = performance.now(), ioInfo.value = new Promise(function(resolve2, reject) {
+            resolveDebugValue = resolve2;
+            rejectDebugValue = reject;
+          }));
+          ioInfo = payload._result;
+          var thenable = ioInfo();
+          thenable.then(
+            function(moduleObject) {
+              if (0 === payload._status || -1 === payload._status) {
+                payload._status = 1;
+                payload._result = moduleObject;
+                var _ioInfo = payload._ioInfo;
+                if (null != _ioInfo) {
+                  _ioInfo.end = performance.now();
+                  var debugValue = null == moduleObject ? void 0 : moduleObject.default;
+                  resolveDebugValue(debugValue);
+                  _ioInfo.value.status = "fulfilled";
+                  _ioInfo.value.value = debugValue;
+                }
+                void 0 === thenable.status && (thenable.status = "fulfilled", thenable.value = moduleObject);
+              }
+            },
+            function(error) {
+              if (0 === payload._status || -1 === payload._status) {
+                payload._status = 2;
+                payload._result = error;
+                var _ioInfo2 = payload._ioInfo;
+                null != _ioInfo2 && (_ioInfo2.end = performance.now(), _ioInfo2.value.then(noop, noop), rejectDebugValue(error), _ioInfo2.value.status = "rejected", _ioInfo2.value.reason = error);
+                void 0 === thenable.status && (thenable.status = "rejected", thenable.reason = error);
+              }
+            }
+          );
+          ioInfo = payload._ioInfo;
+          if (null != ioInfo) {
+            var displayName = thenable.displayName;
+            "string" === typeof displayName && (ioInfo.name = displayName);
+          }
+          -1 === payload._status && (payload._status = 0, payload._result = thenable);
+        }
+        if (1 === payload._status)
+          return ioInfo = payload._result, void 0 === ioInfo && console.error(
+            "lazy: Expected the result of a dynamic import() call. Instead received: %s\n\nYour code should look like: \n  const MyComponent = lazy(() => import('./MyComponent'))\n\nDid you accidentally put curly braces around the import?",
+            ioInfo
+          ), "default" in ioInfo || console.error(
+            "lazy: Expected the result of a dynamic import() call. Instead received: %s\n\nYour code should look like: \n  const MyComponent = lazy(() => import('./MyComponent'))",
+            ioInfo
+          ), ioInfo.default;
+        throw payload._result;
+      }
+      function resolveDispatcher() {
+        var dispatcher = ReactSharedInternals.H;
+        null === dispatcher && console.error(
+          "Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:\n1. You might have mismatching versions of React and the renderer (such as React DOM)\n2. You might be breaking the Rules of Hooks\n3. You might have more than one copy of React in the same app\nSee https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem."
+        );
+        return dispatcher;
+      }
+      function releaseAsyncTransition() {
+        ReactSharedInternals.asyncTransitions--;
+      }
+      function startTransition(scope) {
+        var prevTransition = ReactSharedInternals.T, currentTransition = {};
+        currentTransition.types = null !== prevTransition ? prevTransition.types : null;
+        currentTransition._updatedFibers = /* @__PURE__ */ new Set();
+        ReactSharedInternals.T = currentTransition;
+        try {
+          var returnValue = scope(), onStartTransitionFinish = ReactSharedInternals.S;
+          null !== onStartTransitionFinish && onStartTransitionFinish(currentTransition, returnValue);
+          "object" === typeof returnValue && null !== returnValue && "function" === typeof returnValue.then && (ReactSharedInternals.asyncTransitions++, returnValue.then(releaseAsyncTransition, releaseAsyncTransition), returnValue.then(noop, reportGlobalError));
+        } catch (error) {
+          reportGlobalError(error);
+        } finally {
+          null === prevTransition && currentTransition._updatedFibers && (scope = currentTransition._updatedFibers.size, currentTransition._updatedFibers.clear(), 10 < scope && console.warn(
+            "Detected a large number of updates inside startTransition. If this is due to a subscription please re-write it to use React provided hooks. Otherwise concurrent mode guarantees are off the table."
+          )), null !== prevTransition && null !== currentTransition.types && (null !== prevTransition.types && prevTransition.types !== currentTransition.types && console.error(
+            "We expected inner Transitions to have transferred the outer types set and that you cannot add to the outer Transition while inside the inner.This is a bug in React."
+          ), prevTransition.types = currentTransition.types), ReactSharedInternals.T = prevTransition;
+        }
+      }
+      function addTransitionType(type) {
+        var transition = ReactSharedInternals.T;
+        if (null !== transition) {
+          var transitionTypes = transition.types;
+          null === transitionTypes ? transition.types = [type] : -1 === transitionTypes.indexOf(type) && transitionTypes.push(type);
+        } else
+          0 === ReactSharedInternals.asyncTransitions && console.error(
+            "addTransitionType can only be called inside a `startTransition()` callback. It must be associated with a specific Transition."
+          ), startTransition(addTransitionType.bind(null, type));
+      }
+      function enqueueTask(task) {
+        if (null === enqueueTaskImpl)
+          try {
+            var requireString = ("require" + Math.random()).slice(0, 7);
+            enqueueTaskImpl = (module && module[requireString]).call(
+              module,
+              "timers"
+            ).setImmediate;
+          } catch (_err) {
+            enqueueTaskImpl = function(callback) {
+              false === didWarnAboutMessageChannel && (didWarnAboutMessageChannel = true, "undefined" === typeof MessageChannel && console.error(
+                "This browser does not have a MessageChannel implementation, so enqueuing tasks via await act(async () => ...) will fail. Please file an issue at https://github.com/facebook/react/issues if you encounter this warning."
+              ));
+              var channel = new MessageChannel();
+              channel.port1.onmessage = callback;
+              channel.port2.postMessage(void 0);
+            };
+          }
+        return enqueueTaskImpl(task);
+      }
+      function aggregateErrors(errors) {
+        return 1 < errors.length && "function" === typeof AggregateError ? new AggregateError(errors) : errors[0];
+      }
+      function popActScope(prevActQueue, prevActScopeDepth) {
+        prevActScopeDepth !== actScopeDepth - 1 && console.error(
+          "You seem to have overlapping act() calls, this is not supported. Be sure to await previous act() calls before making a new one. "
+        );
+        actScopeDepth = prevActScopeDepth;
+      }
+      function recursivelyFlushAsyncActWork(returnValue, resolve2, reject) {
+        var queue2 = ReactSharedInternals.actQueue;
+        if (null !== queue2)
+          if (0 !== queue2.length)
+            try {
+              flushActQueue(queue2);
+              enqueueTask(function() {
+                return recursivelyFlushAsyncActWork(returnValue, resolve2, reject);
+              });
+              return;
+            } catch (error) {
+              ReactSharedInternals.thrownErrors.push(error);
+            }
+          else ReactSharedInternals.actQueue = null;
+        0 < ReactSharedInternals.thrownErrors.length ? (queue2 = aggregateErrors(ReactSharedInternals.thrownErrors), ReactSharedInternals.thrownErrors.length = 0, reject(queue2)) : resolve2(returnValue);
+      }
+      function flushActQueue(queue2) {
+        if (!isFlushing) {
+          isFlushing = true;
+          var i2 = 0;
+          try {
+            for (; i2 < queue2.length; i2++) {
+              var callback = queue2[i2];
+              do {
+                ReactSharedInternals.didUsePromise = false;
+                var continuation = callback(false);
+                if (null !== continuation) {
+                  if (ReactSharedInternals.didUsePromise) {
+                    queue2[i2] = callback;
+                    queue2.splice(0, i2);
+                    return;
+                  }
+                  callback = continuation;
+                } else break;
+              } while (1);
+            }
+            queue2.length = 0;
+          } catch (error) {
+            queue2.splice(0, i2 + 1), ReactSharedInternals.thrownErrors.push(error);
+          } finally {
+            isFlushing = false;
+          }
+        }
+      }
+      "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
+      var REACT_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = /* @__PURE__ */ Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = /* @__PURE__ */ Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = /* @__PURE__ */ Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = /* @__PURE__ */ Symbol.for("react.profiler"), REACT_CONSUMER_TYPE = /* @__PURE__ */ Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = /* @__PURE__ */ Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = /* @__PURE__ */ Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = /* @__PURE__ */ Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = /* @__PURE__ */ Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = /* @__PURE__ */ Symbol.for("react.memo"), REACT_LAZY_TYPE = /* @__PURE__ */ Symbol.for("react.lazy"), REACT_ACTIVITY_TYPE = /* @__PURE__ */ Symbol.for("react.activity"), REACT_VIEW_TRANSITION_TYPE = /* @__PURE__ */ Symbol.for("react.view_transition"), MAYBE_ITERATOR_SYMBOL = Symbol.iterator, didWarnStateUpdateForUnmountedComponent = {}, ReactNoopUpdateQueue = {
+        isMounted: function() {
+          return false;
+        },
+        enqueueForceUpdate: function(publicInstance) {
+          warnNoop(publicInstance, "forceUpdate");
+        },
+        enqueueReplaceState: function(publicInstance) {
+          warnNoop(publicInstance, "replaceState");
+        },
+        enqueueSetState: function(publicInstance) {
+          warnNoop(publicInstance, "setState");
+        }
+      }, assign = Object.assign, emptyObject = {};
+      Object.freeze(emptyObject);
+      Component.prototype.isReactComponent = {};
+      Component.prototype.setState = function(partialState, callback) {
+        if ("object" !== typeof partialState && "function" !== typeof partialState && null != partialState)
+          throw Error(
+            "takes an object of state variables to update or a function which returns an object of state variables."
+          );
+        this.updater.enqueueSetState(this, partialState, callback, "setState");
+      };
+      Component.prototype.forceUpdate = function(callback) {
+        this.updater.enqueueForceUpdate(this, callback, "forceUpdate");
+      };
+      var deprecatedAPIs = {
+        isMounted: [
+          "isMounted",
+          "Instead, make sure to clean up subscriptions and pending requests in componentWillUnmount to prevent memory leaks."
+        ],
+        replaceState: [
+          "replaceState",
+          "Refactor your code to use setState instead (see https://github.com/facebook/react/issues/3236)."
+        ]
+      };
+      for (fnName in deprecatedAPIs)
+        deprecatedAPIs.hasOwnProperty(fnName) && defineDeprecationWarning(fnName, deprecatedAPIs[fnName]);
+      ComponentDummy.prototype = Component.prototype;
+      deprecatedAPIs = PureComponent.prototype = new ComponentDummy();
+      deprecatedAPIs.constructor = PureComponent;
+      assign(deprecatedAPIs, Component.prototype);
+      deprecatedAPIs.isPureReactComponent = true;
+      var isArrayImpl = Array.isArray, REACT_CLIENT_REFERENCE = /* @__PURE__ */ Symbol.for("react.client.reference"), ReactSharedInternals = {
+        H: null,
+        A: null,
+        T: null,
+        S: null,
+        actQueue: null,
+        asyncTransitions: 0,
+        isBatchingLegacy: false,
+        didScheduleLegacyUpdate: false,
+        didUsePromise: false,
+        thrownErrors: [],
+        getCurrentStack: null,
+        recentlyCreatedOwnerStacks: 0
+      }, hasOwnProperty = Object.prototype.hasOwnProperty, createTask = console.createTask ? console.createTask : function() {
+        return null;
+      };
+      deprecatedAPIs = {
+        react_stack_bottom_frame: function(callStackForError) {
+          return callStackForError();
+        }
+      };
+      var specialPropKeyWarningShown, didWarnAboutOldJSXRuntime;
+      var didWarnAboutElementRef = {};
+      var unknownOwnerDebugStack = deprecatedAPIs.react_stack_bottom_frame.bind(
+        deprecatedAPIs,
+        UnknownOwner
+      )();
+      var unknownOwnerDebugTask = createTask(getTaskName(UnknownOwner));
+      var didWarnAboutMaps = false, userProvidedKeyEscapeRegex = /\/+/g, reportGlobalError = "function" === typeof reportError ? reportError : function(error) {
+        if ("object" === typeof window && "function" === typeof window.ErrorEvent) {
+          var event = new window.ErrorEvent("error", {
+            bubbles: true,
+            cancelable: true,
+            message: "object" === typeof error && null !== error && "string" === typeof error.message ? String(error.message) : String(error),
+            error
+          });
+          if (!window.dispatchEvent(event)) return;
+        } else if ("object" === typeof process && "function" === typeof process.emit) {
+          process.emit("uncaughtException", error);
+          return;
+        }
+        console.error(error);
+      }, didWarnAboutMessageChannel = false, enqueueTaskImpl = null, actScopeDepth = 0, didWarnNoAwaitAct = false, isFlushing = false, queueSeveralMicrotasks = "function" === typeof queueMicrotask ? function(callback) {
+        queueMicrotask(function() {
+          return queueMicrotask(callback);
+        });
+      } : enqueueTask;
+      deprecatedAPIs = Object.freeze({
+        __proto__: null,
+        c: function(size) {
+          return resolveDispatcher().useMemoCache(size);
+        }
+      });
+      var fnName = {
+        map: mapChildren,
+        forEach: function(children, forEachFunc, forEachContext) {
+          mapChildren(
+            children,
+            function() {
+              forEachFunc.apply(this, arguments);
+            },
+            forEachContext
+          );
+        },
+        count: function(children) {
+          var n2 = 0;
+          mapChildren(children, function() {
+            n2++;
+          });
+          return n2;
+        },
+        toArray: function(children) {
+          return mapChildren(children, function(child) {
+            return child;
+          }) || [];
+        },
+        only: function(children) {
+          if (!isValidElement(children))
+            throw Error(
+              "React.Children.only expected to receive a single React element child."
+            );
+          return children;
+        }
+      };
+      exports.Activity = REACT_ACTIVITY_TYPE;
+      exports.Children = fnName;
+      exports.Component = Component;
+      exports.Fragment = REACT_FRAGMENT_TYPE;
+      exports.Profiler = REACT_PROFILER_TYPE;
+      exports.PureComponent = PureComponent;
+      exports.StrictMode = REACT_STRICT_MODE_TYPE;
+      exports.Suspense = REACT_SUSPENSE_TYPE;
+      exports.ViewTransition = REACT_VIEW_TRANSITION_TYPE;
+      exports.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = ReactSharedInternals;
+      exports.__COMPILER_RUNTIME = deprecatedAPIs;
+      exports.act = function(callback) {
+        var prevActQueue = ReactSharedInternals.actQueue, prevActScopeDepth = actScopeDepth;
+        actScopeDepth++;
+        var queue2 = ReactSharedInternals.actQueue = null !== prevActQueue ? prevActQueue : [], didAwaitActCall = false;
+        try {
+          var result = callback();
+        } catch (error) {
+          ReactSharedInternals.thrownErrors.push(error);
+        }
+        if (0 < ReactSharedInternals.thrownErrors.length)
+          throw popActScope(prevActQueue, prevActScopeDepth), callback = aggregateErrors(ReactSharedInternals.thrownErrors), ReactSharedInternals.thrownErrors.length = 0, callback;
+        if (null !== result && "object" === typeof result && "function" === typeof result.then) {
+          var thenable = result;
+          queueSeveralMicrotasks(function() {
+            didAwaitActCall || didWarnNoAwaitAct || (didWarnNoAwaitAct = true, console.error(
+              "You called act(async () => ...) without await. This could lead to unexpected testing behaviour, interleaving multiple act calls and mixing their scopes. You should - await act(async () => ...);"
+            ));
+          });
+          return {
+            then: function(resolve2, reject) {
+              didAwaitActCall = true;
+              thenable.then(
+                function(returnValue) {
+                  popActScope(prevActQueue, prevActScopeDepth);
+                  if (0 === prevActScopeDepth) {
+                    try {
+                      flushActQueue(queue2), enqueueTask(function() {
+                        return recursivelyFlushAsyncActWork(
+                          returnValue,
+                          resolve2,
+                          reject
+                        );
+                      });
+                    } catch (error$0) {
+                      ReactSharedInternals.thrownErrors.push(error$0);
+                    }
+                    if (0 < ReactSharedInternals.thrownErrors.length) {
+                      var _thrownError = aggregateErrors(
+                        ReactSharedInternals.thrownErrors
+                      );
+                      ReactSharedInternals.thrownErrors.length = 0;
+                      reject(_thrownError);
+                    }
+                  } else resolve2(returnValue);
+                },
+                function(error) {
+                  popActScope(prevActQueue, prevActScopeDepth);
+                  0 < ReactSharedInternals.thrownErrors.length ? (error = aggregateErrors(
+                    ReactSharedInternals.thrownErrors
+                  ), ReactSharedInternals.thrownErrors.length = 0, reject(error)) : reject(error);
+                }
+              );
+            }
+          };
+        }
+        var returnValue$jscomp$0 = result;
+        popActScope(prevActQueue, prevActScopeDepth);
+        0 === prevActScopeDepth && (flushActQueue(queue2), 0 !== queue2.length && queueSeveralMicrotasks(function() {
+          didAwaitActCall || didWarnNoAwaitAct || (didWarnNoAwaitAct = true, console.error(
+            "A component suspended inside an `act` scope, but the `act` call was not awaited. When testing React components that depend on asynchronous data, you must await the result:\n\nawait act(() => ...)"
+          ));
+        }), ReactSharedInternals.actQueue = null);
+        if (0 < ReactSharedInternals.thrownErrors.length)
+          throw callback = aggregateErrors(ReactSharedInternals.thrownErrors), ReactSharedInternals.thrownErrors.length = 0, callback;
+        return {
+          then: function(resolve2, reject) {
+            didAwaitActCall = true;
+            0 === prevActScopeDepth ? (ReactSharedInternals.actQueue = queue2, enqueueTask(function() {
+              return recursivelyFlushAsyncActWork(
+                returnValue$jscomp$0,
+                resolve2,
+                reject
+              );
+            })) : resolve2(returnValue$jscomp$0);
+          }
+        };
+      };
+      exports.addTransitionType = addTransitionType;
+      exports.cache = function(fn) {
+        return function() {
+          return fn.apply(null, arguments);
+        };
+      };
+      exports.cacheSignal = function() {
+        return null;
+      };
+      exports.captureOwnerStack = function() {
+        var getCurrentStack = ReactSharedInternals.getCurrentStack;
+        return null === getCurrentStack ? null : getCurrentStack();
+      };
+      exports.cloneElement = function(element, config, children) {
+        if (null === element || void 0 === element)
+          throw Error(
+            "The argument must be a React element, but you passed " + element + "."
+          );
+        var props = assign({}, element.props), key = element.key, owner = element._owner;
+        if (null != config) {
+          var JSCompiler_inline_result;
+          a: {
+            if (hasOwnProperty.call(config, "ref") && (JSCompiler_inline_result = Object.getOwnPropertyDescriptor(
+              config,
+              "ref"
+            ).get) && JSCompiler_inline_result.isReactWarning) {
+              JSCompiler_inline_result = false;
+              break a;
+            }
+            JSCompiler_inline_result = void 0 !== config.ref;
+          }
+          JSCompiler_inline_result && (owner = getOwner());
+          hasValidKey(config) && (checkKeyStringCoercion(config.key), key = "" + config.key);
+          for (propName in config)
+            !hasOwnProperty.call(config, propName) || "key" === propName || "__self" === propName || "__source" === propName || "ref" === propName && void 0 === config.ref || (props[propName] = config[propName]);
+        }
+        var propName = arguments.length - 2;
+        if (1 === propName) props.children = children;
+        else if (1 < propName) {
+          JSCompiler_inline_result = Array(propName);
+          for (var i2 = 0; i2 < propName; i2++)
+            JSCompiler_inline_result[i2] = arguments[i2 + 2];
+          props.children = JSCompiler_inline_result;
+        }
+        props = ReactElement(
+          element.type,
+          key,
+          props,
+          owner,
+          element._debugStack,
+          element._debugTask
+        );
+        for (key = 2; key < arguments.length; key++)
+          validateChildKeys(arguments[key]);
+        return props;
+      };
+      exports.createContext = function(defaultValue) {
+        defaultValue = {
+          $$typeof: REACT_CONTEXT_TYPE,
+          _currentValue: defaultValue,
+          _currentValue2: defaultValue,
+          _threadCount: 0,
+          Provider: null,
+          Consumer: null
+        };
+        defaultValue.Provider = defaultValue;
+        defaultValue.Consumer = {
+          $$typeof: REACT_CONSUMER_TYPE,
+          _context: defaultValue
+        };
+        defaultValue._currentRenderer = null;
+        defaultValue._currentRenderer2 = null;
+        return defaultValue;
+      };
+      exports.createElement = function(type, config, children) {
+        for (var i2 = 2; i2 < arguments.length; i2++)
+          validateChildKeys(arguments[i2]);
+        var propName;
+        i2 = {};
+        var key = null;
+        if (null != config)
+          for (propName in didWarnAboutOldJSXRuntime || !("__self" in config) || "key" in config || (didWarnAboutOldJSXRuntime = true, console.warn(
+            "Your app (or one of its dependencies) is using an outdated JSX transform. Update to the modern JSX transform for faster performance: https://react.dev/link/new-jsx-transform"
+          )), hasValidKey(config) && (checkKeyStringCoercion(config.key), key = "" + config.key), config)
+            hasOwnProperty.call(config, propName) && "key" !== propName && "__self" !== propName && "__source" !== propName && (i2[propName] = config[propName]);
+        var childrenLength = arguments.length - 2;
+        if (1 === childrenLength) i2.children = children;
+        else if (1 < childrenLength) {
+          for (var childArray = Array(childrenLength), _i = 0; _i < childrenLength; _i++)
+            childArray[_i] = arguments[_i + 2];
+          Object.freeze && Object.freeze(childArray);
+          i2.children = childArray;
+        }
+        if (type && type.defaultProps)
+          for (propName in childrenLength = type.defaultProps, childrenLength)
+            void 0 === i2[propName] && (i2[propName] = childrenLength[propName]);
+        key && defineKeyPropWarningGetter(
+          i2,
+          "function" === typeof type ? type.displayName || type.name || "Unknown" : type
+        );
+        (propName = 1e4 > ReactSharedInternals.recentlyCreatedOwnerStacks++) ? (childArray = Error.stackTraceLimit, Error.stackTraceLimit = 10, childrenLength = Error("react-stack-top-frame"), Error.stackTraceLimit = childArray) : childrenLength = unknownOwnerDebugStack;
+        return ReactElement(
+          type,
+          key,
+          i2,
+          getOwner(),
+          childrenLength,
+          propName ? createTask(getTaskName(type)) : unknownOwnerDebugTask
+        );
+      };
+      exports.createRef = function() {
+        var refObject = { current: null };
+        Object.seal(refObject);
+        return refObject;
+      };
+      exports.forwardRef = function(render) {
+        null != render && render.$$typeof === REACT_MEMO_TYPE ? console.error(
+          "forwardRef requires a render function but received a `memo` component. Instead of forwardRef(memo(...)), use memo(forwardRef(...))."
+        ) : "function" !== typeof render ? console.error(
+          "forwardRef requires a render function but was given %s.",
+          null === render ? "null" : typeof render
+        ) : 0 !== render.length && 2 !== render.length && console.error(
+          "forwardRef render functions accept exactly two parameters: props and ref. %s",
+          1 === render.length ? "Did you forget to use the ref parameter?" : "Any additional parameter will be undefined."
+        );
+        null != render && null != render.defaultProps && console.error(
+          "forwardRef render functions do not support defaultProps. Did you accidentally pass a React component?"
+        );
+        var elementType = { $$typeof: REACT_FORWARD_REF_TYPE, render }, ownName;
+        Object.defineProperty(elementType, "displayName", {
+          enumerable: false,
+          configurable: true,
+          get: function() {
+            return ownName;
+          },
+          set: function(name) {
+            ownName = name;
+            render.name || render.displayName || (Object.defineProperty(render, "name", { value: name }), render.displayName = name);
+          }
+        });
+        return elementType;
+      };
+      exports.isValidElement = isValidElement;
+      exports.lazy = function(ctor) {
+        ctor = { _status: -1, _result: ctor };
+        var lazyType = {
+          $$typeof: REACT_LAZY_TYPE,
+          _payload: ctor,
+          _init: lazyInitializer
+        }, ioInfo = {
+          name: "lazy",
+          start: -1,
+          end: -1,
+          value: null,
+          owner: null,
+          debugStack: Error("react-stack-top-frame"),
+          debugTask: console.createTask ? console.createTask("lazy()") : null
+        };
+        ctor._ioInfo = ioInfo;
+        lazyType._debugInfo = [{ awaited: ioInfo }];
+        return lazyType;
+      };
+      exports.memo = function(type, compare) {
+        null == type && console.error(
+          "memo: The first argument must be a component. Instead received: %s",
+          null === type ? "null" : typeof type
+        );
+        compare = {
+          $$typeof: REACT_MEMO_TYPE,
+          type,
+          compare: void 0 === compare ? null : compare
+        };
+        var ownName;
+        Object.defineProperty(compare, "displayName", {
+          enumerable: false,
+          configurable: true,
+          get: function() {
+            return ownName;
+          },
+          set: function(name) {
+            ownName = name;
+            type.name || type.displayName || (Object.defineProperty(type, "name", { value: name }), type.displayName = name);
+          }
+        });
+        return compare;
+      };
+      exports.startTransition = startTransition;
+      exports.unstable_useCacheRefresh = function() {
+        return resolveDispatcher().useCacheRefresh();
+      };
+      exports.use = function(usable) {
+        return resolveDispatcher().use(usable);
+      };
+      exports.useActionState = function(action, initialState, permalink) {
+        return resolveDispatcher().useActionState(
+          action,
+          initialState,
+          permalink
+        );
+      };
+      exports.useCallback = function(callback, deps) {
+        return resolveDispatcher().useCallback(callback, deps);
+      };
+      exports.useContext = function(Context) {
+        var dispatcher = resolveDispatcher();
+        Context.$$typeof === REACT_CONSUMER_TYPE && console.error(
+          "Calling useContext(Context.Consumer) is not supported and will cause bugs. Did you mean to call useContext(Context) instead?"
+        );
+        return dispatcher.useContext(Context);
+      };
+      exports.useDebugValue = function(value, formatterFn) {
+        return resolveDispatcher().useDebugValue(value, formatterFn);
+      };
+      exports.useDeferredValue = function(value, initialValue) {
+        return resolveDispatcher().useDeferredValue(value, initialValue);
+      };
+      exports.useEffect = function(create, deps) {
+        null == create && console.warn(
+          "React Hook useEffect requires an effect callback. Did you forget to pass a callback to the hook?"
+        );
+        return resolveDispatcher().useEffect(create, deps);
+      };
+      exports.useEffectEvent = function(callback) {
+        return resolveDispatcher().useEffectEvent(callback);
+      };
+      exports.useId = function() {
+        return resolveDispatcher().useId();
+      };
+      exports.useImperativeHandle = function(ref, create, deps) {
+        return resolveDispatcher().useImperativeHandle(ref, create, deps);
+      };
+      exports.useInsertionEffect = function(create, deps) {
+        null == create && console.warn(
+          "React Hook useInsertionEffect requires an effect callback. Did you forget to pass a callback to the hook?"
+        );
+        return resolveDispatcher().useInsertionEffect(create, deps);
+      };
+      exports.useLayoutEffect = function(create, deps) {
+        null == create && console.warn(
+          "React Hook useLayoutEffect requires an effect callback. Did you forget to pass a callback to the hook?"
+        );
+        return resolveDispatcher().useLayoutEffect(create, deps);
+      };
+      exports.useMemo = function(create, deps) {
+        return resolveDispatcher().useMemo(create, deps);
+      };
+      exports.useOptimistic = function(passthrough, reducer) {
+        return resolveDispatcher().useOptimistic(passthrough, reducer);
+      };
+      exports.useReducer = function(reducer, initialArg, init) {
+        return resolveDispatcher().useReducer(reducer, initialArg, init);
+      };
+      exports.useRef = function(initialValue) {
+        return resolveDispatcher().useRef(initialValue);
+      };
+      exports.useState = function(initialState) {
+        return resolveDispatcher().useState(initialState);
+      };
+      exports.useSyncExternalStore = function(subscribe, getSnapshot, getServerSnapshot) {
+        return resolveDispatcher().useSyncExternalStore(
+          subscribe,
+          getSnapshot,
+          getServerSnapshot
+        );
+      };
+      exports.useTransition = function() {
+        return resolveDispatcher().useTransition();
+      };
+      exports.version = "19.3.0";
+      "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(Error());
+    })();
+  }
+});
+
+// node_modules/react/index.js
+var require_react = __commonJS({
+  "node_modules/react/index.js"(exports, module) {
+    "use strict";
+    if (process.env.NODE_ENV === "production") {
+      module.exports = require_react_production();
+    } else {
+      module.exports = require_react_development();
+    }
+  }
+});
+
+// src/shared/settings.ts
+function getSettings() {
+  if (cache) return cache;
+  try {
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem(KEY) : null;
+    cache = { ...DEFAULT_SETTINGS, ...raw ? JSON.parse(raw) : {} };
+  } catch {
+    cache = { ...DEFAULT_SETTINGS };
+  }
+  return cache;
+}
+function sfxVolume(s2) {
+  return clamp01(s2.volume * s2.sfx_volume);
+}
+function clamp01(v2) {
+  return Math.max(0, Math.min(1, Number.isFinite(v2) ? v2 : 1));
+}
+var import_react, DEFAULT_SETTINGS, KEY, cache;
+var init_settings = __esm({
+  "src/shared/settings.ts"() {
+    import_react = __toESM(require_react(), 1);
+    DEFAULT_SETTINGS = {
+      volume: 0.9,
+      music_volume: 0.6,
+      sfx_volume: 0.8,
+      voice_volume: 1,
+      voice_muted: false,
+      tts_enabled: false,
+      tts_voice: "",
+      tts_rate: 1,
+      text_scale: 1,
+      animations: true,
+      camera_parallax: true
+    };
+    KEY = "narthex:settings";
+    cache = null;
+  }
+});
+
+// src/shared/audio.ts
+function isSoundDoc(v2) {
+  return !!v2 && typeof v2 === "object" && Array.isArray(v2.zzfx);
+}
+function soundDef(id) {
+  return campaign?.meta.sounds?.find((s2) => s2.id === id);
+}
+function pickSource(src) {
+  if (Array.isArray(src)) {
+    if (!src.length) return "";
+    return src[Math.floor(Math.random() * src.length)];
+  }
+  return src;
+}
+function trackInstance(id, inst) {
+  if (!id) return;
+  const list = activeSoundInstances.get(id) ?? [];
+  list.push(inst);
+  activeSoundInstances.set(id, list);
+}
+function untrackInstance(id, inst) {
+  const list = activeSoundInstances.get(id);
+  if (!list) return;
+  const filtered = list.filter((i2) => i2 !== inst);
+  if (filtered.length) activeSoundInstances.set(id, filtered);
+  else activeSoundInstances.delete(id);
+}
+function stopSound(id) {
+  if (id) {
+    stopLoop(id);
+    const list = activeSoundInstances.get(id);
+    if (list) {
+      for (const inst of list) {
+        try {
+          inst.stop();
+        } catch {
+        }
+      }
+      activeSoundInstances.delete(id);
+    }
+  } else {
+    stopAllLoops();
+    for (const list of activeSoundInstances.values()) {
+      for (const inst of list) {
+        try {
+          inst.stop();
+        } catch {
+        }
+      }
+    }
+    activeSoundInstances.clear();
+  }
+}
+function playSoundId(id, volume = 1) {
+  if (!id || !campaign || !ambientEnabled) return;
+  const def = soundDef(id);
+  if (!def) return;
+  playSource(pickSource(def.src), volume, id);
+}
+function playSource(src, volume = 1, soundId) {
+  if (!src) return;
+  const vol = sfxVolume(getSettings()) * volume;
+  if (vol <= 0) return;
+  unlockAudio();
+  if (isSoundDoc(src)) {
+    const c2 = audioCtx();
+    if (!c2) return;
+    if (c2.state === "suspended") void c2.resume();
+    const buf = renderSoundDoc(c2, src);
+    const node = c2.createBufferSource();
+    node.buffer = buf;
+    const g2 = c2.createGain();
+    g2.gain.value = vol;
+    node.connect(g2);
+    g2.connect(c2.destination);
+    node.start();
+    if (soundId) {
+      const inst = {
+        stop: () => {
+          try {
+            node.stop();
+          } catch {
+          }
+          try {
+            g2.disconnect();
+          } catch {
+          }
+        }
+      };
+      trackInstance(soundId, inst);
+      node.onended = () => untrackInstance(soundId, inst);
+    }
+    return;
+  }
+  if (typeof Audio === "undefined") return;
+  const url = campaign && !/^https?:|^data:|^blob:/i.test(src) ? `${campaign.basePath}/${src}` : src;
+  const a2 = new Audio(url);
+  a2.volume = vol;
+  if (soundId) {
+    const inst = {
+      stop: () => {
+        try {
+          a2.pause();
+          a2.currentTime = 0;
+        } catch {
+        }
+      }
+    };
+    trackInstance(soundId, inst);
+    a2.onended = () => untrackInstance(soundId, inst);
+  }
+  void a2.play().catch(() => void 0);
+}
+function playUi(hook, volume = 1) {
+  if (!hook || !campaign || !ambientEnabled) return;
+  const ui = campaign.meta.ui_sounds ?? {};
+  if (ui[hook]) return playSoundId(ui[hook], volume);
+  if (hook === "panel:log" && ui["panel:journal"]) return playSoundId(ui["panel:journal"], volume);
+  if (hook === "panel:journal" && ui["panel:log"]) return playSoundId(ui["panel:log"], volume);
+  if (hook === "panel:meta" && ui["panel:chronicle"]) return playSoundId(ui["panel:chronicle"], volume);
+  if (hook === "panel:chronicle" && ui["panel:meta"]) return playSoundId(ui["panel:meta"], volume);
+  if (hook === "panel:log:close" && ui["panel:journal:close"]) return playSoundId(ui["panel:journal:close"], volume);
+  if (hook === "panel:journal:close" && ui["panel:log:close"]) return playSoundId(ui["panel:log:close"], volume);
+  const underscored = hook.includes(":") ? hook.replace(/:/g, "_") : null;
+  if (underscored && ui[underscored]) return playSoundId(ui[underscored], volume);
+  if (hook.includes("close")) {
+    if (ui["panel:close"]) return playSoundId(ui["panel:close"], volume);
+    if (ui["panel_close"]) return playSoundId(ui["panel_close"], volume);
+    if (ui["click"]) return playSoundId(ui["click"], volume * 0.7);
+  } else if (hook.startsWith("panel:") || hook.startsWith("panel_")) {
+    if (ui["panel:open"]) return playSoundId(ui["panel:open"], volume);
+    if (ui["panel_open"]) return playSoundId(ui["panel_open"], volume);
+  }
+  if (soundDef(hook)) return playSoundId(hook, volume);
+}
+function playInteraction(hook, info = {}, volume = 1) {
+  if (!campaign || !ambientEnabled) return;
+  if (info.sound) {
+    if (soundDef(info.sound)) return playSoundId(info.sound, volume);
+    return playSource(info.sound, volume, info.sound);
+  }
+  const meta2 = campaign.meta;
+  const fromEntity = info.entity?.sounds?.[hook];
+  if (fromEntity) return playSoundId(fromEntity, volume);
+  const ent = info.entity;
+  if (ent && ent.type === "item") {
+    const cat = meta2.item_categories?.find((c2) => c2.id === ent.category);
+    const fromCat = cat?.sounds?.[hook];
+    if (fromCat) return playSoundId(fromCat, volume);
+  }
+  if (info.slotType) {
+    const st2 = meta2.slot_types?.find((t5) => t5.id === info.slotType);
+    const fromSlot = st2?.sounds?.[hook];
+    if (fromSlot) return playSoundId(fromSlot, volume);
+  }
+  for (const name of HOOK_FALLBACK[hook] ?? [hook]) {
+    const id = meta2.ui_sounds?.[name];
+    if (id) return playSoundId(id, volume);
+  }
+  playUi(hook, volume);
+}
+function stopLoop(id) {
+  loops.get(id)?.stop();
+  loops.delete(id);
+}
+function stopAllLoops() {
+  for (const id of [...loops.keys()]) stopLoop(id);
+}
+var campaign, ambientEnabled, activeSoundInstances, HOOK_FALLBACK, loops;
+var init_audio = __esm({
+  "src/shared/audio.ts"() {
+    init_synth();
+    init_settings();
+    init_conditions();
+    init_synth();
+    campaign = null;
+    ambientEnabled = true;
+    activeSoundInstances = /* @__PURE__ */ new Map();
+    HOOK_FALLBACK = {
+      travel: ["travel", "scene_transition"],
+      "item:equip": ["equip", "item_equip"],
+      "item:unequip": ["unequip", "item_unequip"],
+      "item:use": ["use", "item_use"],
+      "item:drop": ["drop", "item_drop"]
+    };
+    loops = /* @__PURE__ */ new Map();
+  }
+});
+
+// src/shared/speechTiming.ts
+function speechCompletionTimeoutMs(text, rate = 1) {
+  const safeRate = Math.max(0.5, Math.min(2, rate));
+  const estimate = text.length * (130 / safeRate) + 12e3;
+  return Math.min(10 * 6e4, Math.max(2e4, Math.ceil(estimate)));
+}
+var init_speechTiming = __esm({
+  "src/shared/speechTiming.ts"() {
+  }
+});
+
+// src/shared/speech.ts
+function ttsSupported() {
+  return typeof window !== "undefined" && "speechSynthesis" in window && typeof SpeechSynthesisUtterance !== "undefined";
+}
+function ttsVoices() {
+  if (!ttsSupported()) return [];
+  const list = window.speechSynthesis.getVoices();
+  const ru = (v2) => v2.lang.toLowerCase().startsWith("ru") ? 0 : 1;
+  return [...list].sort((a2, b2) => ru(a2) - ru(b2) || a2.name.localeCompare(b2.name));
+}
+function pickVoice(name) {
+  const voices = ttsVoices();
+  return voices.find((v2) => v2.name === name) ?? voices.find((v2) => v2.lang.toLowerCase().startsWith("ru"));
+}
+function initVoices() {
+  if (!ttsSupported() || voicesReady) return;
+  const synth = window.speechSynthesis;
+  const check = () => {
+    if (synth.getVoices().length > 0) voicesReady = true;
+  };
+  check();
+  synth.addEventListener?.("voiceschanged", check);
+}
+function clearStallTimer() {
+  if (stallTimer !== null) {
+    clearTimeout(stallTimer);
+    stallTimer = null;
+  }
+}
+function onFirstGesture() {
+  gestureSeen = true;
+  prime();
+  pump();
+}
+function prime() {
+  if (primed || !ttsSupported()) return;
+  primed = true;
+  try {
+    const u2 = new SpeechSynthesisUtterance(" ");
+    u2.volume = 0.01;
+    const v2 = pickVoice(void 0);
+    if (v2) {
+      u2.voice = v2;
+      u2.lang = v2.lang;
+    }
+    window.speechSynthesis.speak(u2);
+  } catch {
+  }
+}
+function startKeepalive() {
+  if (keepalive !== null || !ttsSupported()) return;
+  keepalive = setInterval(() => {
+    const synth = window.speechSynthesis;
+    if (synth.speaking && !synth.paused) {
+      synth.pause();
+      synth.resume();
+    }
+  }, 1e4);
+}
+function stopKeepalive() {
+  if (keepalive !== null) {
+    clearInterval(keepalive);
+    keepalive = null;
+  }
+}
+function pump() {
+  if (pumpTimer !== null) return;
+  if (active) return;
+  const item = queue[0];
+  if (!item) {
+    stopKeepalive();
+    return;
+  }
+  if (!gestureSeen) return;
+  if (item.cancelled) {
+    queue.shift();
+    pump();
+    return;
+  }
+  if (!voicesReady && Date.now() - bootTs < 4e3) {
+    pumpTimer = setTimeout(() => {
+      pumpTimer = null;
+      pump();
+    }, 120);
+    return;
+  }
+  const wait = Math.max(0, cooldownUntil - Date.now());
+  if (wait > 0) {
+    pumpTimer = setTimeout(() => {
+      pumpTimer = null;
+      pump();
+    }, wait);
+    return;
+  }
+  queue.shift();
+  active = item;
+  item.started = false;
+  item.settled = false;
+  startKeepalive();
+  speakItem(item);
+}
+function finishItem(item) {
+  if (item.settled) return;
+  item.settled = true;
+  clearStallTimer();
+  if (active === item) active = null;
+  if (!item.cancelled) item.opts.onEnd?.();
+  pump();
+}
+function armCompletionWatchdog(item, synth) {
+  clearStallTimer();
+  stallTimer = setTimeout(() => {
+    stallTimer = null;
+    if (active !== item || item.settled) return;
+    try {
+      synth.cancel();
+    } catch {
+    }
+    cooldownUntil = Math.max(cooldownUntil, Date.now() + 100);
+    finishItem(item);
+  }, speechCompletionTimeoutMs(item.clean, item.opts.rate));
+}
+function speakItem(item) {
+  const synth = window.speechSynthesis;
+  const u2 = new SpeechSynthesisUtterance(item.clean);
+  const chosen = pickVoice(item.opts.voice);
+  if (chosen) {
+    u2.voice = chosen;
+    u2.lang = chosen.lang;
+  } else {
+    u2.lang = "ru-RU";
+  }
+  u2.rate = Math.max(0.5, Math.min(2, item.opts.rate ?? 1));
+  u2.volume = Math.max(0, Math.min(1, item.opts.volume ?? 1));
+  u2.onstart = () => {
+    if (active !== item || item.settled) return;
+    item.started = true;
+    armCompletionWatchdog(item, synth);
+  };
+  u2.onend = () => finishItem(item);
+  u2.onerror = () => finishItem(item);
+  try {
+    synth.speak(u2);
+    synth.resume();
+  } catch {
+    finishItem(item);
+    return;
+  }
+  clearStallTimer();
+  stallTimer = setTimeout(() => {
+    stallTimer = null;
+    if (active === item && !item.started) {
+      if (synth.speaking || synth.pending) {
+        item.started = true;
+        armCompletionWatchdog(item, synth);
+        return;
+      }
+      try {
+        synth.cancel();
+      } catch {
+      }
+      cooldownUntil = Math.max(cooldownUntil, Date.now() + 100);
+      finishItem(item);
+    }
+  }, 8e3);
+}
+function stopSpeaking() {
+  for (const item of queue) item.cancelled = true;
+  queue.length = 0;
+  if (active) active.cancelled = true;
+  active = null;
+  if (ttsSupported()) window.speechSynthesis.cancel();
+  clearStallTimer();
+  cooldownUntil = Date.now() + 100;
+}
+var import_react2, voicesReady, bootTs, queue, active, pumpTimer, cooldownUntil, keepalive, stallTimer, primed, gestureSeen;
+var init_speech = __esm({
+  "src/shared/speech.ts"() {
+    import_react2 = __toESM(require_react(), 1);
+    init_speechTiming();
+    voicesReady = false;
+    bootTs = Date.now();
+    initVoices();
+    queue = [];
+    active = null;
+    pumpTimer = null;
+    cooldownUntil = 0;
+    keepalive = null;
+    stallTimer = null;
+    primed = false;
+    gestureSeen = false;
+    if (typeof window !== "undefined") {
+      window.addEventListener("pointerdown", onFirstGesture, { once: true });
+      window.addEventListener("keydown", onFirstGesture, { once: true });
+    }
+    if (typeof window !== "undefined") {
+      ;
+      window.__cf_tts = () => ({
+        \u043F\u043E\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442\u0441\u044F: ttsSupported(),
+        \u0431\u044B\u043B_\u0436\u0435\u0441\u0442_\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F: gestureSeen,
+        \u0433\u043E\u043B\u043E\u0441\u043E\u0432_\u0432_\u0441\u0438\u0441\u0442\u0435\u043C\u0435: ttsVoices().length,
+        \u0433\u043E\u0432\u043E\u0440\u0438\u0442_\u0441\u0435\u0439\u0447\u0430\u0441: window.speechSynthesis?.speaking ?? false,
+        \u043D\u0430_\u043F\u0430\u0443\u0437\u0435: window.speechSynthesis?.paused ?? false,
+        \u0444\u0440\u0430\u0437_\u0432_\u043E\u0447\u0435\u0440\u0435\u0434\u0438: queue.length,
+        \u0430\u043A\u0442\u0438\u0432\u043D\u0430\u044F_\u0444\u0440\u0430\u0437\u0430: active ? active.clean.slice(0, 60) : null
+      });
+    }
+  }
+});
+
+// src/shared/voiceAudio.ts
+function stopVoiceFileOnly() {
+  if (currentVoiceAudio) {
+    const a2 = currentVoiceAudio;
+    currentVoiceAudio = null;
+    a2.onended = null;
+    a2.onerror = null;
+    a2.onloadedmetadata = null;
+    try {
+      a2.pause();
+      a2.currentTime = 0;
+    } catch {
+    }
+  }
+}
+function stopVoiceAudio() {
+  stopVoiceFileOnly();
+  stopSpeaking();
+}
+var currentVoiceAudio;
+var init_voiceAudio = __esm({
+  "src/shared/voiceAudio.ts"() {
+    init_speech();
+    currentVoiceAudio = null;
+  }
+});
+
+// src/core/world.ts
+var world;
+var init_world = __esm({
+  "src/core/world.ts"() {
+    init_types();
+    init_conditions();
+    init_time();
+    init_audio();
+    init_voiceAudio();
+    world = {
+      // ─────────────── мир: регионы, локации, сцены ───────────────
+      allRegions(ctx2) {
+        const out = [];
+        const walk2 = (rs) => {
+          for (const r2 of rs) {
+            out.push(r2);
+            if (r2.sub_regions) walk2(r2.sub_regions);
+          }
+        };
+        walk2(ctx2.campaign.world.regions);
+        return out;
+      },
+      findRegion(ctx2, id) {
+        return world.allRegions(ctx2).find((r2) => r2.id === id);
+      },
+      findLocation(ctx2, id) {
+        for (const region of world.allRegions(ctx2)) {
+          const location = region.locations.find((l2) => l2.id === id);
+          if (location) return { region, location };
+        }
+        return void 0;
+      },
+      currentScene(ctx2) {
+        return ctx2.campaign.scenes[ctx2.state.scene];
+      },
+      /**
+      * Сцена, в которую игрок попадает при входе в локацию (итерация 8, А5):
+      * arrival_scene локации, если она есть среди её сцен, иначе первая.
+      */
+      arrivalSceneOf(_ctx, location) {
+        const arrival = location.arrival_scene;
+        if (arrival && location.scenes.includes(arrival)) return arrival;
+        return location.scenes[0];
+      },
+      /** Правила бросков d100 этой кампании (итерация 8, А7). */
+      diceRules(ctx2) {
+        return ctx2.campaign.meta.dice_rules ?? DEFAULT_DICE_RULES;
+      },
+      /** Активное состояние сцены: первое, чьё условие истинно; иначе первое. */
+      activeSceneState(ctx2, scene) {
+        for (const st2 of scene.states) {
+          if (ctx2.state.flags[`scene_state:${scene.id}:${st2.id}`]) return st2;
+        }
+        for (const st2 of scene.states) {
+          if (st2.condition && evalSceneCondition(st2.condition, ctx2)) return st2;
+        }
+        const base = scene.states.find((st2) => !st2.condition);
+        return base ?? scene.states[0];
+      },
+      changeSceneState(ctx2, sceneIdOrState, maybeState) {
+        const sceneId = maybeState ? sceneIdOrState : ctx2.state.scene;
+        const stateId = maybeState ?? sceneIdOrState;
+        const sc = ctx2.campaign.scenes[sceneId];
+        if (sc) {
+          for (const st2 of sc.states) {
+            delete ctx2.state.flags[`scene_state:${sceneId}:${st2.id}`];
+          }
+          ctx2.state.flags[`scene_state:${sceneId}:${stateId}`] = true;
+          ctx2.notify();
+        }
+      },
+      goToSceneFromDialogue(ctx2, sceneId, closeDialogue = true) {
+        if (closeDialogue) {
+          ctx2.endDialogue();
+        }
+        ctx2.goToScene(sceneId, 0);
+      },
+      startCombatFromDialogue(ctx2, arenaId) {
+        const enemyId = ctx2.activeNpc?.id || Object.keys(ctx2.campaign.entities).find((k2) => ctx2.campaign.entities[k2]?.type === "npc") || "";
+        ctx2.endDialogue();
+        ctx2.startCombat({
+          type: "start_combat",
+          arena: arenaId,
+          enemies: [{ entity: enemyId, count: 1 }],
+          intro: `\u0411\u043E\u0439 \u0441 ${ctx2.activeNpc?.label ?? "\u043F\u0440\u043E\u0442\u0438\u0432\u043D\u0438\u043A\u043E\u043C"}!`
+        });
+      },
+      /** Активное «особое место» НПС: первый оверрайд, чей флаг-условие выполнено. */
+      activePresenceOverride(ctx2, def) {
+        if (def.type !== "npc" || !def.presence_overrides) return void 0;
+        return def.presence_overrides.find(
+          (o2) => (!o2.flag || !!ctx2.state.flags[o2.flag]) && (!o2.not_flag || !ctx2.state.flags[o2.not_flag])
+        );
+      },
+      /**
+      * Есть ли у NPC реальное расписание (непустой массив). Пустой `schedule: []`
+      * — частый артефакт редактора/ИИ: это «расписания нет», а не «занят всегда
+      * где-то ещё». Иначе default_entity в слоте никогда не появляется.
+      */
+      npcHasSchedule(_ctx, def) {
+        return def.type === "npc" && Array.isArray(def.schedule) && def.schedule.length > 0;
+      },
+      npcHasPresenceOverrides(_ctx, def) {
+        return def.type === "npc" && Array.isArray(def.presence_overrides) && def.presence_overrides.length > 0;
+      },
+      /** Занятость слотов с учётом расписаний NPC (ТЗ 4.1: обновление расписания). */
+      slotOccupants(ctx2, scene) {
+        const hour = hourOfDay(ctx2.state.tick, ctx2.campaign.meta);
+        const out = [];
+        for (const slot of scene.slots) {
+          if (!evalSceneCondition(slot.condition, ctx2)) continue;
+          let entity = null;
+          const spawned = ctx2.state.spawned.find((s2) => s2.scene === scene.id && s2.slot === slot.id);
+          if (spawned) entity = ctx2.campaign.entities[spawned.entity] ?? null;
+          if (!entity) {
+            for (const def of Object.values(ctx2.campaign.entities)) {
+              if (def.type !== "npc" || !world.npcHasSchedule(ctx2, def) && !world.npcHasPresenceOverrides(ctx2, def)) continue;
+              if (ctx2.state.dead_entities.includes(def.id)) continue;
+              if (ctx2.state.removed_entities.includes(def.id)) continue;
+              if (ctx2.isInParty(def.id)) continue;
+              const ov = world.activePresenceOverride(ctx2, def);
+              if (ov) {
+                if (ov.scene === scene.id && ov.slot === slot.id) {
+                  entity = def;
+                  break;
+                }
+                continue;
+              }
+              const entry = def.schedule?.find(
+                (e2) => e2.scene === scene.id && e2.slot === slot.id && inTimeRange(hour, e2.time_range)
+              );
+              if (entry) {
+                entity = def;
+                break;
+              }
+            }
+          }
+          if (!entity && slot.default_entity) {
+            const def = ctx2.campaign.entities[slot.default_entity];
+            const busyElsewhere = def?.type === "npc" && (world.npcHasSchedule(ctx2, def) || !!world.activePresenceOverride(ctx2, def));
+            const gone = ctx2.state.dead_entities.includes(slot.default_entity) || ctx2.state.removed_entities.includes(slot.default_entity) || ctx2.isInParty(slot.default_entity);
+            if (def && !busyElsewhere && !gone) entity = def;
+          }
+          out.push({ slot, entity });
+        }
+        return out;
+      },
+      /** Переход между сценами внутри локации (или в сцену другой локации). */
+      goToScene(ctx2, sceneId, costTicks = 0) {
+        const scene = ctx2.campaign.scenes[sceneId];
+        if (!scene) return;
+        stopVoiceAudio();
+        if (costTicks > 0) ctx2.advanceTicks(costTicks);
+        if (ctx2.state.game_over) return ctx2.notify();
+        playInteraction("travel");
+        const prevLocation = ctx2.state.location;
+        ctx2.state.scene = sceneId;
+        ctx2.state.location = scene.location;
+        if (ctx2.state.stealth) ctx2.state.stealth.detected = false;
+        if (ctx2.isSneaking()) ctx2.detectCheck("\u0441\u043C\u0435\u043D\u0430 \u0441\u0446\u0435\u043D\u044B");
+        if (scene.location !== prevLocation) {
+          world.onEnterLocation(ctx2, scene.location);
+        } else {
+          ctx2.checkRules();
+          ctx2.autosave();
+        }
+        ctx2.fireTrigger("enter_scene", { sceneId });
+        ctx2.notify();
+      },
+      /**
+      * Проверка и выполнение перехода по зоне навигации (с поддержкой условий блокировки,
+      * сообщений, окликов персонажей и правил-перехватчиков).
+      */
+      navigate(ctx2, nav) {
+        if (nav.open_map) return false;
+        if (nav.conditions && nav.conditions.length > 0) {
+          const ok = nav.conditions.every((c2) => evalCondition(c2, ctx2));
+          if (!ok) {
+            if (nav.blocked_message) {
+              ctx2.pushLog(nav.blocked_message);
+              ctx2.messages.push({ text: nav.blocked_message });
+              ctx2.notify();
+            }
+            return false;
+          }
+        }
+        if (nav.intercept_dialogue) {
+          ctx2.startDialogue(nav.intercept_dialogue);
+          return false;
+        }
+        if (nav.intercept_rule) {
+          const fired = ctx2.tryFireRule(nav.intercept_rule);
+          if (fired) return false;
+        }
+        const blocked = ctx2.fireTrigger("leave_scene", { sceneId: ctx2.state.scene });
+        if (blocked) return false;
+        if (nav.go_to_scene) {
+          ctx2.goToScene(nav.go_to_scene, nav.cost_ticks ?? 0);
+          return true;
+        }
+        return false;
+      },
+      /** Путешествие между локациями по travel_connections (ТЗ 4.9). */
+      travelTo(ctx2, locationId, rollEncounter2) {
+        if (ctx2.isTravelBlockedByOverload()) {
+          const load = ctx2.currentLoad();
+          const max = ctx2.maxLoad();
+          ctx2.messages.push({
+            text: `\u0413\u0440\u0443\u0437 \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u0432\u0435\u043B\u0438\u043A (${load.toFixed(1)} \u043A\u0433 \u043F\u0440\u0438 \u043B\u0438\u043C\u0438\u0442\u0435 ${max.toFixed(1)} \u043A\u0433). \u0412\u044B \u043D\u0435 \u043C\u043E\u0436\u0435\u0442\u0435 \u043E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u044C\u0441\u044F \u0432 \u043F\u0443\u0442\u044C \u0441 \u043A\u0440\u0438\u0442\u0438\u0447\u0435\u0441\u043A\u0438\u043C \u043F\u0435\u0440\u0435\u0433\u0440\u0443\u0437\u043E\u043C \u2014 \u0441\u0431\u0440\u043E\u0441\u044C\u0442\u0435 \u043B\u0438\u0448\u043D\u0438\u0435 \u0432\u0435\u0449\u0438.`
+          });
+          ctx2.notify();
+          return;
+        }
+        const from = world.findLocation(ctx2, ctx2.state.location);
+        const conn = from?.location.travel_connections.find((c2) => c2.to === locationId);
+        const cost = ctx2.travelCost(locationId) ?? conn?.cost_ticks ?? 1;
+        if (ctx2.state.blocked_paths.includes(`${ctx2.state.location}->${locationId}`)) {
+          ctx2.messages.push({ text: "\u041F\u0443\u0442\u044C \u0437\u0430\u043A\u0440\u044B\u0442." });
+          ctx2.notify();
+          return;
+        }
+        if (conn?.requirements && !conn.requirements.every((c2) => evalCondition(c2, ctx2))) {
+          ctx2.messages.push({ text: "\u041F\u0443\u0442\u044C \u0437\u0430\u043A\u0440\u044B\u0442." });
+          ctx2.notify();
+          return;
+        }
+        if (conn?.depart_sound) playInteraction(conn.depart_sound, { sound: conn.depart_sound }, conn.depart_sound_volume ?? 1);
+        else if (conn?.sound) playInteraction(conn.sound, { sound: conn.sound }, conn.sound_volume ?? 1);
+        else playUi("travel_depart");
+        ctx2.advanceTicks(cost);
+        ctx2.state.stats_run.travels += 1;
+        if (ctx2.state.game_over) return ctx2.notify();
+        const target = world.findLocation(ctx2, locationId);
+        if (!target) return;
+        ctx2.state.region = target.region.id;
+        ctx2.state.location = locationId;
+        const firstScene = world.arrivalSceneOf(ctx2, target.location);
+        if (firstScene) ctx2.state.scene = firstScene;
+        if (conn?.arrive_sound) playInteraction(conn.arrive_sound, { sound: conn.arrive_sound }, conn.arrive_sound_volume ?? 1);
+        else playUi("travel_arrive");
+        world.onEnterLocation(ctx2, locationId);
+        if (conn && !ctx2.state.game_over && !ctx2.combat) rollEncounter2(conn);
+        ctx2.notify();
+      },
+      onEnterLocation(ctx2, locationId) {
+        ctx2.state.location = locationId;
+        ctx2.runLocationRules(locationId);
+        ctx2.checkRules();
+        ctx2.autosave();
+      },
+      /** Локации региона, доступные/видимые на карте. */
+      visibleLocations(ctx2, region) {
+        return region.locations.filter(
+          (l2) => !l2.hidden || ctx2.state.revealed_locations.includes(l2.id)
+        );
+      },
+      /**
+      * Время пути до локации в тиках с учётом штрафов перегруза
+      */
+      travelCost(ctx2, toLocation) {
+        const from = world.findLocation(ctx2, ctx2.state.location);
+        const conn = from?.location.travel_connections.find((c2) => c2.to === toLocation);
+        if (!conn) return null;
+        const baseCost = conn.cost_ticks ?? 1;
+        const encRules = ctx2.campaign.meta.encumbrance;
+        if (encRules?.enabled === false || encRules?.travel_penalty === false) {
+          return baseCost;
+        }
+        const status = ctx2.encumbranceStatus();
+        if (status === "critical") {
+          return null;
+        }
+        if (status === "heavy") {
+          const mult = encRules?.heavy_travel_multiplier ?? 2;
+          return Math.max(baseCost + 1, Math.round(baseCost * mult));
+        }
+        if (status === "light") {
+          const mult = encRules?.light_travel_multiplier ?? 1.5;
+          return Math.max(baseCost + 1, Math.round(baseCost * mult));
+        }
+        return baseCost;
+      },
+      /**
+      * Базовая стоимость пути без учёта штрафа перегруза (для отображения в UI)
+      */
+      travelBaseCost(ctx2, toLocation) {
+        const from = world.findLocation(ctx2, ctx2.state.location);
+        const conn = from?.location.travel_connections.find((c2) => c2.to === toLocation);
+        return conn ? conn.cost_ticks ?? 1 : null;
+      }
+    };
+  }
+});
+
+// src/core/quests.ts
+var quests;
+var init_quests = __esm({
+  "src/core/quests.ts"() {
+    init_conditions();
+    init_audio();
+    quests = {
+      // ─────────────── квесты (ТЗ 3.7) ───────────────
+      startQuest(ctx2, questId) {
+        const quest = ctx2.campaign.quests[questId];
+        if (!quest || ctx2.state.quests[questId]) return;
+        const first = quest.stages[0];
+        ctx2.state.quests[questId] = { stage: first.id, status: "active", journal: [] };
+        ctx2.pushLog(`\u041D\u043E\u0432\u044B\u0439 \u043A\u0432\u0435\u0441\u0442: \xAB${quest.label}\xBB`);
+        ctx2.messages.push({ text: `\u041D\u043E\u0432\u044B\u0439 \u043A\u0432\u0435\u0441\u0442: \xAB${quest.label}\xBB` });
+        playUi("quest_started");
+        if (first.on_enter_effects) ctx2.applyEffects(first.on_enter_effects);
+      },
+      advanceQuestTo(ctx2, questId, stageId) {
+        const quest = ctx2.campaign.quests[questId];
+        const qs = ctx2.state.quests[questId];
+        if (!quest || !qs || qs.status !== "active" || qs.stage === stageId) return;
+        const stage = quest.stages.find((s2) => s2.id === stageId);
+        if (!stage) return;
+        qs.stage = stageId;
+        if (stage.final) {
+          qs.status = stage.outcome === "failure" ? "failed" : "completed";
+          if (qs.status === "completed") {
+            ctx2.state.stats_run.quests_completed += 1;
+            ctx2.messages.push({ text: `\u041A\u0432\u0435\u0441\u0442 \u0437\u0430\u0432\u0435\u0440\u0448\u0451\u043D: \xAB${quest.label}\xBB` });
+            playUi("quest_completed");
+          } else {
+            ctx2.messages.push({ text: `\u041A\u0432\u0435\u0441\u0442 \u043F\u0440\u043E\u0432\u0430\u043B\u0435\u043D: \xAB${quest.label}\xBB` });
+          }
+          ctx2.pushLog(`\u041A\u0432\u0435\u0441\u0442 \xAB${quest.label}\xBB: ${qs.status === "completed" ? "\u0437\u0430\u0432\u0435\u0440\u0448\u0451\u043D" : "\u043F\u0440\u043E\u0432\u0430\u043B\u0435\u043D"}.`);
+        }
+        if (stage.on_enter_effects) ctx2.applyEffects(stage.on_enter_effects);
+      },
+      journalUpdate(ctx2, questId, textKey) {
+        const quest = ctx2.campaign.quests[questId];
+        const qs = ctx2.state.quests[questId];
+        if (!quest || !qs) return;
+        const text = quest.journal_entries[textKey];
+        if (text && !qs.journal.includes(text)) {
+          qs.journal.push(text);
+          ctx2.pushLog(`\u0416\u0443\u0440\u043D\u0430\u043B: ${text}`);
+        }
+      },
+      /** Переходы стадий активных квестов (вызывается из checkRules). */
+      checkQuestTransitions(ctx2) {
+        for (const [questId, qs] of Object.entries(ctx2.state.quests)) {
+          if (qs.status !== "active") continue;
+          const quest = ctx2.campaign.quests[questId];
+          const stage = quest?.stages.find((s2) => s2.id === qs.stage);
+          if (!stage?.transitions) continue;
+          for (const t5 of stage.transitions) {
+            if ((t5.conditions ?? []).every((c2) => evalCondition(c2, ctx2))) {
+              ctx2.advanceQuestTo(questId, t5.to);
+              break;
+            }
+          }
+        }
+      }
+    };
+  }
+});
+
+// src/core/effects.ts
+function runLocationRules(locationId) {
+  const loc = this.findLocation(locationId)?.location;
+  if (!loc?.on_enter_rules) return;
+  for (const ruleId of loc.on_enter_rules) {
+    this.tryFireRule(ruleId);
+  }
+}
+function rulesInManifestOrder() {
+  const order = this.campaign.ruleOrder;
+  if (!order) return Object.values(this.campaign.rules);
+  const ordered = [];
+  const included = /* @__PURE__ */ new Set();
+  for (const id of order) {
+    const rule = this.campaign.rules[id];
+    if (rule) {
+      ordered.push(rule);
+      included.add(id);
+    }
+  }
+  for (const rule of Object.values(this.campaign.rules)) {
+    if (!included.has(rule.id)) ordered.push(rule);
+  }
+  return ordered;
+}
+function checkRules() {
+  for (const rule of rulesInManifestOrder.call(this)) {
+    if (rule.manual) continue;
+    if (rule.trigger && rule.trigger !== "always") continue;
+    this.tryFireRule(rule.id);
+  }
+  quests.checkQuestTransitions(this);
+}
+function fireTrigger(trigger, _context) {
+  let anyFired = false;
+  for (const rule of rulesInManifestOrder.call(this)) {
+    if (rule.manual) continue;
+    if (rule.trigger !== trigger) continue;
+    if (this.tryFireRule(rule.id)) {
+      anyFired = true;
+    }
+  }
+  return anyFired;
+}
+function ruleConditionsOk(rule) {
+  if (!(rule.conditions ?? []).every((c2) => evalCondition(c2, this))) return false;
+  const groups = rule.conditions_any;
+  if (!groups || groups.length === 0) return true;
+  return groups.some((g2) => !g2.length || g2.every((c2) => evalCondition(c2, this)));
+}
+function tryFireRule(ruleId, depth = 0) {
+  const rule = this.campaign.rules[ruleId];
+  if (!rule) return false;
+  if (rule.once && this.state.fired_rules.includes(rule.id)) return false;
+  if (!effects.ruleConditionsOk.call(this, rule)) return false;
+  this.state.fired_rules.push(rule.id);
+  this.applyEffects(rule.effects ?? [], depth);
+  return true;
+}
+function applyEffects(effects2, depth = 0) {
+  for (const e2 of effects2) this.applyEffect(e2, depth);
+}
+function applyEffect(e2, depth = 0) {
+  const s2 = this.state;
+  switch (e2.type) {
+    case "fire_rule":
+      if (depth >= FIRE_RULE_MAX_DEPTH) {
+        this.pushLog("\u041F\u0440\u0430\u0432\u0438\u043B\u043E \u043D\u0435 \u0432\u044B\u0437\u0432\u0430\u043D\u043E: \u043F\u0440\u0435\u0432\u044B\u0448\u0435\u043D\u0430 \u0433\u043B\u0443\u0431\u0438\u043D\u0430 \u0446\u0435\u043F\u043E\u0447\u043A\u0438 \u0432\u044B\u0437\u043E\u0432\u043E\u0432.");
+        break;
+      }
+      this.tryFireRule(e2.rule, depth + 1);
+      break;
+    case "unlock_recipe":
+      this.unlockRecipe(e2.recipe);
+      break;
+    case "open_craft":
+      this.openCraft(e2.recipe || void 0);
+      break;
+    case "set_entity_state": {
+      const m2 = s2.entity_states ??= {};
+      if (e2.state) m2[e2.entity] = e2.state;
+      else delete m2[e2.entity];
+      this.notify();
+      break;
+    }
+    case "learn_name":
+      this.learnNpcName(e2.entity, e2.silent);
+      break;
+    case "set_flag":
+      if (e2.value === false || e2.value === 0 || e2.value === "false") {
+        delete s2.flags[e2.flag];
+      } else {
+        s2.flags[e2.flag] = e2.value ?? true;
+      }
+      break;
+    case "set_description":
+      this.setEntityDescription(e2.entity, e2.text);
+      break;
+    case "clear_flag":
+      delete s2.flags[e2.flag];
+      break;
+    case "apply_status":
+      this.applyStatus(e2.target, e2.status, e2.duration);
+      break;
+    case "remove_status":
+      this.removeStatus(e2.target, e2.status);
+      break;
+    case "set_weather": {
+      const next = e2.weather || void 0;
+      if (s2.weather !== next) {
+        s2.weather = next;
+        const w2 = this.campaign.meta.weathers?.find((x2) => x2.id === next);
+        this.pushLog(next ? `\u041F\u043E\u0433\u043E\u0434\u0430 \u043C\u0435\u043D\u044F\u0435\u0442\u0441\u044F: ${w2?.label ?? next}.` : "\u041D\u0435\u0431\u043E \u043F\u0440\u043E\u044F\u0441\u043D\u044F\u0435\u0442\u0441\u044F.");
+      }
+      break;
+    }
+    case "unlock_codex":
+      this.unlockCodex(e2.entry);
+      break;
+    case "set_variable":
+      s2.variables[e2.var] = e2.value;
+      break;
+    case "change_variable":
+      s2.variables[e2.var] = Number(s2.variables[e2.var] ?? 0) + e2.delta;
+      break;
+    case "start_duration_action": {
+      this.requestDurationAction(e2.action, e2.ticks ?? null);
+      break;
+    }
+    case "start_dialogue":
+      this.startDialogue(e2.entity, e2.dialogue_knot);
+      break;
+    case "start_combat":
+      this.startCombat(e2);
+      break;
+    case "teleport_player": {
+      const target = this.findLocation(e2.location);
+      if (target) {
+        s2.region = target.region.id;
+        s2.location = e2.location;
+        s2.scene = e2.scene ?? this.arrivalSceneOf(target.location) ?? s2.scene;
+      }
+      break;
+    }
+    case "change_scene_state":
+      s2.flags[`scene_state:${e2.scene}:${e2.state}`] = true;
+      break;
+    case "add_item":
+      this.addItem(e2.item, e2.quantity ?? 1);
+      break;
+    case "remove_item":
+      this.removeItem(e2.item, e2.quantity ?? 1);
+      break;
+    case "change_need":
+      this.changeNeed(e2.need, e2.delta);
+      break;
+    case "change_hp":
+      this.changeHp(e2.delta);
+      break;
+    case "change_companion_need":
+      this.changeCompanionNeed(e2.entity, e2.need, e2.delta);
+      break;
+    // сюжетный эффект мастера: quest_item-ограничение не применяется — мастер решает сам
+    case "transfer_to_companion":
+      this.giveItemToCompanion(e2.entity, e2.item, e2.quantity ?? 1, { forceQuest: true });
+      break;
+    case "change_skill": {
+      if (!featureOn(this.campaign.meta, "skills")) break;
+      const cur = s2.player.skills[e2.skill] ?? 0;
+      s2.player.skills[e2.skill] = Math.max(0, cur + e2.delta);
+      this.pushLog(`\u041D\u0430\u0432\u044B\u043A \xAB${e2.skill}\xBB: ${e2.delta > 0 ? "+" : ""}${e2.delta} (\u0442\u0435\u043F\u0435\u0440\u044C ${s2.player.skills[e2.skill]}).`);
+      break;
+    }
+    case "skill_check_gate": {
+      const out = this.playerSkillCheck(e2.skill, e2.difficulty);
+      const retry = () => this.playerSkillCheck(e2.skill, e2.difficulty);
+      const deferred = this.applyByCheck(
+        out,
+        `\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \xAB${this.skillLabel(e2.skill)}\xBB`,
+        retry,
+        () => {
+          this.markSkill(e2.skill);
+          this.applyEffects(e2.success_effects);
+        },
+        () => this.applyEffects(e2.fail_effects)
+      );
+      void deferred;
+      break;
+    }
+    case "stat_check": {
+      const mult = e2.multiplier ?? 5;
+      const aug = this.augmentBonus(e2);
+      const modifier = (e2.modifier ?? 0) + aug;
+      const out = this.statCheck(e2.stat, mult, modifier);
+      this.applyByCheck(
+        out,
+        `\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u0445\u0430\u0440\u0430\u043A\u0442\u0435\u0440\u0438\u0441\u0442\u0438\u043A\u0438 ${e2.stat}\xD7${mult}`,
+        () => this.statCheck(e2.stat, mult, modifier),
+        () => this.applyEffects(e2.success_effects),
+        () => this.applyEffects(e2.fail_effects)
+      );
+      break;
+    }
+    case "group_stat_check": {
+      const bySkill = (e2.mode ?? (e2.stat ? "stat" : "skill")) === "skill";
+      const helpersN = Math.max(0, e2.helpers ?? 2);
+      const companions = this.state.party.slice(0, helpersN);
+      const total = 1 + companions.length;
+      const need = Math.max(1, e2.need ?? Math.ceil(total / 2));
+      let wins = 0;
+      const whatLabel = bySkill ? `\u0413\u0440\u0443\u043F\u043F\u043E\u0432\u0430\u044F \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \xAB${this.skillLabel(e2.skill)}\xBB` : `\u0413\u0440\u0443\u043F\u043F\u043E\u0432\u0430\u044F \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 ${e2.stat}\xD7${e2.multiplier ?? 5}`;
+      this.pushLog(`${whatLabel} \u2014 \u0446\u0435\u043F\u043E\u0447\u043A\u0430 \u0438\u0437 ${total} \u0447\u0435\u043B., \u043D\u0443\u0436\u043D\u043E \u0443\u0441\u043F\u0435\u0448\u043D\u044B\u0445: ${need}.`);
+      if (bySkill) {
+        const out = this.playerSkillCheck(e2.skill, e2.difficulty ?? 50);
+        if (out.success) wins++;
+      } else {
+        const out = this.statCheck(e2.stat, e2.multiplier ?? 5, e2.modifier ?? 0);
+        if (out.success) wins++;
+      }
+      const mult = e2.multiplier ?? 5;
+      for (const c2 of companions) {
+        const def = this.campaign.entities[c2.entity];
+        if (!def || def.type !== "npc") continue;
+        const value = bySkill ? def.skills?.[e2.skill] ?? 0 : (def.stats[e2.stat] ?? 0) * mult;
+        const out = skillCheck(
+          Math.max(1, value),
+          this.rng,
+          bySkill ? difficultyModifier(value, e2.difficulty ?? 50) : e2.modifier ?? 0,
+          this.diceRules
+        );
+        this.pushLog(`${def.label}: d100=${out.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${out.target} \u2192 ${CHECK_RESULT_LABEL[out.result]}`);
+        if (out.success) wins++;
+      }
+      if (wins >= need) {
+        this.pushLog(`\u0426\u0435\u043F\u043E\u0447\u043A\u0430 \u0432\u044B\u0434\u0435\u0440\u0436\u0430\u043B\u0430: ${wins} \u0438\u0437 ${total} \u0443\u0441\u043F\u0435\u0448\u043D\u043E.`);
+        this.applyEffects(e2.success_effects);
+      } else {
+        this.pushLog(`\u0426\u0435\u043F\u043E\u0447\u043A\u0430 \u043F\u043E\u0440\u0432\u0430\u043B\u0430\u0441\u044C: ${wins} \u0438\u0437 ${total} \u0443\u0441\u043F\u0435\u0448\u043D\u043E (\u043D\u0443\u0436\u043D\u043E ${need}).`);
+        this.applyEffects(e2.fail_effects);
+      }
+      break;
+    }
+    case "opposed_check": {
+      const res = this.opposedCheck(e2);
+      const finalize = (r2) => {
+        if (r2.success) this.markSkill(e2.skill);
+        this.applyEffects(r2.success ? e2.success_effects : e2.fail_effects);
+      };
+      if (res.success) {
+        finalize(res);
+        break;
+      }
+      const cfg = this.campaign.meta.luck;
+      const cost = Math.max(1, cfg?.reroll_cost ?? 1);
+      if (!cfg || this.luckMax() <= 0 || this.luck() < cost) {
+        finalize(res);
+        break;
+      }
+      this.changeLuck(-cost);
+      this.pushLog(`\u041F\u043E\u0440\u0430\u0436\u0435\u043D\u0438\u0435 \u043C\u043E\u0436\u043D\u043E \u043E\u0441\u043F\u043E\u0440\u0438\u0442\u044C \u0437\u0430 \u0443\u0434\u0430\u0447\u0443: \u2212${cost} (\u043E\u0441\u0442\u0430\u043B\u043E\u0441\u044C ${this.luck()}).`);
+      this.luckOffer = {
+        text: `\u041F\u0440\u043E\u0442\u0438\u0432\u043E\u0431\u043E\u0440\u0441\u0442\u0432\u043E \xAB${this.skillLabel(e2.skill)}\xBB \u2014 \u043F\u043E\u0440\u0430\u0436\u0435\u043D\u0438\u0435 \u0433\u0435\u0440\u043E\u044F.`,
+        cost,
+        decide: (reroll) => {
+          if (reroll) finalize(this.opposedCheck(e2));
+          else {
+            this.pushLog("\u0423\u0434\u0430\u0447\u0430 \u043F\u0440\u0438\u0431\u0435\u0440\u0435\u0436\u0435\u043D\u0430 \u2014 \u043E\u0441\u0442\u0430\u0451\u0442\u0441\u044F \u043F\u043E\u0440\u0430\u0436\u0435\u043D\u0438\u0435.");
+            finalize(res);
+          }
+          this.checkRules();
+          this.autosave();
+        }
+      };
+      break;
+    }
+    case "change_luck":
+      this.changeLuck(e2.delta);
+      break;
+    case "change_fatigue":
+      this.changeFatigue(e2.delta);
+      break;
+    case "change_sanity":
+      this.changeSanity(e2.delta);
+      break;
+    case "change_reputation":
+      this.changeReputation(e2.delta);
+      break;
+    case "change_wealth":
+      this.changeWealth(e2.levels);
+      break;
+    case "change_passion":
+      this.changePassion(e2.id, e2.delta ?? (e2.set != null ? e2.set - (this.state.player.passions?.[e2.id] ?? 0) : 0));
+      break;
+    case "change_allegiance":
+      this.changeAllegiance(e2.id, e2.points);
+      break;
+    case "train_stat":
+      this.trainStat(e2.stat, e2.delta);
+      break;
+    case "hazard_fall":
+      this.applyFall(e2.meters, e2.skill);
+      break;
+    case "commit_crime":
+      this.commitCrime(e2.id, e2.bounty);
+      break;
+    case "set_price_event":
+      this.setPriceEvent(e2.id, true);
+      break;
+    case "clear_price_event":
+      this.setPriceEvent(e2.id ?? "", false);
+      break;
+    case "banner":
+      this.showBanner(e2);
+      break;
+    case "postcard":
+      this.showPostcard(e2);
+      break;
+    case "grant_xp":
+      this.grantXp(e2.points);
+      break;
+    case "grant_feat":
+      this.grantFeat(e2.id);
+      break;
+    case "meta_currency":
+      this.grantMetaCurrency(e2.id, e2.amount);
+      break;
+    case "roll_event_table":
+      this.rollEventTable(e2.table, { forced: true, ignoreFilters: e2.ignore_filters });
+      break;
+    case "play_sound":
+      playInteraction(e2.sound, { sound: e2.sound }, e2.volume ?? 1);
+      break;
+    case "stop_sound":
+      stopSound(e2.sound);
+      break;
+    case "override_music":
+      this.setMusicOverride(e2.tracks, e2.fade);
+      break;
+    case "clear_music_override":
+      this.clearMusicOverride();
+      break;
+    case "generate_variables": {
+      for (const p2 of e2.pack) {
+        const val = this.genValue(e2.generator, p2.key, e2.seed);
+        s2.variables[p2.as ?? p2.key] = val;
+      }
+      this.pushLog("\u041C\u0438\u0440 \u0447\u0442\u043E-\u0442\u043E \u0437\u0430\u043C\u044B\u0448\u043B\u044F\u0435\u0442\u2026");
+      break;
+    }
+    case "change_disposition":
+      this.changeDisposition(e2.target, e2.delta);
+      break;
+    case "start_quest":
+      this.startQuest(e2.quest);
+      break;
+    case "advance_quest":
+      this.advanceQuestTo(e2.quest, e2.stage);
+      break;
+    case "fail_quest": {
+      const qs = s2.quests[e2.quest];
+      if (qs && qs.status === "active") {
+        qs.status = "failed";
+        this.messages.push({ text: `\u041A\u0432\u0435\u0441\u0442 \u043F\u0440\u043E\u0432\u0430\u043B\u0435\u043D: \xAB${this.campaign.quests[e2.quest]?.label ?? e2.quest}\xBB` });
+      }
+      break;
+    }
+    case "journal_update":
+      this.journalUpdate(e2.quest, e2.text_key);
+      break;
+    case "give_reward":
+      for (const it2 of e2.items ?? []) this.addItem(it2.item, it2.quantity);
+      break;
+    case "join_party":
+      this.joinParty(e2.entity);
+      break;
+    case "leave_party":
+      this.leaveParty(e2.entity);
+      break;
+    case "block_path":
+      if (!s2.blocked_paths.includes(`${e2.from}->${e2.to}`)) s2.blocked_paths.push(`${e2.from}->${e2.to}`);
+      break;
+    case "unblock_path": {
+      const i2 = s2.blocked_paths.indexOf(`${e2.from}->${e2.to}`);
+      if (i2 >= 0) s2.blocked_paths.splice(i2, 1);
+      break;
+    }
+    case "show_message": {
+      const msgText = this.fmt(e2.text);
+      if (!this.messages.some((m2) => m2.text === msgText) && this.messages.length < 5) {
+        this.messages.push({ text: msgText, portrait: e2.portrait });
+      }
+      break;
+    }
+    case "reveal_location":
+      if (!s2.revealed_locations.includes(e2.location)) s2.revealed_locations.push(e2.location);
+      break;
+    case "advance_time":
+      this.advanceTicks(e2.ticks);
+      break;
+    case "start_pursuit": {
+      s2.pursuit = {
+        label: e2.label,
+        skill: e2.skill ?? "stealth",
+        every: Math.max(1, e2.every_ticks ?? 4),
+        fails_needed: Math.max(1, e2.fails_to_catch ?? 1),
+        fails: 0,
+        left: Math.max(1, e2.every_ticks ?? 4),
+        on_fail: e2.on_fail
+      };
+      this.pushLog(`\u0417\u0430 \u0432\u0430\u043C\u0438 \u0441\u043B\u0435\u0434\u043E\u043C \u0438\u0434\u0443\u0442${e2.label ? ` \u2014 ${e2.label}` : ""}! \u0423\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0439\u0442\u0435 \u043C\u0430\u0441\u043A\u0438\u0440\u043E\u0432\u043A\u0443, \u043F\u043E\u043A\u0430 \u043D\u0435 \u043E\u0442\u043E\u0440\u0432\u0451\u0442\u0435\u0441\u044C.`);
+      break;
+    }
+    case "stop_pursuit": {
+      if (s2.pursuit) {
+        delete s2.pursuit;
+        this.pushLog("\u041F\u043E\u0433\u043E\u043D\u044F \u043E\u0441\u0442\u0430\u043B\u0430\u0441\u044C \u043F\u043E\u0437\u0430\u0434\u0438.");
+      }
+      break;
+    }
+    case "remove_entity":
+      if (!s2.removed_entities.includes(e2.entity)) s2.removed_entities.push(e2.entity);
+      break;
+    case "spawn_entity":
+      s2.spawned.push({ entity: e2.entity, scene: e2.scene, slot: e2.slot });
+      break;
+    case "game_over_victory":
+      this.gameOver("victory", "\u041A\u0430\u043C\u043F\u0430\u043D\u0438\u044F \u043F\u0440\u043E\u0439\u0434\u0435\u043D\u0430!");
+      break;
+    case "game_over_death":
+      this.gameOver("death", e2.reason ?? "\u0412\u044B \u043F\u043E\u0433\u0438\u0431\u043B\u0438.");
+      break;
+    case "play_cutscene":
+      this.playCutscene(e2.cutscene);
+      break;
+  }
+  this.checkAchievements();
+}
+function fireRule(ruleId) {
+  this.tryFireRule(ruleId);
+}
+var FIRE_RULE_MAX_DEPTH, effects;
+var init_effects = __esm({
+  "src/core/effects.ts"() {
+    init_caps();
+    init_conditions();
+    init_quests();
+    init_brp();
+    init_audio();
+    FIRE_RULE_MAX_DEPTH = 2;
+    effects = {
+      runLocationRules,
+      checkRules,
+      fireTrigger,
+      ruleConditionsOk,
+      tryFireRule,
+      applyEffects,
+      applyEffect,
+      fireRule
+    };
+  }
+});
+
+// src/core/hex.ts
+function offsetToCube(h2) {
+  const q2 = h2.col - (h2.row - (h2.row & 1)) / 2;
+  const r2 = h2.row;
+  return { q: q2, r: r2, s: -q2 - r2 };
+}
+function cubeToOffset(c2) {
+  return { col: c2.q + (c2.r - (c2.r & 1)) / 2, row: c2.r };
+}
+function neighbors(h2) {
+  const c2 = offsetToCube(h2);
+  return CUBE_DIRS.map((d2) => cubeToOffset({ q: c2.q + d2.q, r: c2.r + d2.r, s: c2.s + d2.s }));
+}
+function hexDistance(a2, b2) {
+  const ca = offsetToCube(a2);
+  const cb = offsetToCube(b2);
+  return Math.max(Math.abs(ca.q - cb.q), Math.abs(ca.r - cb.r), Math.abs(ca.s - cb.s));
+}
+function hexToPixel(h2, size, origin) {
+  return {
+    x: origin.x + size * SQRT3 * (h2.col + 0.5 * (h2.row & 1)),
+    y: origin.y + size * 1.5 * h2.row
+  };
+}
+function reachable(start, movePoints, passable, cost) {
+  const dist = /* @__PURE__ */ new Map([[hexKey(start), 0]]);
+  const frontier = [start];
+  while (frontier.length) {
+    frontier.sort((a2, b2) => (dist.get(hexKey(a2)) ?? 0) - (dist.get(hexKey(b2)) ?? 0));
+    const cur = frontier.shift();
+    const curCost = dist.get(hexKey(cur));
+    for (const n2 of neighbors(cur)) {
+      if (!passable(n2)) continue;
+      const nc = curCost + cost(n2);
+      if (nc > movePoints) continue;
+      const k2 = hexKey(n2);
+      if (nc < (dist.get(k2) ?? Infinity)) {
+        dist.set(k2, nc);
+        frontier.push(n2);
+      }
+    }
+  }
+  dist.delete(hexKey(start));
+  return dist;
+}
+function astar(start, goal, passable, cost) {
+  const startK = hexKey(start);
+  const goalK = hexKey(goal);
+  const open = [start];
+  const came = /* @__PURE__ */ new Map();
+  const g2 = /* @__PURE__ */ new Map([[startK, 0]]);
+  const nodes = /* @__PURE__ */ new Map([[startK, start]]);
+  while (open.length) {
+    open.sort(
+      (a2, b2) => g2.get(hexKey(a2)) + hexDistance(a2, goal) - (g2.get(hexKey(b2)) + hexDistance(b2, goal))
+    );
+    const cur = open.shift();
+    const curK = hexKey(cur);
+    if (curK === goalK) {
+      const path = [];
+      let k2 = goalK;
+      while (k2 !== startK) {
+        path.unshift(nodes.get(k2));
+        k2 = came.get(k2);
+      }
+      return path;
+    }
+    for (const n2 of neighbors(cur)) {
+      const nk = hexKey(n2);
+      if (nk !== goalK && !passable(n2)) continue;
+      const ng = g2.get(curK) + cost(n2);
+      if (ng < (g2.get(nk) ?? Infinity)) {
+        g2.set(nk, ng);
+        came.set(nk, curK);
+        nodes.set(nk, n2);
+        if (!open.some((o2) => hexKey(o2) === nk)) open.push(n2);
+      }
+    }
+  }
+  return null;
+}
+var hexKey, CUBE_DIRS, SQRT3;
+var init_hex = __esm({
+  "src/core/hex.ts"() {
+    hexKey = (h2) => `${h2.col},${h2.row}`;
+    CUBE_DIRS = [
+      { q: 1, r: 0, s: -1 },
+      { q: 1, r: -1, s: 0 },
+      { q: 0, r: -1, s: 1 },
+      { q: -1, r: 0, s: 1 },
+      { q: -1, r: 1, s: 0 },
+      { q: 0, r: 1, s: -1 }
+    ];
+    SQRT3 = Math.sqrt(3);
+  }
+});
+
+// src/core/combat.ts
+function rollSigned(notation, rng) {
+  const n2 = notation.trim();
+  if (n2 === "0" || n2 === "") return 0;
+  if (n2.startsWith("-")) return -rollDice(n2.slice(1), rng);
+  if (n2.startsWith("+")) return rollDice(n2.slice(1), rng);
+  return rollDice(n2, rng);
+}
+function maxOf(notation) {
+  const n2 = notation.trim().replace(/^[+]/, "");
+  const neg = n2.startsWith("-");
+  const body = neg ? n2.slice(1) : n2;
+  const m2 = body.match(/^(\d*)[dD](\d+)([+-]\d+)?$/);
+  if (!m2) return Number(body) || 0;
+  const v2 = (m2[1] ? parseInt(m2[1], 10) : 1) * parseInt(m2[2], 10) + (m2[3] ? parseInt(m2[3], 10) : 0);
+  return neg ? -v2 : v2;
+}
+function labelResult(r2) {
+  switch (r2) {
+    case "critical":
+      return "\u041A\u0420\u0418\u0422";
+    case "hard":
+      return "\u0443\u0432\u0435\u0440\u0435\u043D\u043D\u044B\u0439 \u0443\u0441\u043F\u0435\u0445";
+    case "success":
+      return "\u0443\u0441\u043F\u0435\u0445";
+    case "fail":
+      return "\u043F\u0440\u043E\u043C\u0430\u0445";
+    case "fumble":
+      return "\u041F\u0420\u041E\u0412\u0410\u041B";
+  }
+}
+var RANK, FISTS, CombatController;
+var init_combat = __esm({
+  "src/core/combat.ts"() {
+    init_hex();
+    init_brp();
+    init_dice();
+    init_audio();
+    RANK = { fumble: 0, fail: 1, success: 2, hard: 3, critical: 4 };
+    FISTS = {
+      skill: "brawl",
+      damage: "1d3",
+      damage_bonus: true,
+      range: 1,
+      attacks_per_round: 1,
+      parry_capable: false,
+      label: "\u041A\u0443\u043B\u0430\u043A\u0438"
+    };
+    CombatController = class {
+      engine;
+      arena;
+      def;
+      combatants = [];
+      round = 1;
+      activeIndex = 0;
+      log = [];
+      result = null;
+      /** внезапное начало боя (аудит §5.6 п.12): сторона, начавшая внезапно */
+      surprise;
+      loot = [];
+      blocked;
+      difficult;
+      /** гексы-укрытия арены (мастерская разметка cover_hexes), «c,r» */
+      coverHexes;
+      constructor(engine, def) {
+        this.engine = engine;
+        this.def = def;
+        const arena = engine.campaign.arenas[def.arena];
+        if (!arena) throw new Error(`\u0410\u0440\u0435\u043D\u0430 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u0430: ${def.arena}`);
+        this.arena = arena;
+        this.blocked = new Set((arena.hex_grid.blocked_hexes ?? []).map(([c2, r2]) => `${c2},${r2}`));
+        this.difficult = new Set((arena.hex_grid.difficult_terrain ?? []).map(([c2, r2]) => `${c2},${r2}`));
+        this.coverHexes = new Set((arena.hex_grid.cover_hexes ?? []).map(([c2, r2]) => `${c2},${r2}`));
+        this.surprise = def.surprise;
+        this.setup();
+        const wStatus = this.weatherCombat?.status;
+        if (wStatus) {
+          for (const c2 of this.combatants) this.applyStatusTo(c2.id, wStatus);
+          this.log.push(`\u041F\u043E\u0433\u043E\u0434\u0430: \xAB${this.statusLabel(wStatus)}\xBB \u0434\u0435\u0439\u0441\u0442\u0432\u0443\u0435\u0442 \u043D\u0430 \u0432\u0441\u0435\u0445.`);
+        }
+        if (def.intro) this.log.push(def.intro);
+        if (this.surprise) {
+          const side = this.surprise === "player" ? "\u0433\u0435\u0440\u043E\u044F" : "\u0432\u0440\u0430\u0433\u043E\u0432";
+          this.log.push(`\u0412\u043D\u0435\u0437\u0430\u043F\u043D\u043E\u0441\u0442\u044C! \u0412\u0440\u0430\u0433\u0438${this.surprise === "player" ? " \u0437\u0430\u0441\u0442\u0438\u0433\u043D\u0443\u0442\u044B \u0432\u0440\u0430\u0441\u043F\u043B\u043E\u0445" : " \u0437\u0430\u0441\u0442\u0430\u044E\u0442 \u0432\u0430\u0441 \u0432\u0440\u0430\u0441\u043F\u043B\u043E\u0445"} \u2014 \u0441\u0442\u043E\u0440\u043E\u043D\u0430 ${side} \u043D\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0443\u0435\u0442 \u0432 \u043F\u0435\u0440\u0432\u043E\u043C \u0440\u0430\u0443\u043D\u0434\u0435 \u0438 \u043D\u0435 \u0437\u0430\u0449\u0438\u0449\u0430\u0435\u0442\u0441\u044F.`);
+        }
+        this.log.push(`\u2014 \u0420\u0430\u0443\u043D\u0434 1 \u2014`);
+        this.startRound();
+        this.processUntilPlayer();
+      }
+      // ─────────────── подготовка ───────────────
+      setup() {
+        const e2 = this.engine;
+        const p2 = e2.state.player;
+        const playerDef = e2.campaign.entities[p2.entity];
+        const playerSpawns = [...this.arena.spawn_zones.player.hexes];
+        const enemySpawns = [...this.arena.spawn_zones.enemy.hexes];
+        const center = {
+          col: Math.floor(this.arena.hex_grid.cols / 2),
+          row: Math.floor(this.arena.hex_grid.rows / 2)
+        };
+        const playerAnchor = playerSpawns.length ? { col: playerSpawns[0][0], row: playerSpawns[0][1] } : center;
+        const enemyAnchor = enemySpawns.length ? { col: enemySpawns[0][0], row: enemySpawns[0][1] } : center;
+        const pw = e2.playerWeapon();
+        const pa = e2.playerArmor();
+        const appearanceFigure = e2.heroCombatFigure();
+        const weapon = pw.weapon;
+        const weaponLabel = pw.label;
+        const encDebuffs = e2.encumbranceDebuffs();
+        const overloaded = encDebuffs.status !== "normal";
+        let playerSkills = p2.skills;
+        if (overloaded) {
+          playerSkills = { ...p2.skills };
+          if (encDebuffs.dodgePenalty > 0) {
+            playerSkills.dodge = Math.max(0, (playerSkills.dodge ?? 0) - encDebuffs.dodgePenalty);
+          }
+          if (encDebuffs.skillPenalty > 0) {
+            if (playerSkills.stealth !== void 0) {
+              playerSkills.stealth = Math.max(0, playerSkills.stealth - encDebuffs.skillPenalty);
+            }
+            if (playerSkills.athletics !== void 0) {
+              playerSkills.athletics = Math.max(0, playerSkills.athletics - encDebuffs.skillPenalty);
+            }
+          }
+        }
+        this.combatants.push({
+          id: "c_player",
+          entityId: p2.entity,
+          label: playerDef.label,
+          side: "player",
+          portrait: [playerDef.token, playerDef.portrait?.neutral].map((s2) => (s2 ?? "").trim()).find(Boolean) || void 0,
+          figure: appearanceFigure.figure ?? playerDef.combat_figure,
+          figure_mode: appearanceFigure.mode ?? playerDef.figure_mode ?? "topdown",
+          figure_shadow: playerDef.shadow,
+          facing: 90,
+          flip: false,
+          facing_offset: appearanceFigure.offset ?? playerDef.facing_offset,
+          stats: p2.stats,
+          skills: playerSkills,
+          weapon,
+          weaponLabel,
+          weaponItemId: pw.itemId,
+          armor: pa.points,
+          hp: p2.hp,
+          maxHp: p2.max_hp,
+          pos: this.takeSpawn(playerSpawns, playerAnchor),
+          mov: Math.max(1, movement(p2.stats) - encDebuffs.movPenalty),
+          movLeft: 0,
+          statuses: [],
+          mp: p2.mp,
+          maxMp: p2.max_mp,
+          abilities: playerDef.abilities ?? [],
+          cooldowns: {},
+          attacksLeft: 0,
+          attacked: false,
+          defensesUsed: 0,
+          dead: false
+        });
+        if (overloaded) {
+          const parts = [];
+          if (encDebuffs.movPenalty > 0) parts.push(`\u0434\u0432\u0438\u0436\u0435\u043D\u0438\u0435 \u2212${encDebuffs.movPenalty}`);
+          if (encDebuffs.dodgePenalty > 0) parts.push(`\u0443\u043A\u043B\u043E\u043D\u0435\u043D\u0438\u0435 \u2212${encDebuffs.dodgePenalty}%`);
+          if (encDebuffs.skillPenalty > 0) parts.push(`\u043B\u043E\u0432\u043A\u043E\u0441\u0442\u044C \u2212${encDebuffs.skillPenalty}%`);
+          this.log.push(`\u0412\u044B \u043F\u0435\u0440\u0435\u0433\u0440\u0443\u0436\u0435\u043D\u044B (${encDebuffs.label}): ${parts.join(", ")}.`);
+        }
+        for (const comp of e2.state.party) {
+          const def = e2.campaign.entities[comp.entity];
+          if (!def || def.type !== "npc") continue;
+          if (comp.hp <= 0) continue;
+          const battleDef = comp.equipment && Object.keys(comp.equipment).length ? { ...def, equipment: { ...def.equipment ?? {}, ...comp.equipment } } : def;
+          const w2 = this.resolveWeapon(battleDef, def.skills ?? {});
+          let allySkills = def.skills ?? {};
+          const exhausted = Object.entries(comp.needs ?? {}).some(([id, v2]) => {
+            const nd = e2.campaign.meta.needs.find((n3) => n3.id === id);
+            return nd != null && v2 <= nd.critical_threshold;
+          });
+          if (exhausted) {
+            allySkills = Object.fromEntries(Object.entries(allySkills).map(([k2, v2]) => [k2, Math.max(0, Math.round(v2 * 0.9))]));
+            this.log.push(`${def.label} \u0438\u0441\u0442\u043E\u0449\u0451\u043D(\u0430): \u043D\u0430\u0432\u044B\u043A\u0438 \u221210%.`);
+          }
+          this.combatants.push({
+            id: `c_ally_${comp.entity}`,
+            entityId: comp.entity,
+            label: def.label,
+            side: "player",
+            portrait: [def.token, def.portrait?.neutral].map((s2) => (s2 ?? "").trim()).find(Boolean) || void 0,
+            figure: def.combat_figure,
+            figure_mode: def.figure_mode ?? "topdown",
+            figure_shadow: def.shadow,
+            facing: 90,
+            flip: false,
+            facing_offset: def.facing_offset,
+            stats: def.stats,
+            skills: allySkills,
+            weapon: w2.weapon,
+            weaponLabel: w2.weaponLabel,
+            weaponItemId: w2.weaponItemId,
+            armor: this.resolveArmor(battleDef),
+            hp: comp.hp,
+            maxHp: comp.max_hp,
+            pos: this.takeSpawn(playerSpawns, this.combatants[0]?.pos ?? playerAnchor),
+            mov: movement(def.stats),
+            movLeft: 0,
+            statuses: [],
+            mp: derivedMP(def.stats),
+            maxMp: derivedMP(def.stats),
+            abilities: def.abilities ?? [],
+            cooldowns: {},
+            attacksLeft: 0,
+            attacked: false,
+            defensesUsed: 0,
+            dead: false
+          });
+        }
+        let a2 = 0;
+        for (const grp of this.def.allies ?? []) {
+          const def = e2.campaign.entities[grp.entity];
+          if (!def || def.type !== "npc") continue;
+          for (let i2 = 0; i2 < grp.count; i2++) {
+            a2++;
+            const hp = def.stats.HP ?? derivedHP(def.stats);
+            const w2 = this.resolveWeapon(def, def.skills ?? {});
+            this.combatants.push({
+              id: `c_tally_${grp.entity}_${a2}`,
+              entityId: grp.entity,
+              label: grp.count > 1 ? `${def.label} ${a2}` : def.label,
+              side: "player",
+              portrait: [def.token, def.portrait?.neutral].map((s2) => (s2 ?? "").trim()).find(Boolean) || void 0,
+              figure: def.combat_figure,
+              figure_mode: def.figure_mode ?? "topdown",
+              figure_shadow: def.shadow,
+              facing: 90,
+              flip: false,
+              facing_offset: def.facing_offset,
+              stats: def.stats,
+              skills: def.skills ?? {},
+              weapon: w2.weapon,
+              weaponLabel: w2.weaponLabel,
+              weaponItemId: w2.weaponItemId,
+              armor: this.resolveArmor(def),
+              hp,
+              maxHp: hp,
+              pos: this.takeSpawn(playerSpawns, this.combatants[0]?.pos ?? playerAnchor),
+              mov: movement(def.stats),
+              movLeft: 0,
+              statuses: [],
+              mp: derivedMP(def.stats),
+              maxMp: derivedMP(def.stats),
+              abilities: def.abilities ?? [],
+              cooldowns: {},
+              attacksLeft: 0,
+              attacked: false,
+              defensesUsed: 0,
+              dead: false
+            });
+          }
+        }
+        let n2 = 0;
+        for (const grp of this.def.enemies) {
+          const def = e2.campaign.entities[grp.entity];
+          if (!def) continue;
+          for (let i2 = 0; i2 < grp.count; i2++) {
+            n2++;
+            const hp = def.stats.HP ?? derivedHP(def.stats);
+            const w2 = this.resolveWeapon(def, def.skills ?? {});
+            this.combatants.push({
+              id: `c_enemy_${n2}`,
+              entityId: def.id,
+              label: grp.count > 1 ? `${def.label} ${i2 + 1}` : def.label,
+              side: "enemy",
+              portrait: [def.token, def.portrait?.neutral].map((s2) => (s2 ?? "").trim()).find(Boolean) || void 0,
+              figure: def.combat_figure,
+              figure_mode: def.figure_mode ?? "topdown",
+              figure_shadow: def.shadow,
+              facing: -90,
+              flip: true,
+              facing_offset: def.facing_offset,
+              stats: def.stats,
+              skills: def.skills ?? {},
+              weapon: w2.weapon,
+              weaponLabel: w2.weaponLabel,
+              weaponItemId: w2.weaponItemId,
+              armor: this.resolveArmor(def),
+              hp,
+              maxHp: hp,
+              pos: this.takeSpawn(enemySpawns, enemyAnchor),
+              mov: movement(def.stats),
+              movLeft: 0,
+              statuses: [],
+              mp: derivedMP(def.stats),
+              maxMp: derivedMP(def.stats),
+              abilities: def.abilities ?? [],
+              cooldowns: {},
+              attacksLeft: 0,
+              attacked: false,
+              defensesUsed: 0,
+              dead: false
+            });
+          }
+        }
+        this.combatants.sort((a3, b2) => b2.stats.DEX - a3.stats.DEX || (this.engine.rng.chance(0.5) ? -1 : 1));
+      }
+      takeSpawn(spawns, anchor) {
+        while (spawns.length) {
+          const [col, row] = spawns.shift();
+          const h2 = { col, row };
+          if (this.inBounds(h2) && !this.isBlocked(h2) && !this.occupantAt(h2)) return h2;
+        }
+        return this.nearestFreeHex(anchor);
+      }
+      /** ближайший к anchor свободный и проходимый гекс сетки (кольцевой обход) */
+      nearestFreeHex(anchor) {
+        let best = null;
+        let bestD = Infinity;
+        for (let row = 0; row < this.arena.hex_grid.rows; row++) {
+          for (let col = 0; col < this.arena.hex_grid.cols; col++) {
+            const h2 = { col, row };
+            if (this.isBlocked(h2) || this.occupantAt(h2)) continue;
+            const d2 = hexDistance(anchor, h2);
+            if (d2 < bestD) {
+              bestD = d2;
+              best = h2;
+            }
+          }
+        }
+        return best ?? anchor;
+      }
+      resolveWeapon(def, skills) {
+        const weaponItemId = def.equipment?.weapon;
+        if (weaponItemId) {
+          const item = this.engine.campaign.entities[weaponItemId];
+          if (item?.weapon_data) return { weapon: item.weapon_data, weaponLabel: item.label, weaponItemId };
+        }
+        if (def.natural_weapon) return { weapon: def.natural_weapon, weaponLabel: def.natural_weapon.label ?? "\u0410\u0442\u0430\u043A\u0430", weaponItemId: null };
+        void skills;
+        return { weapon: FISTS, weaponLabel: FISTS.label, weaponItemId: null };
+      }
+      resolveArmor(def) {
+        if (def.armor != null) return def.armor;
+        let points = 0;
+        for (const itemId of Object.values(def.equipment ?? {})) {
+          const item = this.engine.campaign.entities[itemId];
+          if (item?.armor_data) points += item.armor_data.points;
+        }
+        return points;
+      }
+      // ─────────────── доступ ───────────────
+      get active() {
+        return this.combatants[this.activeIndex];
+      }
+      isPlayerTurn() {
+        return !this.result && this.active.id === "c_player";
+      }
+      occupantAt(h2) {
+        return this.combatants.find((c2) => !c2.dead && !c2.down && c2.pos.col === h2.col && c2.pos.row === h2.row);
+      }
+      inBounds(h2) {
+        return h2.col >= 0 && h2.row >= 0 && h2.col < this.arena.hex_grid.cols && h2.row < this.arena.hex_grid.rows;
+      }
+      isBlocked(h2) {
+        return this.blocked.has(hexKey(h2));
+      }
+      isDifficult(h2) {
+        return this.difficult.has(hexKey(h2));
+      }
+      /** гекс-укрытие? (мастерская разметка cover_hexes на арене) */
+      isCover(h2) {
+        return this.coverHexes.has(hexKey(h2));
+      }
+      passable = (h2) => this.inBounds(h2) && !this.isBlocked(h2) && !this.occupantAt(h2);
+      moveCost = (h2) => this.isDifficult(h2) ? 2 : 1;
+      /** Гексы, куда может дойти активный боец. */
+      reachableHexes() {
+        const a2 = this.active;
+        return reachable(a2.pos, a2.movLeft, this.passable, this.moveCost);
+      }
+      /**
+       * Разворот фигурки к точке (блок 3 ТЗ): 'topdown' — поворот по направлению,
+       * 'side' — зеркало по горизонтали, 'static' и жетоны не трогаем.
+       * Вращается только картинка — гекс-логика не меняется.
+       */
+      faceTowards(c2, to) {
+        if (!c2.figure || (c2.figure_mode ?? "topdown") === "static") return;
+        const size = this.arena.hex_grid.hex_size;
+        const a2 = hexToPixel(c2.pos, size, { x: 0, y: 0 });
+        const b2 = hexToPixel(to, size, { x: 0, y: 0 });
+        const dx = b2.x - a2.x;
+        const dy = b2.y - a2.y;
+        if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) return;
+        if ((c2.figure_mode ?? "topdown") === "side") c2.flip = dx < 0;
+        else c2.facing = Math.atan2(dx, -dy) * 180 / Math.PI;
+      }
+      canAttack(attacker, target) {
+        return !attacker.attacked && attacker.attacksLeft > 0 && !attacker.dead && !attacker.down && !target.dead && !target.down && !target.fled && !(target.hidden && attacker.side === "enemy") && attacker.side !== target.side && !this.outOfAmmo(attacker) && hexDistance(attacker.pos, target.pos) <= this.weaponRange(attacker);
+      }
+      /** нет боеприпасов к оружию (аудит B5: weapon.ammo_item) — только для игрока */
+      outOfAmmo(attacker) {
+        const ammo = attacker.weapon.ammo_item;
+        if (!ammo || attacker.id !== "c_player") return false;
+        return this.engine.itemCount(ammo) <= 0;
+      }
+      /**
+       * Может ли герой прятаться в этом бою (аудит §5.6 п.12):
+       * мастер включил скрытность кампании, бой не запретил ukрытие.
+       */
+      canHide() {
+        if (this.def.no_hide) return false;
+        return !!this.engine.campaign.meta.stealth;
+      }
+      /**
+       * Действие «скрыться» (тратит действие за ход): проверка скрытности героя
+       * против лучшей внимательности живых врагов. Успех — `hidden`, враги
+       * теряют вас из виду до следующей вашей атаки.
+       */
+      playerHide() {
+        if (!this.isPlayerTurn() || this.active.attacked || !this.canHide()) return;
+        const pc = this.active;
+        const st2 = this.engine.campaign.meta.stealth;
+        const foes = this.combatants.filter((c2) => c2.side === "enemy" && !c2.dead && !c2.fled && !c2.down);
+        const best = foes.map((c2) => {
+          const def = this.engine.campaign.entities[c2.entityId];
+          const v2 = def?.perception ?? Math.max(1, (c2.skills[st2.perception_skill ?? "perception"] ?? 0) || c2.stats.INT * 2);
+          return { label: def?.label ?? c2.entityId, value: v2 };
+        }).sort((a2, b2) => b2.value - a2.value)[0];
+        this.spendAction(pc);
+        if (!best) return;
+        const mine = skillCheck(
+          Math.max(1, (pc.skills[st2.skill ?? "stealth"] ?? 0) + this.statusSkillMod(pc, st2.skill ?? "stealth")),
+          this.engine.rng,
+          0,
+          this.engine.diceRules
+        );
+        const theirs = skillCheck(best.value, this.engine.rng, 0, this.engine.diceRules);
+        const RANK2 = { fumble: 0, fail: 1, success: 2, hard: 3, critical: 4 };
+        const wins = (RANK2[mine.result] ?? 1) >= (RANK2[theirs.result] ?? 1);
+        this.log.push(
+          `${pc.label}: \u0441\u043A\u0440\u044B\u0442\u043D\u043E\u0441\u0442\u044C \u2014 ${mine.roll}/${mine.target} \u043F\u0440\u043E\u0442\u0438\u0432 \xAB${best.label}\xBB ${theirs.roll}/${theirs.target} \u2192 ${wins ? "\u0432\u044B \u0441\u043A\u0440\u044B\u043B\u0438\u0441\u044C" : "\u0432\u0430\u0441 \u0434\u0435\u0440\u0436\u0430\u0442 \u0432 \u043F\u043E\u043B\u0435 \u0437\u0440\u0435\u043D\u0438\u044F"}`
+        );
+        if (wins) {
+          pc.hidden = true;
+          this.log.push(`${pc.label} \u0438\u0441\u0447\u0435\u0437\u0430\u0435\u0442 \u0438\u0437 \u0432\u0438\u0434\u0443.`);
+        }
+        if (!this.result && pc.attacksLeft <= 0) {
+          this.nextTurn();
+          this.processUntilPlayer();
+        }
+        this.engine.notify();
+      }
+      // ─────────────── боевые правила кампании (мастер; аудит §5.6) ───────────────
+      /** настройки боя из campaign.json (meta.combat) — всё с умолчаниями */
+      combatRules() {
+        return this.engine.campaign.meta.combat;
+      }
+      /** погодные боевые модификаторы (аудит B7): настройки в meta.weathers[].combat */
+      get weatherCombat() {
+        return this.engine.campaign.meta.weathers?.find((w2) => w2.id === this.engine.state.weather)?.combat;
+      }
+      /** сдвиг навыка от погоды */
+      weatherSkillMod(skill) {
+        let mod = 0;
+        for (const m2 of this.weatherCombat?.skill_mods ?? []) if (m2.skill === skill) mod += m2.delta;
+        return mod;
+      }
+      /** дальность оружия с погодным ограничением (минимум 1) */
+      weaponRange(c2) {
+        const pen = Math.max(0, this.weatherCombat?.range_penalty ?? 0);
+        return Math.max(1, c2.weapon.range - pen);
+      }
+      /** штраф следующей атаки в раунде (умолчание −20, BRP-разделение) */
+      get multiAttackPenalty() {
+        return this.combatRules()?.multi_attack_penalty ?? -20;
+      }
+      /** правила гибели героя: instant (умолчание) | brp */
+      get deathMode() {
+        return this.combatRules()?.death?.mode ?? "instant";
+      }
+      /** действие израсходовано не-атакой (предмет/способность) */
+      spendAction(c2) {
+        c2.attacked = true;
+        c2.attacksLeft = 0;
+      }
+      /** бонус прицельной атаки (meta.combat.aim; умолчание вкл., +20) */
+      aimEnabled() {
+        return this.combatRules()?.aim !== false;
+      }
+      /** прицеливание: тратит одну атаку, следующая — с бонусом */
+      playerAim() {
+        if (!this.isPlayerTurn() || !this.aimEnabled()) return;
+        const pc = this.active;
+        if (pc.attacked || pc.attacksLeft <= 0 || (pc.aimBonus ?? 0) > 0) return;
+        pc.attacksLeft -= 1;
+        if (pc.attacksLeft <= 0) pc.attacked = true;
+        const cfg = this.combatRules()?.aim;
+        pc.aimBonus = typeof cfg === "object" && cfg?.bonus != null ? cfg.bonus : 20;
+        this.log.push(`${pc.label} \u043F\u0440\u0438\u0446\u0435\u043B\u0438\u0432\u0430\u0435\u0442\u0441\u044F\u2026 (\u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0430\u044F \u0430\u0442\u0430\u043A\u0430 +${pc.aimBonus}%)`);
+        if (!this.result && pc.attacksLeft <= 0) {
+          this.nextTurn();
+          this.processUntilPlayer();
+        }
+        this.engine.notify();
+      }
+      // ─────────────── действия игрока ───────────────
+      playerMoveTo(h2) {
+        if (!this.isPlayerTurn()) return;
+        const r2 = this.reachableHexes();
+        const cost = r2.get(hexKey(h2));
+        if (cost == null) return;
+        const from = { ...this.active.pos };
+        this.faceTowards(this.active, h2);
+        this.active.pos = { ...h2 };
+        this.active.movLeft -= cost;
+        this.triggerOpportunity(this.active, from);
+        this.checkEnd();
+        this.engine.notify();
+      }
+      /**
+       * Атаки возможности (аудит B5): уход из зоны контроля врага — враг бьёт
+       * напоследок бесплатно. Умолчание вкл.; meta.combat.opportunity_attacks.
+       */
+      triggerOpportunity(mover, from) {
+        if (this.combatRules()?.opportunity_attacks === false) return;
+        if (hexDistance(from, mover.pos) === 0) return;
+        for (const foe of this.combatants) {
+          if (this.result || mover.dead || mover.down) return;
+          if (foe.side === mover.side || foe.dead || foe.down || foe.fled) continue;
+          if (foe.hidden && mover.side === "enemy") continue;
+          if (hexDistance(foe.pos, from) > this.weaponRange(foe)) continue;
+          if (hexDistance(foe.pos, mover.pos) <= this.weaponRange(foe)) continue;
+          if (this.outOfAmmo(foe)) continue;
+          this.log.push(`${foe.label} \u0440\u0443\u0431\u0438\u0442 \u0432\u0441\u043B\u0435\u0434 \u0443\u0445\u043E\u0434\u044F\u0449\u0435\u043C\u0443 ${mover.label}!`);
+          this.faceTowards(foe, mover.pos);
+          this.resolveAttack(foe, mover, { free: true });
+        }
+      }
+      playerAttack(targetId) {
+        if (!this.isPlayerTurn()) return;
+        const target = this.combatants.find((c2) => c2.id === targetId);
+        if (!target || !this.canAttack(this.active, target)) return;
+        this.faceTowards(this.active, target.pos);
+        this.resolveAttack(this.active, target);
+        this.checkEnd();
+        if (!this.result && this.active.attacksLeft <= 0) {
+          this.nextTurn();
+          this.processUntilPlayer();
+        }
+        this.engine.notify();
+      }
+      /**
+       * Предпросмотр шансов атаки (Combat Forecast) для подсказок и плашек игрока.
+       */
+      estimateAttack(attacker, defender) {
+        const apr = Math.max(1, attacker.weapon.attacks_per_round ?? 1);
+        const penalty = (apr - attacker.attacksLeft) * this.multiAttackPenalty;
+        const aim = attacker.aimBonus ?? 0;
+        const fromShadow = !!attacker.hidden;
+        const flank = this.flankRules();
+        const fromBehind = !!flank && this.isRearArc(defender, attacker.pos, flank.arc);
+        const skillVal = Math.max(
+          1,
+          (attacker.skills[attacker.weapon.skill] ?? 25) + this.statusSkillMod(attacker, attacker.weapon.skill) + this.weatherSkillMod(attacker.weapon.skill) + aim
+        );
+        const coverP = attacker.weapon.range > 1 && this.coverHexes.has(hexKey(defender.pos)) ? this.coverPenalty() : null;
+        const target = Math.max(1, Math.min(95, skillVal + penalty + (coverP ?? 0)));
+        const dbNotation = attacker.weapon.damage_bonus ? damageBonus(attacker.stats) : "";
+        const dbStr = dbNotation && dbNotation !== "0" ? dbNotation.startsWith("+") || dbNotation.startsWith("-") ? dbNotation : `+${dbNotation}` : "";
+        const damage = `${attacker.weapon.damage}${dbStr}`;
+        const armor = defender.armor;
+        return {
+          hitChance: target,
+          target,
+          damage,
+          armor,
+          penalty,
+          aim,
+          cover: coverP,
+          fromBehind,
+          fromShadow
+        };
+      }
+      /**
+       * Предпросмотр применения способности по цели.
+       */
+      estimateAbility(caster, ab, _target) {
+        if (ab.kind === "heal") {
+          return { hitChance: 100, targetVal: 100, effectLabel: `\u041B\u0435\u0447\u0435\u043D\u0438\u0435: ${ab.heal ?? "1d6"}` };
+        }
+        const skill = ab.skill ?? "magic";
+        const base = caster.skills[skill] ?? 25;
+        const mod = this.statusSkillMod(caster, skill) + this.weatherSkillMod(skill);
+        const targetVal = Math.max(1, Math.min(95, base + mod));
+        const parts = [];
+        if (ab.damage) parts.push(`\u0423\u0440\u043E\u043D: ${ab.damage}`);
+        if (ab.status) parts.push(`\u0421\u0442\u0430\u0442\u0443\u0441: \xAB${this.statusLabel(ab.status)}\xBB (${ab.status_duration ?? 2} \u0440.)`);
+        return {
+          hitChance: targetVal,
+          targetVal,
+          effectLabel: parts.join(" \xB7 ") || "\u0412\u043E\u0437\u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435"
+        };
+      }
+      /** Может ли игрок бежать из этого боя (аудит §5.6 п.2). */
+      canFlee() {
+        if (this.def.no_flee) return false;
+        return this.combatRules()?.flee !== false;
+      }
+      /**
+       * Отступление: враги в досягаемости бьют напоследок (бесплатные атаки),
+       * затем проверка навыка отступления (умолчание dodge, иначе DEX×5).
+       * Успех — бой окончен бегством (`on_fled` эффекта start_combat);
+       * провал — ход потерян.
+       */
+      playerFlee() {
+        if (!this.isPlayerTurn() || !this.canFlee()) return;
+        const pc = this.active;
+        const foes = this.combatants.filter(
+          (c2) => c2.side === "enemy" && !c2.dead && !c2.fled && !c2.down && hexDistance(c2.pos, pc.pos) <= this.weaponRange(c2)
+        );
+        if (foes.length) this.log.push("\u0412\u044B \u0431\u0440\u043E\u0441\u0430\u0435\u0442\u0435\u0441\u044C \u043F\u0440\u043E\u0447\u044C \u2014 \u0432\u0440\u0430\u0433\u0438 \u0440\u0443\u0431\u044F\u0442 \u0432\u0441\u043B\u0435\u0434!");
+        for (const foe of foes) {
+          this.resolveAttack(foe, pc, { free: true });
+          if (pc.dead || pc.down) break;
+        }
+        this.checkEnd();
+        if (this.result) {
+          this.engine.notify();
+          return;
+        }
+        const cfg = this.combatRules()?.flee;
+        const skill = typeof cfg === "object" && cfg?.skill || "dodge";
+        const known = pc.skills[skill];
+        const base = known != null ? known + this.statusSkillMod(pc, skill) : pc.stats.DEX * 5;
+        const out = skillCheck(Math.max(1, base), this.engine.rng, foes.length ? -20 : 0, this.engine.diceRules);
+        this.log.push(
+          `${pc.label}: \u043E\u0442\u0441\u0442\u0443\u043F\u043B\u0435\u043D\u0438\u0435 \u2014 ${known != null ? `\u043D\u0430\u0432\u044B\u043A \xAB${this.engine.skillLabel(skill)}\xBB` : "DEX\xD75"}, d100=${out.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${out.target} \u2192 ${labelResult(out.result)}`
+        );
+        if (out.success) {
+          pc.fled = true;
+          this.result = "fled";
+          this.log.push("\u0412\u044B \u0432\u044B\u0440\u044B\u0432\u0430\u0435\u0442\u0435\u0441\u044C \u0438\u0437 \u0431\u043E\u044F!");
+          playUi("flee");
+          this.engine.onCombatResolve(this.def.on_fled ?? []);
+          if (out.result === "critical") this.engine.markSkill(skill);
+        } else {
+          this.log.push("\u041E\u0442\u0441\u0442\u0443\u043F\u0438\u0442\u044C \u043D\u0435 \u0432\u044B\u0448\u043B\u043E \u2014 \u0445\u043E\u0434 \u043F\u043E\u0442\u0435\u0440\u044F\u043D.");
+          this.spendAction(pc);
+          this.nextTurn();
+          this.processUntilPlayer();
+        }
+        this.engine.notify();
+      }
+      /** Использование предмета в бою — тратит действие атаки (ТЗ 6.1). */
+      playerUseItem(itemId) {
+        if (!this.isPlayerTurn() || this.active.attacked) return;
+        const item = this.engine.campaign.entities[itemId];
+        if (!item || item.type !== "item" || !item.on_use) return;
+        this.spendAction(this.active);
+        this.engine.applyEffects(item.on_use.effects);
+        if (item.on_use.consume !== false) this.engine.removeItem(itemId, 1);
+        const pc = this.combatants.find((x2) => x2.id === "c_player");
+        pc.hp = Math.min(pc.maxHp, this.engine.state.player.hp);
+        this.log.push(`${this.active.label} \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0435\u0442 \xAB${item.label}\xBB.`);
+        playInteraction("use", { entity: item });
+        this.engine.notify();
+      }
+      /** Предметы игрока, применимые в бою. */
+      usableItems() {
+        return this.engine.state.player.inventory.map((e2) => ({ e: e2, def: this.engine.campaign.entities[e2.item] })).filter((x2) => x2.def?.type === "item" && x2.def.on_use).map((x2) => ({ id: x2.e.item, label: x2.def.label, quantity: x2.e.quantity }));
+      }
+      playerEndTurn() {
+        if (!this.isPlayerTurn()) return;
+        this.nextTurn();
+        this.processUntilPlayer();
+        this.engine.notify();
+      }
+      // ─────────────── цикл раундов ───────────────
+      startRound() {
+        this.tickStatuses();
+        for (const c2 of this.combatants) {
+          if (c2.down || c2.fled || c2.dead) {
+            c2.movLeft = 0;
+            c2.attacksLeft = 0;
+            c2.attacked = true;
+            continue;
+          }
+          c2.movLeft = Math.max(1, c2.mov + this.statusMovMod(c2) - Math.max(0, this.weatherCombat?.mov_penalty ?? 0));
+          c2.attacksLeft = Math.max(1, c2.weapon.attacks_per_round ?? 1);
+          c2.defensesUsed = 0;
+          c2.attacked = false;
+          if (c2.skipNext) {
+            c2.skipNext = false;
+            c2.movLeft = 0;
+            c2.attacksLeft = 0;
+            c2.attacked = true;
+          }
+          if (this.round === 1 && this.surprise) {
+            const ambusher = this.surprise === "player" ? "player" : "enemy";
+            if (c2.side !== ambusher) {
+              c2.movLeft = 0;
+              c2.attacksLeft = 0;
+              c2.attacked = true;
+            }
+          }
+          for (const k2 of Object.keys(c2.cooldowns)) {
+            c2.cooldowns[k2] -= 1;
+            if (c2.cooldowns[k2] <= 0) delete c2.cooldowns[k2];
+          }
+        }
+      }
+      /** определение способности из реестра кампании */
+      abilityDef(id) {
+        return this.engine.campaign.meta.abilities?.find((a2) => a2.id === id);
+      }
+      // ─────────────── статусы бойцов (блок 5 ТЗ) ───────────────
+      statusDef(id) {
+        return this.engine.campaign.meta.statuses?.find((s2) => s2.id === id);
+      }
+      /** название статуса для UI */
+      statusLabel(id) {
+        return this.statusDef(id)?.label ?? id;
+      }
+      /** наложить боевой статус на бойца (блок 6 будет звать из способностей) */
+      applyStatusTo(combatantId, statusId, duration) {
+        const def = this.statusDef(statusId);
+        if (!def || def.scope === "world") return;
+        const c2 = this.combatants.find((x2) => x2.id === combatantId);
+        if (!c2 || c2.dead) return;
+        const left = duration ?? def.duration;
+        if (left <= 0) return;
+        const existing = c2.statuses.find((s2) => s2.id === statusId);
+        if (existing) {
+          existing.left = Math.max(existing.left, left);
+        } else {
+          c2.statuses.push({ id: statusId, left });
+          this.log.push(def.apply_message ?? `${c2.label}: ${def.label.toLowerCase()}.`);
+        }
+        this.engine.notify();
+      }
+      removeStatusFrom(combatantId, statusId) {
+        const c2 = this.combatants.find((x2) => x2.id === combatantId);
+        if (!c2) return;
+        c2.statuses = c2.statuses.filter((s2) => s2.id !== statusId);
+        this.engine.notify();
+      }
+      /** суммарный модификатор навыка бойца от его статусов */
+      statusSkillMod(c2, skill) {
+        let mod = 0;
+        for (const s2 of c2.statuses) {
+          const def = this.statusDef(s2.id);
+          for (const m2 of def?.skill_mods ?? []) if (m2.skill === skill) mod += m2.delta;
+        }
+        return mod;
+      }
+      statusMovMod(c2) {
+        let mod = 0;
+        for (const s2 of c2.statuses) mod += this.statusDef(s2.id)?.mov_mod ?? 0;
+        return mod;
+      }
+      /** тик статусов в начале раунда: DoT, декремент, истечение */
+      tickStatuses() {
+        for (const c2 of this.combatants) {
+          if (c2.dead || !c2.statuses.length) continue;
+          const expired = [];
+          for (const s2 of c2.statuses) {
+            const def = this.statusDef(s2.id);
+            if (!def) continue;
+            if (def.dot?.hp) {
+              c2.hp = Math.max(0, c2.hp - def.dot.hp);
+              this.log.push(`${c2.label}: ${def.label.toLowerCase()} \u2014 \u2212${def.dot.hp} HP.`);
+              if (c2.hp <= 0 && !c2.down) {
+                if (c2.id === "c_player" && this.deathMode === "brp" && this.conSave(c2, `\u0441\u0442\u0430\u0442\u0443\u0441 \xAB${def.label}\xBB`)) {
+                  c2.hp = 1;
+                  c2.down = true;
+                  this.log.push(`${c2.label} \u043F\u0430\u0434\u0430\u0435\u0442 \u0431\u0435\u0437 \u0441\u043E\u0437\u043D\u0430\u043D\u0438\u044F \u043E\u0442 \u0441\u0442\u0430\u0442\u0443\u0441\u0430 \u2014 \u043D\u043E \u0434\u044B\u0448\u0438\u0442. (1 HP)`);
+                } else {
+                  c2.dead = true;
+                  this.log.push(`${c2.label} \u043F\u043E\u0433\u0438\u0431\u0430\u0435\u0442 \u043E\u0442 \u0441\u0442\u0430\u0442\u0443\u0441\u0430 \xAB${def.label}\xBB.`);
+                  playUi("kill");
+                }
+              }
+            }
+            if (!c2.dead) s2.left -= 1;
+            if (s2.left <= 0) expired.push(def);
+          }
+          if (expired.length) {
+            c2.statuses = c2.statuses.filter((s2) => s2.left > 0);
+            for (const def of expired) this.log.push(`${c2.label}: \xAB${def.label}\xBB \u0437\u0430\u043A\u0430\u043D\u0447\u0438\u0432\u0430\u0435\u0442\u0441\u044F.`);
+          }
+        }
+      }
+      nextTurn() {
+        let guard = 0;
+        do {
+          this.activeIndex++;
+          if (this.activeIndex >= this.combatants.length) {
+            this.activeIndex = 0;
+            this.round++;
+            this.log.push(`\u2014 \u0420\u0430\u0443\u043D\u0434 ${this.round} \u2014`);
+            this.startRound();
+            this.checkEnd();
+          }
+          guard++;
+        } while (!this.result && (this.active.dead || this.active.down || this.active.fled) && guard < 100);
+      }
+      processUntilPlayer() {
+        let guard = 0;
+        while (!this.result && this.active.id !== "c_player" && guard < 200) {
+          this.aiTurn(this.active);
+          this.checkEnd();
+          if (this.result) break;
+          this.nextTurn();
+          guard++;
+        }
+        if (!this.result && (this.active.dead || this.active.down || this.active.fled) && this.active.id !== "c_player")
+          this.nextTurn();
+      }
+      // ─────────────── AI (базовый: к ближайшему, атаковать) ───────────────
+      /** шаг отступления: уйти на максимально дальний гекс в радиусе хода (приказ 'retreat') */
+      stepAway(c2, foe) {
+        const reach = reachable(c2.pos, c2.movLeft, this.passable, this.moveCost);
+        let bestKey = null;
+        let bestScore = hexDistance(c2.pos, foe.pos);
+        for (const [k2, cost] of reach) {
+          const [col, row] = k2.split(",").map(Number);
+          const d2 = hexDistance({ col, row }, foe.pos);
+          if (d2 > bestScore) {
+            bestScore = d2;
+            bestKey = k2;
+            void cost;
+          }
+        }
+        if (bestKey) {
+          const [col, row] = bestKey.split(",").map(Number);
+          c2.movLeft -= reach.get(bestKey) ?? 0;
+          c2.pos = { col, row };
+        }
+      }
+      /** приказы отряду для UI (аудит §5.6 п.11) */
+      companionOrders() {
+        const out = [];
+        for (const comp of this.engine.state.party) {
+          const c2 = this.combatants.find((x2) => x2.id === `c_ally_${comp.entity}`);
+          if (!c2 || c2.dead) continue;
+          const def = this.engine.campaign.entities[comp.entity];
+          out.push({ entityId: comp.entity, label: def?.label ?? comp.entity, order: comp.order ?? "free" });
+        }
+        return out;
+      }
+      /** смена приказа напарнику */
+      setCompanionOrder(entityId, order) {
+        const comp = this.engine.state.party.find((x2) => x2.entity === entityId);
+        if (!comp) return;
+        comp.order = order === "free" ? void 0 : order;
+        this.engine.notify();
+      }
+      aiTurn(c2) {
+        if (c2.fled || c2.down || c2.dead) return;
+        if (c2.side === "player" && c2.id !== "c_player") {
+          const comp = this.engine.state.party.find((x2) => x2.entity === c2.entityId);
+          const order = comp?.order ?? "free";
+          const hero = this.combatants.find((x2) => x2.id === "c_player");
+          if (order === "hold") {
+            const near = this.combatants.find((x2) => x2.side === "enemy" && !x2.dead && !x2.fled && !x2.down && hexDistance(c2.pos, x2.pos) <= this.weaponRange(c2));
+            if (near) this.resolveAttack(c2, near);
+            return;
+          }
+          if (order === "retreat") {
+            const foes = this.combatants.filter((x2) => x2.side === "enemy" && !x2.dead && !x2.fled && !x2.down);
+            if (foes.length && c2.movLeft > 0) {
+              const nearest = foes.sort((a2, b2) => hexDistance(c2.pos, a2.pos) - hexDistance(c2.pos, b2.pos))[0];
+              if (hexDistance(c2.pos, nearest.pos) <= 2) {
+                const from = { ...c2.pos };
+                this.stepAway(c2, nearest);
+                this.triggerOpportunity(c2, from);
+              }
+            }
+            return;
+          }
+          if (order === "follow") {
+            if (hexDistance(c2.pos, hero.pos) > 2 && c2.movLeft > 0) {
+              const path = astar(c2.pos, hero.pos, this.passable, this.moveCost);
+              if (path) {
+                for (const step of path) {
+                  if (this.occupantAt(step)) break;
+                  const cost = this.moveCost(step);
+                  if (c2.movLeft < cost) break;
+                  if (hexDistance(step, hero.pos) <= 2) break;
+                  c2.pos = { ...step };
+                  c2.movLeft -= cost;
+                }
+              }
+            }
+            return;
+          }
+        }
+        if (c2.side === "enemy") {
+          const npcDef = this.engine.campaign.entities[c2.entityId];
+          const morale = npcDef?.morale;
+          if (morale && c2.hp / c2.maxHp * 100 < morale.below_hp_pct) {
+            if (this.engine.rng.next() * 100 < morale.flee_chance) {
+              c2.fled = true;
+              this.log.push(`${c2.label} \u043F\u0430\u0434\u0430\u0435\u0442 \u0434\u0443\u0445\u043E\u043C \u0438 \u043E\u0431\u0440\u0430\u0449\u0430\u0435\u0442\u0441\u044F \u0432 \u0431\u0435\u0433\u0441\u0442\u0432\u043E!`);
+              playUi("flee");
+              return;
+            }
+          }
+        }
+        const targets = this.combatants.filter((x2) => !x2.dead && !x2.fled && !x2.down && !x2.hidden && x2.side !== c2.side);
+        if (!targets.length) {
+          if (c2.side === "enemy" && this.combatants.some((x2) => x2.hidden && !x2.dead && x2.side !== c2.side)) {
+            this.log.push(`${c2.label} \u043E\u0437\u0438\u0440\u0430\u0435\u0442\u0441\u044F \u2014 \u0446\u0435\u043B\u044C \u043F\u043E\u0442\u0435\u0440\u044F\u043D\u0430 \u0438\u0437 \u0432\u0438\u0434\u0443.`);
+          }
+          return;
+        }
+        targets.sort((a2, b2) => hexDistance(c2.pos, a2.pos) - hexDistance(c2.pos, b2.pos));
+        let target = targets[0];
+        if (this.tryUseAiAbility(c2, target)) return;
+        if (hexDistance(c2.pos, target.pos) > this.weaponRange(c2)) {
+          const from = { ...c2.pos };
+          const path = astar(c2.pos, target.pos, this.passable, this.moveCost);
+          if (path) {
+            for (const step of path) {
+              if (this.occupantAt(step)) break;
+              const cost = this.moveCost(step);
+              if (c2.movLeft < cost) break;
+              if (hexDistance(c2.pos, target.pos) <= this.weaponRange(c2)) break;
+              c2.pos = { ...step };
+              c2.movLeft -= cost;
+            }
+          }
+          this.triggerOpportunity(c2, from);
+        }
+        let guard = 0;
+        while (!this.result && guard++ < 8) {
+          if (target.dead || target.down || target.fled || hexDistance(c2.pos, target.pos) > this.weaponRange(c2)) {
+            const rest = this.combatants.filter((x2) => !x2.dead && !x2.fled && !x2.down && x2.side !== c2.side).sort((a2, b2) => hexDistance(c2.pos, a2.pos) - hexDistance(c2.pos, b2.pos));
+            if (!rest.length || hexDistance(c2.pos, rest[0].pos) > this.weaponRange(c2)) break;
+            target = rest[0];
+          }
+          if (!this.canAttack(c2, target)) break;
+          this.faceTowards(c2, target.pos);
+          this.resolveAttack(c2, target);
+          this.checkEnd();
+        }
+      }
+      // ─────────────── способности (блок 6 ТЗ «Гибкий движок») ───────────────
+      /** ИИ: шанс 50% применить готовую способность вместо атаки. */
+      tryUseAiAbility(c2, target) {
+        if (!c2.abilities.length) return false;
+        const usable = c2.abilities.map((id) => this.abilityDef(id)).filter((a2) => !!a2 && a2.kind !== "heal" && a2.mp_cost <= c2.mp && (c2.cooldowns[a2.id] ?? 0) <= 0).filter((a2) => hexDistance(c2.pos, target.pos) <= a2.range);
+        if (!usable.length) return false;
+        if (this.engine.rng.next() >= 0.5) return false;
+        const ab = usable[this.engine.rng.int(0, usable.length - 1)];
+        this.resolveAbility(c2, ab, target);
+        return true;
+      }
+      /** Применение способности: расход MP, кулдаун, проверка навыка, эффект. */
+      resolveAbility(caster, ab, target) {
+        this.spendAction(caster);
+        caster.mp = Math.max(0, caster.mp - ab.mp_cost);
+        if (ab.cooldown_rounds) caster.cooldowns[ab.id] = ab.cooldown_rounds;
+        this.faceTowards(caster, target.pos);
+        const rng = this.engine.rng;
+        if (ab.kind === "heal") {
+          const amount = rollDice(ab.heal ?? "1d6", rng);
+          target.hp = Math.min(target.maxHp, target.hp + amount);
+          this.log.push(`${caster.label}: \xAB${ab.label}\xBB \u2014 ${target.label} \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u0430\u0432\u043B\u0438\u0432\u0430\u0435\u0442 ${amount} HP.`);
+          playUi("heal");
+          this.syncParty();
+          return;
+        }
+        if (ab.skill) {
+          const skillVal = Math.max(1, (caster.skills[ab.skill] ?? 25) + this.statusSkillMod(caster, ab.skill));
+          const atk = skillCheck(skillVal, rng, 0, this.engine.diceRules);
+          this.log.push(
+            `${caster.label}: \u0441\u043F\u043E\u0441\u043E\u0431\u043D\u043E\u0441\u0442\u044C \xAB${ab.label}\xBB \u2014 d100=${atk.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${atk.target} \u2192 ${labelResult(atk.result)}`
+          );
+          if (caster.id === "c_player" && atk.success) this.engine.markSkill(ab.skill);
+          if (RANK[atk.result] < 2) {
+            this.log.push(`${target.label} \u0438\u0437\u0431\u0435\u0433\u0430\u0435\u0442 \u044D\u0444\u0444\u0435\u043A\u0442\u0430.`);
+            playUi("miss");
+            if (atk.result === "fumble" && ab.backlash_table?.length) this.applyBacklash(caster, ab);
+            return;
+          }
+          if (this.defenderSaves(target, RANK[atk.result])) return;
+        }
+        if (ab.kind === "damage") {
+          let dmg = Math.max(0, rollDice(ab.damage ?? "1d6", rng) - target.armor);
+          if (caster.side === "enemy" && target.id === "c_player") dmg = Math.round(dmg * this.enemyDamageMult(caster));
+          this.log.push(`${caster.label}: \xAB${ab.label}\xBB \u043F\u043E\u043F\u0430\u0434\u0430\u0435\u0442.`);
+          playUi("hit");
+          this.finishDamage(target, dmg);
+        } else if (ab.kind === "status" && ab.status) {
+          this.log.push(`${caster.label}: \xAB${ab.label}\xBB \u2014 \u043D\u0430 \xAB${target.label}\xBB \u0434\u0435\u0439\u0441\u0442\u0432\u0443\u0435\u0442 \xAB${this.statusLabel(ab.status)}\xBB.`);
+          this.applyStatusTo(target.id, ab.status, ab.status_duration);
+        }
+      }
+      /** множитель урона врагов по герою (мастерской пресет сложности, выбранный игроком) */
+      enemyDamageMult(from) {
+        return from.side === "enemy" ? this.engine.difficultyDef()?.enemy_damage ?? 1 : 1;
+      }
+      /** магический откат (backlash_table способности): бросок по весам, действует на заклинателя */
+      applyBacklash(caster, ab) {
+        const table = ab.backlash_table;
+        const total = table.reduce((s2, e2) => s2 + Math.max(0, e2.weight), 0);
+        if (total <= 0) return;
+        let roll = this.engine.rng.int(1, total);
+        const entry = table.find((e2) => (roll -= Math.max(0, e2.weight)) <= 0) ?? table[table.length - 1];
+        this.log.push(`${caster.label}: \u041D\u0410\u0420\u0423\u0428\u0415\u041D\u0418\u0415 \u0421\u0418\u041B\u042B!${entry.text ? ` ${entry.text}` : ""}`);
+        if (entry.hp_delta) {
+          if (entry.hp_delta < 0) this.finishDamage(caster, -entry.hp_delta);
+          else caster.hp = Math.min(caster.maxHp, caster.hp + entry.hp_delta);
+        }
+        if (entry.mp_delta) caster.mp = Math.max(0, Math.min(caster.maxMp, caster.mp + entry.mp_delta));
+        if (entry.status) this.applyStatusTo(caster.id, entry.status, entry.status_duration);
+      }
+      /** Способности игрока и готовность каждой на этом ходу. */
+      playerAbilities() {
+        const c2 = this.combatants.find((x2) => x2.id === "c_player");
+        if (!c2) return [];
+        const out = [];
+        const magicSlots = this.engine.campaign.meta.magic?.slots;
+        const prepared = this.engine.state.player.prepared_abilities ?? [];
+        for (const id of c2.abilities) {
+          const def = this.abilityDef(id);
+          if (!def) continue;
+          let reason = "";
+          if (!this.isPlayerTurn() || c2.attacked) reason = "\u0441\u0435\u0439\u0447\u0430\u0441 \u043D\u0435 \u0432\u0430\u0448 \u0445\u043E\u0434";
+          else if (magicSlots && def.prepare && !prepared.includes(id)) reason = "\u043D\u0435 \u043F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u043B\u0435\u043D\u0430 \u2014 \u0437\u0430\u043D\u0435\u0441\u0438\u0442\u0435 \u0432 \u0441\u043B\u043E\u0442\u044B \u0432 \u043B\u0438\u0441\u0442\u0435 \u043F\u0435\u0440\u0441\u043E\u043D\u0430\u0436\u0430 (\u0432\u043D\u0435 \u0431\u043E\u044F)";
+          else if (c2.mp < def.mp_cost) reason = `\u043D\u0435 \u0445\u0432\u0430\u0442\u0430\u0435\u0442 MP (${def.mp_cost})`;
+          else if ((c2.cooldowns[id] ?? 0) > 0) reason = `\u043A\u0443\u043B\u0434\u0430\u0443\u043D \u0435\u0449\u0451 ${c2.cooldowns[id]} \u0440\u0430\u0443\u043D\u0434(\u0430)`;
+          out.push({ def, usable: reason === "", reason });
+        }
+        return out;
+      }
+      /** Допустимые цели способности из текущей позиции игрока. */
+      abilityTargets(abilityId) {
+        const ab = this.abilityDef(abilityId);
+        const c2 = this.combatants.find((x2) => x2.id === "c_player");
+        if (!ab || !c2 || c2.dead) return [];
+        const pool = ab.kind === "heal" ? this.combatants.filter((x2) => x2.side === c2.side && !x2.dead) : this.combatants.filter((x2) => x2.side !== c2.side && !x2.dead && !x2.fled);
+        return pool.filter((t5) => hexDistance(c2.pos, t5.pos) <= ab.range);
+      }
+      /** Игрок применяет способность — ход завершается, как после атаки. */
+      useAbility(abilityId, targetId) {
+        if (!this.isPlayerTurn() || this.active.attacked) return;
+        const c2 = this.active;
+        const ab = this.abilityDef(abilityId);
+        if (!ab || !c2.abilities.includes(abilityId)) return;
+        if (c2.mp < ab.mp_cost || (c2.cooldowns[abilityId] ?? 0) > 0) return;
+        const target = this.combatants.find((x2) => x2.id === targetId);
+        if (!target || target.dead || target.fled) return;
+        if (ab.kind === "heal" ? target.side !== c2.side : target.side === c2.side) return;
+        if (hexDistance(c2.pos, target.pos) > ab.range) return;
+        this.resolveAbility(c2, ab, target);
+        this.checkEnd();
+        if (!this.result) {
+          this.nextTurn();
+          this.processUntilPlayer();
+        }
+        this.engine.notify();
+      }
+      // ─────────────── разрешение атаки (BRP) ───────────────
+      /**
+       * Удар по цели. `opts.free` — бесплатная атака (рубеж вслед убегающему):
+       * не тратит атаку хода и не получает штрафа мультиатаки.
+       */
+      resolveAttack(attacker, defender, opts) {
+        let penalty = 0;
+        if (!opts?.free) {
+          const apr = Math.max(1, attacker.weapon.attacks_per_round ?? 1);
+          penalty = (apr - attacker.attacksLeft) * this.multiAttackPenalty;
+          attacker.attacksLeft -= 1;
+          if (attacker.attacksLeft <= 0) this.spendAction(attacker);
+          if (attacker.id === "c_player" && attacker.weapon.ammo_item) {
+            this.engine.removeItem(attacker.weapon.ammo_item, 1);
+            const left = this.engine.itemCount(attacker.weapon.ammo_item);
+            if (left === 0) this.log.push(`\u0411\u043E\u0435\u043F\u0440\u0438\u043F\u0430\u0441\u044B \u043A \xAB${attacker.weaponLabel}\xBB \u043A\u043E\u043D\u0447\u0438\u043B\u0438\u0441\u044C!`);
+          }
+        }
+        const rng = this.engine.rng;
+        const fromShadow = !!attacker.hidden;
+        const flank = this.flankRules();
+        const fromBehind = !!flank && this.isRearArc(defender, attacker.pos, flank.arc);
+        const aim = attacker.aimBonus ?? 0;
+        attacker.aimBonus = 0;
+        const skillVal = Math.max(
+          1,
+          (attacker.skills[attacker.weapon.skill] ?? 25) + this.statusSkillMod(attacker, attacker.weapon.skill) + this.weatherSkillMod(attacker.weapon.skill) + aim
+        );
+        const coverP = attacker.weapon.range > 1 && this.coverHexes.has(hexKey(defender.pos)) ? this.coverPenalty() : null;
+        const atk = skillCheck(skillVal, rng, penalty + (coverP ?? 0), this.engine.diceRules);
+        this.log.push(
+          `${attacker.label}: ${fromShadow ? "\u0412\u041D\u0415\u0417\u0410\u041F\u041D\u0410\u042F \u0430\u0442\u0430\u043A\u0430" : "\u0430\u0442\u0430\u043A\u0430"} \xAB${attacker.weaponLabel}\xBB${penalty ? ` (\u043F\u043E\u0432\u0442\u043E\u0440\u043D\u0430\u044F, ${penalty}%)` : ""}${aim ? ` (\u043F\u0440\u0438\u0446\u0435\u043B\u044C\u043D\u0430\u044F, +${aim}%)` : ""}${coverP ? ` (\u0443\u043A\u0440\u044B\u0442\u0438\u0435, ${coverP}%)` : ""} \u2014 d100=${atk.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${atk.target} \u2192 ${labelResult(atk.result)}`
+        );
+        attacker.hidden = false;
+        if (attacker.id === "c_player" && atk.success) this.engine.markSkill(attacker.weapon.skill);
+        if (RANK[atk.result] < 2) {
+          playUi("miss");
+          if (atk.result === "fumble" && !opts?.free) {
+            this.wearWeapon(attacker);
+            this.applyFumble(attacker);
+          }
+          return;
+        }
+        if (fromShadow) {
+          this.log.push(`${defender.label} \u043D\u0435 \u0432\u0438\u0434\u0438\u0442 \u043D\u0430\u043F\u0430\u0434\u0430\u044E\u0449\u0435\u0433\u043E \u2014 \u0437\u0430\u0449\u0438\u0442\u0430 \u043D\u0435\u0432\u043E\u0437\u043C\u043E\u0436\u043D\u0430!`);
+        } else if (fromBehind) {
+          this.log.push(`${attacker.label} \u0431\u044C\u0451\u0442 ${defender.label} \u0432 \u0441\u043F\u0438\u043D\u0443 \u2014 \u0437\u0430\u0449\u0438\u0442\u0430 \u043D\u0435\u0432\u043E\u0437\u043C\u043E\u0436\u043D\u0430!`);
+        } else if (this.defenderSaves(defender, RANK[atk.result])) {
+          return;
+        }
+        const w2 = attacker.weapon;
+        const dbNotation = w2.damage_bonus ? damageBonus(attacker.stats) : "0";
+        const harmless = w2.traits?.includes("push_harmless");
+        const critEntry = atk.result === "critical" ? this.rollCritEntry() : null;
+        const loc = this.rollHitLocation(rng);
+        if (loc) this.log.push(`${loc.text ?? `\u041F\u043E\u043F\u0430\u0434\u0430\u043D\u0438\u0435: ${loc.label}.`}`);
+        const locMult = loc?.damage_mult ?? 1;
+        const locArmor = loc?.armor ?? defender.armor;
+        let dmg;
+        if (atk.result === "critical" && critEntry?.kind === "double_damage") {
+          dmg = harmless ? 0 : Math.max(0, Math.round(2 * (rollDice(w2.damage, rng) + Math.max(0, rollSigned(dbNotation, rng))) * locMult) - locArmor);
+          this.log.push(`\u041A\u0440\u0438\u0442\u0438\u0447\u0435\u0441\u043A\u0438\u0439 \u0443\u0434\u0430\u0440 \u2014 \u0443\u0440\u043E\u043D \u0443\u0434\u0432\u043E\u0435\u043D!${critEntry.text ? ` ${critEntry.text}` : ""}`);
+          playUi("crit");
+        } else if (atk.result === "critical") {
+          dmg = harmless ? 0 : Math.max(0, Math.round((maxOf(w2.damage) + Math.max(0, maxOf(dbNotation))) * locMult) - (loc ? locArmor : 0));
+          this.log.push(`\u041A\u0440\u0438\u0442\u0438\u0447\u0435\u0441\u043A\u0438\u0439 \u0443\u0434\u0430\u0440! ${loc ? "\u0411\u0440\u043E\u043D\u044F \u0442\u043E\u043B\u044C\u043A\u043E \u0443 \u043B\u043E\u043A\u0430\u0446\u0438\u0438." : "\u0411\u0440\u043E\u043D\u044F \u043D\u0435 \u0441\u043F\u0430\u0441\u0430\u0435\u0442."}${critEntry?.text ? ` ${critEntry.text}` : ""}`);
+          playUi("crit");
+        } else if (harmless) {
+          dmg = 0;
+          playUi("hit");
+        } else {
+          const raw = rollDice(w2.damage, rng) + rollSigned(dbNotation, rng);
+          dmg = Math.max(0, Math.round(raw * locMult) - locArmor);
+          playUi("hit");
+        }
+        if (fromBehind && flank?.bonus && !harmless) {
+          const extra = rollDice(flank.bonus, rng);
+          if (extra > 0) {
+            dmg += extra;
+            this.log.push(`\u0423\u0434\u0430\u0440 \u0432 \u0441\u043F\u0438\u043D\u0443: +${extra} \u0443\u0440\u043E\u043D\u0430.`);
+          }
+        }
+        if (attacker.side === "enemy" && defender.id === "c_player") dmg = Math.round(dmg * this.enemyDamageMult(attacker));
+        this.finishDamage(defender, dmg);
+        if (critEntry && !defender.dead && !defender.down) {
+          if (critEntry.kind === "disarm") this.disarm(defender, attacker);
+          if (critEntry.kind === "status" && critEntry.status) this.applyStatusTo(defender.id, critEntry.status, critEntry.duration);
+        }
+        if (loc && !defender.dead && !defender.down) {
+          if (atk.result === "critical" && loc.status_on_crit) this.applyStatusTo(defender.id, loc.status_on_crit);
+          else if (dmg > 0 && loc.status_on_hit) this.applyStatusTo(defender.id, loc.status_on_hit);
+        }
+        if (dmg > 0) this.wearArmor(defender);
+        if (!defender.dead && !defender.down && RANK[atk.result] >= RANK.hard) {
+          this.applyWeaponTraits(attacker, defender);
+        }
+      }
+      /** таблица критических успехов мастера (meta.combat.crit_table) — бросок по весам */
+      rollCritEntry() {
+        const table = this.combatRules()?.crit_table;
+        if (!table?.length) return null;
+        const total = table.reduce((s2, e2) => s2 + Math.max(0, e2.weight), 0);
+        if (total <= 0) return null;
+        let roll = this.engine.rng.int(1, total);
+        return table.find((e2) => (roll -= Math.max(0, e2.weight)) <= 0) ?? table[table.length - 1];
+      }
+      /** хит-локации мастера (combat.hit_locations): бросок d100 по диапазонам; механика выкл. — null */
+      rollHitLocation(rng) {
+        const rule = this.combatRules()?.hit_locations;
+        if (!rule?.table?.length) return null;
+        const roll = rng.int(1, 100);
+        return rule.table.find((t5) => roll >= t5.from && roll <= t5.to) ?? null;
+      }
+      /** штраф укрытия (combat.cover); null — механика выключена */
+      coverPenalty() {
+        const c2 = this.combatRules()?.cover;
+        if (!c2) return null;
+        return typeof c2 === "object" ? c2.penalty ?? -20 : -20;
+      }
+      /** настройка удара в спину (combat.flank); null — механика выключена */
+      flankRules() {
+        const f2 = this.combatRules()?.flank;
+        if (!f2) return null;
+        return {
+          arc: typeof f2 === "object" ? f2.arc ?? 120 : 120,
+          bonus: typeof f2 === "object" ? f2.damage_bonus ?? null : null
+        };
+      }
+      /** стоит ли `from` в задней дуге цели (за её взглядом); дуга arcDeg с центром строго сзади */
+      isRearArc(defender, from, arcDeg) {
+        const size = this.arena.hex_grid.hex_size;
+        const a2 = hexToPixel(defender.pos, size, { x: 0, y: 0 });
+        const b2 = hexToPixel(from, size, { x: 0, y: 0 });
+        const dx = b2.x - a2.x;
+        const dy = b2.y - a2.y;
+        if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) return false;
+        const dir = Math.atan2(dx, -dy) * 180 / Math.PI;
+        const diff = Math.abs(((dir - defender.facing) % 360 + 540) % 360 - 180);
+        return diff >= 180 - arcDeg / 2;
+      }
+      /** особые удары оружия: пронзание, отброс, разоружение, захват */
+      applyWeaponTraits(attacker, defender) {
+        const traits = attacker.weapon.traits;
+        if (!traits?.length) return;
+        const rng = this.engine.rng;
+        if (traits.includes("impale")) {
+          const extra = rollDice(attacker.weapon.damage, rng);
+          this.log.push(`\u041F\u0440\u043E\u043D\u0437\u0430\u043D\u0438\u0435! \xAB${attacker.weaponLabel}\xBB \u0432\u043F\u0438\u0432\u0430\u0435\u0442\u0441\u044F \u0433\u043B\u0443\u0431\u043E\u043A\u043E: +${extra} \u0443\u0440\u043E\u043D\u0430 \u0431\u0435\u0437 \u0431\u0440\u043E\u043D\u0438.`);
+          this.finishDamage(defender, extra);
+          if (defender.dead || defender.down) return;
+        }
+        if (traits.includes("knockback") || traits.includes("push_harmless")) {
+          const dc = defender.pos.col - attacker.pos.col;
+          const dr = defender.pos.row - attacker.pos.row;
+          const step = { col: defender.pos.col + Math.sign(dc), row: defender.pos.row + Math.sign(dr) };
+          if (this.passable(step)) {
+            defender.pos = step;
+            this.log.push(`${defender.label} \u043E\u0442\u0431\u0440\u043E\u0448\u0435\u043D \u043D\u0430\u0437\u0430\u0434.`);
+          }
+        }
+        if (traits.includes("disarm")) {
+          this.disarm(defender, attacker);
+          if (defender.dead || defender.down) return;
+        }
+        if (traits.includes("grapple")) {
+          defender.skipNext = true;
+          this.log.push(`${attacker.label} \u0437\u0430\u0445\u0432\u0430\u0442\u044B\u0432\u0430\u0435\u0442 ${defender.label} \u2014 \u0442\u043E\u0442 \u043F\u0440\u043E\u043F\u0443\u0441\u0442\u0438\u0442 \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0438\u0439 \u0445\u043E\u0434!`);
+        }
+      }
+      /** разоружение: игрок теряет оружие в инвентарь, NPC — навсегда */
+      disarm(defender, attacker) {
+        if (!defender.weaponItemId) return;
+        const label = defender.weaponLabel;
+        if (defender.id === "c_player") {
+          const eq = this.engine.state.player.equipment;
+          if (eq.weapon === defender.weaponItemId) delete eq.weapon;
+          this.log.push(`${attacker.label} \u0432\u044B\u0431\u0438\u0432\u0430\u0435\u0442 \xAB${label}\xBB \u0438\u0437 \u0440\u0443\u043A ${defender.label}! \u041E\u0440\u0443\u0436\u0438\u0435 \u043E\u0442\u043B\u0435\u0442\u0435\u043B\u043E \u0432 \u0440\u044E\u043A\u0437\u0430\u043A.`);
+        } else {
+          this.log.push(`${attacker.label} \u0432\u044B\u0431\u0438\u0432\u0430\u0435\u0442 \xAB${label}\xBB \u0438\u0437 \u0440\u0443\u043A ${defender.label}!`);
+        }
+        defender.weapon = { ...FISTS };
+        defender.weaponLabel = FISTS.label;
+        defender.weaponItemId = null;
+        defender.attacksLeft = Math.min(defender.attacksLeft, 1);
+      }
+      /** таблица критических провалов мастера (meta.combat.fumble_table) */
+      applyFumble(attacker) {
+        const table = this.combatRules()?.fumble_table;
+        if (!table?.length) return;
+        const total = table.reduce((s2, e2) => s2 + Math.max(0, e2.weight), 0);
+        if (total <= 0) return;
+        let roll = this.engine.rng.int(1, total);
+        const entry = table.find((e2) => (roll -= Math.max(0, e2.weight)) <= 0) ?? table[table.length - 1];
+        const note = entry.text ? ` ${entry.text}` : "";
+        switch (entry.kind) {
+          case "drop_weapon":
+            this.log.push(`${attacker.label} \u0440\u043E\u043D\u044F\u0435\u0442 \u043E\u0440\u0443\u0436\u0438\u0435!${note}`);
+            this.disarm(attacker, attacker);
+            break;
+          case "stuck":
+            attacker.skipNext = true;
+            this.log.push(`${attacker.label}: \u043E\u0440\u0443\u0436\u0438\u0435 \u0437\u0430\u0441\u0442\u0440\u044F\u043B\u043E \u2014 \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0438\u0439 \u0445\u043E\u0434 \u0443\u0439\u0434\u0451\u0442 \u043D\u0430 \u0438\u0437\u0432\u043B\u0435\u0447\u0435\u043D\u0438\u0435.${note}`);
+            break;
+          case "self_hit": {
+            const dmg = Math.max(0, rollDice(attacker.weapon.damage, this.engine.rng) - attacker.armor);
+            this.log.push(`${attacker.label} \u0440\u0430\u043D\u0438\u0442 \u0441\u0435\u0431\u044F!${note}`);
+            this.finishDamage(attacker, dmg);
+            break;
+          }
+          case "skip_next":
+            attacker.skipNext = true;
+            this.log.push(`${attacker.label} \u0441\u043F\u043E\u0442\u044B\u043A\u0430\u0435\u0442\u0441\u044F \u2014 \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0438\u0439 \u0445\u043E\u0434 \u043F\u043E\u0442\u0435\u0440\u044F\u043D.${note}`);
+            break;
+        }
+      }
+      /** износ оружия атакующего при критическом провале; слом — переход на кулаки */
+      wearWeapon(attacker) {
+        if (!attacker.weaponItemId) return;
+        if (attacker.id === "c_player") {
+          const broke = this.engine.damageItemDurability(attacker.weaponItemId, 1);
+          if (broke) {
+            attacker.weapon = { ...FISTS };
+            attacker.weaponLabel = FISTS.label;
+            attacker.weaponItemId = null;
+            this.log.push(`${attacker.label}: \u043E\u0440\u0443\u0436\u0438\u0435 \u0441\u043B\u043E\u043C\u0430\u043B\u043E\u0441\u044C \u2014 \u0434\u0430\u043B\u044C\u0448\u0435 \u043A\u0443\u043B\u0430\u043A\u0430\u043C\u0438.`);
+          }
+          return;
+        }
+        const item = this.engine.campaign.entities[attacker.weaponItemId];
+        const max = item?.weapon_data?.durability;
+        if (max === void 0) return;
+        attacker.wear ??= {};
+        const left = (attacker.wear[attacker.weaponItemId] ?? max) - 1;
+        attacker.wear[attacker.weaponItemId] = left;
+        if (left <= 0) {
+          attacker.weapon = { ...FISTS };
+          attacker.weaponLabel = FISTS.label;
+          attacker.weaponItemId = null;
+          this.log.push(`${attacker.label}: \xAB${item?.label ?? "\u043E\u0440\u0443\u0436\u0438\u0435"}\xBB \u0441\u043B\u043E\u043C\u0430\u043D\u043E \u2014 \u0434\u0430\u043B\u044C\u0448\u0435 \u0433\u043E\u043B\u044B\u043C\u0438.`);
+        }
+      }
+      /** износ брони защитника после пробившего удара */
+      wearArmor(defender) {
+        if (defender.id === "c_player") {
+          for (const id of Object.values(this.engine.state.player.equipment)) {
+            if (!id) continue;
+            const item = this.engine.campaign.entities[id];
+            if (item?.armor_data?.durability === void 0 || !this.engine.isItemUsable(id)) continue;
+            const broke = this.engine.damageItemDurability(id, 1);
+            if (broke) {
+              defender.armor = this.engine.playerArmor().points;
+              this.log.push(`${defender.label}: \xAB${item.label}\xBB \u0440\u0430\u0437\u0431\u0438\u0442\u0430 \u043D\u0430\u0441\u043C\u0435\u0440\u0442\u044C \u2014 \u0431\u0440\u043E\u043D\u044F ${defender.armor}.`);
+            }
+            return;
+          }
+          return;
+        }
+        const def = this.engine.campaign.entities[defender.entityId];
+        if (!def) return;
+        for (const itemId of Object.values(def.equipment ?? {})) {
+          const item = this.engine.campaign.entities[itemId];
+          const max = item?.armor_data?.durability;
+          if (max === void 0 || !item) continue;
+          defender.wear ??= {};
+          const left = (defender.wear[itemId] ?? max) - 1;
+          defender.wear[itemId] = left;
+          if (left <= 0) {
+            defender.armor = Math.max(0, defender.armor - item.armor_data.points);
+            this.log.push(`${defender.label}: \u0434\u043E\u0441\u043F\u0435\u0445 \xAB${item.label}\xBB \u0440\u0430\u0437\u0431\u0438\u0442 \u2014 \u0431\u0440\u043E\u043D\u044F ${defender.armor}.`);
+          }
+          return;
+        }
+      }
+      /** Защита от удара: уклонение/парирование. Истина — атака отражена. */
+      defenderSaves(defender, atkRank) {
+        if (this.round === 1 && this.surprise) {
+          const ambusher = this.surprise === "player" ? "player" : "enemy";
+          if (defender.side !== ambusher) return false;
+        }
+        const rng = this.engine.rng;
+        const dodgeVal = Math.max(0, (defender.skills["dodge"] ?? 0) + this.statusSkillMod(defender, "dodge") + this.weatherSkillMod("dodge"));
+        const parryVal = defender.weapon.parry_capable ? Math.max(0, (defender.skills[defender.weapon.skill] ?? 0) + this.statusSkillMod(defender, defender.weapon.skill) + this.weatherSkillMod(defender.weapon.skill)) : 0;
+        const useParry = parryVal > dodgeVal;
+        const defBase = useParry ? parryVal : dodgeVal;
+        if (defBase > 0) {
+          const penalty = -30 * defender.defensesUsed;
+          defender.defensesUsed++;
+          const def = skillCheck(defBase, rng, penalty, this.engine.diceRules);
+          this.log.push(
+            `${defender.label}: ${useParry ? "\u043F\u0430\u0440\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435" : "\u0443\u043A\u043B\u043E\u043D\u0435\u043D\u0438\u0435"} \u2014 d100=${def.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${def.target} \u2192 ${labelResult(def.result)}`
+          );
+          if (RANK[def.result] >= 2 && RANK[def.result] >= atkRank) {
+            this.log.push(`${defender.label} ${useParry ? "\u043E\u0442\u0431\u0438\u0432\u0430\u0435\u0442 \u0443\u0434\u0430\u0440" : "\u0443\u0445\u043E\u0434\u0438\u0442 \u043E\u0442 \u0443\u0434\u0430\u0440\u0430"}.`);
+            playUi("parry");
+            if (defender.id === "c_player") this.engine.markSkill(useParry ? defender.weapon.skill : "dodge");
+            return true;
+          }
+        }
+        return false;
+      }
+      /** Урон бойцу: лог, смерть, синхронизация с состоянием партии. */
+      finishDamage(defender, dmg) {
+        if (defender.id === "c_player" && this.engine.debugInvincible) {
+          this.log.push(`${defender.label}: \u0443\u0440\u043E\u043D \u043E\u0442\u043C\u0435\u043D\u0451\u043D \u0440\u0435\u0436\u0438\u043C\u043E\u043C \u043E\u0442\u043B\u0430\u0434\u043A\u0438.`);
+          return;
+        }
+        defender.hp -= dmg;
+        this.log.push(`${defender.label} \u043F\u043E\u043B\u0443\u0447\u0430\u0435\u0442 ${dmg} \u0443\u0440\u043E\u043D\u0430 (HP ${Math.max(0, defender.hp)}/${defender.maxHp}).`);
+        if (defender.id === "c_player" && this.deathMode === "brp" && !defender.dead && !defender.down) {
+          if (defender.hp > 0 && dmg >= Math.ceil(defender.maxHp / 2) && !this.conSave(defender, "\u0442\u044F\u0436\u0451\u043B\u0430\u044F \u0440\u0430\u043D\u0430")) {
+            defender.down = true;
+            this.log.push(`${defender.label} \u0442\u0435\u0440\u044F\u0435\u0442 \u0441\u043E\u0437\u043D\u0430\u043D\u0438\u0435 \u043E\u0442 \u0442\u044F\u0436\u0451\u043B\u043E\u0439 \u0440\u0430\u043D\u044B.`);
+          }
+          if (!defender.down && defender.hp <= 0 && this.conSave(defender, "\u0441\u043C\u0435\u0440\u0442\u0435\u043B\u044C\u043D\u044B\u0439 \u0443\u0434\u0430\u0440")) {
+            defender.hp = 1;
+            defender.down = true;
+            this.log.push(`${defender.label} \u043F\u0430\u0434\u0430\u0435\u0442 \u0431\u0435\u0437 \u0441\u043E\u0437\u043D\u0430\u043D\u0438\u044F \u2014 \u043D\u043E \u0434\u044B\u0448\u0438\u0442. (1 HP)`);
+          }
+        }
+        if (defender.hp <= 0 && !defender.down) {
+          defender.dead = true;
+          this.log.push(`\u2020 ${defender.label} \u043F\u043E\u0433\u0438\u0431\u0430\u0435\u0442.`);
+          playUi("death");
+          if (defender.side === "enemy") {
+            this.engine.state.dead_entities.push(defender.entityId);
+          } else if (defender.id.startsWith("c_ally_")) {
+            this.engine.leaveParty(defender.entityId);
+            this.engine.state.dead_entities.push(defender.entityId);
+            this.engine.pushLog(`${defender.label} \u043F\u043E\u0433\u0438\u0431\u0430\u0435\u0442 \u0432 \u0431\u043E\u044E. \u041D\u0430\u0432\u0441\u0435\u0433\u0434\u0430.`);
+          }
+        }
+        this.syncParty();
+        if (defender.down || defender.dead) this.checkEnd();
+      }
+      /**
+       * Спасбросок CON×con_multiplier при критическом состоянии героя (режим
+       * 'brp'): тяжёлая рана — успех удерживает в сознании; смертельный удар —
+       * успех оставляет жить (без сознания). Истина — спасбросок пройден.
+       */
+      conSave(c2, cause) {
+        const mult = this.combatRules()?.death?.con_multiplier ?? 5;
+        const out = skillCheck(c2.stats.CON * mult, this.engine.rng, 0, this.engine.diceRules);
+        this.log.push(
+          `${c2.label}: \u0433\u0440\u0430\u043D\u044C \u0441\u043E\u0437\u043D\u0430\u043D\u0438\u044F (${cause}) \u2014 CON\xD7${mult}, d100=${out.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${out.target} \u2192 ${labelResult(out.result)}`
+        );
+        return out.success;
+      }
+      /** синхронизация HP/MP игрока и напарников с состоянием боя */
+      syncParty() {
+        const pc = this.combatants.find((x2) => x2.id === "c_player");
+        if (pc) {
+          this.engine.state.player.hp = Math.max(0, pc.hp);
+          this.engine.state.player.mp = Math.max(0, Math.min(pc.mp, this.engine.state.player.max_mp));
+        }
+        for (const ally of this.combatants.filter((x2) => x2.id.startsWith("c_ally_"))) {
+          const comp = this.engine.state.party.find((c2) => c2.entity === ally.entityId);
+          if (comp) comp.hp = Math.max(0, ally.hp);
+        }
+      }
+      // ─────────────── завершение ───────────────
+      checkEnd() {
+        if (this.result) return;
+        const enemiesAlive = this.combatants.some((c2) => c2.side === "enemy" && !c2.dead && !c2.fled && !c2.down);
+        const pc = this.combatants.find((c2) => c2.id === "c_player");
+        const playerActive = !!pc && !pc.dead && !pc.down && !pc.fled;
+        if (!playerActive) {
+          this.result = "defeat";
+          playUi("defeat");
+          if (this.deathMode === "brp" && pc?.down && !pc.dead && (this.def.on_defeat?.length ?? 0) > 0) {
+            this.log.push("\u0411\u043E\u0439 \u043F\u0440\u043E\u0438\u0433\u0440\u0430\u043D, \u043D\u043E \u0432\u044B \u0436\u0438\u0432\u044B. \u0421\u043E\u0437\u043D\u0430\u043D\u0438\u0435 \u0433\u0430\u0441\u043D\u0435\u0442\u2026");
+            this.engine.onCombatResolve(this.def.on_defeat ?? []);
+          } else {
+            this.engine.gameOver("death", "\u0412\u044B \u043F\u0430\u043B\u0438 \u0432 \u0431\u043E\u044E.");
+          }
+          return;
+        }
+        if (!enemiesAlive) {
+          this.result = "victory";
+          playUi("victory");
+          this.rollLoot();
+          this.log.push("\u041F\u043E\u0431\u0435\u0434\u0430! \u041F\u0440\u043E\u0442\u0438\u0432\u043D\u0438\u043A\u0438 \u043F\u043E\u0432\u0435\u0440\u0436\u0435\u043D\u044B.");
+          this.engine.onCombatResolve(this.def.on_victory ?? []);
+        }
+      }
+      rollLoot() {
+        const rng = this.engine.rng;
+        const counts = /* @__PURE__ */ new Map();
+        for (const c2 of this.combatants) {
+          if (c2.side !== "enemy" || !c2.dead) continue;
+          const def = this.engine.campaign.entities[c2.entityId];
+          for (const entry of def.loot_table ?? []) {
+            if (!rng.chance(entry.chance)) continue;
+            const qty = entry.min != null && entry.max != null ? rng.int(entry.min, entry.max) : 1;
+            counts.set(entry.item, (counts.get(entry.item) ?? 0) + qty);
+          }
+        }
+        for (const [item, qty] of counts) {
+          this.engine.addItem(item, qty);
+          const def = this.engine.campaign.entities[item];
+          playInteraction("pickup", { entity: def });
+          const label = this.engine.campaign.entities[item]?.label ?? item;
+          this.loot.push({ label, quantity: qty });
+        }
+      }
+    };
+  }
+});
+
+// src/core/director.ts
+function shouldShowNarrativeIntro(scene) {
+  if (!scene.narrative_intro || scene.narrative_intro.length === 0) return false;
+  const once = scene.narrative_intro_once ?? true;
+  if (!once) return true;
+  return !(this.state.seen_narrative_intros ?? []).includes(scene.id);
+}
+function isSceneIntroActive() {
+  const sc = this.campaign.scenes[this.state.scene];
+  if (!sc) return false;
+  return this.shouldShowNarrativeIntro(sc) && !this.cutscene && !this.dialogue && !this.combat;
+}
+function markNarrativeIntroSeen(sceneId) {
+  if (!this.state.seen_narrative_intros) this.state.seen_narrative_intros = [];
+  if (!this.state.seen_narrative_intros.includes(sceneId)) {
+    this.state.seen_narrative_intros.push(sceneId);
+    this.autosave();
+  }
+  if (this.postcard && this.postcardPendingSeconds > 0 && !this.cutsceneQueue.length) {
+    const at2 = this.postcardPendingSeconds;
+    this.postcardPendingSeconds = 0;
+    this.postcardTimer = globalThis.setTimeout(() => this.hidePostcard(), at2 * 1e3);
+  } else {
+    this.flushPendingBannersIfClear();
+  }
+  this.notify();
+}
+function cutscene() {
+  return this.cutsceneQueue[0]?.def ?? null;
+}
+function cutsceneKey() {
+  return this.cutsceneQueue[0]?.serial ?? 0;
+}
+function showBanner(e2) {
+  const serial = this.bannerSerial++;
+  this.banners = [...this.banners, { serial, ...e2 }];
+  const seconds = e2.seconds ?? Math.min(8, Math.max(3, e2.text.length * 0.06));
+  if (this.cutsceneQueue.length > 0) {
+    this.bannerPendingTimers.push({ serial, seconds });
+  } else {
+    globalThis.setTimeout(() => {
+      if (this.banners.some((b2) => b2.serial === serial)) {
+        this.banners = this.banners.filter((b2) => b2.serial !== serial);
+        this.notify();
+      }
+    }, seconds * 1e3);
+  }
+  this.notify();
+}
+function showPostcard(e2) {
+  if (this.postcardTimer) {
+    clearTimeout(this.postcardTimer);
+    this.postcardTimer = null;
+  }
+  this.postcard = { image: e2.image, art: e2.art, text: e2.text, preset: e2.preset, seconds: e2.seconds, camera: e2.camera };
+  const at2 = Math.max(1, e2.seconds ?? 6);
+  if (this.cutsceneQueue.length > 0 || this.isSceneIntroActive()) {
+    this.postcardPendingSeconds = at2;
+  } else if ((e2.seconds ?? 6) > 0) {
+    this.postcardPendingSeconds = 0;
+    this.postcardTimer = globalThis.setTimeout(() => this.hidePostcard(), at2 * 1e3);
+  }
+  this.notify();
+}
+function hidePostcard() {
+  if (this.postcardTimer) {
+    clearTimeout(this.postcardTimer);
+    this.postcardTimer = null;
+  }
+  this.postcardPendingSeconds = 0;
+  if (!this.postcard) return;
+  this.postcard = null;
+  this.flushPendingBannersIfClear();
+  this.notify();
+}
+function flushPendingBannersIfClear() {
+  if (!this.cutsceneQueue.length && !this.isSceneIntroActive() && !this.postcard && !this.messages.length) {
+    if (this.bannerPendingTimers.length) {
+      for (const item of this.bannerPendingTimers) {
+        globalThis.setTimeout(() => {
+          if (this.banners.some((b2) => b2.serial === item.serial)) {
+            this.banners = this.banners.filter((b2) => b2.serial !== item.serial);
+            this.notify();
+          }
+        }, item.seconds * 1e3);
+      }
+      this.bannerPendingTimers = [];
+    }
+  }
+}
+function playCutscene(id) {
+  const def = this.campaign.cutscenes?.[id];
+  if (!def || !def.slides?.length) return;
+  if (this.cutsceneQueue.some((c2) => c2.def.id === id)) return;
+  stopVoiceAudio();
+  this.cutsceneQueue.push({ def, serial: ++this.cutsceneSerial });
+  this.pushLog(`\u041A\u0430\u0442\u0441\u0446\u0435\u043D\u0430: \xAB${def.label}\xBB`);
+  this.notify();
+}
+function endCutscene() {
+  if (!this.cutsceneQueue.length) return;
+  stopVoiceAudio();
+  this.cutsceneQueue.shift();
+  if (!this.cutsceneQueue.length) {
+    if (!this.isSceneIntroActive()) {
+      if (this.postcard && this.postcardPendingSeconds > 0) {
+        const at2 = this.postcardPendingSeconds;
+        this.postcardPendingSeconds = 0;
+        this.postcardTimer = globalThis.setTimeout(() => this.hidePostcard(), at2 * 1e3);
+      }
+      this.flushPendingBannersIfClear();
+    }
+    this.checkRules();
+    this.autosave();
+  }
+  this.notify();
+}
+function onCombatResolve(effects2) {
+  const defer = /* @__PURE__ */ new Set(["start_dialogue", "start_combat", "teleport_player", "game_over_victory", "game_over_death", "play_cutscene"]);
+  this.postCombatEffects = effects2.filter((e2) => defer.has(e2.type));
+  this.applyEffects(effects2.filter((e2) => !defer.has(e2.type)));
+  this.notify();
+}
+function startCombat(def) {
+  if (!featureOn(this.campaign.meta, "combat")) {
+    this.pushLog("\u041A\u043E\u043D\u0444\u043B\u0438\u043A\u0442 \u0440\u0430\u0437\u0440\u0435\u0448\u0438\u043B\u0441\u044F \u0431\u0435\u0437 \u0431\u043E\u044F.");
+    this.applyEffects(def.on_victory ?? []);
+    this.checkRules();
+    this.notify();
+    return;
+  }
+  let effective = def;
+  if (!def.surprise && this.isSneaking() && !this.isDetected()) {
+    effective = { ...def, surprise: "player" };
+    this.pushLog("\u0412\u044B \u043D\u0430\u043F\u0430\u0434\u0430\u0435\u0442\u0435 \u0438\u0437 \u0441\u043A\u0440\u044B\u0442\u043D\u043E\u0441\u0442\u0438 \u2014 \u0432\u0440\u0430\u0433\u0438 \u0437\u0430\u0441\u0442\u0438\u0433\u043D\u0443\u0442\u044B \u0432\u0440\u0430\u0441\u043F\u043B\u043E\u0445!");
+  }
+  if (this.state.stealth) this.state.stealth.sneaking = false;
+  this.dialogue = null;
+  this.activeStory = null;
+  this.activeNpc = null;
+  this.combat = new CombatController(this, effective);
+  playUi("combat_start");
+  this.notify();
+}
+function endCombat() {
+  const combat = this.combat;
+  if (!combat) return;
+  this.combat = null;
+  for (const ally of combat.combatants.filter((c2) => c2.id.startsWith("c_ally_") && c2.dead)) {
+    const comp = this.state.party.find((p2) => p2.entity === ally.entityId);
+    if (comp) {
+      comp.hp = 0;
+      this.leaveParty(ally.entityId);
+      this.messages.push({ text: `${ally.label} \u043F\u043E\u0433\u0438\u0431(\u043B\u0430). \u0422\u0435\u043B\u043E \u043E\u0441\u0442\u0430\u043B\u043E\u0441\u044C \u043D\u0430 \xAB${combat.arena.label}\xBB.`, portrait: ally.portrait });
+    }
+  }
+  if (combat.result === "victory" || combat.result === "fled") {
+    const deferred = this.postCombatEffects;
+    this.postCombatEffects = [];
+    this.applyEffects(deferred);
+    this.advanceTicks(1);
+    this.state.stats_run.kills += combat.combatants.filter((c2) => c2.side === "enemy" && c2.dead).length;
+    this.pushLog(
+      combat.result === "victory" ? `\u0411\u043E\u0439 \xAB${combat.arena.label}\xBB \u0432\u044B\u0438\u0433\u0440\u0430\u043D \u0437\u0430 ${combat.round} \u0440\u0430\u0443\u043D\u0434(\u043E\u0432).` : `\u0412\u044B \u043E\u0442\u0441\u0442\u0443\u043F\u0438\u043B\u0438 \u0438\u0437 \u0431\u043E\u044F \xAB${combat.arena.label}\xBB.`
+    );
+    this.checkRules();
+    this.autosave();
+  } else if (combat.result === "defeat" && !this.state.game_over) {
+    const deferred = this.postCombatEffects;
+    this.postCombatEffects = [];
+    this.applyEffects(deferred);
+    this.advanceTicks(1);
+    this.pushLog("\u0412\u044B \u043F\u0440\u0438\u0445\u043E\u0434\u0438\u0442\u0435 \u0432 \u0441\u0435\u0431\u044F \u043F\u043E\u0441\u043B\u0435 \u043F\u043E\u0440\u0430\u0436\u0435\u043D\u0438\u044F.");
+    this.checkRules();
+    this.autosave();
+  }
+  this.notify();
+}
+var director;
+var init_director = __esm({
+  "src/core/director.ts"() {
+    init_caps();
+    init_voiceAudio();
+    init_audio();
+    init_combat();
+    director = {
+      shouldShowNarrativeIntro,
+      isSceneIntroActive,
+      markNarrativeIntroSeen,
+      cutscene,
+      cutsceneKey,
+      showBanner,
+      showPostcard,
+      hidePostcard,
+      flushPendingBannersIfClear,
+      playCutscene,
+      endCutscene,
+      onCombatResolve,
+      startCombat,
+      endCombat
+    };
+  }
+});
+
+// src/core/character.ts
+function applyCharCreation(choice) {
+  const creation = this.campaign.meta.char_creation;
+  if (!creation) return;
+  const s2 = this.state;
+  const profession = creation.professions?.find((p2) => p2.id === choice.profession);
+  const name = choice.name.trim();
+  if (name) s2.player.name = name;
+  if (creation.choose_age && choice.age !== void 0) s2.player.age = choice.age;
+  if (choice.difficulty && this.campaign.meta.difficulties?.some((d2) => d2.id === choice.difficulty)) {
+    s2.player.difficulty = choice.difficulty;
+  }
+  const pc = {};
+  if (choice.portrait && creation.portraits?.some((p2) => p2.id === choice.portrait)) pc.gallery = choice.portrait;
+  if (choice.portrait_layers && creation.portrait_layers?.length) {
+    const layers = {};
+    for (const layer of creation.portrait_layers) {
+      const sel = choice.portrait_layers[layer.id];
+      if (sel && layer.options.some((o2) => o2.id === sel)) layers[layer.id] = sel;
+    }
+    if (Object.keys(layers).length) pc.layers = layers;
+  }
+  if (Object.keys(pc).length) s2.player.portrait_choice = pc;
+  else delete s2.player.age;
+  if (creation.choose_bio && choice.bio?.trim()) s2.player.bio = choice.bio.trim();
+  else delete s2.player.bio;
+  const stats = { ...choice.stats };
+  delete stats.HP;
+  delete stats.MP;
+  s2.player.stats = stats;
+  s2.player.max_hp = derivedHP(stats);
+  s2.player.hp = s2.player.max_hp;
+  s2.player.max_mp = derivedMP(stats);
+  s2.player.mp = s2.player.max_mp;
+  s2.player.skills = { ...choice.skills };
+  for (const it2 of profession?.items ?? []) this.addItem(it2.item, it2.quantity, { silent: true });
+  s2.char_choice = JSON.parse(JSON.stringify(choice));
+  this.pushLog(`${name || "\u0413\u0435\u0440\u043E\u0439"}: \u0437\u0430\u0431\u0435\u0433 \u043D\u0430\u0447\u0438\u043D\u0430\u0435\u0442\u0441\u044F.`);
+}
+function fatigueMax() {
+  const cfg = this.campaign.meta.vitals?.fatigue;
+  if (!cfg) return 0;
+  const mult = cfg === true ? 1 : cfg.multiplier ?? 1;
+  return Math.max(0, Math.round((this.state.player.stats.STR + this.state.player.stats.CON) * mult));
+}
+function fatigue() {
+  const max = this.fatigueMax();
+  return Math.min(max, this.state.player.fatigue ?? max);
+}
+function changeFatigue(delta) {
+  const max = this.fatigueMax();
+  if (max === 0 && delta !== 0) return true;
+  const cur = this.fatigue();
+  if (delta < 0 && cur + delta < 0) {
+    this.state.player.fatigue = 0;
+    this.pushLog("\u0412\u044B \u043D\u0430 \u043F\u0440\u0435\u0434\u0435\u043B\u0435: \u043E\u0447\u043A\u0438 \u0443\u0441\u0442\u0430\u043B\u043E\u0441\u0442\u0438 \u043D\u0430 \u043D\u0443\u043B\u0435!");
+    this.checkRules();
+    this.notify();
+    return false;
+  }
+  this.state.player.fatigue = Math.max(0, Math.min(max, cur + delta));
+  this.checkRules();
+  this.notify();
+  return true;
+}
+function sanityMax() {
+  const cfg = this.campaign.meta.vitals?.sanity;
+  if (!cfg) return 0;
+  const mult = cfg === true ? 5 : cfg.multiplier ?? 5;
+  return Math.max(0, this.state.player.stats.POW * mult);
+}
+function sanity() {
+  const max = this.sanityMax();
+  return Math.min(max, this.state.player.sanity ?? max);
+}
+function changeSanity(delta) {
+  const max = this.sanityMax();
+  if (max === 0 && delta !== 0) return;
+  const next = Math.max(0, Math.min(max, this.sanity() + delta));
+  const lost = next - this.sanity();
+  this.state.player.sanity = next;
+  if (lost < 0) this.pushLog(`\u0420\u0430\u0441\u0441\u0443\u0434\u043E\u043A \u0442\u0440\u0435\u0449\u0438\u0442: ${lost}. (\u0441\u0435\u0439\u0447\u0430\u0441 ${next}/${max})`);
+  else if (lost > 0) this.pushLog(`\u041C\u044B\u0441\u043B\u0438 \u043F\u0440\u043E\u044F\u0441\u043D\u044F\u044E\u0442\u0441\u044F: \u0440\u0430\u0441\u0441\u0443\u0434\u043E\u043A +${lost}. (\u0441\u0435\u0439\u0447\u0430\u0441 ${next}/${max})`);
+  this.checkRules();
+  this.notify();
+}
+function skillBaseChance(skillId) {
+  const def = this.campaign.meta.skills?.find((s2) => s2.id === skillId);
+  const base = def?.base;
+  if (base == null) return 0;
+  if (typeof base === "number") return base;
+  const stats = this.state.player.stats;
+  let total = 0;
+  for (const part of base.split("+")) {
+    const m2 = part.trim().match(/^([A-Z]+)(?:\s*[×x*]\s*(\d+))?$/);
+    if (!m2) continue;
+    const stat = stats[m2[1]] ?? 0;
+    total += stat * (m2[2] ? parseInt(m2[2], 10) : 1);
+  }
+  return total;
+}
+function skillEffective(skillId) {
+  const learned = this.state.player.skills[skillId];
+  return learned != null ? learned : this.skillBaseChance(skillId);
+}
+function trainStat(stat, delta) {
+  const p2 = this.state.player;
+  const stats = p2.stats;
+  if (!(stat in stats)) return;
+  const lim = this.campaign.meta.char_creation?.stat_limits;
+  const min = lim?.min ?? 1;
+  const max = lim?.max ?? 99;
+  const next = Math.max(min, Math.min(max, stats[stat] + delta));
+  if (next === stats[stat]) return;
+  stats[stat] = next;
+  this.pushLog(`\u0422\u0440\u0435\u043D\u0438\u0440\u043E\u0432\u043A\u0430 \u0434\u0430\u043B\u0430 \u043F\u043B\u043E\u0434\u044B: ${this.statLabel(stat)} ${delta > 0 ? "+" : ""}${delta} \u2192 ${next}.`);
+  const newMaxHp = derivedHP(p2.stats);
+  if (newMaxHp !== p2.max_hp) {
+    const diff = newMaxHp - p2.max_hp;
+    p2.max_hp = newMaxHp;
+    p2.hp = Math.max(1, Math.min(p2.max_hp, p2.hp + Math.max(0, diff)));
+  }
+  const newMaxMp = derivedMP(p2.stats);
+  if (newMaxMp !== p2.max_mp) {
+    const diff = newMaxMp - p2.max_mp;
+    p2.max_mp = newMaxMp;
+    p2.mp = Math.max(0, Math.min(p2.max_mp, p2.mp + Math.max(0, diff)));
+  }
+  this.checkRules();
+  this.notify();
+}
+function statLabel(stat) {
+  return stat.toUpperCase();
+}
+function progressionEnabled() {
+  return !!this.campaign.meta.progression;
+}
+function level() {
+  return Math.max(1, this.state.player.level ?? 1);
+}
+function xp() {
+  return Math.max(0, this.state.player.xp ?? 0);
+}
+function xpForLevel(level2) {
+  const base = this.campaign.meta.progression?.xp_per_level ?? 100;
+  return base * level2;
+}
+function xpToNext() {
+  if (!this.progressionEnabled()) return null;
+  const max = this.campaign.meta.progression?.max_level;
+  if (max != null && this.level() >= max) return null;
+  return this.xpForLevel(this.level()) - this.xp();
+}
+function pendingFeats() {
+  if (!this.progressionEnabled()) return 0;
+  const per = this.campaign.meta.progression?.feats_per_level ?? 1;
+  return Math.max(0, (this.level() - 1) * per - (this.state.player.feats ?? []).length);
+}
+function grantXp(points) {
+  if (!this.progressionEnabled() || points <= 0) return;
+  const p2 = this.state.player;
+  const cap = this.campaign.meta.progression?.max_level;
+  if (cap != null && this.level() >= cap) return;
+  p2.xp = this.xp() + points;
+  this.pushLog(`\u041E\u043F\u044B\u0442: +${points} (\u0432\u0441\u0435\u0433\u043E ${p2.xp}, \u0434\u043E \u0441\u043B\u0435\u0434. \u0443\u0440\u043E\u0432\u043D\u044F ${this.xpToNext() ?? "\u043F\u043E\u0442\u043E\u043B\u043E\u043A"}).`);
+  while (this.xp() >= this.xpForLevel(this.level())) {
+    const max = this.campaign.meta.progression?.max_level;
+    if (max != null && this.level() >= max) break;
+    p2.xp = this.xp() - this.xpForLevel(this.level());
+    p2.level = this.level() + 1;
+    const slots = this.campaign.meta.progression?.feats_per_level ?? 1;
+    this.pushLog(`\u0423\u0440\u043E\u0432\u0435\u043D\u044C ${p2.level}!${slots > 0 ? ` \u0414\u043E\u0441\u0442\u0443\u043F\u043D\u043E ${slots} \u0447\u0451\u0440\u0442(\u0430) \u043A \u0432\u044B\u0431\u043E\u0440\u0443 \u0432 \u043B\u0438\u0441\u0442\u0435 \u043F\u0435\u0440\u0441\u043E\u043D\u0430\u0436\u0430.` : ""}`);
+    this.checkRules();
+  }
+  this.notify();
+}
+function availableFeats() {
+  if (!this.progressionEnabled()) return [];
+  const taken = new Set(this.state.player.feats ?? []);
+  return (this.campaign.meta.progression?.feats ?? []).filter((f2) => !taken.has(f2.id));
+}
+function featEligible(feat) {
+  if (!feat.requires?.length) return true;
+  return feat.requires.every((c2) => evalCondition(c2, this));
+}
+function takeFeat(id) {
+  if (!this.progressionEnabled() || this.pendingFeats() <= 0) return false;
+  const feat = this.availableFeats().find((f2) => f2.id === id);
+  if (!feat || !this.featEligible(feat)) return false;
+  applyFeat.call(this, feat);
+  this.pushLog(`\u0412\u0437\u044F\u0442\u0430 \u0447\u0435\u0440\u0442\u0430 \xAB${feat.label}\xBB.`);
+  this.notify();
+  return true;
+}
+function grantFeat(id) {
+  if (!this.progressionEnabled()) return;
+  const feat = this.campaign.meta.progression?.feats?.find((f2) => f2.id === id);
+  if (!feat || (this.state.player.feats ?? []).includes(id)) return;
+  applyFeat.call(this, feat);
+  this.pushLog(`\u041E\u0441\u0432\u043E\u0435\u043D\u0430 \u0447\u0435\u0440\u0442\u0430 \xAB${feat.label}\xBB.`);
+  this.checkRules();
+  this.notify();
+}
+function applyFeat(feat) {
+  const p2 = this.state.player;
+  p2.feats ??= [];
+  p2.feats.push(feat.id);
+  const mods = feat.mods ?? {};
+  for (const [skill, delta] of Object.entries(mods.skills ?? {})) {
+    p2.skills[skill] = Math.max(0, (p2.skills[skill] ?? 0) + delta);
+  }
+  for (const [stat, delta] of Object.entries(mods.stats ?? {})) {
+    if (delta) this.trainStat(stat, delta);
+  }
+  if (mods.hp) {
+    p2.max_hp = Math.max(1, p2.max_hp + mods.hp);
+    p2.hp = Math.min(p2.max_hp, p2.hp + mods.hp);
+  }
+  if (mods.mp) {
+    p2.max_mp = Math.max(0, p2.max_mp + mods.mp);
+    p2.mp = Math.min(p2.max_mp, p2.mp + mods.mp);
+  }
+  this.checkRules();
+}
+function playerMovement() {
+  let mov = movement(this.state.player.stats);
+  for (const fid of this.state.player.feats ?? []) {
+    const f2 = this.campaign.meta.progression?.feats?.find((x2) => x2.id === fid);
+    mov += f2?.mods?.mov ?? 0;
+  }
+  return Math.max(1, mov);
+}
+function markSkill(skill) {
+  if (!featureOn(this.campaign.meta, "skills")) return;
+  if (this.state.player.skills[skill] != null) this.state.player.skill_marks[skill] = true;
+}
+function playerSkillCheck(skill, difficulty = 50) {
+  if (!featureOn(this.campaign.meta, "skills")) {
+    return { roll: 0, target: 100, result: "success", success: true };
+  }
+  const value = Math.max(0, this.skillEffective(skill) + this.statusSkillMod(skill));
+  const out = skillCheck(value, this.rng, difficultyModifier(value, difficulty), this.diceRules);
+  this.pushLog(
+    `\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \xAB${this.skillLabel(skill)}\xBB (${difficultyLabel(difficulty)}) \u2014 d100=${out.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${out.target}: ${CHECK_RESULT_LABEL[out.result]}`
+  );
+  if (out.success) this.markSkill(skill);
+  return out;
+}
+function skillLabel2(id) {
+  return skillLabel(id, this.campaign.meta.skills);
+}
+function restAndGrow() {
+  if (!featureOn(this.campaign.meta, "skills")) return [];
+  const grown = [];
+  for (const skill of Object.keys(this.state.player.skill_marks)) {
+    const cur = this.state.player.skills[skill] ?? 0;
+    const roll = this.rng.int(1, 100);
+    if (roll > cur) {
+      const gain = rollDice("1d6", this.rng);
+      this.state.player.skills[skill] = cur + gain;
+      grown.push(`${this.skillLabel(skill)} +${gain} (${cur} \u2192 ${cur + gain})`);
+      this.pushLog(`\u041D\u0430\u0432\u044B\u043A \xAB${this.skillLabel(skill)}\xBB \u0432\u044B\u0440\u043E\u0441 \u043D\u0430 ${gain} (${cur} \u2192 ${cur + gain}).`);
+    }
+  }
+  this.state.player.skill_marks = {};
+  if (grown.length) {
+    this.messages.push({ text: `\u0412\u043E \u0441\u043D\u0435 \u043F\u0440\u0438\u0445\u043E\u0434\u0438\u0442 \u043E\u043F\u044B\u0442. \u0420\u043E\u0441\u0442 \u043D\u0430\u0432\u044B\u043A\u043E\u0432: ${grown.join(", ")}.` });
+    playUi("skill_up");
+  }
+  return grown;
+}
+function togglePreparedAbility(id) {
+  const s2 = this.state;
+  const slots = this.campaign.meta.magic?.slots;
+  if (!slots) return false;
+  const cur = new Set(s2.player.prepared_abilities ?? []);
+  if (cur.has(id)) cur.delete(id);
+  else {
+    if (cur.size >= slots) return false;
+    cur.add(id);
+  }
+  const arr = [...cur];
+  s2.player.prepared_abilities = arr;
+  if (!arr.length) delete s2.player.prepared_abilities;
+  return true;
+}
+var character;
+var init_character = __esm({
+  "src/core/character.ts"() {
+    init_brp();
+    init_dice();
+    init_caps();
+    init_skills();
+    init_conditions();
+    init_audio();
+    character = {
+      applyCharCreation,
+      fatigueMax,
+      fatigue,
+      changeFatigue,
+      sanityMax,
+      sanity,
+      changeSanity,
+      skillBaseChance,
+      skillEffective,
+      trainStat,
+      statLabel,
+      progressionEnabled,
+      level,
+      xp,
+      xpForLevel,
+      xpToNext,
+      pendingFeats,
+      grantXp,
+      availableFeats,
+      featEligible,
+      takeFeat,
+      grantFeat,
+      applyFeat,
+      playerMovement,
+      markSkill,
+      playerSkillCheck,
+      skillLabel: skillLabel2,
+      restAndGrow,
+      togglePreparedAbility
+    };
+  }
+});
+
+// src/core/checks.ts
+function luckMax() {
+  const cfg = this.campaign.meta.luck;
+  if (!cfg) return 0;
+  const mult = cfg.multiplier ?? 5;
+  return Math.max(0, this.state.player.stats.POW * mult);
+}
+function luck() {
+  const max = this.luckMax();
+  return Math.min(max, this.state.player.luck ?? max);
+}
+function changeLuck(delta) {
+  const cur = this.luck();
+  const next = Math.max(0, Math.min(this.luckMax(), cur + delta));
+  if (delta < 0 && cur + delta < 0) return false;
+  this.state.player.luck = next;
+  return true;
+}
+function applyTickEffects(effects2, skipped) {
+  if (!effects2) return;
+  for (const fx of effects2) {
+    if (!DURATION_TICK_EFFECTS.has(fx.type)) {
+      if (!skipped.done) {
+        this.pushLog(`\u0414\u0432\u0438\u0433\u0430\u0442\u0435\u043B\u044C: \u044D\u0444\u0444\u0435\u043A\u0442 '${fx.type}' \u043D\u0435 \u0432\u0445\u043E\u0434\u0438\u0442 \u0432 \u0431\u0435\u043B\u044B\u0439 \u0441\u043F\u0438\u0441\u043E\u043A \u0434\u043B\u0438\u0442\u0435\u043B\u044C\u043D\u043E\u0433\u043E \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044F \u0438 \u043F\u0440\u043E\u043F\u0443\u0449\u0435\u043D.`);
+        skipped.done = true;
+      }
+      continue;
+    }
+    this.applyEffect(fx);
+  }
+}
+function runTicksFlow(opts) {
+  const skipped = { done: false };
+  for (let i2 = 0; i2 < opts.ticks; i2++) {
+    if (this.state.game_over) return;
+    applyTickEffects.call(this, opts.perTick, skipped);
+    this.advanceTicks(1);
+    if (this.state.game_over) return;
+    if (opts.breakWhen && opts.breakWhen.some((c2) => evalCondition(c2, this))) {
+      interruptTicksFlow.call(this, opts.label, opts.interruptRule, i2 + 1);
+      return;
+    }
+    if ((opts.interruptChance ?? 0) > 0 && this.rng.chance(opts.interruptChance)) {
+      interruptTicksFlow.call(this, opts.label, opts.interruptRule, i2 + 1);
+      return;
+    }
+  }
+  opts.after?.();
+  if (opts.onFinish) {
+    for (const fx of opts.onFinish) this.applyEffect(fx);
+  }
+  this.pushLog(`${opts.label} \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043D\u043E: \u043F\u0440\u043E\u0448\u043B\u043E ${opts.ticks} \u0447.`);
+  this.autosave();
+  this.notify();
+}
+function interruptTicksFlow(label, rule, afterTicks) {
+  this.pushLog(`${label} \u043F\u0440\u0435\u0440\u0432\u0430\u043D\u043E \u043D\u0430 ${afterTicks}-\u043C \u0447\u0430\u0441\u0443: \u0447\u0442\u043E-\u0442\u043E \u043F\u043E\u0448\u043B\u043E \u043D\u0435 \u043F\u043E \u043F\u043B\u0430\u043D\u0443.`);
+  if (rule) this.fireRule(rule);
+  this.autosave();
+  this.notify();
+}
+function durationRequestInfo() {
+  const req = this.durationRequest;
+  if (!req) return null;
+  if (req.kind === "camp") {
+    const cfg = this.campaign.meta.camping;
+    if (!cfg) return null;
+    const min2 = Math.max(1, Math.floor(cfg.min_ticks ?? cfg.ticks ?? 8));
+    return {
+      label: "\u041D\u043E\u0447\u043B\u0435\u0433",
+      min: min2,
+      max: Math.max(min2, Math.floor(cfg.max_ticks ?? cfg.ticks ?? 8)),
+      step: 1,
+      perTick: cfg.per_tick,
+      interruptChance: 0,
+      startTick: this.state.tick
+    };
+  }
+  const def = req.action;
+  const min = Math.max(1, Math.floor(def.min_ticks ?? 1));
+  return {
+    label: def.label,
+    min,
+    max: Math.max(min, Math.floor(def.max_ticks ?? min)),
+    step: Math.max(1, Math.floor(def.step ?? 1)),
+    perTick: def.per_tick,
+    interruptChance: Math.max(0, Math.min(1, def.interrupt_chance_per_tick ?? 0)),
+    startTick: this.state.tick
+  };
+}
+function cancelDurationRequest() {
+  if (!this.durationRequest) return;
+  this.durationRequest = null;
+  this.notify();
+}
+function confirmDurationRequest(ticks) {
+  const req = this.durationRequest;
+  if (!req) return;
+  this.durationRequest = null;
+  if (req.kind === "camp") {
+    this.campRest(ticks);
+    return;
+  }
+  this.runDurationAction(req.action, ticks);
+}
+function requestCampRest() {
+  const cfg = this.campaign.meta.camping;
+  if (!cfg || !this.campAvailable().ok) return;
+  this.durationRequest = { kind: "camp" };
+  this.notify();
+}
+function requestDurationAction(id, ticks) {
+  const def = (this.campaign.meta.duration_actions ?? []).find((d2) => d2.id === id);
+  if (!def) {
+    this.pushLog(`\u0414\u0432\u0438\u0433\u0430\u0442\u0435\u043B\u044C: \u0434\u043B\u0438\u0442\u0435\u043B\u044C\u043D\u043E\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435 '${id}' \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E \u0432 \u0440\u0435\u0435\u0441\u0442\u0440\u0435 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438.`);
+    this.notify();
+    return;
+  }
+  if (def.available_when && !def.available_when.every((c2) => evalCondition(c2, this))) return;
+  const min = Math.max(1, Math.floor(def.min_ticks ?? 1));
+  const max = Math.max(min, Math.floor(def.max_ticks ?? min));
+  if (ticks != null && ticks > 0) {
+    this.runDurationAction(def, ticks);
+    return;
+  }
+  if (max === min) {
+    this.runDurationAction(def, min);
+    return;
+  }
+  this.durationRequest = { kind: "action", action: def };
+  this.notify();
+}
+function runDurationAction(def, ticks) {
+  const min = Math.max(1, Math.floor(def.min_ticks ?? 1));
+  const max = Math.max(min, Math.floor(def.max_ticks ?? min));
+  const step = Math.max(1, Math.floor(def.step ?? 1));
+  let chosen = Math.min(max, Math.max(min, Number.isFinite(ticks) ? Math.floor(ticks) : min));
+  chosen = Math.min(max, min + step * Math.round((chosen - min) / step));
+  if (def.available_when && !def.available_when.every((c2) => evalCondition(c2, this))) return;
+  this.pushLog(`${def.label}: \u043D\u0430\u0447\u0430\u043B\u043E \u2014 ${chosen} \u0447.`);
+  runTicksFlow.call(this, {
+    label: def.label,
+    ticks: chosen,
+    perTick: def.per_tick,
+    interruptChance: Math.max(0, Math.min(1, def.interrupt_chance_per_tick ?? 0)),
+    interruptRule: def.interrupt_rule,
+    breakWhen: def.break_when,
+    onFinish: def.on_finish
+  });
+}
+function campRest(ticks) {
+  const cfg = this.campaign.meta.camping;
+  if (!cfg || !this.campAvailable().ok) return;
+  const min = Math.max(1, Math.floor(cfg.min_ticks ?? cfg.ticks ?? 8));
+  const max = Math.max(min, Math.floor(cfg.max_ticks ?? cfg.ticks ?? 8));
+  const chosen = Math.min(max, Math.max(min, Math.floor(ticks ?? cfg.ticks ?? 8)));
+  this.pushLog("\u0412\u044B \u0440\u0430\u0437\u0431\u0438\u0432\u0430\u0435\u0442\u0435 \u043B\u0430\u0433\u0435\u0440\u044C \u0438 \u0443\u0441\u0442\u0440\u0430\u0438\u0432\u0430\u0435\u0442\u0435\u0441\u044C \u043D\u0430 \u043D\u043E\u0447\u043B\u0435\u0433\u2026");
+  runTicksFlow.call(this, {
+    label: "\u041D\u043E\u0447\u043B\u0435\u0433",
+    ticks: chosen,
+    perTick: cfg.per_tick,
+    after: () => {
+      this.restAndGrow();
+      this.restHeal();
+      if (cfg.restore) {
+        for (const [needId, v2] of Object.entries(cfg.restore)) {
+          if (v2 !== 0) this.changeNeed(needId, v2);
+        }
+      }
+      const chance = Math.max(0, Math.min(1, cfg.ambush_chance ?? 0));
+      if (chance > 0 && this.rng.chance(chance)) {
+        this.pushLog("\u041D\u043E\u0447\u044C\u044E \u2014 \u0442\u0440\u0435\u0432\u043E\u0433\u0430! \u0412 \u043B\u0430\u0433\u0435\u0440\u044C \u043A\u0442\u043E-\u0442\u043E \u043F\u0440\u043E\u043A\u0440\u0430\u043B\u0441\u044F!");
+        if (cfg.ambush_rule) this.fireRule(cfg.ambush_rule);
+      } else {
+        this.pushLog("\u041D\u043E\u0447\u044C \u043F\u0440\u043E\u0448\u043B\u0430 \u0441\u043F\u043E\u043A\u043E\u0439\u043D\u043E.");
+      }
+    }
+  });
+}
+function resolveLuckOffer(reroll) {
+  const offer = this.luckOffer;
+  this.luckOffer = null;
+  offer?.decide(reroll);
+  this.notify();
+}
+function applyByCheck(outcome, describe, retry, onOk, onFail) {
+  if (outcome.success) {
+    onOk();
+    return false;
+  }
+  const cfg = this.campaign.meta.luck;
+  const cost = Math.max(1, cfg?.reroll_cost ?? 1);
+  if (!cfg || this.luckMax() <= 0 || this.luck() < cost) {
+    onFail();
+    return false;
+  }
+  this.changeLuck(-cost);
+  this.pushLog(`\u041F\u0440\u043E\u0432\u0430\u043B \u043C\u043E\u0436\u043D\u043E \u0438\u0441\u043F\u0440\u0430\u0432\u0438\u0442\u044C \u0437\u0430 \u0443\u0434\u0430\u0447\u0443: \u2212${cost} (\u043E\u0441\u0442\u0430\u043B\u043E\u0441\u044C ${this.luck()}).`);
+  this.luckOffer = {
+    text: `${describe} \u2014 \u043F\u0440\u043E\u0432\u0430\u043B (d100=${outcome.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${outcome.target}).`,
+    cost,
+    decide: (reroll) => {
+      if (reroll) {
+        const second = retry();
+        this.pushLog(`\u041F\u0435\u0440\u0435\u0431\u0440\u043E\u0441 \u0437\u0430 \u0443\u0434\u0430\u0447\u0443: d100=${second.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${second.target} \u2192 ${CHECK_RESULT_LABEL[second.result]}.`);
+        if (second.success) onOk();
+        else onFail();
+      } else {
+        this.pushLog("\u0423\u0434\u0430\u0447\u0430 \u043F\u0440\u0438\u0431\u0435\u0440\u0435\u0436\u0435\u043D\u0430 \u2014 \u043E\u0441\u0442\u0430\u0451\u0442\u0441\u044F \u043F\u0440\u043E\u0432\u0430\u043B.");
+        onFail();
+      }
+      this.checkRules();
+      this.autosave();
+    }
+  };
+  return true;
+}
+function playerCheckOutcome(target, modifier, describe) {
+  const out = skillCheck(Math.max(1, target), this.rng, modifier, this.diceRules);
+  this.pushLog(`${describe} \u2014 d100=${out.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${out.target}: ${CHECK_RESULT_LABEL[out.result]}`);
+  return out;
+}
+function augmentBonus(e2, fallbackSkill) {
+  let mod = 0;
+  const cfg = this.campaign.meta.augments;
+  const threshold = Math.max(1, cfg?.threshold ?? 50);
+  const bonus = Math.max(0, cfg?.bonus ?? 20);
+  if (e2.augment_passion && this.passion(e2.augment_passion) >= threshold) {
+    mod += bonus;
+    this.pushLog(`\u0421\u0442\u0440\u0430\u0441\u0442\u044C \xAB${this.passionLabel(e2.augment_passion)}\xBB \u043F\u043E\u0434\u0445\u0432\u0430\u0442\u044B\u0432\u0430\u0435\u0442 \u0432\u0430\u0441 (+${bonus}%).`);
+  }
+  if (e2.assist_entity) {
+    const npc = this.campaign.entities[e2.assist_entity];
+    const sk = e2.assist_skill ?? fallbackSkill;
+    if (sk && (npc?.skills?.[sk] ?? 0) >= threshold) {
+      mod += bonus;
+      this.pushLog(`${npc?.label ?? e2.assist_entity} \u043F\u043E\u043C\u043E\u0433\u0430\u0435\u0442 (+${bonus}%).`);
+    }
+  }
+  return mod;
+}
+function statCheck(stat, multiplier = 5, modifier = 0) {
+  return playerCheckOutcome.call(
+    this,
+    (this.state.player.stats[stat] ?? 0) * multiplier,
+    modifier,
+    `\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u0445\u0430\u0440\u0430\u043A\u0442\u0435\u0440\u0438\u0441\u0442\u0438\u043A\u0438 ${stat}\xD7${multiplier}`
+  );
+}
+function opposedCheck(e2) {
+  const skill = e2.skill;
+  const playerValue = Math.max(1, this.skillEffective(skill) + this.statusSkillMod(skill) + augmentBonus.call(this, e2, skill));
+  const player = playerCheckOutcome.call(this, playerValue, 0, `\u041F\u0440\u043E\u0442\u0438\u0432\u043E\u0431\u043E\u0440\u0441\u0442\u0432\u043E \xAB${this.skillLabel(skill)}\xBB (\u0433\u0435\u0440\u043E\u0439)`);
+  let rivalValue;
+  let rivalLabel = "";
+  if (e2.entity) {
+    const npc = this.campaign.entities[e2.entity];
+    const rSkill = e2.against_skill ?? skill;
+    rivalValue = Math.max(1, npc?.skills?.[rSkill] ?? 25);
+    rivalLabel = npc?.label ?? e2.entity;
+    if (npc && e2.against_skill) rivalLabel += ` (${this.skillLabel(rSkill)})`;
+  } else {
+    rivalValue = Math.max(1, e2.against_value ?? 50);
+    rivalLabel = `\u043F\u043E\u0440\u043E\u0433 ${rivalValue}`;
+  }
+  const rival = playerCheckOutcome.call(this, rivalValue, 0, `\u041F\u0440\u043E\u0442\u0438\u0432\u043E\u0431\u043E\u0440\u0441\u0442\u0432\u043E (${rivalLabel})`);
+  const RANK2 = { fumble: 0, fail: 1, success: 2, hard: 3, critical: 4 };
+  const cmp = (RANK2[player.result] ?? 1) - (RANK2[rival.result] ?? 1);
+  const wins = cmp > 0 || cmp === 0 && (e2.tie ?? "player") === "player";
+  if (cmp === 0) this.pushLog(`\u0420\u0430\u0432\u043D\u044B\u0439 \u0438\u0441\u0445\u043E\u0434 \u2014 \u043F\u043E\u0431\u0435\u0434\u0430 ${wins ? "\u0433\u0435\u0440\u043E\u044F" : "\u043E\u043F\u043F\u043E\u043D\u0435\u043D\u0442\u0430"} \u043F\u043E \u0443\u043C\u043E\u043B\u0447\u0430\u043D\u0438\u044E.`);
+  this.pushLog(wins ? "\u0413\u0435\u0440\u043E\u0439 \u043F\u043E\u0431\u0435\u0436\u0434\u0430\u0435\u0442 \u0432 \u043F\u0440\u043E\u0442\u0438\u0432\u043E\u0431\u043E\u0440\u0441\u0442\u0432\u0435." : "\u0413\u0435\u0440\u043E\u0439 \u043F\u0440\u043E\u0438\u0433\u0440\u044B\u0432\u0430\u0435\u0442 \u043F\u0440\u043E\u0442\u0438\u0432\u043E\u0431\u043E\u0440\u0441\u0442\u0432\u043E.");
+  if (player.success) this.markSkill(skill);
+  return { success: wins, player, rival };
+}
+function diceRules() {
+  return world.diceRules(this);
+}
+var DURATION_TICK_EFFECTS, checks;
+var init_checks = __esm({
+  "src/core/checks.ts"() {
+    init_conditions();
+    init_brp();
+    init_world();
+    DURATION_TICK_EFFECTS = /* @__PURE__ */ new Set([
+      "change_need",
+      "change_hp",
+      "change_fatigue",
+      "change_sanity"
+    ]);
+    checks = {
+      luckMax,
+      luck,
+      changeLuck,
+      applyTickEffects,
+      runTicksFlow,
+      interruptTicksFlow,
+      durationRequestInfo,
+      cancelDurationRequest,
+      confirmDurationRequest,
+      requestCampRest,
+      requestDurationAction,
+      runDurationAction,
+      campRest,
+      resolveLuckOffer,
+      applyByCheck,
+      playerCheckOutcome,
+      augmentBonus,
+      statCheck,
+      opposedCheck,
+      diceRules
+    };
+  }
+});
+
+// src/core/economy.ts
+function openTrade(entityId) {
+  if (!featureOn(this.campaign.meta, "trade")) return;
+  const npc = this.campaign.entities[entityId];
+  if (!npc || npc.type !== "npc" || !npc.trader) return;
+  this.dialogue = null;
+  this.dialogueTimer = null;
+  this.trade = npc;
+  this.notify();
+}
+function closeTrade() {
+  this.trade = null;
+  this.autosave();
+  this.notify();
+}
+function openCraft(recipeId, sourceEntity) {
+  if (!featureOn(this.campaign.meta, "inventory")) return;
+  const known = recipeId && this.knownRecipes().some((r2) => r2.id === recipeId);
+  this.dialogue = null;
+  this.dialogueTimer = null;
+  this.activeStory = null;
+  this.activeNpc = null;
+  this.trade = null;
+  if (sourceEntity) this.craftSourceEntity = sourceEntity;
+  this.craftRequest = { recipe: known ? recipeId : void 0 };
+  this.notify();
+}
+function closeCraft() {
+  this.craftRequest = null;
+  this.craftSourceEntity = null;
+  this.autosave();
+  this.notify();
+}
+function priceModifier(npc) {
+  const disp = this.getDisposition(npc.id);
+  const bargain = this.state.player.skills["bargain"] ?? 0;
+  const mod = 1.25 - disp * 3e-3 - bargain * 4e-3;
+  return Math.min(1.6, Math.max(0.7, mod));
+}
+function mainCurrency() {
+  return this.campaign.meta.currencies[0]?.id ?? "silver";
+}
+function currencyItemId(currencyId = this.mainCurrency) {
+  const currency = this.campaign.meta.currencies.find((c2) => c2.id === currencyId);
+  return currency?.item_id || `item_${currencyId}`;
+}
+function currencyAmount(currencyId = this.mainCurrency) {
+  return this.itemCount(this.currencyItemId(currencyId));
+}
+function buyPrice(npc, itemId, basePrice) {
+  const item = this.campaign.entities[itemId];
+  const base = basePrice ?? item?.value?.[this.mainCurrency] ?? 1;
+  const dynamic = item ? this.priceEventMultiplier(item) : 1;
+  const diff = this.difficultyDef()?.prices ?? 1;
+  return Math.max(1, Math.round(base * this.priceModifier(npc) * dynamic * diff));
+}
+function sellPrice(npc, itemId) {
+  const item = this.campaign.entities[itemId];
+  if (item?.quest_item) return 0;
+  const base = item?.value?.[this.mainCurrency] ?? 0;
+  const rate = npc.trader?.buy_rate ?? 0.4;
+  const dynamic = item ? this.priceEventMultiplier(item) : 1;
+  return Math.max(0, Math.floor(base * rate * dynamic / this.priceModifier(npc)));
+}
+function traderSells(npc) {
+  if (!npc.trader) return [];
+  const base = [...npc.trader.sells];
+  const bought = this.state.trader_bought_items?.[npc.id] ?? [];
+  for (const b2 of bought) {
+    if (!base.some((s2) => s2.item === b2.item)) {
+      base.push(b2);
+    }
+  }
+  return base;
+}
+function traderItemStock(npcId, itemId) {
+  const npc = this.campaign.entities[npcId];
+  if (!npc?.trader) return void 0;
+  const traderSaved = this.state.trader_stocks?.[npcId];
+  if (traderSaved && itemId in traderSaved) {
+    return traderSaved[itemId];
+  }
+  const sellDef = npc.trader.sells.find((s2) => s2.item === itemId);
+  if (sellDef && sellDef.stock !== void 0) return sellDef.stock;
+  const boughtDef = (this.state.trader_bought_items?.[npcId] ?? []).find((s2) => s2.item === itemId);
+  if (boughtDef && boughtDef.stock !== void 0) return boughtDef.stock;
+  return void 0;
+}
+function buyItem(itemId, price) {
+  const currencyItem = this.currencyItemId();
+  if (this.itemCount(currencyItem) < price) return false;
+  if (this.trade) {
+    const stock = this.traderItemStock(this.trade.id, itemId);
+    if (stock !== void 0 && stock <= 0) return false;
+  }
+  this.removeItem(currencyItem, price, { silent: true });
+  this.addItem(itemId, 1, { silent: true });
+  if (this.trade) {
+    const stock = this.traderItemStock(this.trade.id, itemId);
+    if (stock !== void 0) {
+      if (!this.state.trader_stocks) this.state.trader_stocks = {};
+      if (!this.state.trader_stocks[this.trade.id]) this.state.trader_stocks[this.trade.id] = {};
+      this.state.trader_stocks[this.trade.id][itemId] = Math.max(0, stock - 1);
+    }
+  }
+  this.markSkill("bargain");
+  playUi("coin");
+  this.notify();
+  return true;
+}
+function sellItem(itemId, price) {
+  const item = this.campaign.entities[itemId];
+  if (item?.quest_item) return false;
+  if (this.itemCount(itemId) < 1) return false;
+  this.removeItem(itemId, 1, { silent: true });
+  this.addItem(this.currencyItemId(), price, { silent: true });
+  if (this.trade) {
+    const traderId = this.trade.id;
+    const npc = this.campaign.entities[traderId];
+    if (npc?.trader) {
+      const inBase = npc.trader.sells.some((s2) => s2.item === itemId);
+      if (inBase) {
+        const curStock = this.traderItemStock(traderId, itemId);
+        if (curStock !== void 0) {
+          if (!this.state.trader_stocks) this.state.trader_stocks = {};
+          if (!this.state.trader_stocks[traderId]) this.state.trader_stocks[traderId] = {};
+          this.state.trader_stocks[traderId][itemId] = curStock + 1;
+        }
+      } else {
+        if (!this.state.trader_bought_items) this.state.trader_bought_items = {};
+        if (!this.state.trader_bought_items[traderId]) this.state.trader_bought_items[traderId] = [];
+        const existing = this.state.trader_bought_items[traderId].find((s2) => s2.item === itemId);
+        const curStock = this.traderItemStock(traderId, itemId) ?? 0;
+        const nextStock = curStock + 1;
+        if (!existing) {
+          this.state.trader_bought_items[traderId].push({ item: itemId, stock: nextStock });
+        } else {
+          existing.stock = nextStock;
+        }
+        if (!this.state.trader_stocks) this.state.trader_stocks = {};
+        if (!this.state.trader_stocks[traderId]) this.state.trader_stocks[traderId] = {};
+        this.state.trader_stocks[traderId][itemId] = nextStock;
+      }
+    }
+  }
+  this.markSkill("bargain");
+  playUi("coin");
+  this.notify();
+  return true;
+}
+function itemTitle(id) {
+  return this.campaign.entities[id]?.label ?? id;
+}
+function allRecipes() {
+  return Object.values(this.campaign.recipes).sort((a2, b2) => a2.label.localeCompare(b2.label, "ru"));
+}
+function isWorkbenchAvailable(workbenchReq) {
+  if (!workbenchReq) return true;
+  if (typeof workbenchReq === "string") {
+    if (this.craftSourceEntity) {
+      if (this.craftSourceEntity.id === workbenchReq || this.craftSourceEntity.category === workbenchReq) {
+        return true;
+      }
+    }
+    const sc2 = this.campaign.scenes[this.state.scene];
+    if (sc2) {
+      const occupants = this.slotOccupants(sc2);
+      for (const occ of occupants) {
+        if (!occ.entity) continue;
+        const it2 = occ.entity;
+        if (it2.id === workbenchReq || it2.category === workbenchReq) return true;
+        if (occ.slot.type.includes(workbenchReq)) return true;
+      }
+    }
+    const loc2 = this.findLocation(this.state.location)?.location;
+    if (loc2 && loc2[workbenchReq]) return true;
+    return false;
+  }
+  if (this.craftRequest || this.craftSourceEntity) return true;
+  const sc = this.campaign.scenes[this.state.scene];
+  if (sc) {
+    if (sc.workbench) return true;
+    const occupants = this.slotOccupants(sc);
+    for (const occ of occupants) {
+      if (!occ.entity) continue;
+      const it2 = occ.entity;
+      if (it2.id === "item_bench" || it2.category === "workbench") return true;
+      if (occ.slot.type.includes("workbench")) return true;
+      if (it2.interact_options?.some((o2) => o2.effects?.some((ef) => ef.type === "open_craft"))) return true;
+    }
+  }
+  const loc = this.findLocation(this.state.location)?.location;
+  if (loc && loc.workbench) return true;
+  return false;
+}
+function workbenchLabel(req) {
+  if (!req) return "";
+  if (req === true) return "\u0412\u0435\u0440\u0441\u0442\u0430\u043A \u0438\u043B\u0438 \u043C\u0430\u0441\u0442\u0435\u0440\u0441\u043A\u0430\u044F";
+  if (typeof req === "string") {
+    const ent = this.campaign.entities[req];
+    if (ent) return ent.label;
+    const cat = this.campaign.meta.item_categories?.find((c2) => c2.id === req);
+    if (cat) return cat.label;
+    return req;
+  }
+  return "";
+}
+function recipeMissing(r2) {
+  const missing = [];
+  if (r2.workbench && !this.isWorkbenchAvailable(r2.workbench)) {
+    missing.push(`\u0442\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F: ${this.workbenchLabel(r2.workbench)}`);
+  }
+  for (const need of r2.inputs ?? []) {
+    const have = this.itemCount(need.item);
+    if (have < need.quantity) missing.push(`${itemTitle.call(this, need.item)} \xD7${need.quantity} (\u0435\u0441\u0442\u044C ${have})`);
+  }
+  for (const tool of r2.tools ?? []) {
+    if (!this.hasItem(tool)) missing.push(`\u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442: ${itemTitle.call(this, tool)}`);
+  }
+  let blocked = false;
+  for (const c2 of r2.requires ?? []) {
+    if (!evalCondition(c2, this)) blocked = true;
+  }
+  if (blocked) missing.push("\u043D\u0435 \u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D\u044B \u0443\u0441\u043B\u043E\u0432\u0438\u044F");
+  return missing;
+}
+function craft(recipeId) {
+  const r2 = this.campaign.recipes[recipeId];
+  if (!r2 || this.recipeMissing(r2).length > 0) return false;
+  if (r2.repair && !this.hasDamaged(r2.output.item)) {
+    this.messages.push({ text: `\u041D\u0435 \u0438\u0437\u043D\u0430\u0448\u0438\u0432\u0448\u0438\u0439\u0441\u044F \xAB${itemTitle.call(this, r2.output.item)}\xBB \u2014 \u0447\u0438\u043D\u0438\u0442\u044C \u043D\u0435\u0447\u0435\u0433\u043E.` });
+    return false;
+  }
+  if (r2.skill) {
+    const out = this.playerSkillCheck(r2.skill.id, r2.skill.difficulty);
+    if (!out.success) {
+      const spent = Math.max(0, Math.floor(r2.fail_time_ticks ?? 0));
+      if (spent > 0 && !this.state.game_over) this.advanceTicks(spent);
+      this.messages.push({ text: `\u041D\u0435 \u043F\u043E\u043B\u0443\u0447\u0438\u043B\u043E\u0441\u044C \u0438\u0437\u0433\u043E\u0442\u043E\u0432\u0438\u0442\u044C \xAB${r2.label}\xBB. \u041C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u044B \u043E\u0441\u0442\u0430\u043B\u0438\u0441\u044C \u0446\u0435\u043B\u044B.${spent > 0 ? ` \u041F\u043E\u0442\u0440\u0430\u0447\u0435\u043D\u043E ${spent} \u0442\u0438\u043A(\u043E\u0432) \u0432\u0440\u0435\u043C\u0435\u043D\u0438.` : ""}` });
+      this.autosave();
+      this.notify();
+      return false;
+    }
+  }
+  for (const need of r2.inputs ?? []) this.removeItem(need.item, need.quantity, { silent: true });
+  if (r2.repair) {
+    this.repairItem(r2.output.item);
+  } else {
+    this.addItem(r2.output.item, r2.output.quantity ?? 1);
+  }
+  if (r2.time_ticks) this.advanceTicks(r2.time_ticks);
+  const outLabel = itemTitle.call(this, r2.output.item);
+  this.pushLog(`\u0418\u0437\u0433\u043E\u0442\u043E\u0432\u043B\u0435\u043D\u043E: ${outLabel} (\u0440\u0435\u0446\u0435\u043F\u0442 \xAB${r2.label}\xBB).`);
+  this.messages.push({ text: r2.message ?? `\u0418\u0437\u0433\u043E\u0442\u043E\u0432\u043B\u0435\u043D\u043E: ${outLabel}.` });
+  if (r2.sound) playInteraction(r2.sound, { sound: r2.sound }, r2.sound_volume ?? 1);
+  else playUi("craft");
+  this.autosave();
+  this.notify();
+  return true;
+}
+function unlockRecipe(recipeId) {
+  const r2 = this.campaign.recipes[recipeId];
+  if (!r2) return;
+  const s2 = this.state;
+  if (!s2.recipes_unlocked) s2.recipes_unlocked = [];
+  if (s2.recipes_unlocked.includes(recipeId)) return;
+  s2.recipes_unlocked.push(recipeId);
+  this.messages.push({ text: `\u041D\u043E\u0432\u044B\u0439 \u0440\u0435\u0446\u0435\u043F\u0442: ${r2.label}.` });
+  this.pushLog(`\u041E\u0442\u043A\u0440\u044B\u0442 \u0440\u0435\u0446\u0435\u043F\u0442: ${r2.label}.`);
+  playInteraction("pickup", {});
+  this.notify();
+  this.autosave();
+}
+function recipeKnown(id) {
+  const r2 = this.campaign.recipes[id];
+  if (!r2) return false;
+  if (r2.known === false && !this.state.recipes_unlocked?.includes(id)) return false;
+  if (r2.conditions && r2.conditions.length > 0) {
+    if (!r2.conditions.every((c2) => evalCondition(c2, this))) return false;
+  }
+  return true;
+}
+function knownRecipes() {
+  return Object.values(this.campaign.recipes).filter((r2) => this.recipeKnown(r2.id)).sort((a2, b2) => a2.label.localeCompare(b2.label, "ru"));
+}
+var economy;
+var init_economy = __esm({
+  "src/core/economy.ts"() {
+    init_caps();
+    init_conditions();
+    init_audio();
+    economy = {
+      openTrade,
+      closeTrade,
+      openCraft,
+      closeCraft,
+      priceModifier,
+      mainCurrency,
+      currencyItemId,
+      currencyAmount,
+      buyPrice,
+      sellPrice,
+      traderSells,
+      traderItemStock,
+      buyItem,
+      sellItem,
+      itemTitle,
+      allRecipes,
+      isWorkbenchAvailable,
+      workbenchLabel,
+      recipeMissing,
+      craft,
+      unlockRecipe,
+      recipeKnown,
+      knownRecipes
+    };
   }
 });
 
@@ -8355,1826 +14080,6 @@ Error:${e4}`);
   }
 });
 
-// src/shared/synth.ts
-function audioCtx() {
-  if (broken) return null;
-  if (typeof window === "undefined") return null;
-  try {
-    if (!ctx) {
-      const AC = window.AudioContext ?? window.webkitAudioContext;
-      if (!AC) {
-        broken = true;
-        return null;
-      }
-      ctx = new AC();
-    }
-    return ctx;
-  } catch {
-    broken = true;
-    return null;
-  }
-}
-function unlockAudio() {
-  const c2 = audioCtx();
-  if (c2 && c2.state === "suspended") void c2.resume();
-}
-function renderSoundDoc(c2, doc) {
-  const key = JSON.stringify(doc.zzfx);
-  const hit = sfxCache.get(key);
-  if (hit) return hit;
-  const p2 = doc.zzfx ?? [];
-  const n2 = (i2, d2) => typeof p2[i2] === "number" && Number.isFinite(p2[i2]) ? p2[i2] : d2;
-  const vol = clamp(n2(0, 1), 0, 1);
-  const random = n2(1, 0.05);
-  const freq0 = Math.max(20, n2(2, 220));
-  const attack = Math.max(0, n2(3, 0));
-  const sustain = Math.max(0, n2(4, 0));
-  const decay = Math.max(0.01, n2(5, 0.1));
-  const shape = Math.max(0, Math.min(4, Math.round(n2(6, 0))));
-  const curve = n2(7, 1);
-  const slide = n2(8, 0);
-  const deltaSlide = n2(9, 0);
-  const pitchJump = n2(10, 0);
-  const pitchJumpTime = n2(11, 0);
-  const repeatTime = n2(12, 0);
-  const noiseAmt = clamp(n2(13, 0), 0, 1);
-  const fm = n2(14, 0);
-  const bitCrush = Math.round(n2(15, 0));
-  const delaySec = n2(16, 0);
-  const sustainVol = clamp(n2(17, 0.7), 0, 1);
-  const decayCurve = n2(18, 1);
-  const clip = clamp(n2(19, 0), 0, 1);
-  const sr = c2.sampleRate;
-  const envLen = attack + sustain + decay;
-  const repeats = repeatTime > 0 ? Math.max(1, Math.min(12, Math.round(envLen / repeatTime))) : 1;
-  const total = envLen * repeats + (delaySec > 0 ? delaySec * 3 : 0) + 0.02;
-  const len = Math.max(1, Math.ceil(total * sr));
-  const buf = c2.createBuffer(1, len, sr);
-  const out = buf.getChannelData(0);
-  const rnd = (0, import_seedrandom2.default)(`zzfx:${key}`);
-  const freqJitter = 1 + (rnd() * 2 - 1) * random;
-  let phase = 0;
-  let echo = delaySec > 0 ? new Array(Math.ceil(delaySec * sr)).fill(0) : [];
-  const echoAt = echo.length;
-  for (let i2 = 0; i2 < len; i2++) {
-    const tGlobal = i2 / sr;
-    const t5 = repeatTime > 0 ? tGlobal % repeatTime : tGlobal;
-    const tIn = repeatTime > 0 ? tGlobal / repeatTime : 0;
-    let env;
-    if (t5 < attack) env = attack > 0 ? t5 / attack : 1;
-    else if (t5 < attack + sustain) env = sustainVol + (1 - sustainVol) * 0.15;
-    else {
-      const dt2 = (t5 - attack - sustain) / decay;
-      env = dt2 >= 1 ? 0 : sustainVol * Math.pow(1 - dt2, 0.5 + decayCurve * 2);
-    }
-    if (env <= 0 && repeatTime <= 0 && t5 > attack + sustain + decay) {
-      out[i2] = 0;
-      continue;
-    }
-    let f2 = freq0 * freqJitter * Math.pow(2, (slide * t5 + 0.5 * deltaSlide * t5 * t5) / 12);
-    if (t5 >= pitchJumpTime && pitchJumpTime > 0) f2 *= Math.pow(2, pitchJump / 12);
-    if (t5 >= pitchJumpTime + 0.08 && pitchJumpTime > 0) f2 /= Math.pow(2, pitchJump / 12);
-    if (fm) f2 *= 1 + fm * Math.sin(2 * Math.PI * f2 * 2 * t5);
-    phase += 2 * Math.PI * f2 / sr;
-    if (repeatTime > 0 && tGlobal > 0 && t5 < tIn * 0) ;
-    const ph = phase % (2 * Math.PI);
-    const norm = ph / (2 * Math.PI);
-    let s2;
-    switch (shape) {
-      case 1:
-        s2 = norm < clamp(0.1 + curve * 0.4, 0.02, 0.98) ? 1 : -1;
-        break;
-      case 2:
-        s2 = 2 * norm - 1;
-        break;
-      case 3:
-        s2 = norm < 0.5 ? 4 * norm - 1 : 3 - 4 * norm;
-        break;
-      case 4:
-        s2 = rnd() * 2 - 1;
-        break;
-      default:
-        s2 = Math.sin(ph);
-    }
-    if (noiseAmt > 0) s2 = s2 * (1 - noiseAmt) + (rnd() * 2 - 1) * noiseAmt;
-    let v2 = s2 * env * vol;
-    if (bitCrush > 0) {
-      const q2 = Math.pow(2, Math.max(1, 16 - bitCrush)) / 32768;
-      v2 = Math.round(v2 / q2) * q2;
-    }
-    if (clip > 0) v2 = Math.max(-clip, Math.min(clip, v2)) * (clip > 0 ? 1 / Math.max(clip, 0.2) : 1) * clip;
-    if (echoAt > 0) {
-      const d2 = i2 - echoAt;
-      v2 += (echo[d2 % echoAt] ?? 0) * 0.35;
-      echo[i2 % echoAt] = v2;
-    }
-    out[i2] = Math.max(-1, Math.min(1, v2));
-  }
-  sfxCache.set(key, buf);
-  return buf;
-}
-function clamp(v2, a2, b2) {
-  return Math.max(a2, Math.min(b2, v2));
-}
-var import_seedrandom2, ctx, broken, sfxCache;
-var init_synth = __esm({
-  "src/shared/synth.ts"() {
-    import_seedrandom2 = __toESM(require_seedrandom2(), 1);
-    ctx = null;
-    broken = false;
-    sfxCache = /* @__PURE__ */ new Map();
-  }
-});
-
-// node_modules/react/cjs/react.production.js
-var require_react_production = __commonJS({
-  "node_modules/react/cjs/react.production.js"(exports) {
-    "use strict";
-    var REACT_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.transitional.element");
-    var REACT_PORTAL_TYPE = /* @__PURE__ */ Symbol.for("react.portal");
-    var REACT_FRAGMENT_TYPE = /* @__PURE__ */ Symbol.for("react.fragment");
-    var REACT_STRICT_MODE_TYPE = /* @__PURE__ */ Symbol.for("react.strict_mode");
-    var REACT_PROFILER_TYPE = /* @__PURE__ */ Symbol.for("react.profiler");
-    var REACT_CONSUMER_TYPE = /* @__PURE__ */ Symbol.for("react.consumer");
-    var REACT_CONTEXT_TYPE = /* @__PURE__ */ Symbol.for("react.context");
-    var REACT_FORWARD_REF_TYPE = /* @__PURE__ */ Symbol.for("react.forward_ref");
-    var REACT_SUSPENSE_TYPE = /* @__PURE__ */ Symbol.for("react.suspense");
-    var REACT_MEMO_TYPE = /* @__PURE__ */ Symbol.for("react.memo");
-    var REACT_LAZY_TYPE = /* @__PURE__ */ Symbol.for("react.lazy");
-    var REACT_ACTIVITY_TYPE = /* @__PURE__ */ Symbol.for("react.activity");
-    var REACT_VIEW_TRANSITION_TYPE = /* @__PURE__ */ Symbol.for("react.view_transition");
-    var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
-    function getIteratorFn(maybeIterable) {
-      if (null === maybeIterable || "object" !== typeof maybeIterable) return null;
-      maybeIterable = MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL] || maybeIterable["@@iterator"];
-      return "function" === typeof maybeIterable ? maybeIterable : null;
-    }
-    var ReactNoopUpdateQueue = {
-      isMounted: function() {
-        return false;
-      },
-      enqueueForceUpdate: function() {
-      },
-      enqueueReplaceState: function() {
-      },
-      enqueueSetState: function() {
-      }
-    };
-    var assign = Object.assign;
-    var emptyObject = {};
-    function Component(props, context, updater) {
-      this.props = props;
-      this.context = context;
-      this.refs = emptyObject;
-      this.updater = updater || ReactNoopUpdateQueue;
-    }
-    Component.prototype.isReactComponent = {};
-    Component.prototype.setState = function(partialState, callback) {
-      if ("object" !== typeof partialState && "function" !== typeof partialState && null != partialState)
-        throw Error(
-          "takes an object of state variables to update or a function which returns an object of state variables."
-        );
-      this.updater.enqueueSetState(this, partialState, callback, "setState");
-    };
-    Component.prototype.forceUpdate = function(callback) {
-      this.updater.enqueueForceUpdate(this, callback, "forceUpdate");
-    };
-    function ComponentDummy() {
-    }
-    ComponentDummy.prototype = Component.prototype;
-    function PureComponent(props, context, updater) {
-      this.props = props;
-      this.context = context;
-      this.refs = emptyObject;
-      this.updater = updater || ReactNoopUpdateQueue;
-    }
-    var pureComponentPrototype = PureComponent.prototype = new ComponentDummy();
-    pureComponentPrototype.constructor = PureComponent;
-    assign(pureComponentPrototype, Component.prototype);
-    pureComponentPrototype.isPureReactComponent = true;
-    var isArrayImpl = Array.isArray;
-    function noop() {
-    }
-    var ReactSharedInternals = { H: null, A: null, T: null, S: null };
-    var hasOwnProperty = Object.prototype.hasOwnProperty;
-    function ReactElement(type, key, props) {
-      var refProp = props.ref;
-      return {
-        $$typeof: REACT_ELEMENT_TYPE,
-        type,
-        key,
-        ref: void 0 !== refProp ? refProp : null,
-        props
-      };
-    }
-    function cloneAndReplaceKey(oldElement, newKey) {
-      return ReactElement(oldElement.type, newKey, oldElement.props);
-    }
-    function isValidElement(object) {
-      return "object" === typeof object && null !== object && object.$$typeof === REACT_ELEMENT_TYPE;
-    }
-    function escape(key) {
-      var escaperLookup = { "=": "=0", ":": "=2" };
-      return "$" + key.replace(/[=:]/g, function(match) {
-        return escaperLookup[match];
-      });
-    }
-    var userProvidedKeyEscapeRegex = /\/+/g;
-    function getElementKey(element, index) {
-      return "object" === typeof element && null !== element && null != element.key ? escape("" + element.key) : index.toString(36);
-    }
-    function resolveThenable(thenable) {
-      switch (thenable.status) {
-        case "fulfilled":
-          return thenable.value;
-        case "rejected":
-          throw thenable.reason;
-        default:
-          switch ("string" === typeof thenable.status ? thenable.then(noop, noop) : (thenable.status = "pending", thenable.then(
-            function(fulfilledValue) {
-              "pending" === thenable.status && (thenable.status = "fulfilled", thenable.value = fulfilledValue);
-            },
-            function(error) {
-              "pending" === thenable.status && (thenable.status = "rejected", thenable.reason = error);
-            }
-          )), thenable.status) {
-            case "fulfilled":
-              return thenable.value;
-            case "rejected":
-              throw thenable.reason;
-          }
-      }
-      throw thenable;
-    }
-    function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
-      var type = typeof children;
-      if ("undefined" === type || "boolean" === type) children = null;
-      var invokeCallback = false;
-      if (null === children) invokeCallback = true;
-      else
-        switch (type) {
-          case "bigint":
-          case "string":
-          case "number":
-            invokeCallback = true;
-            break;
-          case "object":
-            switch (children.$$typeof) {
-              case REACT_ELEMENT_TYPE:
-              case REACT_PORTAL_TYPE:
-                invokeCallback = true;
-                break;
-              case REACT_LAZY_TYPE:
-                return invokeCallback = children._init, mapIntoArray(
-                  invokeCallback(children._payload),
-                  array,
-                  escapedPrefix,
-                  nameSoFar,
-                  callback
-                );
-            }
-        }
-      if (invokeCallback)
-        return callback = callback(children), invokeCallback = "" === nameSoFar ? "." + getElementKey(children, 0) : nameSoFar, isArrayImpl(callback) ? (escapedPrefix = "", null != invokeCallback && (escapedPrefix = invokeCallback.replace(userProvidedKeyEscapeRegex, "$&/") + "/"), mapIntoArray(callback, array, escapedPrefix, "", function(c2) {
-          return c2;
-        })) : null != callback && (isValidElement(callback) && (callback = cloneAndReplaceKey(
-          callback,
-          escapedPrefix + (null == callback.key || children && children.key === callback.key ? "" : ("" + callback.key).replace(
-            userProvidedKeyEscapeRegex,
-            "$&/"
-          ) + "/") + invokeCallback
-        )), array.push(callback)), 1;
-      invokeCallback = 0;
-      var nextNamePrefix = "" === nameSoFar ? "." : nameSoFar + ":";
-      if (isArrayImpl(children))
-        for (var i2 = 0; i2 < children.length; i2++)
-          nameSoFar = children[i2], type = nextNamePrefix + getElementKey(nameSoFar, i2), invokeCallback += mapIntoArray(
-            nameSoFar,
-            array,
-            escapedPrefix,
-            type,
-            callback
-          );
-      else if (i2 = getIteratorFn(children), "function" === typeof i2)
-        for (children = i2.call(children), i2 = 0; !(nameSoFar = children.next()).done; )
-          nameSoFar = nameSoFar.value, type = nextNamePrefix + getElementKey(nameSoFar, i2++), invokeCallback += mapIntoArray(
-            nameSoFar,
-            array,
-            escapedPrefix,
-            type,
-            callback
-          );
-      else if ("object" === type) {
-        if ("function" === typeof children.then)
-          return mapIntoArray(
-            resolveThenable(children),
-            array,
-            escapedPrefix,
-            nameSoFar,
-            callback
-          );
-        array = String(children);
-        throw Error(
-          "Objects are not valid as a React child (found: " + ("[object Object]" === array ? "object with keys {" + Object.keys(children).join(", ") + "}" : array) + "). If you meant to render a collection of children, use an array instead."
-        );
-      }
-      return invokeCallback;
-    }
-    function mapChildren(children, func, context) {
-      if (null == children) return children;
-      var result = [], count = 0;
-      mapIntoArray(children, result, "", "", function(child) {
-        return func.call(context, child, count++);
-      });
-      return result;
-    }
-    function lazyInitializer(payload) {
-      if (-1 === payload._status) {
-        var ctor = payload._result, thenable = ctor();
-        thenable.then(
-          function(moduleObject) {
-            if (0 === payload._status || -1 === payload._status)
-              payload._status = 1, payload._result = moduleObject, void 0 === thenable.status && (thenable.status = "fulfilled", thenable.value = moduleObject);
-          },
-          function(error) {
-            if (0 === payload._status || -1 === payload._status)
-              payload._status = 2, payload._result = error, void 0 === thenable.status && (thenable.status = "rejected", thenable.reason = error);
-          }
-        );
-        -1 === payload._status && (payload._status = 0, payload._result = thenable);
-      }
-      if (1 === payload._status) return payload._result.default;
-      throw payload._result;
-    }
-    var reportGlobalError = "function" === typeof reportError ? reportError : function(error) {
-      if ("object" === typeof window && "function" === typeof window.ErrorEvent) {
-        var event = new window.ErrorEvent("error", {
-          bubbles: true,
-          cancelable: true,
-          message: "object" === typeof error && null !== error && "string" === typeof error.message ? String(error.message) : String(error),
-          error
-        });
-        if (!window.dispatchEvent(event)) return;
-      } else if ("object" === typeof process && "function" === typeof process.emit) {
-        process.emit("uncaughtException", error);
-        return;
-      }
-      console.error(error);
-    };
-    function startTransition(scope) {
-      var prevTransition = ReactSharedInternals.T, currentTransition = {};
-      currentTransition.types = null !== prevTransition ? prevTransition.types : null;
-      ReactSharedInternals.T = currentTransition;
-      try {
-        var returnValue = scope(), onStartTransitionFinish = ReactSharedInternals.S;
-        null !== onStartTransitionFinish && onStartTransitionFinish(currentTransition, returnValue);
-        "object" === typeof returnValue && null !== returnValue && "function" === typeof returnValue.then && returnValue.then(noop, reportGlobalError);
-      } catch (error) {
-        reportGlobalError(error);
-      } finally {
-        null !== prevTransition && null !== currentTransition.types && (prevTransition.types = currentTransition.types), ReactSharedInternals.T = prevTransition;
-      }
-    }
-    function addTransitionType(type) {
-      var transition = ReactSharedInternals.T;
-      if (null !== transition) {
-        var transitionTypes = transition.types;
-        null === transitionTypes ? transition.types = [type] : -1 === transitionTypes.indexOf(type) && transitionTypes.push(type);
-      } else startTransition(addTransitionType.bind(null, type));
-    }
-    var Children = {
-      map: mapChildren,
-      forEach: function(children, forEachFunc, forEachContext) {
-        mapChildren(
-          children,
-          function() {
-            forEachFunc.apply(this, arguments);
-          },
-          forEachContext
-        );
-      },
-      count: function(children) {
-        var n2 = 0;
-        mapChildren(children, function() {
-          n2++;
-        });
-        return n2;
-      },
-      toArray: function(children) {
-        return mapChildren(children, function(child) {
-          return child;
-        }) || [];
-      },
-      only: function(children) {
-        if (!isValidElement(children))
-          throw Error(
-            "React.Children.only expected to receive a single React element child."
-          );
-        return children;
-      }
-    };
-    exports.Activity = REACT_ACTIVITY_TYPE;
-    exports.Children = Children;
-    exports.Component = Component;
-    exports.Fragment = REACT_FRAGMENT_TYPE;
-    exports.Profiler = REACT_PROFILER_TYPE;
-    exports.PureComponent = PureComponent;
-    exports.StrictMode = REACT_STRICT_MODE_TYPE;
-    exports.Suspense = REACT_SUSPENSE_TYPE;
-    exports.ViewTransition = REACT_VIEW_TRANSITION_TYPE;
-    exports.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = ReactSharedInternals;
-    exports.__COMPILER_RUNTIME = {
-      __proto__: null,
-      c: function(size) {
-        return ReactSharedInternals.H.useMemoCache(size);
-      }
-    };
-    exports.addTransitionType = addTransitionType;
-    exports.cache = function(fn) {
-      return function() {
-        return fn.apply(null, arguments);
-      };
-    };
-    exports.cacheSignal = function() {
-      return null;
-    };
-    exports.cloneElement = function(element, config, children) {
-      if (null === element || void 0 === element)
-        throw Error(
-          "The argument must be a React element, but you passed " + element + "."
-        );
-      var props = assign({}, element.props), key = element.key;
-      if (null != config)
-        for (propName in void 0 !== config.key && (key = "" + config.key), config)
-          !hasOwnProperty.call(config, propName) || "key" === propName || "__self" === propName || "__source" === propName || "ref" === propName && void 0 === config.ref || (props[propName] = config[propName]);
-      var propName = arguments.length - 2;
-      if (1 === propName) props.children = children;
-      else if (1 < propName) {
-        for (var childArray = Array(propName), i2 = 0; i2 < propName; i2++)
-          childArray[i2] = arguments[i2 + 2];
-        props.children = childArray;
-      }
-      return ReactElement(element.type, key, props);
-    };
-    exports.createContext = function(defaultValue) {
-      defaultValue = {
-        $$typeof: REACT_CONTEXT_TYPE,
-        _currentValue: defaultValue,
-        _currentValue2: defaultValue,
-        _threadCount: 0,
-        Provider: null,
-        Consumer: null
-      };
-      defaultValue.Provider = defaultValue;
-      defaultValue.Consumer = {
-        $$typeof: REACT_CONSUMER_TYPE,
-        _context: defaultValue
-      };
-      return defaultValue;
-    };
-    exports.createElement = function(type, config, children) {
-      var propName, props = {}, key = null;
-      if (null != config)
-        for (propName in void 0 !== config.key && (key = "" + config.key), config)
-          hasOwnProperty.call(config, propName) && "key" !== propName && "__self" !== propName && "__source" !== propName && (props[propName] = config[propName]);
-      var childrenLength = arguments.length - 2;
-      if (1 === childrenLength) props.children = children;
-      else if (1 < childrenLength) {
-        for (var childArray = Array(childrenLength), i2 = 0; i2 < childrenLength; i2++)
-          childArray[i2] = arguments[i2 + 2];
-        props.children = childArray;
-      }
-      if (type && type.defaultProps)
-        for (propName in childrenLength = type.defaultProps, childrenLength)
-          void 0 === props[propName] && (props[propName] = childrenLength[propName]);
-      return ReactElement(type, key, props);
-    };
-    exports.createRef = function() {
-      return { current: null };
-    };
-    exports.forwardRef = function(render) {
-      return { $$typeof: REACT_FORWARD_REF_TYPE, render };
-    };
-    exports.isValidElement = isValidElement;
-    exports.lazy = function(ctor) {
-      return {
-        $$typeof: REACT_LAZY_TYPE,
-        _payload: { _status: -1, _result: ctor },
-        _init: lazyInitializer
-      };
-    };
-    exports.memo = function(type, compare) {
-      return {
-        $$typeof: REACT_MEMO_TYPE,
-        type,
-        compare: void 0 === compare ? null : compare
-      };
-    };
-    exports.startTransition = startTransition;
-    exports.unstable_useCacheRefresh = function() {
-      return ReactSharedInternals.H.useCacheRefresh();
-    };
-    exports.use = function(usable) {
-      return ReactSharedInternals.H.use(usable);
-    };
-    exports.useActionState = function(action, initialState, permalink) {
-      return ReactSharedInternals.H.useActionState(action, initialState, permalink);
-    };
-    exports.useCallback = function(callback, deps) {
-      return ReactSharedInternals.H.useCallback(callback, deps);
-    };
-    exports.useContext = function(Context) {
-      return ReactSharedInternals.H.useContext(Context);
-    };
-    exports.useDebugValue = function() {
-    };
-    exports.useDeferredValue = function(value, initialValue) {
-      return ReactSharedInternals.H.useDeferredValue(value, initialValue);
-    };
-    exports.useEffect = function(create, deps) {
-      return ReactSharedInternals.H.useEffect(create, deps);
-    };
-    exports.useEffectEvent = function(callback) {
-      return ReactSharedInternals.H.useEffectEvent(callback);
-    };
-    exports.useId = function() {
-      return ReactSharedInternals.H.useId();
-    };
-    exports.useImperativeHandle = function(ref, create, deps) {
-      return ReactSharedInternals.H.useImperativeHandle(ref, create, deps);
-    };
-    exports.useInsertionEffect = function(create, deps) {
-      return ReactSharedInternals.H.useInsertionEffect(create, deps);
-    };
-    exports.useLayoutEffect = function(create, deps) {
-      return ReactSharedInternals.H.useLayoutEffect(create, deps);
-    };
-    exports.useMemo = function(create, deps) {
-      return ReactSharedInternals.H.useMemo(create, deps);
-    };
-    exports.useOptimistic = function(passthrough, reducer) {
-      return ReactSharedInternals.H.useOptimistic(passthrough, reducer);
-    };
-    exports.useReducer = function(reducer, initialArg, init) {
-      return ReactSharedInternals.H.useReducer(reducer, initialArg, init);
-    };
-    exports.useRef = function(initialValue) {
-      return ReactSharedInternals.H.useRef(initialValue);
-    };
-    exports.useState = function(initialState) {
-      return ReactSharedInternals.H.useState(initialState);
-    };
-    exports.useSyncExternalStore = function(subscribe, getSnapshot, getServerSnapshot) {
-      return ReactSharedInternals.H.useSyncExternalStore(
-        subscribe,
-        getSnapshot,
-        getServerSnapshot
-      );
-    };
-    exports.useTransition = function() {
-      return ReactSharedInternals.H.useTransition();
-    };
-    exports.version = "19.3.0";
-  }
-});
-
-// node_modules/react/cjs/react.development.js
-var require_react_development = __commonJS({
-  "node_modules/react/cjs/react.development.js"(exports, module) {
-    "use strict";
-    "production" !== process.env.NODE_ENV && (function() {
-      function defineDeprecationWarning(methodName, info) {
-        Object.defineProperty(Component.prototype, methodName, {
-          get: function() {
-            console.warn(
-              "%s(...) is deprecated in plain JavaScript React classes. %s",
-              info[0],
-              info[1]
-            );
-          }
-        });
-      }
-      function getIteratorFn(maybeIterable) {
-        if (null === maybeIterable || "object" !== typeof maybeIterable)
-          return null;
-        maybeIterable = MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL] || maybeIterable["@@iterator"];
-        return "function" === typeof maybeIterable ? maybeIterable : null;
-      }
-      function warnNoop(publicInstance, callerName) {
-        publicInstance = (publicInstance = publicInstance.constructor) && (publicInstance.displayName || publicInstance.name) || "ReactClass";
-        var warningKey = publicInstance + "." + callerName;
-        didWarnStateUpdateForUnmountedComponent[warningKey] || (console.error(
-          "Can't call %s on a component that is not yet mounted. This is a no-op, but it might indicate a bug in your application. Instead, assign to `this.state` directly or define a `state = {};` class property with the desired state in the %s component.",
-          callerName,
-          publicInstance
-        ), didWarnStateUpdateForUnmountedComponent[warningKey] = true);
-      }
-      function Component(props, context, updater) {
-        this.props = props;
-        this.context = context;
-        this.refs = emptyObject;
-        this.updater = updater || ReactNoopUpdateQueue;
-      }
-      function ComponentDummy() {
-      }
-      function PureComponent(props, context, updater) {
-        this.props = props;
-        this.context = context;
-        this.refs = emptyObject;
-        this.updater = updater || ReactNoopUpdateQueue;
-      }
-      function noop() {
-      }
-      function testStringCoercion(value) {
-        return "" + value;
-      }
-      function checkKeyStringCoercion(value) {
-        try {
-          testStringCoercion(value);
-          var JSCompiler_inline_result = false;
-        } catch (e2) {
-          JSCompiler_inline_result = true;
-        }
-        if (JSCompiler_inline_result) {
-          JSCompiler_inline_result = console;
-          var JSCompiler_temp_const = JSCompiler_inline_result.error;
-          var JSCompiler_inline_result$jscomp$0 = "function" === typeof Symbol && Symbol.toStringTag && value[Symbol.toStringTag] || value.constructor.name || "Object";
-          JSCompiler_temp_const.call(
-            JSCompiler_inline_result,
-            "The provided key is an unsupported type %s. This value must be coerced to a string before using it here.",
-            JSCompiler_inline_result$jscomp$0
-          );
-          return testStringCoercion(value);
-        }
-      }
-      function getComponentNameFromType(type) {
-        if (null == type) return null;
-        if ("function" === typeof type)
-          return type.$$typeof === REACT_CLIENT_REFERENCE ? null : type.displayName || type.name || null;
-        if ("string" === typeof type) return type;
-        switch (type) {
-          case REACT_FRAGMENT_TYPE:
-            return "Fragment";
-          case REACT_PROFILER_TYPE:
-            return "Profiler";
-          case REACT_STRICT_MODE_TYPE:
-            return "StrictMode";
-          case REACT_SUSPENSE_TYPE:
-            return "Suspense";
-          case REACT_SUSPENSE_LIST_TYPE:
-            return "SuspenseList";
-          case REACT_ACTIVITY_TYPE:
-            return "Activity";
-          case REACT_VIEW_TRANSITION_TYPE:
-            return "ViewTransition";
-        }
-        if ("object" === typeof type)
-          switch ("number" === typeof type.tag && console.error(
-            "Received an unexpected object in getComponentNameFromType(). This is likely a bug in React. Please file an issue."
-          ), type.$$typeof) {
-            case REACT_PORTAL_TYPE:
-              return "Portal";
-            case REACT_CONTEXT_TYPE:
-              return type.displayName || "Context";
-            case REACT_CONSUMER_TYPE:
-              return (type._context.displayName || "Context") + ".Consumer";
-            case REACT_FORWARD_REF_TYPE:
-              var innerType = type.render;
-              type = type.displayName;
-              type || (type = innerType.displayName || innerType.name || "", type = "" !== type ? "ForwardRef(" + type + ")" : "ForwardRef");
-              return type;
-            case REACT_MEMO_TYPE:
-              return innerType = type.displayName || null, null !== innerType ? innerType : getComponentNameFromType(type.type) || "Memo";
-            case REACT_LAZY_TYPE:
-              innerType = type._payload;
-              type = type._init;
-              try {
-                return getComponentNameFromType(type(innerType));
-              } catch (x2) {
-              }
-          }
-        return null;
-      }
-      function getTaskName(type) {
-        if (type === REACT_FRAGMENT_TYPE) return "<>";
-        if ("object" === typeof type && null !== type && type.$$typeof === REACT_LAZY_TYPE)
-          return "<...>";
-        try {
-          var name = getComponentNameFromType(type);
-          return name ? "<" + name + ">" : "<...>";
-        } catch (x2) {
-          return "<...>";
-        }
-      }
-      function getOwner() {
-        var dispatcher = ReactSharedInternals.A;
-        return null === dispatcher ? null : dispatcher.getOwner();
-      }
-      function UnknownOwner() {
-        return Error("react-stack-top-frame");
-      }
-      function hasValidKey(config) {
-        if (hasOwnProperty.call(config, "key")) {
-          var getter = Object.getOwnPropertyDescriptor(config, "key").get;
-          if (getter && getter.isReactWarning) return false;
-        }
-        return void 0 !== config.key;
-      }
-      function defineKeyPropWarningGetter(props, displayName) {
-        function warnAboutAccessingKey() {
-          specialPropKeyWarningShown || (specialPropKeyWarningShown = true, console.error(
-            "%s: `key` is not a prop. Trying to access it will result in `undefined` being returned. If you need to access the same value within the child component, you should pass it as a different prop. (https://react.dev/link/special-props)",
-            displayName
-          ));
-        }
-        warnAboutAccessingKey.isReactWarning = true;
-        Object.defineProperty(props, "key", {
-          get: warnAboutAccessingKey,
-          configurable: true
-        });
-      }
-      function elementRefGetterWithDeprecationWarning() {
-        var componentName = getComponentNameFromType(this.type);
-        didWarnAboutElementRef[componentName] || (didWarnAboutElementRef[componentName] = true, console.error(
-          "Accessing element.ref was removed in React 19. ref is now a regular prop. It will be removed from the JSX Element type in a future release."
-        ));
-        componentName = this.props.ref;
-        return void 0 !== componentName ? componentName : null;
-      }
-      function ReactElement(type, key, props, owner, debugStack, debugTask) {
-        var refProp = props.ref;
-        type = {
-          $$typeof: REACT_ELEMENT_TYPE,
-          type,
-          key,
-          props,
-          _owner: owner
-        };
-        null !== (void 0 !== refProp ? refProp : null) ? Object.defineProperty(type, "ref", {
-          enumerable: false,
-          get: elementRefGetterWithDeprecationWarning
-        }) : Object.defineProperty(type, "ref", { enumerable: false, value: null });
-        type._store = {};
-        Object.defineProperty(type._store, "validated", {
-          configurable: false,
-          enumerable: false,
-          writable: true,
-          value: 0
-        });
-        Object.defineProperty(type, "_debugInfo", {
-          configurable: false,
-          enumerable: false,
-          writable: true,
-          value: null
-        });
-        Object.defineProperty(type, "_debugStack", {
-          configurable: false,
-          enumerable: false,
-          writable: true,
-          value: debugStack
-        });
-        Object.defineProperty(type, "_debugTask", {
-          configurable: false,
-          enumerable: false,
-          writable: true,
-          value: debugTask
-        });
-        Object.freeze && (Object.freeze(type.props), Object.freeze(type));
-        return type;
-      }
-      function cloneAndReplaceKey(oldElement, newKey) {
-        newKey = ReactElement(
-          oldElement.type,
-          newKey,
-          oldElement.props,
-          oldElement._owner,
-          oldElement._debugStack,
-          oldElement._debugTask
-        );
-        oldElement._store && (newKey._store.validated = oldElement._store.validated);
-        return newKey;
-      }
-      function validateChildKeys(node) {
-        isValidElement(node) ? node._store && (node._store.validated = 1) : "object" === typeof node && null !== node && node.$$typeof === REACT_LAZY_TYPE && ("fulfilled" === node._payload.status ? isValidElement(node._payload.value) && node._payload.value._store && (node._payload.value._store.validated = 1) : node._store && (node._store.validated = 1));
-      }
-      function isValidElement(object) {
-        return "object" === typeof object && null !== object && object.$$typeof === REACT_ELEMENT_TYPE;
-      }
-      function escape(key) {
-        var escaperLookup = { "=": "=0", ":": "=2" };
-        return "$" + key.replace(/[=:]/g, function(match) {
-          return escaperLookup[match];
-        });
-      }
-      function getElementKey(element, index) {
-        return "object" === typeof element && null !== element && null != element.key ? (checkKeyStringCoercion(element.key), escape("" + element.key)) : index.toString(36);
-      }
-      function resolveThenable(thenable) {
-        switch (thenable.status) {
-          case "fulfilled":
-            return thenable.value;
-          case "rejected":
-            throw thenable.reason;
-          default:
-            switch ("string" === typeof thenable.status ? thenable.then(noop, noop) : (thenable.status = "pending", thenable.then(
-              function(fulfilledValue) {
-                "pending" === thenable.status && (thenable.status = "fulfilled", thenable.value = fulfilledValue);
-              },
-              function(error) {
-                "pending" === thenable.status && (thenable.status = "rejected", thenable.reason = error);
-              }
-            )), thenable.status) {
-              case "fulfilled":
-                return thenable.value;
-              case "rejected":
-                throw thenable.reason;
-            }
-        }
-        throw thenable;
-      }
-      function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
-        var type = typeof children;
-        if ("undefined" === type || "boolean" === type) children = null;
-        var invokeCallback = false;
-        if (null === children) invokeCallback = true;
-        else
-          switch (type) {
-            case "bigint":
-            case "string":
-            case "number":
-              invokeCallback = true;
-              break;
-            case "object":
-              switch (children.$$typeof) {
-                case REACT_ELEMENT_TYPE:
-                case REACT_PORTAL_TYPE:
-                  invokeCallback = true;
-                  break;
-                case REACT_LAZY_TYPE:
-                  return invokeCallback = children._init, mapIntoArray(
-                    invokeCallback(children._payload),
-                    array,
-                    escapedPrefix,
-                    nameSoFar,
-                    callback
-                  );
-              }
-          }
-        if (invokeCallback) {
-          invokeCallback = children;
-          callback = callback(invokeCallback);
-          var childKey = "" === nameSoFar ? "." + getElementKey(invokeCallback, 0) : nameSoFar;
-          isArrayImpl(callback) ? (escapedPrefix = "", null != childKey && (escapedPrefix = childKey.replace(userProvidedKeyEscapeRegex, "$&/") + "/"), mapIntoArray(callback, array, escapedPrefix, "", function(c2) {
-            return c2;
-          })) : null != callback && (isValidElement(callback) && (null != callback.key && (invokeCallback && invokeCallback.key === callback.key || checkKeyStringCoercion(callback.key)), escapedPrefix = cloneAndReplaceKey(
-            callback,
-            escapedPrefix + (null == callback.key || invokeCallback && invokeCallback.key === callback.key ? "" : ("" + callback.key).replace(
-              userProvidedKeyEscapeRegex,
-              "$&/"
-            ) + "/") + childKey
-          ), "" !== nameSoFar && null != invokeCallback && isValidElement(invokeCallback) && null == invokeCallback.key && invokeCallback._store && !invokeCallback._store.validated && (escapedPrefix._store.validated = 2), callback = escapedPrefix), array.push(callback));
-          return 1;
-        }
-        invokeCallback = 0;
-        childKey = "" === nameSoFar ? "." : nameSoFar + ":";
-        if (isArrayImpl(children))
-          for (var i2 = 0; i2 < children.length; i2++)
-            nameSoFar = children[i2], type = childKey + getElementKey(nameSoFar, i2), invokeCallback += mapIntoArray(
-              nameSoFar,
-              array,
-              escapedPrefix,
-              type,
-              callback
-            );
-        else if (i2 = getIteratorFn(children), "function" === typeof i2)
-          for (i2 === children.entries && (didWarnAboutMaps || console.warn(
-            "Using Maps as children is not supported. Use an array of keyed ReactElements instead."
-          ), didWarnAboutMaps = true), children = i2.call(children), i2 = 0; !(nameSoFar = children.next()).done; )
-            nameSoFar = nameSoFar.value, type = childKey + getElementKey(nameSoFar, i2++), invokeCallback += mapIntoArray(
-              nameSoFar,
-              array,
-              escapedPrefix,
-              type,
-              callback
-            );
-        else if ("object" === type) {
-          if ("function" === typeof children.then)
-            return mapIntoArray(
-              resolveThenable(children),
-              array,
-              escapedPrefix,
-              nameSoFar,
-              callback
-            );
-          array = String(children);
-          throw Error(
-            "Objects are not valid as a React child (found: " + ("[object Object]" === array ? "object with keys {" + Object.keys(children).join(", ") + "}" : array) + "). If you meant to render a collection of children, use an array instead."
-          );
-        }
-        return invokeCallback;
-      }
-      function mapChildren(children, func, context) {
-        if (null == children) return children;
-        var result = [], count = 0;
-        mapIntoArray(children, result, "", "", function(child) {
-          return func.call(context, child, count++);
-        });
-        return result;
-      }
-      function lazyInitializer(payload) {
-        if (-1 === payload._status) {
-          var resolveDebugValue = null, rejectDebugValue = null, ioInfo = payload._ioInfo;
-          null != ioInfo && (ioInfo.start = ioInfo.end = performance.now(), ioInfo.value = new Promise(function(resolve2, reject) {
-            resolveDebugValue = resolve2;
-            rejectDebugValue = reject;
-          }));
-          ioInfo = payload._result;
-          var thenable = ioInfo();
-          thenable.then(
-            function(moduleObject) {
-              if (0 === payload._status || -1 === payload._status) {
-                payload._status = 1;
-                payload._result = moduleObject;
-                var _ioInfo = payload._ioInfo;
-                if (null != _ioInfo) {
-                  _ioInfo.end = performance.now();
-                  var debugValue = null == moduleObject ? void 0 : moduleObject.default;
-                  resolveDebugValue(debugValue);
-                  _ioInfo.value.status = "fulfilled";
-                  _ioInfo.value.value = debugValue;
-                }
-                void 0 === thenable.status && (thenable.status = "fulfilled", thenable.value = moduleObject);
-              }
-            },
-            function(error) {
-              if (0 === payload._status || -1 === payload._status) {
-                payload._status = 2;
-                payload._result = error;
-                var _ioInfo2 = payload._ioInfo;
-                null != _ioInfo2 && (_ioInfo2.end = performance.now(), _ioInfo2.value.then(noop, noop), rejectDebugValue(error), _ioInfo2.value.status = "rejected", _ioInfo2.value.reason = error);
-                void 0 === thenable.status && (thenable.status = "rejected", thenable.reason = error);
-              }
-            }
-          );
-          ioInfo = payload._ioInfo;
-          if (null != ioInfo) {
-            var displayName = thenable.displayName;
-            "string" === typeof displayName && (ioInfo.name = displayName);
-          }
-          -1 === payload._status && (payload._status = 0, payload._result = thenable);
-        }
-        if (1 === payload._status)
-          return ioInfo = payload._result, void 0 === ioInfo && console.error(
-            "lazy: Expected the result of a dynamic import() call. Instead received: %s\n\nYour code should look like: \n  const MyComponent = lazy(() => import('./MyComponent'))\n\nDid you accidentally put curly braces around the import?",
-            ioInfo
-          ), "default" in ioInfo || console.error(
-            "lazy: Expected the result of a dynamic import() call. Instead received: %s\n\nYour code should look like: \n  const MyComponent = lazy(() => import('./MyComponent'))",
-            ioInfo
-          ), ioInfo.default;
-        throw payload._result;
-      }
-      function resolveDispatcher() {
-        var dispatcher = ReactSharedInternals.H;
-        null === dispatcher && console.error(
-          "Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:\n1. You might have mismatching versions of React and the renderer (such as React DOM)\n2. You might be breaking the Rules of Hooks\n3. You might have more than one copy of React in the same app\nSee https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem."
-        );
-        return dispatcher;
-      }
-      function releaseAsyncTransition() {
-        ReactSharedInternals.asyncTransitions--;
-      }
-      function startTransition(scope) {
-        var prevTransition = ReactSharedInternals.T, currentTransition = {};
-        currentTransition.types = null !== prevTransition ? prevTransition.types : null;
-        currentTransition._updatedFibers = /* @__PURE__ */ new Set();
-        ReactSharedInternals.T = currentTransition;
-        try {
-          var returnValue = scope(), onStartTransitionFinish = ReactSharedInternals.S;
-          null !== onStartTransitionFinish && onStartTransitionFinish(currentTransition, returnValue);
-          "object" === typeof returnValue && null !== returnValue && "function" === typeof returnValue.then && (ReactSharedInternals.asyncTransitions++, returnValue.then(releaseAsyncTransition, releaseAsyncTransition), returnValue.then(noop, reportGlobalError));
-        } catch (error) {
-          reportGlobalError(error);
-        } finally {
-          null === prevTransition && currentTransition._updatedFibers && (scope = currentTransition._updatedFibers.size, currentTransition._updatedFibers.clear(), 10 < scope && console.warn(
-            "Detected a large number of updates inside startTransition. If this is due to a subscription please re-write it to use React provided hooks. Otherwise concurrent mode guarantees are off the table."
-          )), null !== prevTransition && null !== currentTransition.types && (null !== prevTransition.types && prevTransition.types !== currentTransition.types && console.error(
-            "We expected inner Transitions to have transferred the outer types set and that you cannot add to the outer Transition while inside the inner.This is a bug in React."
-          ), prevTransition.types = currentTransition.types), ReactSharedInternals.T = prevTransition;
-        }
-      }
-      function addTransitionType(type) {
-        var transition = ReactSharedInternals.T;
-        if (null !== transition) {
-          var transitionTypes = transition.types;
-          null === transitionTypes ? transition.types = [type] : -1 === transitionTypes.indexOf(type) && transitionTypes.push(type);
-        } else
-          0 === ReactSharedInternals.asyncTransitions && console.error(
-            "addTransitionType can only be called inside a `startTransition()` callback. It must be associated with a specific Transition."
-          ), startTransition(addTransitionType.bind(null, type));
-      }
-      function enqueueTask(task) {
-        if (null === enqueueTaskImpl)
-          try {
-            var requireString = ("require" + Math.random()).slice(0, 7);
-            enqueueTaskImpl = (module && module[requireString]).call(
-              module,
-              "timers"
-            ).setImmediate;
-          } catch (_err) {
-            enqueueTaskImpl = function(callback) {
-              false === didWarnAboutMessageChannel && (didWarnAboutMessageChannel = true, "undefined" === typeof MessageChannel && console.error(
-                "This browser does not have a MessageChannel implementation, so enqueuing tasks via await act(async () => ...) will fail. Please file an issue at https://github.com/facebook/react/issues if you encounter this warning."
-              ));
-              var channel = new MessageChannel();
-              channel.port1.onmessage = callback;
-              channel.port2.postMessage(void 0);
-            };
-          }
-        return enqueueTaskImpl(task);
-      }
-      function aggregateErrors(errors) {
-        return 1 < errors.length && "function" === typeof AggregateError ? new AggregateError(errors) : errors[0];
-      }
-      function popActScope(prevActQueue, prevActScopeDepth) {
-        prevActScopeDepth !== actScopeDepth - 1 && console.error(
-          "You seem to have overlapping act() calls, this is not supported. Be sure to await previous act() calls before making a new one. "
-        );
-        actScopeDepth = prevActScopeDepth;
-      }
-      function recursivelyFlushAsyncActWork(returnValue, resolve2, reject) {
-        var queue2 = ReactSharedInternals.actQueue;
-        if (null !== queue2)
-          if (0 !== queue2.length)
-            try {
-              flushActQueue(queue2);
-              enqueueTask(function() {
-                return recursivelyFlushAsyncActWork(returnValue, resolve2, reject);
-              });
-              return;
-            } catch (error) {
-              ReactSharedInternals.thrownErrors.push(error);
-            }
-          else ReactSharedInternals.actQueue = null;
-        0 < ReactSharedInternals.thrownErrors.length ? (queue2 = aggregateErrors(ReactSharedInternals.thrownErrors), ReactSharedInternals.thrownErrors.length = 0, reject(queue2)) : resolve2(returnValue);
-      }
-      function flushActQueue(queue2) {
-        if (!isFlushing) {
-          isFlushing = true;
-          var i2 = 0;
-          try {
-            for (; i2 < queue2.length; i2++) {
-              var callback = queue2[i2];
-              do {
-                ReactSharedInternals.didUsePromise = false;
-                var continuation = callback(false);
-                if (null !== continuation) {
-                  if (ReactSharedInternals.didUsePromise) {
-                    queue2[i2] = callback;
-                    queue2.splice(0, i2);
-                    return;
-                  }
-                  callback = continuation;
-                } else break;
-              } while (1);
-            }
-            queue2.length = 0;
-          } catch (error) {
-            queue2.splice(0, i2 + 1), ReactSharedInternals.thrownErrors.push(error);
-          } finally {
-            isFlushing = false;
-          }
-        }
-      }
-      "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
-      var REACT_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = /* @__PURE__ */ Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = /* @__PURE__ */ Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = /* @__PURE__ */ Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = /* @__PURE__ */ Symbol.for("react.profiler"), REACT_CONSUMER_TYPE = /* @__PURE__ */ Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = /* @__PURE__ */ Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = /* @__PURE__ */ Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = /* @__PURE__ */ Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = /* @__PURE__ */ Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = /* @__PURE__ */ Symbol.for("react.memo"), REACT_LAZY_TYPE = /* @__PURE__ */ Symbol.for("react.lazy"), REACT_ACTIVITY_TYPE = /* @__PURE__ */ Symbol.for("react.activity"), REACT_VIEW_TRANSITION_TYPE = /* @__PURE__ */ Symbol.for("react.view_transition"), MAYBE_ITERATOR_SYMBOL = Symbol.iterator, didWarnStateUpdateForUnmountedComponent = {}, ReactNoopUpdateQueue = {
-        isMounted: function() {
-          return false;
-        },
-        enqueueForceUpdate: function(publicInstance) {
-          warnNoop(publicInstance, "forceUpdate");
-        },
-        enqueueReplaceState: function(publicInstance) {
-          warnNoop(publicInstance, "replaceState");
-        },
-        enqueueSetState: function(publicInstance) {
-          warnNoop(publicInstance, "setState");
-        }
-      }, assign = Object.assign, emptyObject = {};
-      Object.freeze(emptyObject);
-      Component.prototype.isReactComponent = {};
-      Component.prototype.setState = function(partialState, callback) {
-        if ("object" !== typeof partialState && "function" !== typeof partialState && null != partialState)
-          throw Error(
-            "takes an object of state variables to update or a function which returns an object of state variables."
-          );
-        this.updater.enqueueSetState(this, partialState, callback, "setState");
-      };
-      Component.prototype.forceUpdate = function(callback) {
-        this.updater.enqueueForceUpdate(this, callback, "forceUpdate");
-      };
-      var deprecatedAPIs = {
-        isMounted: [
-          "isMounted",
-          "Instead, make sure to clean up subscriptions and pending requests in componentWillUnmount to prevent memory leaks."
-        ],
-        replaceState: [
-          "replaceState",
-          "Refactor your code to use setState instead (see https://github.com/facebook/react/issues/3236)."
-        ]
-      };
-      for (fnName in deprecatedAPIs)
-        deprecatedAPIs.hasOwnProperty(fnName) && defineDeprecationWarning(fnName, deprecatedAPIs[fnName]);
-      ComponentDummy.prototype = Component.prototype;
-      deprecatedAPIs = PureComponent.prototype = new ComponentDummy();
-      deprecatedAPIs.constructor = PureComponent;
-      assign(deprecatedAPIs, Component.prototype);
-      deprecatedAPIs.isPureReactComponent = true;
-      var isArrayImpl = Array.isArray, REACT_CLIENT_REFERENCE = /* @__PURE__ */ Symbol.for("react.client.reference"), ReactSharedInternals = {
-        H: null,
-        A: null,
-        T: null,
-        S: null,
-        actQueue: null,
-        asyncTransitions: 0,
-        isBatchingLegacy: false,
-        didScheduleLegacyUpdate: false,
-        didUsePromise: false,
-        thrownErrors: [],
-        getCurrentStack: null,
-        recentlyCreatedOwnerStacks: 0
-      }, hasOwnProperty = Object.prototype.hasOwnProperty, createTask = console.createTask ? console.createTask : function() {
-        return null;
-      };
-      deprecatedAPIs = {
-        react_stack_bottom_frame: function(callStackForError) {
-          return callStackForError();
-        }
-      };
-      var specialPropKeyWarningShown, didWarnAboutOldJSXRuntime;
-      var didWarnAboutElementRef = {};
-      var unknownOwnerDebugStack = deprecatedAPIs.react_stack_bottom_frame.bind(
-        deprecatedAPIs,
-        UnknownOwner
-      )();
-      var unknownOwnerDebugTask = createTask(getTaskName(UnknownOwner));
-      var didWarnAboutMaps = false, userProvidedKeyEscapeRegex = /\/+/g, reportGlobalError = "function" === typeof reportError ? reportError : function(error) {
-        if ("object" === typeof window && "function" === typeof window.ErrorEvent) {
-          var event = new window.ErrorEvent("error", {
-            bubbles: true,
-            cancelable: true,
-            message: "object" === typeof error && null !== error && "string" === typeof error.message ? String(error.message) : String(error),
-            error
-          });
-          if (!window.dispatchEvent(event)) return;
-        } else if ("object" === typeof process && "function" === typeof process.emit) {
-          process.emit("uncaughtException", error);
-          return;
-        }
-        console.error(error);
-      }, didWarnAboutMessageChannel = false, enqueueTaskImpl = null, actScopeDepth = 0, didWarnNoAwaitAct = false, isFlushing = false, queueSeveralMicrotasks = "function" === typeof queueMicrotask ? function(callback) {
-        queueMicrotask(function() {
-          return queueMicrotask(callback);
-        });
-      } : enqueueTask;
-      deprecatedAPIs = Object.freeze({
-        __proto__: null,
-        c: function(size) {
-          return resolveDispatcher().useMemoCache(size);
-        }
-      });
-      var fnName = {
-        map: mapChildren,
-        forEach: function(children, forEachFunc, forEachContext) {
-          mapChildren(
-            children,
-            function() {
-              forEachFunc.apply(this, arguments);
-            },
-            forEachContext
-          );
-        },
-        count: function(children) {
-          var n2 = 0;
-          mapChildren(children, function() {
-            n2++;
-          });
-          return n2;
-        },
-        toArray: function(children) {
-          return mapChildren(children, function(child) {
-            return child;
-          }) || [];
-        },
-        only: function(children) {
-          if (!isValidElement(children))
-            throw Error(
-              "React.Children.only expected to receive a single React element child."
-            );
-          return children;
-        }
-      };
-      exports.Activity = REACT_ACTIVITY_TYPE;
-      exports.Children = fnName;
-      exports.Component = Component;
-      exports.Fragment = REACT_FRAGMENT_TYPE;
-      exports.Profiler = REACT_PROFILER_TYPE;
-      exports.PureComponent = PureComponent;
-      exports.StrictMode = REACT_STRICT_MODE_TYPE;
-      exports.Suspense = REACT_SUSPENSE_TYPE;
-      exports.ViewTransition = REACT_VIEW_TRANSITION_TYPE;
-      exports.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = ReactSharedInternals;
-      exports.__COMPILER_RUNTIME = deprecatedAPIs;
-      exports.act = function(callback) {
-        var prevActQueue = ReactSharedInternals.actQueue, prevActScopeDepth = actScopeDepth;
-        actScopeDepth++;
-        var queue2 = ReactSharedInternals.actQueue = null !== prevActQueue ? prevActQueue : [], didAwaitActCall = false;
-        try {
-          var result = callback();
-        } catch (error) {
-          ReactSharedInternals.thrownErrors.push(error);
-        }
-        if (0 < ReactSharedInternals.thrownErrors.length)
-          throw popActScope(prevActQueue, prevActScopeDepth), callback = aggregateErrors(ReactSharedInternals.thrownErrors), ReactSharedInternals.thrownErrors.length = 0, callback;
-        if (null !== result && "object" === typeof result && "function" === typeof result.then) {
-          var thenable = result;
-          queueSeveralMicrotasks(function() {
-            didAwaitActCall || didWarnNoAwaitAct || (didWarnNoAwaitAct = true, console.error(
-              "You called act(async () => ...) without await. This could lead to unexpected testing behaviour, interleaving multiple act calls and mixing their scopes. You should - await act(async () => ...);"
-            ));
-          });
-          return {
-            then: function(resolve2, reject) {
-              didAwaitActCall = true;
-              thenable.then(
-                function(returnValue) {
-                  popActScope(prevActQueue, prevActScopeDepth);
-                  if (0 === prevActScopeDepth) {
-                    try {
-                      flushActQueue(queue2), enqueueTask(function() {
-                        return recursivelyFlushAsyncActWork(
-                          returnValue,
-                          resolve2,
-                          reject
-                        );
-                      });
-                    } catch (error$0) {
-                      ReactSharedInternals.thrownErrors.push(error$0);
-                    }
-                    if (0 < ReactSharedInternals.thrownErrors.length) {
-                      var _thrownError = aggregateErrors(
-                        ReactSharedInternals.thrownErrors
-                      );
-                      ReactSharedInternals.thrownErrors.length = 0;
-                      reject(_thrownError);
-                    }
-                  } else resolve2(returnValue);
-                },
-                function(error) {
-                  popActScope(prevActQueue, prevActScopeDepth);
-                  0 < ReactSharedInternals.thrownErrors.length ? (error = aggregateErrors(
-                    ReactSharedInternals.thrownErrors
-                  ), ReactSharedInternals.thrownErrors.length = 0, reject(error)) : reject(error);
-                }
-              );
-            }
-          };
-        }
-        var returnValue$jscomp$0 = result;
-        popActScope(prevActQueue, prevActScopeDepth);
-        0 === prevActScopeDepth && (flushActQueue(queue2), 0 !== queue2.length && queueSeveralMicrotasks(function() {
-          didAwaitActCall || didWarnNoAwaitAct || (didWarnNoAwaitAct = true, console.error(
-            "A component suspended inside an `act` scope, but the `act` call was not awaited. When testing React components that depend on asynchronous data, you must await the result:\n\nawait act(() => ...)"
-          ));
-        }), ReactSharedInternals.actQueue = null);
-        if (0 < ReactSharedInternals.thrownErrors.length)
-          throw callback = aggregateErrors(ReactSharedInternals.thrownErrors), ReactSharedInternals.thrownErrors.length = 0, callback;
-        return {
-          then: function(resolve2, reject) {
-            didAwaitActCall = true;
-            0 === prevActScopeDepth ? (ReactSharedInternals.actQueue = queue2, enqueueTask(function() {
-              return recursivelyFlushAsyncActWork(
-                returnValue$jscomp$0,
-                resolve2,
-                reject
-              );
-            })) : resolve2(returnValue$jscomp$0);
-          }
-        };
-      };
-      exports.addTransitionType = addTransitionType;
-      exports.cache = function(fn) {
-        return function() {
-          return fn.apply(null, arguments);
-        };
-      };
-      exports.cacheSignal = function() {
-        return null;
-      };
-      exports.captureOwnerStack = function() {
-        var getCurrentStack = ReactSharedInternals.getCurrentStack;
-        return null === getCurrentStack ? null : getCurrentStack();
-      };
-      exports.cloneElement = function(element, config, children) {
-        if (null === element || void 0 === element)
-          throw Error(
-            "The argument must be a React element, but you passed " + element + "."
-          );
-        var props = assign({}, element.props), key = element.key, owner = element._owner;
-        if (null != config) {
-          var JSCompiler_inline_result;
-          a: {
-            if (hasOwnProperty.call(config, "ref") && (JSCompiler_inline_result = Object.getOwnPropertyDescriptor(
-              config,
-              "ref"
-            ).get) && JSCompiler_inline_result.isReactWarning) {
-              JSCompiler_inline_result = false;
-              break a;
-            }
-            JSCompiler_inline_result = void 0 !== config.ref;
-          }
-          JSCompiler_inline_result && (owner = getOwner());
-          hasValidKey(config) && (checkKeyStringCoercion(config.key), key = "" + config.key);
-          for (propName in config)
-            !hasOwnProperty.call(config, propName) || "key" === propName || "__self" === propName || "__source" === propName || "ref" === propName && void 0 === config.ref || (props[propName] = config[propName]);
-        }
-        var propName = arguments.length - 2;
-        if (1 === propName) props.children = children;
-        else if (1 < propName) {
-          JSCompiler_inline_result = Array(propName);
-          for (var i2 = 0; i2 < propName; i2++)
-            JSCompiler_inline_result[i2] = arguments[i2 + 2];
-          props.children = JSCompiler_inline_result;
-        }
-        props = ReactElement(
-          element.type,
-          key,
-          props,
-          owner,
-          element._debugStack,
-          element._debugTask
-        );
-        for (key = 2; key < arguments.length; key++)
-          validateChildKeys(arguments[key]);
-        return props;
-      };
-      exports.createContext = function(defaultValue) {
-        defaultValue = {
-          $$typeof: REACT_CONTEXT_TYPE,
-          _currentValue: defaultValue,
-          _currentValue2: defaultValue,
-          _threadCount: 0,
-          Provider: null,
-          Consumer: null
-        };
-        defaultValue.Provider = defaultValue;
-        defaultValue.Consumer = {
-          $$typeof: REACT_CONSUMER_TYPE,
-          _context: defaultValue
-        };
-        defaultValue._currentRenderer = null;
-        defaultValue._currentRenderer2 = null;
-        return defaultValue;
-      };
-      exports.createElement = function(type, config, children) {
-        for (var i2 = 2; i2 < arguments.length; i2++)
-          validateChildKeys(arguments[i2]);
-        var propName;
-        i2 = {};
-        var key = null;
-        if (null != config)
-          for (propName in didWarnAboutOldJSXRuntime || !("__self" in config) || "key" in config || (didWarnAboutOldJSXRuntime = true, console.warn(
-            "Your app (or one of its dependencies) is using an outdated JSX transform. Update to the modern JSX transform for faster performance: https://react.dev/link/new-jsx-transform"
-          )), hasValidKey(config) && (checkKeyStringCoercion(config.key), key = "" + config.key), config)
-            hasOwnProperty.call(config, propName) && "key" !== propName && "__self" !== propName && "__source" !== propName && (i2[propName] = config[propName]);
-        var childrenLength = arguments.length - 2;
-        if (1 === childrenLength) i2.children = children;
-        else if (1 < childrenLength) {
-          for (var childArray = Array(childrenLength), _i = 0; _i < childrenLength; _i++)
-            childArray[_i] = arguments[_i + 2];
-          Object.freeze && Object.freeze(childArray);
-          i2.children = childArray;
-        }
-        if (type && type.defaultProps)
-          for (propName in childrenLength = type.defaultProps, childrenLength)
-            void 0 === i2[propName] && (i2[propName] = childrenLength[propName]);
-        key && defineKeyPropWarningGetter(
-          i2,
-          "function" === typeof type ? type.displayName || type.name || "Unknown" : type
-        );
-        (propName = 1e4 > ReactSharedInternals.recentlyCreatedOwnerStacks++) ? (childArray = Error.stackTraceLimit, Error.stackTraceLimit = 10, childrenLength = Error("react-stack-top-frame"), Error.stackTraceLimit = childArray) : childrenLength = unknownOwnerDebugStack;
-        return ReactElement(
-          type,
-          key,
-          i2,
-          getOwner(),
-          childrenLength,
-          propName ? createTask(getTaskName(type)) : unknownOwnerDebugTask
-        );
-      };
-      exports.createRef = function() {
-        var refObject = { current: null };
-        Object.seal(refObject);
-        return refObject;
-      };
-      exports.forwardRef = function(render) {
-        null != render && render.$$typeof === REACT_MEMO_TYPE ? console.error(
-          "forwardRef requires a render function but received a `memo` component. Instead of forwardRef(memo(...)), use memo(forwardRef(...))."
-        ) : "function" !== typeof render ? console.error(
-          "forwardRef requires a render function but was given %s.",
-          null === render ? "null" : typeof render
-        ) : 0 !== render.length && 2 !== render.length && console.error(
-          "forwardRef render functions accept exactly two parameters: props and ref. %s",
-          1 === render.length ? "Did you forget to use the ref parameter?" : "Any additional parameter will be undefined."
-        );
-        null != render && null != render.defaultProps && console.error(
-          "forwardRef render functions do not support defaultProps. Did you accidentally pass a React component?"
-        );
-        var elementType = { $$typeof: REACT_FORWARD_REF_TYPE, render }, ownName;
-        Object.defineProperty(elementType, "displayName", {
-          enumerable: false,
-          configurable: true,
-          get: function() {
-            return ownName;
-          },
-          set: function(name) {
-            ownName = name;
-            render.name || render.displayName || (Object.defineProperty(render, "name", { value: name }), render.displayName = name);
-          }
-        });
-        return elementType;
-      };
-      exports.isValidElement = isValidElement;
-      exports.lazy = function(ctor) {
-        ctor = { _status: -1, _result: ctor };
-        var lazyType = {
-          $$typeof: REACT_LAZY_TYPE,
-          _payload: ctor,
-          _init: lazyInitializer
-        }, ioInfo = {
-          name: "lazy",
-          start: -1,
-          end: -1,
-          value: null,
-          owner: null,
-          debugStack: Error("react-stack-top-frame"),
-          debugTask: console.createTask ? console.createTask("lazy()") : null
-        };
-        ctor._ioInfo = ioInfo;
-        lazyType._debugInfo = [{ awaited: ioInfo }];
-        return lazyType;
-      };
-      exports.memo = function(type, compare) {
-        null == type && console.error(
-          "memo: The first argument must be a component. Instead received: %s",
-          null === type ? "null" : typeof type
-        );
-        compare = {
-          $$typeof: REACT_MEMO_TYPE,
-          type,
-          compare: void 0 === compare ? null : compare
-        };
-        var ownName;
-        Object.defineProperty(compare, "displayName", {
-          enumerable: false,
-          configurable: true,
-          get: function() {
-            return ownName;
-          },
-          set: function(name) {
-            ownName = name;
-            type.name || type.displayName || (Object.defineProperty(type, "name", { value: name }), type.displayName = name);
-          }
-        });
-        return compare;
-      };
-      exports.startTransition = startTransition;
-      exports.unstable_useCacheRefresh = function() {
-        return resolveDispatcher().useCacheRefresh();
-      };
-      exports.use = function(usable) {
-        return resolveDispatcher().use(usable);
-      };
-      exports.useActionState = function(action, initialState, permalink) {
-        return resolveDispatcher().useActionState(
-          action,
-          initialState,
-          permalink
-        );
-      };
-      exports.useCallback = function(callback, deps) {
-        return resolveDispatcher().useCallback(callback, deps);
-      };
-      exports.useContext = function(Context) {
-        var dispatcher = resolveDispatcher();
-        Context.$$typeof === REACT_CONSUMER_TYPE && console.error(
-          "Calling useContext(Context.Consumer) is not supported and will cause bugs. Did you mean to call useContext(Context) instead?"
-        );
-        return dispatcher.useContext(Context);
-      };
-      exports.useDebugValue = function(value, formatterFn) {
-        return resolveDispatcher().useDebugValue(value, formatterFn);
-      };
-      exports.useDeferredValue = function(value, initialValue) {
-        return resolveDispatcher().useDeferredValue(value, initialValue);
-      };
-      exports.useEffect = function(create, deps) {
-        null == create && console.warn(
-          "React Hook useEffect requires an effect callback. Did you forget to pass a callback to the hook?"
-        );
-        return resolveDispatcher().useEffect(create, deps);
-      };
-      exports.useEffectEvent = function(callback) {
-        return resolveDispatcher().useEffectEvent(callback);
-      };
-      exports.useId = function() {
-        return resolveDispatcher().useId();
-      };
-      exports.useImperativeHandle = function(ref, create, deps) {
-        return resolveDispatcher().useImperativeHandle(ref, create, deps);
-      };
-      exports.useInsertionEffect = function(create, deps) {
-        null == create && console.warn(
-          "React Hook useInsertionEffect requires an effect callback. Did you forget to pass a callback to the hook?"
-        );
-        return resolveDispatcher().useInsertionEffect(create, deps);
-      };
-      exports.useLayoutEffect = function(create, deps) {
-        null == create && console.warn(
-          "React Hook useLayoutEffect requires an effect callback. Did you forget to pass a callback to the hook?"
-        );
-        return resolveDispatcher().useLayoutEffect(create, deps);
-      };
-      exports.useMemo = function(create, deps) {
-        return resolveDispatcher().useMemo(create, deps);
-      };
-      exports.useOptimistic = function(passthrough, reducer) {
-        return resolveDispatcher().useOptimistic(passthrough, reducer);
-      };
-      exports.useReducer = function(reducer, initialArg, init) {
-        return resolveDispatcher().useReducer(reducer, initialArg, init);
-      };
-      exports.useRef = function(initialValue) {
-        return resolveDispatcher().useRef(initialValue);
-      };
-      exports.useState = function(initialState) {
-        return resolveDispatcher().useState(initialState);
-      };
-      exports.useSyncExternalStore = function(subscribe, getSnapshot, getServerSnapshot) {
-        return resolveDispatcher().useSyncExternalStore(
-          subscribe,
-          getSnapshot,
-          getServerSnapshot
-        );
-      };
-      exports.useTransition = function() {
-        return resolveDispatcher().useTransition();
-      };
-      exports.version = "19.3.0";
-      "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(Error());
-    })();
-  }
-});
-
-// node_modules/react/index.js
-var require_react = __commonJS({
-  "node_modules/react/index.js"(exports, module) {
-    "use strict";
-    if (process.env.NODE_ENV === "production") {
-      module.exports = require_react_production();
-    } else {
-      module.exports = require_react_development();
-    }
-  }
-});
-
-// src/shared/settings.ts
-function getSettings() {
-  if (cache) return cache;
-  try {
-    const raw = typeof localStorage !== "undefined" ? localStorage.getItem(KEY) : null;
-    cache = { ...DEFAULT_SETTINGS, ...raw ? JSON.parse(raw) : {} };
-  } catch {
-    cache = { ...DEFAULT_SETTINGS };
-  }
-  return cache;
-}
-function sfxVolume(s2) {
-  return clamp01(s2.volume * s2.sfx_volume);
-}
-function clamp01(v2) {
-  return Math.max(0, Math.min(1, Number.isFinite(v2) ? v2 : 1));
-}
-var import_react, DEFAULT_SETTINGS, KEY, cache;
-var init_settings = __esm({
-  "src/shared/settings.ts"() {
-    import_react = __toESM(require_react(), 1);
-    DEFAULT_SETTINGS = {
-      volume: 0.9,
-      music_volume: 0.6,
-      sfx_volume: 0.8,
-      voice_volume: 1,
-      voice_muted: false,
-      tts_enabled: false,
-      tts_voice: "",
-      tts_rate: 1,
-      text_scale: 1,
-      animations: true,
-      camera_parallax: true
-    };
-    KEY = "narthex:settings";
-    cache = null;
-  }
-});
-
-// src/shared/audio.ts
-function isSoundDoc(v2) {
-  return !!v2 && typeof v2 === "object" && Array.isArray(v2.zzfx);
-}
-function soundDef(id) {
-  return campaign?.meta.sounds?.find((s2) => s2.id === id);
-}
-function pickSource(src) {
-  if (Array.isArray(src)) {
-    if (!src.length) return "";
-    return src[Math.floor(Math.random() * src.length)];
-  }
-  return src;
-}
-function trackInstance(id, inst) {
-  if (!id) return;
-  const list = activeSoundInstances.get(id) ?? [];
-  list.push(inst);
-  activeSoundInstances.set(id, list);
-}
-function untrackInstance(id, inst) {
-  const list = activeSoundInstances.get(id);
-  if (!list) return;
-  const filtered = list.filter((i2) => i2 !== inst);
-  if (filtered.length) activeSoundInstances.set(id, filtered);
-  else activeSoundInstances.delete(id);
-}
-function stopSound(id) {
-  if (id) {
-    stopLoop(id);
-    const list = activeSoundInstances.get(id);
-    if (list) {
-      for (const inst of list) {
-        try {
-          inst.stop();
-        } catch {
-        }
-      }
-      activeSoundInstances.delete(id);
-    }
-  } else {
-    stopAllLoops();
-    for (const list of activeSoundInstances.values()) {
-      for (const inst of list) {
-        try {
-          inst.stop();
-        } catch {
-        }
-      }
-    }
-    activeSoundInstances.clear();
-  }
-}
-function playSoundId(id, volume = 1) {
-  if (!id || !campaign || !ambientEnabled) return;
-  const def = soundDef(id);
-  if (!def) return;
-  playSource(pickSource(def.src), volume, id);
-}
-function playSource(src, volume = 1, soundId) {
-  if (!src) return;
-  const vol = sfxVolume(getSettings()) * volume;
-  if (vol <= 0) return;
-  unlockAudio();
-  if (isSoundDoc(src)) {
-    const c2 = audioCtx();
-    if (!c2) return;
-    if (c2.state === "suspended") void c2.resume();
-    const buf = renderSoundDoc(c2, src);
-    const node = c2.createBufferSource();
-    node.buffer = buf;
-    const g2 = c2.createGain();
-    g2.gain.value = vol;
-    node.connect(g2);
-    g2.connect(c2.destination);
-    node.start();
-    if (soundId) {
-      const inst = {
-        stop: () => {
-          try {
-            node.stop();
-          } catch {
-          }
-          try {
-            g2.disconnect();
-          } catch {
-          }
-        }
-      };
-      trackInstance(soundId, inst);
-      node.onended = () => untrackInstance(soundId, inst);
-    }
-    return;
-  }
-  if (typeof Audio === "undefined") return;
-  const url = campaign && !/^https?:|^data:|^blob:/i.test(src) ? `${campaign.basePath}/${src}` : src;
-  const a2 = new Audio(url);
-  a2.volume = vol;
-  if (soundId) {
-    const inst = {
-      stop: () => {
-        try {
-          a2.pause();
-          a2.currentTime = 0;
-        } catch {
-        }
-      }
-    };
-    trackInstance(soundId, inst);
-    a2.onended = () => untrackInstance(soundId, inst);
-  }
-  void a2.play().catch(() => void 0);
-}
-function playUi(hook, volume = 1) {
-  if (!hook || !campaign || !ambientEnabled) return;
-  const ui = campaign.meta.ui_sounds ?? {};
-  if (ui[hook]) return playSoundId(ui[hook], volume);
-  if (hook === "panel:log" && ui["panel:journal"]) return playSoundId(ui["panel:journal"], volume);
-  if (hook === "panel:journal" && ui["panel:log"]) return playSoundId(ui["panel:log"], volume);
-  if (hook === "panel:meta" && ui["panel:chronicle"]) return playSoundId(ui["panel:chronicle"], volume);
-  if (hook === "panel:chronicle" && ui["panel:meta"]) return playSoundId(ui["panel:meta"], volume);
-  if (hook === "panel:log:close" && ui["panel:journal:close"]) return playSoundId(ui["panel:journal:close"], volume);
-  if (hook === "panel:journal:close" && ui["panel:log:close"]) return playSoundId(ui["panel:log:close"], volume);
-  const underscored = hook.includes(":") ? hook.replace(/:/g, "_") : null;
-  if (underscored && ui[underscored]) return playSoundId(ui[underscored], volume);
-  if (hook.includes("close")) {
-    if (ui["panel:close"]) return playSoundId(ui["panel:close"], volume);
-    if (ui["panel_close"]) return playSoundId(ui["panel_close"], volume);
-    if (ui["click"]) return playSoundId(ui["click"], volume * 0.7);
-  } else if (hook.startsWith("panel:") || hook.startsWith("panel_")) {
-    if (ui["panel:open"]) return playSoundId(ui["panel:open"], volume);
-    if (ui["panel_open"]) return playSoundId(ui["panel_open"], volume);
-  }
-  if (soundDef(hook)) return playSoundId(hook, volume);
-}
-function playInteraction(hook, info = {}, volume = 1) {
-  if (!campaign || !ambientEnabled) return;
-  if (info.sound) {
-    if (soundDef(info.sound)) return playSoundId(info.sound, volume);
-    return playSource(info.sound, volume, info.sound);
-  }
-  const meta = campaign.meta;
-  const fromEntity = info.entity?.sounds?.[hook];
-  if (fromEntity) return playSoundId(fromEntity, volume);
-  const ent = info.entity;
-  if (ent && ent.type === "item") {
-    const cat = meta.item_categories?.find((c2) => c2.id === ent.category);
-    const fromCat = cat?.sounds?.[hook];
-    if (fromCat) return playSoundId(fromCat, volume);
-  }
-  if (info.slotType) {
-    const st2 = meta.slot_types?.find((t5) => t5.id === info.slotType);
-    const fromSlot = st2?.sounds?.[hook];
-    if (fromSlot) return playSoundId(fromSlot, volume);
-  }
-  for (const name of HOOK_FALLBACK[hook] ?? [hook]) {
-    const id = meta.ui_sounds?.[name];
-    if (id) return playSoundId(id, volume);
-  }
-  playUi(hook, volume);
-}
-function stopLoop(id) {
-  loops.get(id)?.stop();
-  loops.delete(id);
-}
-function stopAllLoops() {
-  for (const id of [...loops.keys()]) stopLoop(id);
-}
-var campaign, ambientEnabled, activeSoundInstances, HOOK_FALLBACK, loops;
-var init_audio = __esm({
-  "src/shared/audio.ts"() {
-    init_synth();
-    init_settings();
-    init_conditions();
-    init_synth();
-    campaign = null;
-    ambientEnabled = true;
-    activeSoundInstances = /* @__PURE__ */ new Map();
-    HOOK_FALLBACK = {
-      travel: ["travel", "scene_transition"],
-      "item:equip": ["equip", "item_equip"],
-      "item:unequip": ["unequip", "item_unequip"],
-      "item:use": ["use", "item_use"],
-      "item:drop": ["drop", "item_drop"]
-    };
-    loops = /* @__PURE__ */ new Map();
-  }
-});
-
 // src/core/dialogue.ts
 function parseLineTags(tags) {
   let emotion = "neutral";
@@ -10631,1813 +14536,2320 @@ var init_dialogue = __esm({
   }
 });
 
-// src/shared/speechTiming.ts
-function speechCompletionTimeoutMs(text, rate = 1) {
-  const safeRate = Math.max(0.5, Math.min(2, rate));
-  const estimate = text.length * (130 / safeRate) + 12e3;
-  return Math.min(10 * 6e4, Math.max(2e4, Math.ceil(estimate)));
+// src/core/dialogue-runtime.ts
+function dlgSpeakerLabel(line, npc) {
+  if (!line.speaker) return npc.label;
+  const ent = this.campaign.entities[line.speaker];
+  return ent?.label ?? npc.label;
 }
-var init_speechTiming = __esm({
-  "src/shared/speechTiming.ts"() {
+function setDialogueTimer(seconds, knot) {
+  const s2 = Math.floor(Number(seconds) || 0);
+  this.pendingDialogueTimer = s2 > 0 ? { seconds: s2, knot: knot ? String(knot) : void 0 } : null;
+}
+function commitDialogueTimer(_choices) {
+  const next = this.pendingDialogueTimer;
+  this.pendingDialogueTimer = null;
+  this.dialogueTimer = next ? next : null;
+}
+function dialogueTimeout() {
+  const t5 = this.dialogueTimer;
+  const story = this.activeStory;
+  this.dialogueTimer = null;
+  if (!t5 || !story || !this.dialogue) return;
+  if (!t5.knot) {
+    this.pushLog("\u0420\u0430\u0437\u0433\u043E\u0432\u043E\u0440 \u043E\u0431\u043E\u0440\u0432\u0430\u043B\u0441\u044F: \u0432\u044B \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u0434\u043E\u043B\u0433\u043E \u043C\u043E\u043B\u0447\u0430\u043B\u0438.");
+    this.endDialogue();
+    return;
   }
-});
-
-// src/shared/speech.ts
-function ttsSupported() {
-  return typeof window !== "undefined" && "speechSynthesis" in window && typeof SpeechSynthesisUtterance !== "undefined";
-}
-function ttsVoices() {
-  if (!ttsSupported()) return [];
-  const list = window.speechSynthesis.getVoices();
-  const ru = (v2) => v2.lang.toLowerCase().startsWith("ru") ? 0 : 1;
-  return [...list].sort((a2, b2) => ru(a2) - ru(b2) || a2.name.localeCompare(b2.name));
-}
-function pickVoice(name) {
-  const voices = ttsVoices();
-  return voices.find((v2) => v2.name === name) ?? voices.find((v2) => v2.lang.toLowerCase().startsWith("ru"));
-}
-function initVoices() {
-  if (!ttsSupported() || voicesReady) return;
-  const synth = window.speechSynthesis;
-  const check = () => {
-    if (synth.getVoices().length > 0) voicesReady = true;
-  };
-  check();
-  synth.addEventListener?.("voiceschanged", check);
-}
-function clearStallTimer() {
-  if (stallTimer !== null) {
-    clearTimeout(stallTimer);
-    stallTimer = null;
-  }
-}
-function onFirstGesture() {
-  gestureSeen = true;
-  prime();
-  pump();
-}
-function prime() {
-  if (primed || !ttsSupported()) return;
-  primed = true;
   try {
-    const u2 = new SpeechSynthesisUtterance(" ");
-    u2.volume = 0.01;
-    const v2 = pickVoice(void 0);
-    if (v2) {
-      u2.voice = v2;
-      u2.lang = v2.lang;
-    }
-    window.speechSynthesis.speak(u2);
+    story.ChoosePathString(t5.knot);
   } catch {
-  }
-}
-function startKeepalive() {
-  if (keepalive !== null || !ttsSupported()) return;
-  keepalive = setInterval(() => {
-    const synth = window.speechSynthesis;
-    if (synth.speaking && !synth.paused) {
-      synth.pause();
-      synth.resume();
-    }
-  }, 1e4);
-}
-function stopKeepalive() {
-  if (keepalive !== null) {
-    clearInterval(keepalive);
-    keepalive = null;
-  }
-}
-function pump() {
-  if (pumpTimer !== null) return;
-  if (active) return;
-  const item = queue[0];
-  if (!item) {
-    stopKeepalive();
+    this.pushLog(`\u0423\u0437\u0435\u043B \xAB${t5.knot}\xBB \u0434\u043B\u044F \u0442\u0430\u0439\u043C\u0435\u0440\u0430 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D \u2014 \u0440\u0430\u0437\u0433\u043E\u0432\u043E\u0440 \u0437\u0430\u043A\u0430\u043D\u0447\u0438\u0432\u0430\u0435\u0442\u0441\u044F.`);
+    this.endDialogue();
     return;
   }
-  if (!gestureSeen) return;
-  if (item.cancelled) {
-    queue.shift();
-    pump();
+  this.pushLog("\u0412\u044B \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u0434\u043E\u043B\u0433\u043E \u043C\u043E\u043B\u0447\u0430\u043B\u0438 \u2014 \u0441\u043E\u0431\u0435\u0441\u0435\u0434\u043D\u0438\u043A \u043F\u0435\u0440\u0435\u0432\u0451\u043B \u0440\u0430\u0437\u0433\u043E\u0432\u043E\u0440 \u043D\u0430 \u0441\u0432\u043E\u0451.");
+  const drained = drainStory(story);
+  for (const l2 of drained.lines) {
+    this.dialogueHistory.push({
+      speaker: l2.action ? "" : dlgSpeakerLabel.call(this, l2, this.dialogue.npc),
+      text: l2.text,
+      emotion: l2.emotion,
+      action: l2.action
+    });
+  }
+  if (this.combat || this.trade || this.craftRequest || this.state.game_over || !this.activeStory) {
+    this.dialogue = null;
+    this.dialogueHistory = [];
+    this.activeStory = null;
+    this.activeNpc = null;
+    this.notify();
     return;
   }
-  if (!voicesReady && Date.now() - bootTs < 4e3) {
-    pumpTimer = setTimeout(() => {
-      pumpTimer = null;
-      pump();
-    }, 120);
-    return;
+  this.dialogue = {
+    npc: this.dialogue.npc,
+    lines: drained.lines,
+    choices: drained.choices,
+    finished: drained.finished,
+    history: [...this.dialogueHistory]
+  };
+  commitDialogueTimer.call(this, drained.choices.length);
+  commitDialoguePresenting.call(this);
+  this.dialogue.timer = this.dialogueTimer ?? void 0;
+  this.notify();
+}
+function promptPresentItem(okKnot, failKnot, required) {
+  this.pendingDialoguePresenting = { ok: okKnot, fail: failKnot, required: required || void 0 };
+}
+function commitDialoguePresenting() {
+  const next = this.pendingDialoguePresenting;
+  this.pendingDialoguePresenting = null;
+  if (this.dialogue) {
+    this.dialogue.presenting = next ? next : void 0;
   }
-  const wait = Math.max(0, cooldownUntil - Date.now());
-  if (wait > 0) {
-    pumpTimer = setTimeout(() => {
-      pumpTimer = null;
-      pump();
-    }, wait);
-    return;
-  }
-  queue.shift();
-  active = item;
-  item.started = false;
-  item.settled = false;
-  startKeepalive();
-  speakItem(item);
 }
-function finishItem(item) {
-  if (item.settled) return;
-  item.settled = true;
-  clearStallTimer();
-  if (active === item) active = null;
-  if (!item.cancelled) item.opts.onEnd?.();
-  pump();
-}
-function armCompletionWatchdog(item, synth) {
-  clearStallTimer();
-  stallTimer = setTimeout(() => {
-    stallTimer = null;
-    if (active !== item || item.settled) return;
-    try {
-      synth.cancel();
-    } catch {
-    }
-    cooldownUntil = Math.max(cooldownUntil, Date.now() + 100);
-    finishItem(item);
-  }, speechCompletionTimeoutMs(item.clean, item.opts.rate));
-}
-function speakItem(item) {
-  const synth = window.speechSynthesis;
-  const u2 = new SpeechSynthesisUtterance(item.clean);
-  const chosen = pickVoice(item.opts.voice);
-  if (chosen) {
-    u2.voice = chosen;
-    u2.lang = chosen.lang;
+function submitPresentedItem(itemId) {
+  const pres = this.dialogue?.presenting;
+  const story = this.activeStory;
+  if (!pres || !story || !this.dialogue) return;
+  this.dialogue.presenting = void 0;
+  if (itemId) {
+    playUi("dialogue_present");
+    const itDef = this.campaign.entities[itemId];
+    this.dialogueHistory.push({
+      speaker: this.state.player.name || "\u0412\u044B",
+      text: `[\u041F\u0440\u0435\u0434\u044A\u044F\u0432\u043B\u0435\u043D\u043E: ${itDef?.label || itemId}]`,
+      isChoice: true
+    });
   } else {
-    u2.lang = "ru-RU";
+    playUi("click");
+    this.dialogueHistory.push({
+      speaker: this.state.player.name || "\u0412\u044B",
+      text: "[\u041D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u043F\u0440\u0435\u0434\u044A\u044F\u0432\u043B\u0435\u043D\u043E]",
+      isChoice: true
+    });
   }
-  u2.rate = Math.max(0.5, Math.min(2, item.opts.rate ?? 1));
-  u2.volume = Math.max(0, Math.min(1, item.opts.volume ?? 1));
-  u2.onstart = () => {
-    if (active !== item || item.settled) return;
-    item.started = true;
-    armCompletionWatchdog(item, synth);
-  };
-  u2.onend = () => finishItem(item);
-  u2.onerror = () => finishItem(item);
+  const success = itemId ? !pres.required || pres.required === itemId : false;
+  const targetKnot = success ? pres.ok : pres.fail;
   try {
-    synth.speak(u2);
-    synth.resume();
+    story.ChoosePathString(targetKnot);
   } catch {
-    finishItem(item);
+    this.pushLog(`\u0423\u0437\u0435\u043B \xAB${targetKnot}\xBB \u0434\u043B\u044F \u0440\u0435\u0437\u0443\u043B\u044C\u0442\u0430\u0442\u0430 \u043F\u0440\u0435\u0434\u044A\u044F\u0432\u043B\u0435\u043D\u0438\u044F \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D.`);
+    this.endDialogue();
     return;
   }
-  clearStallTimer();
-  stallTimer = setTimeout(() => {
-    stallTimer = null;
-    if (active === item && !item.started) {
-      if (synth.speaking || synth.pending) {
-        item.started = true;
-        armCompletionWatchdog(item, synth);
-        return;
-      }
-      try {
-        synth.cancel();
-      } catch {
-      }
-      cooldownUntil = Math.max(cooldownUntil, Date.now() + 100);
-      finishItem(item);
-    }
-  }, 8e3);
-}
-function stopSpeaking() {
-  for (const item of queue) item.cancelled = true;
-  queue.length = 0;
-  if (active) active.cancelled = true;
-  active = null;
-  if (ttsSupported()) window.speechSynthesis.cancel();
-  clearStallTimer();
-  cooldownUntil = Date.now() + 100;
-}
-var import_react2, voicesReady, bootTs, queue, active, pumpTimer, cooldownUntil, keepalive, stallTimer, primed, gestureSeen;
-var init_speech = __esm({
-  "src/shared/speech.ts"() {
-    import_react2 = __toESM(require_react(), 1);
-    init_speechTiming();
-    voicesReady = false;
-    bootTs = Date.now();
-    initVoices();
-    queue = [];
-    active = null;
-    pumpTimer = null;
-    cooldownUntil = 0;
-    keepalive = null;
-    stallTimer = null;
-    primed = false;
-    gestureSeen = false;
-    if (typeof window !== "undefined") {
-      window.addEventListener("pointerdown", onFirstGesture, { once: true });
-      window.addEventListener("keydown", onFirstGesture, { once: true });
-    }
-    if (typeof window !== "undefined") {
-      ;
-      window.__cf_tts = () => ({
-        \u043F\u043E\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442\u0441\u044F: ttsSupported(),
-        \u0431\u044B\u043B_\u0436\u0435\u0441\u0442_\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F: gestureSeen,
-        \u0433\u043E\u043B\u043E\u0441\u043E\u0432_\u0432_\u0441\u0438\u0441\u0442\u0435\u043C\u0435: ttsVoices().length,
-        \u0433\u043E\u0432\u043E\u0440\u0438\u0442_\u0441\u0435\u0439\u0447\u0430\u0441: window.speechSynthesis?.speaking ?? false,
-        \u043D\u0430_\u043F\u0430\u0443\u0437\u0435: window.speechSynthesis?.paused ?? false,
-        \u0444\u0440\u0430\u0437_\u0432_\u043E\u0447\u0435\u0440\u0435\u0434\u0438: queue.length,
-        \u0430\u043A\u0442\u0438\u0432\u043D\u0430\u044F_\u0444\u0440\u0430\u0437\u0430: active ? active.clean.slice(0, 60) : null
-      });
-    }
+  const drained = drainStory(story);
+  for (const l2 of drained.lines) {
+    this.dialogueHistory.push({
+      speaker: l2.action ? "" : dlgSpeakerLabel.call(this, l2, this.dialogue.npc),
+      text: l2.text,
+      emotion: l2.emotion,
+      action: l2.action
+    });
   }
-});
-
-// src/shared/voiceAudio.ts
-function stopVoiceFileOnly() {
-  if (currentVoiceAudio) {
-    const a2 = currentVoiceAudio;
-    currentVoiceAudio = null;
-    a2.onended = null;
-    a2.onerror = null;
-    a2.onloadedmetadata = null;
-    try {
-      a2.pause();
-      a2.currentTime = 0;
-    } catch {
-    }
+  if (this.combat || this.trade || this.craftRequest || this.state.game_over || !this.activeStory) {
+    this.dialogue = null;
+    this.dialogueHistory = [];
+    this.activeStory = null;
+    this.activeNpc = null;
+    this.notify();
+    return;
   }
-}
-function stopVoiceAudio() {
-  stopVoiceFileOnly();
-  stopSpeaking();
-}
-var currentVoiceAudio;
-var init_voiceAudio = __esm({
-  "src/shared/voiceAudio.ts"() {
-    init_speech();
-    currentVoiceAudio = null;
-  }
-});
-
-// src/core/hex.ts
-function offsetToCube(h2) {
-  const q2 = h2.col - (h2.row - (h2.row & 1)) / 2;
-  const r2 = h2.row;
-  return { q: q2, r: r2, s: -q2 - r2 };
-}
-function cubeToOffset(c2) {
-  return { col: c2.q + (c2.r - (c2.r & 1)) / 2, row: c2.r };
-}
-function neighbors(h2) {
-  const c2 = offsetToCube(h2);
-  return CUBE_DIRS.map((d2) => cubeToOffset({ q: c2.q + d2.q, r: c2.r + d2.r, s: c2.s + d2.s }));
-}
-function hexDistance(a2, b2) {
-  const ca = offsetToCube(a2);
-  const cb = offsetToCube(b2);
-  return Math.max(Math.abs(ca.q - cb.q), Math.abs(ca.r - cb.r), Math.abs(ca.s - cb.s));
-}
-function hexToPixel(h2, size, origin) {
-  return {
-    x: origin.x + size * SQRT3 * (h2.col + 0.5 * (h2.row & 1)),
-    y: origin.y + size * 1.5 * h2.row
+  this.dialogue = {
+    npc: this.dialogue.npc,
+    lines: drained.lines,
+    choices: drained.choices,
+    finished: drained.finished,
+    history: [...this.dialogueHistory]
   };
+  commitDialogueTimer.call(this, drained.choices.length);
+  commitDialoguePresenting.call(this);
+  this.dialogue.timer = this.dialogueTimer ?? void 0;
+  this.notify();
 }
-function reachable(start, movePoints, passable, cost) {
-  const dist = /* @__PURE__ */ new Map([[hexKey(start), 0]]);
-  const frontier = [start];
-  while (frontier.length) {
-    frontier.sort((a2, b2) => (dist.get(hexKey(a2)) ?? 0) - (dist.get(hexKey(b2)) ?? 0));
-    const cur = frontier.shift();
-    const curCost = dist.get(hexKey(cur));
-    for (const n2 of neighbors(cur)) {
-      if (!passable(n2)) continue;
-      const nc = curCost + cost(n2);
-      if (nc > movePoints) continue;
-      const k2 = hexKey(n2);
-      if (nc < (dist.get(k2) ?? Infinity)) {
-        dist.set(k2, nc);
-        frontier.push(n2);
-      }
-    }
+function resolveDialogueSource(ref) {
+  const map = this.campaign.dialogues;
+  if (!ref) return null;
+  if (map[ref]) return { key: ref, source: map[ref] };
+  const bare = ref.replace(/^dialogues\//, "").replace(/\.(dlg\.json|ink|json)$/i, "");
+  const candidates = [
+    `dialogues/${bare}.ink`,
+    bare,
+    `${bare}.ink`,
+    `dialogues/${bare}`
+  ];
+  for (const k2 of candidates) {
+    if (map[k2]) return { key: k2, source: map[k2] };
   }
-  dist.delete(hexKey(start));
-  return dist;
-}
-function astar(start, goal, passable, cost) {
-  const startK = hexKey(start);
-  const goalK = hexKey(goal);
-  const open = [start];
-  const came = /* @__PURE__ */ new Map();
-  const g2 = /* @__PURE__ */ new Map([[startK, 0]]);
-  const nodes = /* @__PURE__ */ new Map([[startK, start]]);
-  while (open.length) {
-    open.sort(
-      (a2, b2) => g2.get(hexKey(a2)) + hexDistance(a2, goal) - (g2.get(hexKey(b2)) + hexDistance(b2, goal))
-    );
-    const cur = open.shift();
-    const curK = hexKey(cur);
-    if (curK === goalK) {
-      const path = [];
-      let k2 = goalK;
-      while (k2 !== startK) {
-        path.unshift(nodes.get(k2));
-        k2 = came.get(k2);
-      }
-      return path;
-    }
-    for (const n2 of neighbors(cur)) {
-      const nk = hexKey(n2);
-      if (nk !== goalK && !passable(n2)) continue;
-      const ng = g2.get(curK) + cost(n2);
-      if (ng < (g2.get(nk) ?? Infinity)) {
-        g2.set(nk, ng);
-        came.set(nk, curK);
-        nodes.set(nk, n2);
-        if (!open.some((o2) => hexKey(o2) === nk)) open.push(n2);
-      }
+  for (const [k2, src] of Object.entries(map)) {
+    if (k2 === bare || k2.endsWith(`/${bare}.ink`) || k2.endsWith(`/${bare}`)) {
+      return { key: k2, source: src };
     }
   }
   return null;
 }
-var hexKey, CUBE_DIRS, SQRT3;
-var init_hex = __esm({
-  "src/core/hex.ts"() {
-    hexKey = (h2) => `${h2.col},${h2.row}`;
-    CUBE_DIRS = [
-      { q: 1, r: 0, s: -1 },
-      { q: 1, r: -1, s: 0 },
-      { q: 0, r: -1, s: 1 },
-      { q: -1, r: 0, s: 1 },
-      { q: -1, r: 1, s: 0 },
-      { q: 0, r: 1, s: -1 }
-    ];
-    SQRT3 = Math.sqrt(3);
+function startDialogue(entityId, knot) {
+  stopVoiceAudio();
+  let npc = this.campaign.entities[entityId];
+  if (!npc || npc.type !== "npc") {
+    npc = Object.values(this.campaign.entities).find((e2) => e2.type === "npc" && (e2.dialogue === entityId || e2.dialogue === `${entityId}.ink`));
+  }
+  if (!npc || npc.type !== "npc" || !npc.dialogue) return;
+  const resolved = this.resolveDialogueSource(npc.dialogue);
+  if (!resolved) return;
+  const { key: dialogueKey, source } = resolved;
+  playInteraction("talk", { entity: npc });
+  let story;
+  this.lastDialogueError = null;
+  try {
+    story = createStory(source, dialogueKey);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    this.lastDialogueError = msg;
+    this.pushLog(`\u0414\u0438\u0430\u043B\u043E\u0433 \xAB${dialogueKey}\xBB \u043D\u0435 \u0441\u043A\u043E\u043C\u043F\u0438\u043B\u0438\u0440\u043E\u0432\u0430\u043B\u0441\u044F.`);
+    this.messages.push({ text: `\u0414\u0438\u0430\u043B\u043E\u0433 \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u0435\u043D (${npc.label}).` });
+    console.error(msg);
+    this.notify();
+    return;
+  }
+  bindExternals(story, this);
+  const entryKnot = knot ?? "main";
+  try {
+    story.ChoosePathString(entryKnot);
+  } catch {
+    const fallback = firstInkKnot(source);
+    if (fallback && fallback !== entryKnot) {
+      try {
+        story.ChoosePathString(fallback);
+      } catch {
+        this.lastDialogueError = `\u0421\u0442\u0430\u0440\u0442\u043E\u0432\u044B\u0439 \u0443\u0437\u0435\u043B \xAB${fallback}\xBB \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D \u0432 \u0434\u0438\u0430\u043B\u043E\u0433\u0435 \xAB${dialogueKey}\xBB.`;
+        return;
+      }
+    } else if (!story.canContinue) {
+      this.lastDialogueError = `\u0423\u0437\u0435\u043B \xAB${entryKnot}\xBB \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D \u0432 \u0434\u0438\u0430\u043B\u043E\u0433\u0435 \xAB${dialogueKey}\xBB.`;
+      return;
+    }
+  }
+  this.activeStory = story;
+  this.activeNpc = npc;
+  this.state.stats_run.dialogues += 1;
+  this.dialogueHistory = [];
+  const drained = drainStory(story);
+  for (const l2 of drained.lines) {
+    this.dialogueHistory.push({
+      speaker: l2.action ? "" : dlgSpeakerLabel.call(this, l2, npc),
+      text: l2.text,
+      emotion: l2.emotion,
+      action: l2.action
+    });
+  }
+  if (this.combat || this.trade || this.state.game_over || !this.activeStory) {
+    this.dialogue = null;
+    this.dialogueHistory = [];
+    this.activeStory = null;
+    this.activeNpc = null;
+  } else {
+    this.dialogue = {
+      npc,
+      lines: drained.lines,
+      choices: drained.choices,
+      finished: drained.finished,
+      history: [...this.dialogueHistory]
+    };
+    commitDialogueTimer.call(this, drained.choices.length);
+    commitDialoguePresenting.call(this);
+    this.dialogue.timer = this.dialogueTimer ?? void 0;
+  }
+  this.notify();
+}
+function chooseDialogueOption(index) {
+  const story = this.activeStory;
+  const npc = this.activeNpc;
+  if (!story || !npc) return;
+  const chosenChoice = story.currentChoices[index]?.text;
+  if (chosenChoice) {
+    this.dialogueHistory.push({
+      speaker: this.state.player.name || "\u0412\u044B",
+      text: chosenChoice,
+      isChoice: true
+    });
+  }
+  story.ChooseChoiceIndex(index);
+  const drained = drainStory(story);
+  for (const l2 of drained.lines) {
+    this.dialogueHistory.push({
+      speaker: l2.action ? "" : dlgSpeakerLabel.call(this, l2, npc),
+      text: l2.text,
+      emotion: l2.emotion,
+      action: l2.action
+    });
+  }
+  if (this.combat || this.trade || this.state.game_over || !this.activeStory) {
+    this.dialogue = null;
+    this.dialogueHistory = [];
+    this.activeStory = null;
+    this.activeNpc = null;
+    this.notify();
+    return;
+  }
+  this.dialogue = {
+    npc,
+    lines: drained.lines,
+    choices: drained.choices,
+    finished: drained.finished,
+    history: [...this.dialogueHistory]
+  };
+  commitDialogueTimer.call(this, drained.choices.length);
+  commitDialoguePresenting.call(this);
+  this.dialogue.timer = this.dialogueTimer ?? void 0;
+  this.checkRules();
+  if (this.state.game_over) {
+    this.dialogue = null;
+    this.dialogueHistory = [];
+    this.activeStory = null;
+    this.activeNpc = null;
+  }
+  this.notify();
+}
+function endDialogue() {
+  stopVoiceAudio();
+  this.dialogueTimer = null;
+  this.pendingDialoguePresenting = null;
+  this.dialogue = null;
+  this.dialogueHistory = [];
+  this.activeStory = null;
+  this.activeNpc = null;
+  this.checkRules();
+  this.autosave();
+  this.notify();
+}
+var dialogueRuntime;
+var init_dialogue_runtime = __esm({
+  "src/core/dialogue-runtime.ts"() {
+    init_dialogue();
+    init_audio();
+    init_voiceAudio();
+    dialogueRuntime = {
+      dlgSpeakerLabel,
+      setDialogueTimer,
+      commitDialogueTimer,
+      dialogueTimeout,
+      promptPresentItem,
+      commitDialoguePresenting,
+      submitPresentedItem,
+      resolveDialogueSource,
+      startDialogue,
+      chooseDialogueOption,
+      endDialogue
+    };
   }
 });
 
-// src/core/combat.ts
-function rollSigned(notation, rng) {
-  const n2 = notation.trim();
-  if (n2 === "0" || n2 === "") return 0;
-  if (n2.startsWith("-")) return -rollDice(n2.slice(1), rng);
-  if (n2.startsWith("+")) return rollDice(n2.slice(1), rng);
-  return rollDice(n2, rng);
+// src/core/encounters.ts
+function stealthEnabled() {
+  return !!this.campaign.meta.stealth;
 }
-function maxOf(notation) {
-  const n2 = notation.trim().replace(/^[+]/, "");
-  const neg = n2.startsWith("-");
-  const body = neg ? n2.slice(1) : n2;
-  const m2 = body.match(/^(\d*)[dD](\d+)([+-]\d+)?$/);
-  if (!m2) return Number(body) || 0;
-  const v2 = (m2[1] ? parseInt(m2[1], 10) : 1) * parseInt(m2[2], 10) + (m2[3] ? parseInt(m2[3], 10) : 0);
-  return neg ? -v2 : v2;
+function isSneaking() {
+  return this.state.stealth?.sneaking === true;
 }
-function labelResult(r2) {
-  switch (r2) {
-    case "critical":
-      return "\u041A\u0420\u0418\u0422";
-    case "hard":
-      return "\u0443\u0432\u0435\u0440\u0435\u043D\u043D\u044B\u0439 \u0443\u0441\u043F\u0435\u0445";
-    case "success":
-      return "\u0443\u0441\u043F\u0435\u0445";
-    case "fail":
-      return "\u043F\u0440\u043E\u043C\u0430\u0445";
-    case "fumble":
-      return "\u041F\u0420\u041E\u0412\u0410\u041B";
+function isDetected() {
+  return this.state.stealth?.detected === true;
+}
+function playerSkill(skill) {
+  return Math.max(0, (this.state.player.skills[skill] ?? 0) + this.statusSkillMod(skill));
+}
+function toggleSneak() {
+  if (!this.stealthEnabled()) return;
+  const st2 = this.state.stealth ??= { sneaking: false, detected: false };
+  const wasSneaking = st2.sneaking;
+  st2.sneaking = !wasSneaking;
+  st2.detected = false;
+  if (st2.sneaking) {
+    this.pushLog("\u0412\u044B \u043F\u0435\u0440\u0435\u0445\u043E\u0434\u0438\u0442\u0435 \u043D\u0430 \u0441\u043A\u0440\u044B\u0442\u043D\u043E\u0435 \u043F\u0435\u0440\u0435\u0434\u0432\u0438\u0436\u0435\u043D\u0438\u0435. \u0411\u0440\u043E\u0441\u043E\u043A \u0441\u043A\u0440\u044B\u0442\u043D\u043E\u0441\u0442\u0438 \u043F\u0440\u0438 \u0441\u043C\u0435\u043D\u0435 \u0441\u0446\u0435\u043D\u044B...");
+    this.detectCheck("\u0432\u044B \u043F\u043E\u044F\u0432\u043B\u044F\u0435\u0442\u0435\u0441\u044C \u0432 \u043F\u043E\u043B\u0435 \u0437\u0440\u0435\u043D\u0438\u044F");
+  } else {
+    this.pushLog("\u0412\u044B \u0431\u043E\u043B\u044C\u0448\u0435 \u043D\u0435 \u0441\u043A\u0440\u044B\u0432\u0430\u0435\u0442\u0435\u0441\u044C.");
+  }
+  this.autosave();
+  this.notify();
+}
+function detectCheck(context) {
+  if (!this.stealthEnabled() || !this.isSneaking() || this.isDetected()) return true;
+  const scene = this.currentScene();
+  if (!scene) return true;
+  const st2 = this.campaign.meta.stealth;
+  let bestNpc = null;
+  for (const occ of this.slotOccupants(scene)) {
+    const def = occ.entity;
+    if (!def || def.type !== "npc") continue;
+    const value = def.perception ?? Math.max(1, (def.skills[st2.perception_skill ?? "perception"] ?? 0) || def.stats.INT * 2);
+    if (!bestNpc || value > bestNpc.value) bestNpc = { label: def.label, value };
+  }
+  if (!bestNpc) return true;
+  const skill = st2.skill ?? "stealth";
+  const hero = Math.max(1, (this.state.player.skills[skill] ?? 0) + this.statusSkillMod(skill));
+  const mine = skillCheck(hero, this.rng, 0, this.diceRules);
+  const theirs = skillCheck(bestNpc.value, this.rng, 0, this.diceRules);
+  const RANK2 = { fumble: 0, fail: 1, success: 2, hard: 3, critical: 4 };
+  const wins = (RANK2[mine.result] ?? 1) >= (RANK2[theirs.result] ?? 1);
+  this.pushLog(
+    `\u0421\u043A\u0440\u044B\u0442\u043D\u043E\u0441\u0442\u044C (${context}): \u0432\u0430\u0448 ${mine.result} (d100=${mine.roll}/${hero}) \u043F\u0440\u043E\u0442\u0438\u0432 \xAB${bestNpc.label}\xBB ${theirs.result} (d100=${theirs.roll}/${bestNpc.value}) \u2192 ${wins ? "\u0432\u0430\u0441 \u043D\u0435 \u0437\u0430\u043C\u0435\u0442\u0438\u043B\u0438" : "\u0412\u0410\u0421 \u0417\u0410\u041C\u0415\u0422\u0418\u041B\u0418!"}`
+  );
+  if (!wins) {
+    this.state.stealth.detected = true;
+  }
+  return wins;
+}
+function consumeSurpriseFromSneak() {
+  const st2 = this.state.stealth;
+  if (st2?.sneaking && !st2.detected) return true;
+  return false;
+}
+function rollEncounter(conn) {
+  if (!conn.random_encounter_table) return;
+  const table = this.campaign.encounters[conn.random_encounter_table];
+  if (!table) return;
+  for (let roll = 0; roll < (table.rolls ?? 1); roll++) {
+    const total = table.entries.reduce((s2, e2) => s2 + e2.weight, 0);
+    let pick = this.rng.next() * total;
+    let entry = null;
+    for (const e2 of table.entries) {
+      pick -= e2.weight;
+      if (pick <= 0) {
+        entry = e2;
+        break;
+      }
+    }
+    if (!entry) continue;
+    resolveEncounter.call(this, entry);
+    if (this.combat || this.state.game_over) return;
   }
 }
-var RANK, FISTS, CombatController;
-var init_combat = __esm({
-  "src/core/combat.ts"() {
-    init_hex();
+function resolveEncounter(entry) {
+  switch (entry.type) {
+    case "nothing":
+      return;
+    case "combat": {
+      if (!featureOn(this.campaign.meta, "combat")) return;
+      const enemies = entry.enemies.map((e2) => ({
+        entity: e2.entity,
+        count: this.rng.int(e2.count_min, e2.count_max)
+      }));
+      this.startCombat({
+        type: "start_combat",
+        enemies,
+        arena: entry.arena,
+        intro: entry.intro ?? "\u0412 \u0434\u043E\u0440\u043E\u0433\u0435 \u043D\u0430 \u0432\u0430\u0441 \u043D\u0430\u043F\u0430\u0434\u0430\u044E\u0442!"
+      });
+      return;
+    }
+    case "dialogue":
+      this.startDialogue(entry.entity, entry.knot);
+      return;
+    case "skill_check": {
+      const out = this.playerSkillCheck(entry.skill, entry.difficulty);
+      if (entry.message) this.messages.push({ text: entry.message });
+      this.applyEffects(out.success ? entry.success_effects : entry.fail_effects);
+      return;
+    }
+    case "event":
+      this.applyEffects(entry.effects);
+      if (entry.message) this.messages.push({ text: entry.message });
+      return;
+  }
+}
+function tickPursuit() {
+  const p2 = this.state.pursuit;
+  if (!p2) return;
+  const companions = this.state.party.slice(0, 2);
+  let wins = 0;
+  const outP = this.playerSkillCheck(p2.skill, 50);
+  if (outP.success) wins++;
+  for (const c2 of companions) {
+    const def = this.campaign.entities[c2.entity];
+    if (!def || def.type !== "npc") continue;
+    const out = skillCheck(Math.max(1, def.skills?.[p2.skill] ?? 0), this.rng, difficultyModifier(def.skills?.[p2.skill] ?? 0, 50), this.diceRules);
+    this.pushLog(`${def.label}: d100=${out.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${out.target} \u2192 ${CHECK_RESULT_LABEL[out.result]}`);
+    if (out.success) wins++;
+  }
+  p2.left = p2.every;
+  if (wins > 0) {
+    if (p2.fails > 0) this.pushLog(`\u0421\u043B\u0435\u0434 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u043F\u0443\u0442\u0430\u0442\u044C \u2014 ${p2.label ?? "\u043F\u043E\u0433\u043E\u043D\u044F"} \u043F\u043E\u043A\u0430 \u043D\u0435 \u043D\u0430\u0441\u0442\u0438\u0433\u0430\u0435\u0442.`);
+    p2.fails = 0;
+    return;
+  }
+  p2.fails += 1;
+  if (p2.fails < p2.fails_needed) {
+    this.pushLog(`${p2.label ?? "\u041F\u043E\u0433\u043E\u043D\u044F"} \u043D\u0435 \u043E\u0442\u0441\u0442\u0430\u0451\u0442 \u2014 \u0435\u0449\u0451 ${p2.fails_needed - p2.fails} \u0441\u043E\u0440\u0432\u0430\u043D\u043D\u0430\u044F \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0430, \u0438 \u043E\u0442\u0440\u044F\u0434 \u043D\u0430\u0441\u0442\u0438\u0433\u043D\u0443\u0442!`);
+    return;
+  }
+  this.pushLog(`${p2.label ?? "\u041F\u043E\u0433\u043E\u043D\u044F"} \u043D\u0430\u0441\u0442\u0438\u0433\u043B\u0430 \u043E\u0442\u0440\u044F\u0434!`);
+  const effects2 = p2.on_fail;
+  delete this.state.pursuit;
+  this.applyEffects(effects2);
+}
+function generatorsEnabled() {
+  const g2 = this.campaign.meta.generators;
+  return !!(g2 && (g2.event_tables?.length || g2.npc?.length || g2.scenes?.length || g2.adventures?.length));
+}
+function eventTableDef(id) {
+  return this.campaign.meta.generators?.event_tables?.find((t5) => t5.id === id);
+}
+function eventTableActive(t5) {
+  if (t5.disabled) return false;
+  if (t5.time_of_day?.length && !t5.time_of_day.includes(timeOfDay(this.state.tick, this.campaign.meta))) return false;
+  if (t5.locations?.length && !t5.locations.includes(this.state.location)) return false;
+  return true;
+}
+function rollEventTable(tableId, opts = {}) {
+  const t5 = this.eventTableDef(tableId);
+  if (!t5 || t5.disabled) return null;
+  if (!opts.ignoreFilters && !eventTableActive.call(this, t5)) return null;
+  if (!opts.forced && (t5.chance ?? 1) < 1 && !this.rng.chance(t5.chance ?? 1)) return null;
+  const candidates = [];
+  for (const ruleId of t5.rules) {
+    const rule = this.campaign.rules[ruleId];
+    if (!rule) continue;
+    if (rule.once && this.state.fired_rules.includes(rule.id)) continue;
+    if (!effects.ruleConditionsOk.call(this, rule)) continue;
+    candidates.push(ruleId);
+  }
+  if (!candidates.length) return null;
+  const picked = candidates[this.rng.int(0, candidates.length - 1)];
+  this.pushLog(`\u0421\u043E\u0431\u044B\u0442\u0438\u0435 (${t5.label})\u2026`);
+  this.fireRule(picked);
+  return picked;
+}
+function tickEventTables() {
+  const tables = this.campaign.meta.generators?.event_tables;
+  if (!tables?.length) return;
+  for (const t5 of tables) {
+    if (t5.interval_ticks <= 0) continue;
+    if (this.state.tick % t5.interval_ticks !== 0) continue;
+    this.rollEventTable(t5.id);
+  }
+}
+function genPickWeighted(items, rand) {
+  if (!items.length) return null;
+  let total = 0;
+  for (const it2 of items) total += Math.max(0, it2.weight ?? 1);
+  if (total <= 0) return items[0].value;
+  let roll = rand() * total;
+  for (const it2 of items) {
+    roll -= Math.max(0, it2.weight ?? 1);
+    if (roll <= 0) return it2.value;
+  }
+  return items[items.length - 1].value;
+}
+function genDef(generatorId) {
+  const g2 = this.campaign.meta.generators;
+  if (!g2) return void 0;
+  return g2.npc?.find((x2) => x2.id === generatorId) ?? g2.scenes?.find((x2) => x2.id === generatorId) ?? g2.adventures?.find((x2) => x2.id === generatorId);
+}
+function genValue(generatorId, key, seed) {
+  const def = genDef.call(this, generatorId);
+  if (!def) return "";
+  const rand = seed ? seedRand.call(this, `${seed}:${generatorId}:${key}`) : () => this.rng.next();
+  if (key === "name") {
+    const nameGen = this.campaign.meta.generators?.npc?.find((x2) => x2.id === generatorId);
+    if (nameGen?.name?.length) return composeGenName.call(this, nameGen, rand);
+  }
+  if (key.startsWith("goal:")) {
+    const adv = this.campaign.meta.generators?.adventures?.find((x2) => x2.id === generatorId);
+    const idx = parseInt(key.slice(5), 10);
+    const template = adv?.goals[idx];
+    if (template) return expandGenTemplate.call(this, template, def.lists, rand);
+    return "";
+  }
+  const list = def.lists[key];
+  return list ? this.genPickWeighted(list, rand) ?? "" : "";
+}
+function seedRand(seed) {
+  let h2 = 2166136261 >>> 0;
+  for (let i2 = 0; i2 < seed.length; i2++) {
+    h2 ^= seed.charCodeAt(i2);
+    h2 = Math.imul(h2, 16777619) >>> 0;
+  }
+  let x2 = h2 || 1;
+  return () => {
+    x2 ^= x2 << 13;
+    x2 >>>= 0;
+    x2 ^= x2 >> 17;
+    x2 ^= x2 << 5;
+    x2 >>>= 0;
+    return x2 / 4294967296;
+  };
+}
+function composeGenName(gen, rand) {
+  if (!gen.name?.length) return "";
+  return gen.name.map((p2) => {
+    if (p2.literal != null) return p2.literal;
+    const list = gen.lists[p2.list ?? ""];
+    return list ? this.genPickWeighted(list, rand) ?? "" : "";
+  }).filter(Boolean).join("").trim();
+}
+function expandGenTemplate(template, lists, rand) {
+  return template.replace(/\{(?:list|список):([^\s{}]+)\}/g, (_m, key) => {
+    const list = lists[key];
+    return list ? this.genPickWeighted(list, rand) ?? "" : "";
+  });
+}
+var encounters;
+var init_encounters = __esm({
+  "src/core/encounters.ts"() {
+    init_caps();
+    init_brp();
+    init_time();
+    init_effects();
+    encounters = {
+      stealthEnabled,
+      isSneaking,
+      isDetected,
+      playerSkill,
+      toggleSneak,
+      detectCheck,
+      consumeSurpriseFromSneak,
+      rollEncounter,
+      resolveEncounter,
+      tickPursuit,
+      generatorsEnabled,
+      eventTableDef,
+      eventTableActive,
+      rollEventTable,
+      tickEventTables,
+      genPickWeighted,
+      genDef,
+      genValue,
+      seedRand,
+      composeGenName,
+      expandGenTemplate
+    };
+  }
+});
+
+// src/core/meta.ts
+function metaProgressEnabled() {
+  return !!this.campaign.meta.metaprogress;
+}
+function metaKey(campaignId) {
+  return `narthex:meta:${campaignId}`;
+}
+function metaStore() {
+  if (this.metaState) return this.metaState;
+  let loaded;
+  try {
+    const raw = localStorage.getItem(metaKey(this.campaign.meta.id));
+    loaded = raw ? { ...blankMetaState(), ...JSON.parse(raw) } : blankMetaState();
+  } catch {
+    loaded = blankMetaState();
+  }
+  this.metaState = loaded;
+  return loaded;
+}
+function blankMetaState() {
+  return { runs: 0, deaths: 0, victories: 0, currencies: {}, achievements: {}, unlocks: [], counters: {} };
+}
+function saveMetaStore() {
+  if (!this.metaProgressEnabled() || !this.metaState) return;
+  try {
+    localStorage.setItem(metaKey(this.campaign.meta.id), JSON.stringify(this.metaState));
+  } catch {
+  }
+}
+function metaCurrency(id) {
+  return this.metaStore().currencies[id] ?? 0;
+}
+function grantMetaCurrency(id, amount) {
+  if (!this.metaProgressEnabled() || amount === 0) return;
+  const def = this.campaign.meta.metaprogress?.currencies?.find((c2) => c2.id === id);
+  if (!def) return;
+  const st2 = this.metaStore();
+  st2.currencies[id] = Math.max(0, (st2.currencies[id] ?? 0) + amount);
+  this.pushLog(`${def.label}: ${amount > 0 ? "+" : ""}${amount} (\u0432\u0441\u0435\u0433\u043E ${st2.currencies[id]}).`);
+  saveMetaStore.call(this);
+  this.notify();
+}
+function metaAchievementDone(id) {
+  return !!this.metaStore().achievements[id];
+}
+function metaCounter(key) {
+  const st2 = this.metaStore();
+  switch (key) {
+    case "runs":
+      return st2.runs;
+    case "deaths":
+      return st2.deaths;
+    case "victories":
+      return st2.victories;
+    case "endings_seen":
+      return (st2.endings ?? []).length;
+    default:
+      return (st2.counters[key] ?? 0) + (this.state.stats_run[key] ?? 0);
+  }
+}
+function rememberEnding(endingId) {
+  const st2 = this.metaStore();
+  st2.endings ??= [];
+  if (st2.endings.includes(endingId)) return;
+  st2.endings.push(endingId);
+}
+function achievementStates() {
+  const cfg = this.campaign.meta.metaprogress;
+  if (!cfg) return [];
+  const st2 = this.metaStore();
+  return (cfg.achievements ?? []).filter((a2) => !a2.hidden || st2.achievements[a2.id]).map((a2) => ({
+    def: a2,
+    done: !!st2.achievements[a2.id],
+    ...a2.counter ? { progress: achievementCounter.call(this, a2), target: a2.counter.target } : {}
+  }));
+}
+function achievementCounter(a2) {
+  if (!a2.counter) return 0;
+  const st2 = this.metaStore();
+  const total = st2.counters[a2.counter.stat] ?? 0;
+  return total + (this.state.stats_run[a2.counter.stat] ?? 0);
+}
+function checkAchievements() {
+  const cfg = this.campaign.meta.metaprogress;
+  if (!cfg?.achievements?.length) return;
+  const st2 = this.metaStore();
+  let dirty = false;
+  for (const a2 of cfg.achievements) {
+    if (st2.achievements[a2.id]) continue;
+    const ok = a2.counter ? achievementCounter.call(this, a2) >= a2.counter.target : (a2.conditions ?? []).length > 0 && (a2.conditions ?? []).every((c2) => evalCondition(c2, this));
+    if (!ok) continue;
+    st2.achievements[a2.id] = (/* @__PURE__ */ new Date()).toISOString();
+    dirty = true;
+    this.unlockedThisRun.push(a2.id);
+    this.pushLog(`\u0414\u043E\u0441\u0442\u0438\u0436\u0435\u043D\u0438\u0435: \xAB${a2.label}\xBB!`);
+    if (a2.reward?.currency && a2.reward.amount) {
+      st2.currencies[a2.reward.currency] = Math.max(0, (st2.currencies[a2.reward.currency] ?? 0) + a2.reward.amount);
+      const curLabel = cfg.currencies?.find((c2) => c2.id === a2.reward.currency)?.label ?? a2.reward.currency;
+      this.pushLog(`${curLabel}: +${a2.reward.amount}.`);
+    }
+    if (a2.reward?.xp) this.grantXp(a2.reward.xp);
+  }
+  if (dirty) saveMetaStore.call(this);
+}
+function achievementsUnlockedThisRun() {
+  const cfg = this.campaign.meta.metaprogress;
+  if (!cfg) return [];
+  return this.unlockedThisRun.map((id) => cfg.achievements?.find((a2) => a2.id === id)).filter((x2) => !!x2);
+}
+function finalizeRunMeta(won) {
+  if (!this.metaProgressEnabled()) return;
+  const st2 = this.metaStore();
+  if (won) st2.victories += 1;
+  else st2.deaths += 1;
+  for (const [k2, v2] of Object.entries(this.state.stats_run)) {
+    st2.counters[k2] = (st2.counters[k2] ?? 0) + (v2 ?? 0);
+  }
+  this.checkAchievements();
+  saveMetaStore.call(this);
+}
+function metaRunStart() {
+  const cfg = this.campaign.meta.metaprogress;
+  if (!cfg) return;
+  const st2 = this.metaStore();
+  st2.runs += 1;
+  saveMetaStore.call(this);
+  if (st2.runs > 1) this.pushLog(`\u0425\u0440\u043E\u043D\u0438\u043A\u0430 \u043F\u0440\u043E\u0434\u043E\u043B\u0436\u0430\u0435\u0442 \u043F\u0438\u0441\u0430\u0442\u044C\u0441\u044F \u2014 \u0437\u0430\u0431\u0435\u0433 \u2116${st2.runs}.`);
+  for (const uid of st2.unlocks) {
+    const u2 = cfg.unlocks?.find((x2) => x2.id === uid);
+    if (!u2) continue;
+    this.pushLog(`\u0423\u0441\u0438\u043B\u0435\u043D\u0438\u0435 \u0438\u0437 \u0445\u0440\u043E\u043D\u0438\u043A\u0438: \xAB${u2.label}\xBB.`);
+    this.applyEffects(u2.grants);
+  }
+  this.checkAchievements();
+}
+function metaUnlockOwned(id) {
+  return this.metaStore().unlocks.includes(id);
+}
+function metaUnlockAffordable(u2) {
+  if (this.metaUnlockOwned(u2.id)) return false;
+  if (u2.requires?.length && !u2.requires.every((c2) => evalCondition(c2, this))) return false;
+  return u2.cost.every((c2) => this.metaCurrency(c2.currency) >= c2.amount);
+}
+function buyMetaUnlock(id) {
+  const u2 = this.campaign.meta.metaprogress?.unlocks?.find((x2) => x2.id === id);
+  if (!u2 || !this.metaUnlockAffordable(u2)) return false;
+  const st2 = this.metaStore();
+  for (const c2 of u2.cost) st2.currencies[c2.currency] = (st2.currencies[c2.currency] ?? 0) - c2.amount;
+  st2.unlocks.push(id);
+  saveMetaStore.call(this);
+  this.pushLog(`\u0412 \u0445\u0440\u043E\u043D\u0438\u043A\u0443 \u0437\u0430\u043F\u0438\u0441\u0430\u043D\u043E \u0443\u0441\u0438\u043B\u0435\u043D\u0438\u0435 \xAB${u2.label}\xBB \u2014 \u0431\u0443\u0434\u0435\u0442 \u0434\u0435\u0439\u0441\u0442\u0432\u043E\u0432\u0430\u0442\u044C \u043A\u0430\u0436\u0434\u043E\u043C \u043D\u043E\u0432\u043E\u043C \u0437\u0430\u0431\u0435\u0433\u0435.`);
+  this.notify();
+  return true;
+}
+var meta;
+var init_meta = __esm({
+  "src/core/meta.ts"() {
+    init_conditions();
+    meta = {
+      metaProgressEnabled,
+      metaKey,
+      metaStore,
+      blankMetaState,
+      saveMetaStore,
+      metaCurrency,
+      grantMetaCurrency,
+      metaAchievementDone,
+      metaCounter,
+      rememberEnding,
+      achievementStates,
+      achievementCounter,
+      checkAchievements,
+      achievementsUnlockedThisRun,
+      finalizeRunMeta,
+      metaRunStart,
+      metaUnlockOwned,
+      metaUnlockAffordable,
+      buyMetaUnlock
+    };
+  }
+});
+
+// src/core/roguelike.ts
+function gameOver(type, reason, force = false) {
+  if (this.debugInvincible && type === "death" && !force) return;
+  if (this.state.game_over) return;
+  const ending = (this.campaign.meta.endings ?? []).find(
+    (en) => (!en.on || en.on === type) && (en.conditions ?? []).every((c2) => evalCondition(c2, this))
+  );
+  this.state.game_over = { type, reason, ending: ending?.id };
+  if (ending?.id) meta.rememberEnding.call(this, ending.id);
+  meta.finalizeRunMeta.call(this, type === "victory");
+  this.dialogue = null;
+  this.dialogueTimer = null;
+  this.activeStory = null;
+  this.activeNpc = null;
+  this.trade = null;
+  removeSave(this.campaign.meta.id);
+  this.notify();
+}
+function restart(Engine) {
+  removeSave(this.campaign.meta.id);
+  const fresh = new Engine(this.campaign);
+  if (this.state.char_choice) {
+    fresh.applyCharCreation({ ...this.state.char_choice, calling: this.state.char_choice.calling ?? "" });
+  }
+  fresh.start();
+  return fresh;
+}
+function newGamePlusAvailable() {
+  return !!this.campaign.meta.new_game_plus && this.state.game_over?.type === "victory";
+}
+function newGamePlus(Engine) {
+  const cfg = this.campaign.meta.new_game_plus;
+  if (!this.newGamePlusAvailable() || !cfg) return null;
+  const prev = this.state;
+  removeSave(this.campaign.meta.id);
+  const fresh = new Engine(this.campaign);
+  if (prev.char_choice) {
+    fresh.applyCharCreation({ ...prev.char_choice, calling: prev.char_choice.calling ?? "" });
+  }
+  fresh.start();
+  const keep = new Set(cfg.keep ?? ["skills", "skill_marks", "stats", "inventory", "feats", "prepared"]);
+  const pp = prev.player;
+  const np = fresh.state.player;
+  if (keep.has("skills")) np.skills = JSON.parse(JSON.stringify(pp.skills));
+  if (keep.has("skill_marks")) np.skill_marks = { ...pp.skill_marks };
+  if (keep.has("stats")) {
+    np.stats = { ...pp.stats };
+    np.max_hp = pp.max_hp;
+    np.max_mp = pp.max_mp;
+  }
+  if (keep.has("inventory")) {
+    np.inventory = JSON.parse(JSON.stringify(pp.inventory));
+    np.equipment = { ...pp.equipment };
+  }
+  if (keep.has("feats")) {
+    np.xp = pp.xp;
+    np.level = pp.level;
+    np.feats = pp.feats?.slice();
+  }
+  if (keep.has("prepared")) np.prepared_abilities = pp.prepared_abilities?.slice();
+  np.portrait_choice = pp.portrait_choice && JSON.parse(JSON.stringify(pp.portrait_choice));
+  np.difficulty = pp.difficulty;
+  np.hp = np.max_hp;
+  np.mp = np.max_mp;
+  fresh.state.ng_cycle = (prev.ng_cycle ?? 0) + 1;
+  return fresh;
+}
+var roguelike;
+var init_roguelike = __esm({
+  "src/core/roguelike.ts"() {
+    init_conditions();
+    init_savemigrate();
+    init_meta();
+    roguelike = {
+      gameOver,
+      restart,
+      newGamePlusAvailable,
+      newGamePlus
+    };
+  }
+});
+
+// src/core/scene-slots.ts
+function heroPortraitStateKey() {
+  const p2 = this.state.player;
+  if (p2.statuses?.length) return p2.statuses[0].id;
+  if (p2.hp * 2 < p2.max_hp) return "wounded";
+  for (const v2 of Object.values(this.state.player.needs ?? {})) if (v2 <= 25) return "tired";
+  return "neutral";
+}
+function heroPortraitImages() {
+  const meta2 = this.campaign.meta;
+  const choice = this.state.player.portrait_choice;
+  const key = this.heroPortraitStateKey();
+  const withState = (img, states) => states?.[key] || img;
+  const out = [];
+  if (choice?.layers && meta2.char_creation?.portrait_layers?.length) {
+    for (const layer of meta2.char_creation.portrait_layers) {
+      const opt = layer.options.find((o2) => o2.id === choice.layers[layer.id]) ?? layer.options[0];
+      if (opt) out.push(withState(opt.image, opt.states));
+    }
+  } else if (choice?.gallery) {
+    const def = meta2.char_creation?.portraits?.find((p2) => p2.id === choice.gallery);
+    if (def) out.push(withState(def.image, def.states));
+  }
+  const overlays = Object.entries(this.state.player.equipment ?? {}).flatMap(([slot, id], index) => {
+    const item = this.campaign.entities[id];
+    return item?.type === "item" && item.hero_appearance?.overlay ? [{ slot, index, order: item.hero_appearance.order ?? index, image: item.hero_appearance.overlay }] : [];
+  }).sort((a2, b2) => a2.order - b2.order || a2.index - b2.index);
+  out.push(...overlays.map((x2) => x2.image));
+  return out;
+}
+function heroCombatFigure() {
+  const meta2 = this.campaign.meta.char_creation;
+  const choice = this.state.player.portrait_choice;
+  if (!meta2 || !choice) return {};
+  if (choice.layers && meta2.portrait_layers?.length) {
+    for (const layer of meta2.portrait_layers) {
+      const option = layer.options.find((o2) => o2.id === choice.layers[layer.id]);
+      if (option?.combat_figure)
+        return {
+          figure: option.combat_figure,
+          mode: option.combat_figure_mode,
+          offset: option.combat_facing_offset
+        };
+    }
+  }
+  const portrait = meta2.portraits?.find((p2) => p2.id === choice.gallery);
+  return portrait?.combat_figure ? {
+    figure: portrait.combat_figure,
+    mode: portrait.combat_figure_mode,
+    offset: portrait.combat_facing_offset
+  } : {};
+}
+function isNpcNameKnown(entityId) {
+  if (this.state.flags[`known_${entityId}`] || this.state.flags[`npc_known_${entityId}`]) return true;
+  const def = this.campaign.entities[entityId];
+  if (!def || !def.unknown_label) return true;
+  return (this.state.known_npcs ?? []).includes(entityId);
+}
+function npcLabel(entity) {
+  const def = typeof entity === "string" ? this.campaign.entities[entity] : entity;
+  if (!def) return typeof entity === "string" ? entity : "";
+  if (!def.unknown_label) return def.label;
+  if (this.isNpcNameKnown(def.id)) return def.label;
+  return def.unknown_label;
+}
+function learnNpcName(npcId, silent = false) {
+  const def = this.campaign.entities[npcId];
+  const list = this.state.known_npcs ??= [];
+  if (list.includes(npcId)) return;
+  list.push(npcId);
+  if (!silent && def?.unknown_label) {
+    const msg = `\u0412\u044B \u0443\u0437\u043D\u0430\u043B\u0438: \xAB${def.unknown_label}\xBB \u2014 \u044D\u0442\u043E ${def.label}.`;
+    this.pushLog(msg);
+    this.pushToast(msg, "info");
+  }
+  this.notify();
+  this.checkRules();
+}
+function descOf(entityId) {
+  const def = this.campaign.entities[entityId];
+  return this.state.desc_overrides?.[entityId] ?? def?.description ?? "";
+}
+function setEntityDescription(entityId, text) {
+  const s2 = this.state;
+  s2.desc_overrides = { ...s2.desc_overrides ?? {}, [entityId]: text };
+}
+function slotUseOptions(slot) {
+  return (slot.use_with ?? []).filter((u2) => u2.item && this.hasItem(u2.item)).map((u2) => ({
+    itemId: u2.item,
+    label: this.campaign.entities[u2.item]?.label ?? u2.item,
+    use: u2
+  }));
+}
+function useItemOnSlot(slotId, itemId) {
+  const scene = this.currentScene();
+  const slot = scene?.slots.find((s2) => s2.id === slotId);
+  const use = slot?.use_with?.find((u2) => u2.item === itemId);
+  if (!slot || !use || !this.hasItem(itemId)) return false;
+  const def = this.campaign.entities[itemId];
+  if (use.consume) this.removeItem(itemId, 1, { verb: "\u0418\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u043E" });
+  this.applyEffects(use.effects);
+  if (use.message) this.messages.push({ text: use.message });
+  this.pushLog(`${def?.label ?? itemId}: \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u043E \u043D\u0430 \xAB${slot.label ?? slotId}\xBB.`);
+  playInteraction("use", { entity: def });
+  this.checkRules();
+  this.autosave();
+  this.notify();
+  return true;
+}
+function entityState(id) {
+  return this.state.entity_states?.[id] || void 0;
+}
+function unlockCodex(entryId) {
+  const entry = this.campaign.codex[entryId];
+  if (!entry) return;
+  const s2 = this.state;
+  if (!s2.codex_unlocked) s2.codex_unlocked = [];
+  if (s2.codex_unlocked.includes(entryId)) return;
+  s2.codex_unlocked.push(entryId);
+  this.messages.push({ text: `\u041D\u043E\u0432\u0430\u044F \u0437\u0430\u043F\u0438\u0441\u044C \u0432 \u043A\u043E\u0434\u0435\u043A\u0441\u0435: ${entry.label}.` });
+  this.pushLog(`\u041A\u043E\u0434\u0435\u043A\u0441 \u043F\u043E\u043F\u043E\u043B\u043D\u0435\u043D: ${entry.label}.`);
+  playInteraction("pickup", {});
+  this.notify();
+  this.autosave();
+}
+function unlockedCodexEntries() {
+  return (this.state.codex_unlocked ?? []).map((id) => this.campaign.codex[id]).filter((e2) => !!e2);
+}
+function codexCategories() {
+  return this.campaign.meta.codex_categories ?? BUILTIN_CODEX_CATEGORIES;
+}
+function fmt(text) {
+  if (!text.includes("{")) return text;
+  const st2 = this.state;
+  const p2 = st2.player;
+  const day = Math.floor((st2.tick ?? 0) / Math.max(1, this.campaign.meta.ticks_per_day || 24)) + 1;
+  const out = {
+    "\u0438\u043C\u044F": p2.name ?? "\u0433\u0435\u0440\u043E\u0439",
+    "\u0433\u0435\u0440\u043E\u0439": p2.name ?? "\u0433\u0435\u0440\u043E\u0439",
+    "\u0438\u043C\u044F_\u0433\u0435\u0440\u043E\u044F": p2.name ?? "\u0433\u0435\u0440\u043E\u0439",
+    "\u0437\u0434\u043E\u0440\u043E\u0432\u044C\u0435": String(Math.max(0, p2.hp)),
+    "\u0437\u0434\u043E\u0440\u043E\u0432\u044C\u0435_\u043C\u0430\u043A\u0441": String(p2.max_hp),
+    "\u043C\u0430\u043D\u0430": String(Math.max(0, p2.mp)),
+    "\u043C\u0430\u043D\u0430_\u043C\u0430\u043A\u0441": String(p2.max_mp),
+    "\u0443\u0434\u0430\u0447\u0430": String(this.luck()),
+    "\u0443\u0440\u043E\u0432\u0435\u043D\u044C": String(p2.level ?? 1),
+    "\u043E\u043F\u044B\u0442": String(p2.xp ?? 0),
+    "\u0434\u0435\u043D\u044C": String(day)
+  };
+  return text.replace(/\{([^{}]+)\}/g, (_m, raw) => {
+    if (raw in out) return out[raw];
+    const cut = raw.indexOf(":");
+    if (cut > 0) {
+      const kind = raw.slice(0, cut);
+      const id = raw.slice(cut + 1).trim();
+      switch (kind) {
+        case "\u0441\u0447\u0451\u0442":
+        case "\u0441\u0447\u0435\u0442":
+          return String(this.itemCount(id));
+        case "\u043D\u0430\u0432\u044B\u043A":
+          return String(p2.skills[id] ?? 0);
+        case "\u043F\u043E\u0442\u0440\u0435\u0431\u043D\u043E\u0441\u0442\u044C":
+          return String(p2.needs[id] ?? 0);
+        case "\u0441\u0442\u0430\u0442":
+          return String(p2.stats[id] ?? 0);
+        case "\u0432\u0430\u043B\u044E\u0442\u0430":
+          return String(p2.currencies?.[id] ?? 0);
+      }
+    }
+    return `{${raw}}`;
+  });
+}
+function itemInteractable(item) {
+  return (item.interactable_when ?? []).every((c2) => evalCondition(c2, this));
+}
+function itemInteractOptions(item) {
+  const itemOptions = item.interact_options ?? [];
+  return itemOptions.filter((o2, index) => {
+    if (o2.conditions && o2.conditions.length > 0 && !o2.conditions.every((c2) => evalCondition(c2, this))) return false;
+    if (o2.once) {
+      const key = `item:${item.id}:${index}`;
+      if (this.state.used_item_interacts?.includes(key)) return false;
+    }
+    return true;
+  });
+}
+function runItemInteract(item, option) {
+  const soundOpt = option.sound ?? "use";
+  playInteraction(soundOpt, { entity: item, sound: option.sound }, option.sound_volume ?? 1);
+  if (option.effects?.some((ef) => ef.type === "open_craft")) {
+    this.craftSourceEntity = item;
+  }
+  this.applyEffects(option.effects);
+  if (option.message) {
+    if (this.craftRequest || this.combat || this.dialogue) {
+      this.pushToast(this.fmt(option.message), "info");
+    } else {
+      this.messages.push({ text: this.fmt(option.message), portrait: item.portrait?.[option.emotion ?? "neutral"] ?? item.portrait?.["neutral"] });
+    }
+  }
+  if (option.consume) this.state.removed_entities.push(item.id);
+  if (option.once) {
+    const itemOptions = item.interact_options ?? [];
+    const optionIndex = itemOptions.findIndex((o2) => o2 === option);
+    if (optionIndex >= 0) {
+      const key = `item:${item.id}:${optionIndex}`;
+      if (!this.state.used_item_interacts) this.state.used_item_interacts = [];
+      if (!this.state.used_item_interacts.includes(key)) {
+        this.state.used_item_interacts.push(key);
+      }
+    }
+  }
+  this.checkRules();
+  this.notify();
+}
+function interactWithSlot(occ) {
+  if (!occ.entity) return false;
+  this.inspectedEntityId = occ.entity.id;
+  if (occ.slot.sound) {
+    playInteraction(occ.slot.sound, { sound: occ.slot.sound }, occ.slot.sound_volume ?? 1);
+  }
+  if (occ.entity.type === "npc") {
+    const npc = occ.entity;
+    if (npc.dialogue) {
+      this.startDialogue(occ.entity.id);
+    } else {
+      const desc = this.descOf(npc.id);
+      if (desc) {
+        this.messages.push({
+          text: desc,
+          portrait: npc.portrait?.neutral || void 0
+        });
+        this.notify();
+      }
+    }
+    return true;
+  }
+  const item = occ.entity;
+  if (!this.itemInteractable(item)) return false;
+  const slotType = occ.slot.type[0];
+  const opts = this.itemInteractOptions(item);
+  if (opts.length) {
+    return false;
+  }
+  if (item.on_interact) {
+    const isOpen = occ.slot.type.includes("container") || item.category === "container";
+    playInteraction(isOpen ? "open" : "use", { entity: item, slotType });
+    this.applyEffects(item.on_interact.effects);
+    const desc = this.descOf(item.id) || item.description;
+    if (item.on_interact.message) {
+      this.messages.push({ text: this.fmt(item.on_interact.message) });
+    } else if (desc) {
+      this.messages.push({
+        text: desc,
+        portrait: item.portrait?.neutral || void 0
+      });
+    }
+    if (item.on_interact.consume) {
+      this.state.removed_entities.push(item.id);
+    }
+    this.checkRules();
+    this.notify();
+  } else {
+    const desc = this.descOf(item.id);
+    const textToShow = desc || item.description;
+    if (textToShow) {
+      this.messages.push({
+        text: textToShow,
+        portrait: item.portrait?.neutral || void 0
+      });
+    } else {
+      this.pushToast(`\xAB${item.label}\xBB (\u043D\u0435\u0442 \u043F\u043E\u0434\u0440\u043E\u0431\u043D\u043E\u0433\u043E \u043E\u043F\u0438\u0441\u0430\u043D\u0438\u044F)`);
+    }
+    this.notify();
+  }
+  return true;
+}
+var sceneSlots;
+var init_scene_slots = __esm({
+  "src/core/scene-slots.ts"() {
+    init_types();
+    init_conditions();
+    init_audio();
+    sceneSlots = {
+      heroPortraitStateKey,
+      heroPortraitImages,
+      heroCombatFigure,
+      isNpcNameKnown,
+      npcLabel,
+      learnNpcName,
+      descOf,
+      setEntityDescription,
+      slotUseOptions,
+      useItemOnSlot,
+      entityState,
+      unlockCodex,
+      unlockedCodexEntries,
+      codexCategories,
+      fmt,
+      itemInteractable,
+      itemInteractOptions,
+      runItemInteract,
+      interactWithSlot
+    };
+  }
+});
+
+// src/core/needs.ts
+var needs;
+var init_needs = __esm({
+  "src/core/needs.ts"() {
+    init_caps();
+    init_migrate();
     init_brp();
     init_dice();
+    init_time();
     init_audio();
-    RANK = { fumble: 0, fail: 1, success: 2, hard: 3, critical: 4 };
-    FISTS = {
-      skill: "brawl",
-      damage: "1d3",
-      damage_bonus: true,
-      range: 1,
-      attacks_per_round: 1,
-      parry_capable: false,
-      label: "\u041A\u0443\u043B\u0430\u043A\u0438"
-    };
-    CombatController = class {
-      engine;
-      arena;
-      def;
-      combatants = [];
-      round = 1;
-      activeIndex = 0;
-      log = [];
-      result = null;
-      /** внезапное начало боя (аудит §5.6 п.12): сторона, начавшая внезапно */
-      surprise;
-      loot = [];
-      blocked;
-      difficult;
-      /** гексы-укрытия арены (мастерская разметка cover_hexes), «c,r» */
-      coverHexes;
-      constructor(engine, def) {
-        this.engine = engine;
-        this.def = def;
-        const arena = engine.campaign.arenas[def.arena];
-        if (!arena) throw new Error(`\u0410\u0440\u0435\u043D\u0430 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u0430: ${def.arena}`);
-        this.arena = arena;
-        this.blocked = new Set((arena.hex_grid.blocked_hexes ?? []).map(([c2, r2]) => `${c2},${r2}`));
-        this.difficult = new Set((arena.hex_grid.difficult_terrain ?? []).map(([c2, r2]) => `${c2},${r2}`));
-        this.coverHexes = new Set((arena.hex_grid.cover_hexes ?? []).map(([c2, r2]) => `${c2},${r2}`));
-        this.surprise = def.surprise;
-        this.setup();
-        const wStatus = this.weatherCombat?.status;
-        if (wStatus) {
-          for (const c2 of this.combatants) this.applyStatusTo(c2.id, wStatus);
-          this.log.push(`\u041F\u043E\u0433\u043E\u0434\u0430: \xAB${this.statusLabel(wStatus)}\xBB \u0434\u0435\u0439\u0441\u0442\u0432\u0443\u0435\u0442 \u043D\u0430 \u0432\u0441\u0435\u0445.`);
+    needs = {
+      // ─────────────── время и потребности ───────────────
+      /**
+      * Условие потребности (когда убывает / когда восстанавливается).
+      * Итерация 8, А3: «в локации» и «есть/надет предмет» — СПИСКИ id,
+      * условие истинно, если выполнено хотя бы одно значение («любой из»).
+      */
+      needCondOk(ctx2, raw) {
+        const c2 = migrateNeedCondition(raw);
+        switch (c2.type) {
+          case "time_of_day":
+            return c2.values.includes(timeOfDay(ctx2.state.tick, ctx2.campaign.meta));
+          case "flag":
+            return !!ctx2.state.flags[c2.flag] !== !!c2.not;
+          case "in_location":
+            return (c2.locations ?? []).includes(ctx2.state.location) !== !!c2.not;
+          case "has_item":
+            return (c2.items ?? []).some((id) => ctx2.hasItem(id)) !== !!c2.not;
+          case "equipped":
+            return (c2.items ?? []).some((id) => ctx2.isEquipped(id)) !== !!c2.not;
+          case "weather":
+            return (ctx2.state.weather ?? "") === c2.weather !== !!c2.not;
         }
-        if (def.intro) this.log.push(def.intro);
-        if (this.surprise) {
-          const side = this.surprise === "player" ? "\u0433\u0435\u0440\u043E\u044F" : "\u0432\u0440\u0430\u0433\u043E\u0432";
-          this.log.push(`\u0412\u043D\u0435\u0437\u0430\u043F\u043D\u043E\u0441\u0442\u044C! \u0412\u0440\u0430\u0433\u0438${this.surprise === "player" ? " \u0437\u0430\u0441\u0442\u0438\u0433\u043D\u0443\u0442\u044B \u0432\u0440\u0430\u0441\u043F\u043B\u043E\u0445" : " \u0437\u0430\u0441\u0442\u0430\u044E\u0442 \u0432\u0430\u0441 \u0432\u0440\u0430\u0441\u043F\u043B\u043E\u0445"} \u2014 \u0441\u0442\u043E\u0440\u043E\u043D\u0430 ${side} \u043D\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0443\u0435\u0442 \u0432 \u043F\u0435\u0440\u0432\u043E\u043C \u0440\u0430\u0443\u043D\u0434\u0435 \u0438 \u043D\u0435 \u0437\u0430\u0449\u0438\u0449\u0430\u0435\u0442\u0441\u044F.`);
-        }
-        this.log.push(`\u2014 \u0420\u0430\u0443\u043D\u0434 1 \u2014`);
-        this.startRound();
-        this.processUntilPlayer();
-      }
-      // ─────────────── подготовка ───────────────
-      setup() {
-        const e2 = this.engine;
-        const p2 = e2.state.player;
-        const playerDef = e2.campaign.entities[p2.entity];
-        const playerSpawns = [...this.arena.spawn_zones.player.hexes];
-        const enemySpawns = [...this.arena.spawn_zones.enemy.hexes];
-        const center = {
-          col: Math.floor(this.arena.hex_grid.cols / 2),
-          row: Math.floor(this.arena.hex_grid.rows / 2)
-        };
-        const playerAnchor = playerSpawns.length ? { col: playerSpawns[0][0], row: playerSpawns[0][1] } : center;
-        const enemyAnchor = enemySpawns.length ? { col: enemySpawns[0][0], row: enemySpawns[0][1] } : center;
-        const pw = e2.playerWeapon();
-        const pa = e2.playerArmor();
-        const appearanceFigure = e2.heroCombatFigure();
-        const weapon = pw.weapon;
-        const weaponLabel = pw.label;
-        const encDebuffs = e2.encumbranceDebuffs();
-        const overloaded = encDebuffs.status !== "normal";
-        let playerSkills = p2.skills;
-        if (overloaded) {
-          playerSkills = { ...p2.skills };
-          if (encDebuffs.dodgePenalty > 0) {
-            playerSkills.dodge = Math.max(0, (playerSkills.dodge ?? 0) - encDebuffs.dodgePenalty);
-          }
-          if (encDebuffs.skillPenalty > 0) {
-            if (playerSkills.stealth !== void 0) {
-              playerSkills.stealth = Math.max(0, playerSkills.stealth - encDebuffs.skillPenalty);
-            }
-            if (playerSkills.athletics !== void 0) {
-              playerSkills.athletics = Math.max(0, playerSkills.athletics - encDebuffs.skillPenalty);
+      },
+      advanceTicks(ctx2, ticks, hooks) {
+        const meta2 = ctx2.campaign.meta;
+        const needsOn = featureOn(meta2, "needs");
+        for (let i2 = 0; i2 < ticks; i2++) {
+          if (ctx2.state.game_over) return;
+          ctx2.state.tick += 1;
+          ctx2.state.stats_run.ticks_survived += 1;
+          if (needsOn) {
+            for (const need of meta2.needs) {
+              const cur = ctx2.state.player.needs[need.id] ?? need.max;
+              let next = cur;
+              const decays = !need.decay_when?.length || need.decay_when.every((c2) => needs.needCondOk(ctx2, c2));
+              if (decays) next = Math.max(0, next - need.decay_per_tick * (ctx2.difficultyDef()?.need_decay ?? 1));
+              if (need.restore_per_tick && (!need.restore_when?.length || need.restore_when.every((c2) => needs.needCondOk(ctx2, c2)))) {
+                next = Math.min(need.max, next + need.restore_per_tick);
+              }
+              ctx2.state.player.needs[need.id] = next;
+              if (next <= 0 && cur > 0) needs.onNeedZero(ctx2, need.id);
             }
           }
-        }
-        this.combatants.push({
-          id: "c_player",
-          entityId: p2.entity,
-          label: playerDef.label,
-          side: "player",
-          portrait: [playerDef.token, playerDef.portrait?.neutral].map((s2) => (s2 ?? "").trim()).find(Boolean) || void 0,
-          figure: appearanceFigure.figure ?? playerDef.combat_figure,
-          figure_mode: appearanceFigure.mode ?? playerDef.figure_mode ?? "topdown",
-          figure_shadow: playerDef.shadow,
-          facing: 90,
-          flip: false,
-          facing_offset: appearanceFigure.offset ?? playerDef.facing_offset,
-          stats: p2.stats,
-          skills: playerSkills,
-          weapon,
-          weaponLabel,
-          weaponItemId: pw.itemId,
-          armor: pa.points,
-          hp: p2.hp,
-          maxHp: p2.max_hp,
-          pos: this.takeSpawn(playerSpawns, playerAnchor),
-          mov: Math.max(1, movement(p2.stats) - encDebuffs.movPenalty),
-          movLeft: 0,
-          statuses: [],
-          mp: p2.mp,
-          maxMp: p2.max_mp,
-          abilities: playerDef.abilities ?? [],
-          cooldowns: {},
-          attacksLeft: 0,
-          attacked: false,
-          defensesUsed: 0,
-          dead: false
-        });
-        if (overloaded) {
-          const parts = [];
-          if (encDebuffs.movPenalty > 0) parts.push(`\u0434\u0432\u0438\u0436\u0435\u043D\u0438\u0435 \u2212${encDebuffs.movPenalty}`);
-          if (encDebuffs.dodgePenalty > 0) parts.push(`\u0443\u043A\u043B\u043E\u043D\u0435\u043D\u0438\u0435 \u2212${encDebuffs.dodgePenalty}%`);
-          if (encDebuffs.skillPenalty > 0) parts.push(`\u043B\u043E\u0432\u043A\u043E\u0441\u0442\u044C \u2212${encDebuffs.skillPenalty}%`);
-          this.log.push(`\u0412\u044B \u043F\u0435\u0440\u0435\u0433\u0440\u0443\u0436\u0435\u043D\u044B (${encDebuffs.label}): ${parts.join(", ")}.`);
-        }
-        for (const comp of e2.state.party) {
-          const def = e2.campaign.entities[comp.entity];
-          if (!def || def.type !== "npc") continue;
-          if (comp.hp <= 0) continue;
-          const battleDef = comp.equipment && Object.keys(comp.equipment).length ? { ...def, equipment: { ...def.equipment ?? {}, ...comp.equipment } } : def;
-          const w2 = this.resolveWeapon(battleDef, def.skills ?? {});
-          let allySkills = def.skills ?? {};
-          const exhausted = Object.entries(comp.needs ?? {}).some(([id, v2]) => {
-            const nd = e2.campaign.meta.needs.find((n3) => n3.id === id);
-            return nd != null && v2 <= nd.critical_threshold;
-          });
-          if (exhausted) {
-            allySkills = Object.fromEntries(Object.entries(allySkills).map(([k2, v2]) => [k2, Math.max(0, Math.round(v2 * 0.9))]));
-            this.log.push(`${def.label} \u0438\u0441\u0442\u043E\u0449\u0451\u043D(\u0430): \u043D\u0430\u0432\u044B\u043A\u0438 \u221210%.`);
+          if (needsOn && ctx2.state.party.length) {
+            for (const comp of ctx2.state.party) {
+              if (!comp.needs) continue;
+              for (const need of meta2.needs) {
+                const cur = comp.needs[need.id];
+                if (cur === void 0) continue;
+                let next = cur;
+                const decays = !need.decay_when?.length || need.decay_when.every((c2) => needs.needCondOk(ctx2, c2));
+                if (decays) next = Math.max(0, next - need.decay_per_tick * (ctx2.difficultyDef()?.need_decay ?? 1));
+                if (need.restore_per_tick && (!need.restore_when?.length || need.restore_when.every((c2) => needs.needCondOk(ctx2, c2)))) {
+                  next = Math.min(need.max, next + need.restore_per_tick);
+                }
+                comp.needs[need.id] = next;
+                if (next <= 0 && cur > 0) {
+                  const cdef = ctx2.campaign.entities[comp.entity];
+                  ctx2.pushLog(`${cdef?.label ?? comp.entity} \u043D\u0430 \u043F\u0440\u0435\u0434\u0435\u043B\u0435: ${need.label.toLowerCase()} \u043D\u0430 \u043D\u0443\u043B\u0435.`);
+                }
+              }
+            }
           }
-          this.combatants.push({
-            id: `c_ally_${comp.entity}`,
-            entityId: comp.entity,
-            label: def.label,
-            side: "player",
-            portrait: [def.token, def.portrait?.neutral].map((s2) => (s2 ?? "").trim()).find(Boolean) || void 0,
-            figure: def.combat_figure,
-            figure_mode: def.figure_mode ?? "topdown",
-            figure_shadow: def.shadow,
-            facing: 90,
-            flip: false,
-            facing_offset: def.facing_offset,
-            stats: def.stats,
-            skills: allySkills,
-            weapon: w2.weapon,
-            weaponLabel: w2.weaponLabel,
-            weaponItemId: w2.weaponItemId,
-            armor: this.resolveArmor(battleDef),
-            hp: comp.hp,
-            maxHp: comp.max_hp,
-            pos: this.takeSpawn(playerSpawns, this.combatants[0]?.pos ?? playerAnchor),
-            mov: movement(def.stats),
-            movLeft: 0,
-            statuses: [],
-            mp: derivedMP(def.stats),
-            maxMp: derivedMP(def.stats),
-            abilities: def.abilities ?? [],
-            cooldowns: {},
-            attacksLeft: 0,
-            attacked: false,
-            defensesUsed: 0,
-            dead: false
-          });
+          needs.tickStatuses(ctx2);
+          if (ctx2.state.pursuit) {
+            ctx2.state.pursuit.left -= 1;
+            if (ctx2.state.pursuit.left <= 0) hooks.tickPursuit();
+          }
+          const tpd = meta2.ticks_per_day ?? 24;
+          if (tpd > 0 && ctx2.state.tick > 0 && ctx2.state.tick % tpd === 0) hooks.tickNpcMood();
+          needs.tickPerishableItems(ctx2, 1);
         }
-        let a2 = 0;
-        for (const grp of this.def.allies ?? []) {
-          const def = e2.campaign.entities[grp.entity];
-          if (!def || def.type !== "npc") continue;
-          for (let i2 = 0; i2 < grp.count; i2++) {
-            a2++;
-            const hp = def.stats.HP ?? derivedHP(def.stats);
-            const w2 = this.resolveWeapon(def, def.skills ?? {});
-            this.combatants.push({
-              id: `c_tally_${grp.entity}_${a2}`,
-              entityId: grp.entity,
-              label: grp.count > 1 ? `${def.label} ${a2}` : def.label,
-              side: "player",
-              portrait: [def.token, def.portrait?.neutral].map((s2) => (s2 ?? "").trim()).find(Boolean) || void 0,
-              figure: def.combat_figure,
-              figure_mode: def.figure_mode ?? "topdown",
-              figure_shadow: def.shadow,
-              facing: 90,
-              flip: false,
-              facing_offset: def.facing_offset,
-              stats: def.stats,
-              skills: def.skills ?? {},
-              weapon: w2.weapon,
-              weaponLabel: w2.weaponLabel,
-              weaponItemId: w2.weaponItemId,
-              armor: this.resolveArmor(def),
-              hp,
-              maxHp: hp,
-              pos: this.takeSpawn(playerSpawns, this.combatants[0]?.pos ?? playerAnchor),
-              mov: movement(def.stats),
-              movLeft: 0,
-              statuses: [],
-              mp: derivedMP(def.stats),
-              maxMp: derivedMP(def.stats),
-              abilities: def.abilities ?? [],
-              cooldowns: {},
-              attacksLeft: 0,
-              attacked: false,
-              defensesUsed: 0,
-              dead: false
-            });
+        ctx2.checkAchievements();
+        hooks.tickEventTables();
+        ctx2.checkRules();
+      },
+      /** Обработка порчи скоропортящихся предметов со временем (decay_ticks / freshness) */
+      tickPerishableItems(ctx2, ticks) {
+        const inv = ctx2.state.player.inventory;
+        for (let i2 = inv.length - 1; i2 >= 0; i2--) {
+          const slot = inv[i2];
+          if (slot.freshness === void 0) continue;
+          slot.freshness = Math.max(0, slot.freshness - ticks);
+          if (slot.freshness === 0) {
+            const def = ctx2.campaign.entities[slot.item];
+            const title = def?.label ?? slot.item;
+            const msg = def?.spoil_msg || `\xAB${title}\xBB \u0438\u0441\u043F\u043E\u0440\u0442\u0438\u043B\u0441\u044F \u043E\u0442 \u0432\u0440\u0435\u043C\u0435\u043D\u0438.`;
+            ctx2.pushLog(msg);
+            ctx2.pushToast(msg, "info");
+            if (def?.spoil_action === "rule" && def.spoil_rule) {
+              ctx2.fireRule(def.spoil_rule);
+            }
+            if (def?.spoil_into) {
+              const replacement = def.spoil_into;
+              const repDef = ctx2.campaign.entities[replacement];
+              slot.item = replacement;
+              slot.freshness = repDef?.decay_ticks !== void 0 ? repDef.decay_ticks : void 0;
+              if (repDef?.label) {
+                ctx2.pushLog(`\u041F\u0440\u0435\u0432\u0440\u0430\u0442\u0438\u043B\u043E\u0441\u044C \u0432: ${repDef.label}.`);
+              }
+            } else {
+              inv.splice(i2, 1);
+              for (const eqSlot of Object.keys(ctx2.state.player.equipment)) {
+                if (ctx2.state.player.equipment[eqSlot] === slot.item) {
+                  delete ctx2.state.player.equipment[eqSlot];
+                }
+              }
+            }
           }
         }
-        let n2 = 0;
-        for (const grp of this.def.enemies) {
-          const def = e2.campaign.entities[grp.entity];
+      },
+      /** один тик мировых статусов игрока; статус сам по себе не убивает (мин. 1 HP) */
+      tickStatuses(ctx2) {
+        const list = ctx2.state.player.statuses;
+        if (!list?.length) return;
+        const expired = [];
+        const cured = [];
+        for (const s2 of list) {
+          const def = needs.statusDef(ctx2, s2.id);
           if (!def) continue;
-          for (let i2 = 0; i2 < grp.count; i2++) {
-            n2++;
-            const hp = def.stats.HP ?? derivedHP(def.stats);
-            const w2 = this.resolveWeapon(def, def.skills ?? {});
-            this.combatants.push({
-              id: `c_enemy_${n2}`,
-              entityId: def.id,
-              label: grp.count > 1 ? `${def.label} ${i2 + 1}` : def.label,
-              side: "enemy",
-              portrait: [def.token, def.portrait?.neutral].map((s2) => (s2 ?? "").trim()).find(Boolean) || void 0,
-              figure: def.combat_figure,
-              figure_mode: def.figure_mode ?? "topdown",
-              figure_shadow: def.shadow,
-              facing: -90,
-              flip: true,
-              facing_offset: def.facing_offset,
-              stats: def.stats,
-              skills: def.skills ?? {},
-              weapon: w2.weapon,
-              weaponLabel: w2.weaponLabel,
-              weaponItemId: w2.weaponItemId,
-              armor: this.resolveArmor(def),
-              hp,
-              maxHp: hp,
-              pos: this.takeSpawn(enemySpawns, enemyAnchor),
-              mov: movement(def.stats),
-              movLeft: 0,
-              statuses: [],
-              mp: derivedMP(def.stats),
-              maxMp: derivedMP(def.stats),
-              abilities: def.abilities ?? [],
-              cooldowns: {},
-              attacksLeft: 0,
-              attacked: false,
-              defensesUsed: 0,
-              dead: false
-            });
-          }
-        }
-        this.combatants.sort((a3, b2) => b2.stats.DEX - a3.stats.DEX || (this.engine.rng.chance(0.5) ? -1 : 1));
-      }
-      takeSpawn(spawns, anchor) {
-        while (spawns.length) {
-          const [col, row] = spawns.shift();
-          const h2 = { col, row };
-          if (this.inBounds(h2) && !this.isBlocked(h2) && !this.occupantAt(h2)) return h2;
-        }
-        return this.nearestFreeHex(anchor);
-      }
-      /** ближайший к anchor свободный и проходимый гекс сетки (кольцевой обход) */
-      nearestFreeHex(anchor) {
-        let best = null;
-        let bestD = Infinity;
-        for (let row = 0; row < this.arena.hex_grid.rows; row++) {
-          for (let col = 0; col < this.arena.hex_grid.cols; col++) {
-            const h2 = { col, row };
-            if (this.isBlocked(h2) || this.occupantAt(h2)) continue;
-            const d2 = hexDistance(anchor, h2);
-            if (d2 < bestD) {
-              bestD = d2;
-              best = h2;
+          const severity = Math.max(1, s2.severity ?? 1);
+          if (def.dot?.hp) ctx2.state.player.hp = Math.max(1, ctx2.state.player.hp - def.dot.hp * severity);
+          if (def.dot?.mp) ctx2.state.player.mp = Math.max(0, ctx2.state.player.mp - def.dot.mp * severity);
+          if (def.dot?.hp) ctx2.pushLog(`${def.label}: \u2212${def.dot.hp * severity} HP${severity > 1 ? ` (\u0442\u044F\u0436\u0435\u0441\u0442\u044C ${severity})` : ""}.`);
+          if (def.disease && (s2.next_check ?? Infinity) <= ctx2.state.tick) {
+            const mult = def.disease.con_multiplier ?? 5;
+            const out = skillCheck(ctx2.state.player.stats.CON * mult, ctx2.rng, 0, ctx2.diceRules);
+            ctx2.pushLog(`${def.label}: \u0441\u0442\u0430\u0434\u0438\u044F \u0442\u0435\u0447\u0435\u043D\u0438\u044F \u2014 CON\xD7${mult}, d100=${out.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${out.target} \u2192 ${CHECK_RESULT_LABEL[out.result]}`);
+            s2.next_check = ctx2.state.tick + def.disease.interval_ticks;
+            if (out.success) {
+              s2.severity = Math.max(0, severity - 1);
+              if (s2.severity === 0) {
+                cured.push(s2.id);
+                continue;
+              }
+              ctx2.pushLog(`${def.label}: \u0442\u044F\u0436\u0435\u0441\u0442\u044C \u0441\u043D\u0438\u0436\u0430\u0435\u0442\u0441\u044F \u0434\u043E ${s2.severity}.`);
+            } else {
+              const cap = def.disease.severity_max ?? 5;
+              s2.severity = Math.min(cap, severity + 1);
+              ctx2.pushLog(`${def.label}: \u0431\u043E\u043B\u0435\u0437\u043D\u044C \u0443\u0445\u0443\u0434\u0448\u0430\u0435\u0442\u0441\u044F \u2014 \u0442\u044F\u0436\u0435\u0441\u0442\u044C ${s2.severity}/${cap}.`);
             }
           }
+          s2.left -= 1;
+          if (s2.left <= 0) expired.push(def);
         }
-        return best ?? anchor;
-      }
-      resolveWeapon(def, skills) {
-        const weaponItemId = def.equipment?.weapon;
-        if (weaponItemId) {
-          const item = this.engine.campaign.entities[weaponItemId];
-          if (item?.weapon_data) return { weapon: item.weapon_data, weaponLabel: item.label, weaponItemId };
+        if (cured.length) {
+          ctx2.state.player.statuses = (ctx2.state.player.statuses ?? []).filter((s2) => !cured.includes(s2.id));
+          for (const id of cured) {
+            const def = needs.statusDef(ctx2, id);
+            ctx2.pushLog(`${def?.label ?? id}: \u0432\u044B\u0437\u0434\u043E\u0440\u043E\u0432\u043B\u0435\u043D\u0438\u0435.`);
+          }
         }
-        if (def.natural_weapon) return { weapon: def.natural_weapon, weaponLabel: def.natural_weapon.label ?? "\u0410\u0442\u0430\u043A\u0430", weaponItemId: null };
-        void skills;
-        return { weapon: FISTS, weaponLabel: FISTS.label, weaponItemId: null };
-      }
-      resolveArmor(def) {
-        if (def.armor != null) return def.armor;
-        let points = 0;
-        for (const itemId of Object.values(def.equipment ?? {})) {
-          const item = this.engine.campaign.entities[itemId];
-          if (item?.armor_data) points += item.armor_data.points;
+        if (expired.length) {
+          ctx2.state.player.statuses = list.filter((s2) => s2.left > 0);
+          for (const def of expired) {
+            ctx2.pushLog(def.expire_message ?? `${def.label}: \u044D\u0444\u0444\u0435\u043A\u0442 \u0437\u0430\u043A\u043E\u043D\u0447\u0438\u043B\u0441\u044F.`);
+            if (def.on_expire?.length) ctx2.applyEffects(def.on_expire);
+          }
+          ctx2.notify();
         }
-        return points;
-      }
-      // ─────────────── доступ ───────────────
-      get active() {
-        return this.combatants[this.activeIndex];
-      }
-      isPlayerTurn() {
-        return !this.result && this.active.id === "c_player";
-      }
-      occupantAt(h2) {
-        return this.combatants.find((c2) => !c2.dead && !c2.down && c2.pos.col === h2.col && c2.pos.row === h2.row);
-      }
-      inBounds(h2) {
-        return h2.col >= 0 && h2.row >= 0 && h2.col < this.arena.hex_grid.cols && h2.row < this.arena.hex_grid.rows;
-      }
-      isBlocked(h2) {
-        return this.blocked.has(hexKey(h2));
-      }
-      isDifficult(h2) {
-        return this.difficult.has(hexKey(h2));
-      }
-      /** гекс-укрытие? (мастерская разметка cover_hexes на арене) */
-      isCover(h2) {
-        return this.coverHexes.has(hexKey(h2));
-      }
-      passable = (h2) => this.inBounds(h2) && !this.isBlocked(h2) && !this.occupantAt(h2);
-      moveCost = (h2) => this.isDifficult(h2) ? 2 : 1;
-      /** Гексы, куда может дойти активный боец. */
-      reachableHexes() {
-        const a2 = this.active;
-        return reachable(a2.pos, a2.movLeft, this.passable, this.moveCost);
-      }
-      /**
-       * Разворот фигурки к точке (блок 3 ТЗ): 'topdown' — поворот по направлению,
-       * 'side' — зеркало по горизонтали, 'static' и жетоны не трогаем.
-       * Вращается только картинка — гекс-логика не меняется.
-       */
-      faceTowards(c2, to) {
-        if (!c2.figure || (c2.figure_mode ?? "topdown") === "static") return;
-        const size = this.arena.hex_grid.hex_size;
-        const a2 = hexToPixel(c2.pos, size, { x: 0, y: 0 });
-        const b2 = hexToPixel(to, size, { x: 0, y: 0 });
-        const dx = b2.x - a2.x;
-        const dy = b2.y - a2.y;
-        if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) return;
-        if ((c2.figure_mode ?? "topdown") === "side") c2.flip = dx < 0;
-        else c2.facing = Math.atan2(dx, -dy) * 180 / Math.PI;
-      }
-      canAttack(attacker, target) {
-        return !attacker.attacked && attacker.attacksLeft > 0 && !attacker.dead && !attacker.down && !target.dead && !target.down && !target.fled && !(target.hidden && attacker.side === "enemy") && attacker.side !== target.side && !this.outOfAmmo(attacker) && hexDistance(attacker.pos, target.pos) <= this.weaponRange(attacker);
-      }
-      /** нет боеприпасов к оружию (аудит B5: weapon.ammo_item) — только для игрока */
-      outOfAmmo(attacker) {
-        const ammo = attacker.weapon.ammo_item;
-        if (!ammo || attacker.id !== "c_player") return false;
-        return this.engine.itemCount(ammo) <= 0;
-      }
-      /**
-       * Может ли герой прятаться в этом бою (аудит §5.6 п.12):
-       * мастер включил скрытность кампании, бой не запретил ukрытие.
-       */
-      canHide() {
-        if (this.def.no_hide) return false;
-        return !!this.engine.campaign.meta.stealth;
-      }
-      /**
-       * Действие «скрыться» (тратит действие за ход): проверка скрытности героя
-       * против лучшей внимательности живых врагов. Успех — `hidden`, враги
-       * теряют вас из виду до следующей вашей атаки.
-       */
-      playerHide() {
-        if (!this.isPlayerTurn() || this.active.attacked || !this.canHide()) return;
-        const pc = this.active;
-        const st2 = this.engine.campaign.meta.stealth;
-        const foes = this.combatants.filter((c2) => c2.side === "enemy" && !c2.dead && !c2.fled && !c2.down);
-        const best = foes.map((c2) => {
-          const def = this.engine.campaign.entities[c2.entityId];
-          const v2 = def?.perception ?? Math.max(1, (c2.skills[st2.perception_skill ?? "perception"] ?? 0) || c2.stats.INT * 2);
-          return { label: def?.label ?? c2.entityId, value: v2 };
-        }).sort((a2, b2) => b2.value - a2.value)[0];
-        this.spendAction(pc);
-        if (!best) return;
-        const mine = skillCheck(
-          Math.max(1, (pc.skills[st2.skill ?? "stealth"] ?? 0) + this.statusSkillMod(pc, st2.skill ?? "stealth")),
-          this.engine.rng,
-          0,
-          this.engine.diceRules
-        );
-        const theirs = skillCheck(best.value, this.engine.rng, 0, this.engine.diceRules);
-        const RANK2 = { fumble: 0, fail: 1, success: 2, hard: 3, critical: 4 };
-        const wins = (RANK2[mine.result] ?? 1) >= (RANK2[theirs.result] ?? 1);
-        this.log.push(
-          `${pc.label}: \u0441\u043A\u0440\u044B\u0442\u043D\u043E\u0441\u0442\u044C \u2014 ${mine.roll}/${mine.target} \u043F\u0440\u043E\u0442\u0438\u0432 \xAB${best.label}\xBB ${theirs.roll}/${theirs.target} \u2192 ${wins ? "\u0432\u044B \u0441\u043A\u0440\u044B\u043B\u0438\u0441\u044C" : "\u0432\u0430\u0441 \u0434\u0435\u0440\u0436\u0430\u0442 \u0432 \u043F\u043E\u043B\u0435 \u0437\u0440\u0435\u043D\u0438\u044F"}`
-        );
-        if (wins) {
-          pc.hidden = true;
-          this.log.push(`${pc.label} \u0438\u0441\u0447\u0435\u0437\u0430\u0435\u0442 \u0438\u0437 \u0432\u0438\u0434\u0443.`);
-        }
-        if (!this.result && pc.attacksLeft <= 0) {
-          this.nextTurn();
-          this.processUntilPlayer();
-        }
-        this.engine.notify();
-      }
-      // ─────────────── боевые правила кампании (мастер; аудит §5.6) ───────────────
-      /** настройки боя из campaign.json (meta.combat) — всё с умолчаниями */
-      combatRules() {
-        return this.engine.campaign.meta.combat;
-      }
-      /** погодные боевые модификаторы (аудит B7): настройки в meta.weathers[].combat */
-      get weatherCombat() {
-        return this.engine.campaign.meta.weathers?.find((w2) => w2.id === this.engine.state.weather)?.combat;
-      }
-      /** сдвиг навыка от погоды */
-      weatherSkillMod(skill) {
-        let mod = 0;
-        for (const m2 of this.weatherCombat?.skill_mods ?? []) if (m2.skill === skill) mod += m2.delta;
-        return mod;
-      }
-      /** дальность оружия с погодным ограничением (минимум 1) */
-      weaponRange(c2) {
-        const pen = Math.max(0, this.weatherCombat?.range_penalty ?? 0);
-        return Math.max(1, c2.weapon.range - pen);
-      }
-      /** штраф следующей атаки в раунде (умолчание −20, BRP-разделение) */
-      get multiAttackPenalty() {
-        return this.combatRules()?.multi_attack_penalty ?? -20;
-      }
-      /** правила гибели героя: instant (умолчание) | brp */
-      get deathMode() {
-        return this.combatRules()?.death?.mode ?? "instant";
-      }
-      /** действие израсходовано не-атакой (предмет/способность) */
-      spendAction(c2) {
-        c2.attacked = true;
-        c2.attacksLeft = 0;
-      }
-      /** бонус прицельной атаки (meta.combat.aim; умолчание вкл., +20) */
-      aimEnabled() {
-        return this.combatRules()?.aim !== false;
-      }
-      /** прицеливание: тратит одну атаку, следующая — с бонусом */
-      playerAim() {
-        if (!this.isPlayerTurn() || !this.aimEnabled()) return;
-        const pc = this.active;
-        if (pc.attacked || pc.attacksLeft <= 0 || (pc.aimBonus ?? 0) > 0) return;
-        pc.attacksLeft -= 1;
-        if (pc.attacksLeft <= 0) pc.attacked = true;
-        const cfg = this.combatRules()?.aim;
-        pc.aimBonus = typeof cfg === "object" && cfg?.bonus != null ? cfg.bonus : 20;
-        this.log.push(`${pc.label} \u043F\u0440\u0438\u0446\u0435\u043B\u0438\u0432\u0430\u0435\u0442\u0441\u044F\u2026 (\u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0430\u044F \u0430\u0442\u0430\u043A\u0430 +${pc.aimBonus}%)`);
-        if (!this.result && pc.attacksLeft <= 0) {
-          this.nextTurn();
-          this.processUntilPlayer();
-        }
-        this.engine.notify();
-      }
-      // ─────────────── действия игрока ───────────────
-      playerMoveTo(h2) {
-        if (!this.isPlayerTurn()) return;
-        const r2 = this.reachableHexes();
-        const cost = r2.get(hexKey(h2));
-        if (cost == null) return;
-        const from = { ...this.active.pos };
-        this.faceTowards(this.active, h2);
-        this.active.pos = { ...h2 };
-        this.active.movLeft -= cost;
-        this.triggerOpportunity(this.active, from);
-        this.checkEnd();
-        this.engine.notify();
-      }
-      /**
-       * Атаки возможности (аудит B5): уход из зоны контроля врага — враг бьёт
-       * напоследок бесплатно. Умолчание вкл.; meta.combat.opportunity_attacks.
-       */
-      triggerOpportunity(mover, from) {
-        if (this.combatRules()?.opportunity_attacks === false) return;
-        if (hexDistance(from, mover.pos) === 0) return;
-        for (const foe of this.combatants) {
-          if (this.result || mover.dead || mover.down) return;
-          if (foe.side === mover.side || foe.dead || foe.down || foe.fled) continue;
-          if (foe.hidden && mover.side === "enemy") continue;
-          if (hexDistance(foe.pos, from) > this.weaponRange(foe)) continue;
-          if (hexDistance(foe.pos, mover.pos) <= this.weaponRange(foe)) continue;
-          if (this.outOfAmmo(foe)) continue;
-          this.log.push(`${foe.label} \u0440\u0443\u0431\u0438\u0442 \u0432\u0441\u043B\u0435\u0434 \u0443\u0445\u043E\u0434\u044F\u0449\u0435\u043C\u0443 ${mover.label}!`);
-          this.faceTowards(foe, mover.pos);
-          this.resolveAttack(foe, mover, { free: true });
-        }
-      }
-      playerAttack(targetId) {
-        if (!this.isPlayerTurn()) return;
-        const target = this.combatants.find((c2) => c2.id === targetId);
-        if (!target || !this.canAttack(this.active, target)) return;
-        this.faceTowards(this.active, target.pos);
-        this.resolveAttack(this.active, target);
-        this.checkEnd();
-        if (!this.result && this.active.attacksLeft <= 0) {
-          this.nextTurn();
-          this.processUntilPlayer();
-        }
-        this.engine.notify();
-      }
-      /**
-       * Предпросмотр шансов атаки (Combat Forecast) для подсказок и плашек игрока.
-       */
-      estimateAttack(attacker, defender) {
-        const apr = Math.max(1, attacker.weapon.attacks_per_round ?? 1);
-        const penalty = (apr - attacker.attacksLeft) * this.multiAttackPenalty;
-        const aim = attacker.aimBonus ?? 0;
-        const fromShadow = !!attacker.hidden;
-        const flank = this.flankRules();
-        const fromBehind = !!flank && this.isRearArc(defender, attacker.pos, flank.arc);
-        const skillVal = Math.max(
-          1,
-          (attacker.skills[attacker.weapon.skill] ?? 25) + this.statusSkillMod(attacker, attacker.weapon.skill) + this.weatherSkillMod(attacker.weapon.skill) + aim
-        );
-        const coverP = attacker.weapon.range > 1 && this.coverHexes.has(hexKey(defender.pos)) ? this.coverPenalty() : null;
-        const target = Math.max(1, Math.min(95, skillVal + penalty + (coverP ?? 0)));
-        const dbNotation = attacker.weapon.damage_bonus ? damageBonus(attacker.stats) : "";
-        const dbStr = dbNotation && dbNotation !== "0" ? dbNotation.startsWith("+") || dbNotation.startsWith("-") ? dbNotation : `+${dbNotation}` : "";
-        const damage = `${attacker.weapon.damage}${dbStr}`;
-        const armor = defender.armor;
-        return {
-          hitChance: target,
-          target,
-          damage,
-          armor,
-          penalty,
-          aim,
-          cover: coverP,
-          fromBehind,
-          fromShadow
-        };
-      }
-      /**
-       * Предпросмотр применения способности по цели.
-       */
-      estimateAbility(caster, ab, _target) {
-        if (ab.kind === "heal") {
-          return { hitChance: 100, targetVal: 100, effectLabel: `\u041B\u0435\u0447\u0435\u043D\u0438\u0435: ${ab.heal ?? "1d6"}` };
-        }
-        const skill = ab.skill ?? "magic";
-        const base = caster.skills[skill] ?? 25;
-        const mod = this.statusSkillMod(caster, skill) + this.weatherSkillMod(skill);
-        const targetVal = Math.max(1, Math.min(95, base + mod));
-        const parts = [];
-        if (ab.damage) parts.push(`\u0423\u0440\u043E\u043D: ${ab.damage}`);
-        if (ab.status) parts.push(`\u0421\u0442\u0430\u0442\u0443\u0441: \xAB${this.statusLabel(ab.status)}\xBB (${ab.status_duration ?? 2} \u0440.)`);
-        return {
-          hitChance: targetVal,
-          targetVal,
-          effectLabel: parts.join(" \xB7 ") || "\u0412\u043E\u0437\u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435"
-        };
-      }
-      /** Может ли игрок бежать из этого боя (аудит §5.6 п.2). */
-      canFlee() {
-        if (this.def.no_flee) return false;
-        return this.combatRules()?.flee !== false;
-      }
-      /**
-       * Отступление: враги в досягаемости бьют напоследок (бесплатные атаки),
-       * затем проверка навыка отступления (умолчание dodge, иначе DEX×5).
-       * Успех — бой окончен бегством (`on_fled` эффекта start_combat);
-       * провал — ход потерян.
-       */
-      playerFlee() {
-        if (!this.isPlayerTurn() || !this.canFlee()) return;
-        const pc = this.active;
-        const foes = this.combatants.filter(
-          (c2) => c2.side === "enemy" && !c2.dead && !c2.fled && !c2.down && hexDistance(c2.pos, pc.pos) <= this.weaponRange(c2)
-        );
-        if (foes.length) this.log.push("\u0412\u044B \u0431\u0440\u043E\u0441\u0430\u0435\u0442\u0435\u0441\u044C \u043F\u0440\u043E\u0447\u044C \u2014 \u0432\u0440\u0430\u0433\u0438 \u0440\u0443\u0431\u044F\u0442 \u0432\u0441\u043B\u0435\u0434!");
-        for (const foe of foes) {
-          this.resolveAttack(foe, pc, { free: true });
-          if (pc.dead || pc.down) break;
-        }
-        this.checkEnd();
-        if (this.result) {
-          this.engine.notify();
+      },
+      onNeedZero(ctx2, needId) {
+        const need = ctx2.campaign.meta.needs.find((n2) => n2.id === needId);
+        if (!need) return;
+        if (need.on_zero_effect === "death" || !need.on_zero_effect) {
+          ctx2.gameOver("death", `\u0421\u043C\u0435\u0440\u0442\u044C \u043E\u0442 \u0438\u0441\u0442\u043E\u0449\u0435\u043D\u0438\u044F: ${need.label.toLowerCase()} \u043D\u0430 \u043D\u0443\u043B\u0435.`);
           return;
         }
-        const cfg = this.combatRules()?.flee;
-        const skill = typeof cfg === "object" && cfg?.skill || "dodge";
-        const known = pc.skills[skill];
-        const base = known != null ? known + this.statusSkillMod(pc, skill) : pc.stats.DEX * 5;
-        const out = skillCheck(Math.max(1, base), this.engine.rng, foes.length ? -20 : 0, this.engine.diceRules);
-        this.log.push(
-          `${pc.label}: \u043E\u0442\u0441\u0442\u0443\u043F\u043B\u0435\u043D\u0438\u0435 \u2014 ${known != null ? `\u043D\u0430\u0432\u044B\u043A \xAB${this.engine.skillLabel(skill)}\xBB` : "DEX\xD75"}, d100=${out.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${out.target} \u2192 ${labelResult(out.result)}`
-        );
-        if (out.success) {
-          pc.fled = true;
-          this.result = "fled";
-          this.log.push("\u0412\u044B \u0432\u044B\u0440\u044B\u0432\u0430\u0435\u0442\u0435\u0441\u044C \u0438\u0437 \u0431\u043E\u044F!");
-          playUi("flee");
-          this.engine.onCombatResolve(this.def.on_fled ?? []);
-          if (out.result === "critical") this.engine.markSkill(skill);
-        } else {
-          this.log.push("\u041E\u0442\u0441\u0442\u0443\u043F\u0438\u0442\u044C \u043D\u0435 \u0432\u044B\u0448\u043B\u043E \u2014 \u0445\u043E\u0434 \u043F\u043E\u0442\u0435\u0440\u044F\u043D.");
-          this.spendAction(pc);
-          this.nextTurn();
-          this.processUntilPlayer();
+        const rule = ctx2.campaign.rules[need.on_zero_effect];
+        if (rule) ctx2.applyEffects(rule.effects ?? []);
+      },
+      changeNeed(ctx2, needId, delta) {
+        if (!featureOn(ctx2.campaign.meta, "needs")) return;
+        const need = ctx2.campaign.meta.needs.find((n2) => n2.id === needId);
+        if (!need) return;
+        const cur = ctx2.state.player.needs[needId] ?? 0;
+        const next = Math.min(need.max, Math.max(0, cur + delta));
+        ctx2.state.player.needs[needId] = next;
+        if (delta > 0) {
+          for (const comp of ctx2.state.party) {
+            if (comp.needs?.[needId] !== void 0) ctx2.changeCompanionNeed(comp.entity, needId, delta);
+          }
         }
-        this.engine.notify();
-      }
-      /** Использование предмета в бою — тратит действие атаки (ТЗ 6.1). */
-      playerUseItem(itemId) {
-        if (!this.isPlayerTurn() || this.active.attacked) return;
-        const item = this.engine.campaign.entities[itemId];
-        if (!item || item.type !== "item" || !item.on_use) return;
-        this.spendAction(this.active);
-        this.engine.applyEffects(item.on_use.effects);
-        if (item.on_use.consume !== false) this.engine.removeItem(itemId, 1);
-        const pc = this.combatants.find((x2) => x2.id === "c_player");
-        pc.hp = Math.min(pc.maxHp, this.engine.state.player.hp);
-        this.log.push(`${this.active.label} \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0435\u0442 \xAB${item.label}\xBB.`);
-        playInteraction("use", { entity: item });
-        this.engine.notify();
-      }
-      /** Предметы игрока, применимые в бою. */
-      usableItems() {
-        return this.engine.state.player.inventory.map((e2) => ({ e: e2, def: this.engine.campaign.entities[e2.item] })).filter((x2) => x2.def?.type === "item" && x2.def.on_use).map((x2) => ({ id: x2.e.item, label: x2.def.label, quantity: x2.e.quantity }));
-      }
-      playerEndTurn() {
-        if (!this.isPlayerTurn()) return;
-        this.nextTurn();
-        this.processUntilPlayer();
-        this.engine.notify();
-      }
-      // ─────────────── цикл раундов ───────────────
-      startRound() {
-        this.tickStatuses();
-        for (const c2 of this.combatants) {
-          if (c2.down || c2.fled || c2.dead) {
-            c2.movLeft = 0;
-            c2.attacksLeft = 0;
-            c2.attacked = true;
-            continue;
+        if (next <= 0 && cur > 0) needs.onNeedZero(ctx2, needId);
+      },
+      changeHp(ctx2, delta) {
+        if (ctx2.debugInvincible && delta < 0) return;
+        const p2 = ctx2.state.player;
+        p2.hp = Math.min(p2.max_hp, p2.hp + delta);
+        if (p2.hp <= 0 && !needs.tryBrpSurvival(ctx2)) ctx2.gameOver("death", "\u0412\u0430\u0448\u0438 \u0440\u0430\u043D\u044B \u043E\u043A\u0430\u0437\u0430\u043B\u0438\u0441\u044C \u0441\u043C\u0435\u0440\u0442\u0435\u043B\u044C\u043D\u044B\u043C\u0438.");
+      },
+      /**
+      * Мировой спасбросок от смерти (режим combat.death.mode='brp'): при HP ≤ 0
+      * бросок CON×con_multiplier; успех — герой выживает на грани (1 HP).
+      * Истина — смерть отменена.
+      */
+      tryBrpSurvival(ctx2) {
+        const death = ctx2.campaign.meta.combat?.death;
+        if (death?.mode !== "brp") return false;
+        const mult = death.con_multiplier ?? 5;
+        const out = skillCheck(ctx2.state.player.stats.CON * mult, ctx2.rng, 0, ctx2.diceRules);
+        ctx2.pushLog(`\u0413\u0440\u0430\u043D\u044C \u0441\u043C\u0435\u0440\u0442\u0438: CON\xD7${mult} \u2014 d100=${out.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${out.target}: ${CHECK_RESULT_LABEL[out.result]}`);
+        if (!out.success) return false;
+        ctx2.state.player.hp = 1;
+        ctx2.pushLog("\u0413\u0435\u0440\u043E\u0439 \u0432\u044B\u0436\u0438\u0432\u0430\u0435\u0442 \u043D\u0430 \u0433\u0440\u0430\u043D\u0438 \u0441\u043C\u0435\u0440\u0442\u0438 (1 HP).");
+        return true;
+      },
+      /**
+      * Естественное лечение при отдыхе (аудит §5.6 п.3): сон (ink-вызов `sleep`)
+      * лечит HP костями из `meta.rest.hp` (умолчание '1d3') и, если не отключено
+      * (`rest.mp_full: false`), полностью восстанавливает MP.
+      */
+      restHeal(ctx2) {
+        const rest = ctx2.campaign.meta.rest;
+        const p2 = ctx2.state.player;
+        let healed = 0;
+        if (p2.hp > 0 && p2.hp < p2.max_hp) {
+          healed = Math.min(p2.max_hp - p2.hp, rollDice(rest?.hp ?? "1d3", ctx2.rng));
+          if (healed > 0) {
+            p2.hp += healed;
+            ctx2.pushLog(`\u041E\u0442\u0434\u044B\u0445 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u0430\u0432\u043B\u0438\u0432\u0430\u0435\u0442 ${healed} HP.`);
           }
-          c2.movLeft = Math.max(1, c2.mov + this.statusMovMod(c2) - Math.max(0, this.weatherCombat?.mov_penalty ?? 0));
-          c2.attacksLeft = Math.max(1, c2.weapon.attacks_per_round ?? 1);
-          c2.defensesUsed = 0;
-          c2.attacked = false;
-          if (c2.skipNext) {
-            c2.skipNext = false;
-            c2.movLeft = 0;
-            c2.attacksLeft = 0;
-            c2.attacked = true;
-          }
-          if (this.round === 1 && this.surprise) {
-            const ambusher = this.surprise === "player" ? "player" : "enemy";
-            if (c2.side !== ambusher) {
-              c2.movLeft = 0;
-              c2.attacksLeft = 0;
-              c2.attacked = true;
+        }
+        for (const comp of ctx2.state.party) {
+          if (comp.hp > 0 && comp.hp < comp.max_hp) {
+            const cHealed = Math.min(comp.max_hp - comp.hp, rollDice(rest?.hp ?? "1d3", ctx2.rng));
+            if (cHealed > 0) {
+              comp.hp += cHealed;
+              const cdef = ctx2.campaign.entities[comp.entity];
+              ctx2.pushLog(`${cdef?.label ?? comp.entity} \u043F\u043E\u0434\u043B\u0430\u0442\u0430\u043B\u0441\u044F: +${cHealed} HP.`);
             }
           }
-          for (const k2 of Object.keys(c2.cooldowns)) {
-            c2.cooldowns[k2] -= 1;
-            if (c2.cooldowns[k2] <= 0) delete c2.cooldowns[k2];
+        }
+        const mpFull = rest?.mp_full ?? true;
+        if (mpFull && p2.mp < p2.max_mp) {
+          p2.mp = p2.max_mp;
+          ctx2.pushLog("\u0421\u0438\u043B\u044B \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u044B (MP \u043F\u043E\u043B\u043D\u043E\u0441\u0442\u044C\u044E).");
+        }
+        if (ctx2.luckMax() > 0 && (ctx2.campaign.meta.luck?.rest_luck ?? true) && ctx2.luck() < ctx2.luckMax()) {
+          ctx2.state.player.luck = ctx2.luckMax();
+          ctx2.pushLog("\u0413\u0435\u0440\u043E\u0439 \u0447\u0443\u0432\u0441\u0442\u0432\u0443\u0435\u0442: \u0443\u0434\u0430\u0447\u0430 \u0432\u0435\u0440\u043D\u0443\u043B\u0430\u0441\u044C.");
+        }
+        if (ctx2.fatigueMax() > 0) {
+          const cfg = ctx2.campaign.meta.vitals?.fatigue;
+          const restore = cfg === true ? true : typeof cfg === "object" ? cfg.rest_restore !== false : true;
+          if (restore && ctx2.fatigue() < ctx2.fatigueMax()) {
+            ctx2.state.player.fatigue = ctx2.fatigueMax();
+            ctx2.pushLog("\u0423\u0441\u0442\u0430\u043B\u043E\u0441\u0442\u044C \u043F\u0440\u043E\u0448\u043B\u0430 (\u043E\u0442\u0434\u044B\u0445).");
           }
         }
-      }
-      /** определение способности из реестра кампании */
-      abilityDef(id) {
-        return this.engine.campaign.meta.abilities?.find((a2) => a2.id === id);
-      }
-      // ─────────────── статусы бойцов (блок 5 ТЗ) ───────────────
-      statusDef(id) {
-        return this.engine.campaign.meta.statuses?.find((s2) => s2.id === id);
-      }
-      /** название статуса для UI */
-      statusLabel(id) {
-        return this.statusDef(id)?.label ?? id;
-      }
-      /** наложить боевой статус на бойца (блок 6 будет звать из способностей) */
-      applyStatusTo(combatantId, statusId, duration) {
-        const def = this.statusDef(statusId);
-        if (!def || def.scope === "world") return;
-        const c2 = this.combatants.find((x2) => x2.id === combatantId);
-        if (!c2 || c2.dead) return;
+        return { hp: healed, mpFull };
+      },
+      // ─────────────── статусы (блок 5 ТЗ «Гибкий движок») ───────────────
+      /** определение статуса из реестра кампании */
+      statusDef(ctx2, id) {
+        return ctx2.campaign.meta.statuses?.find((s2) => s2.id === id);
+      },
+      /** активен ли статус у игрока */
+      hasStatus(ctx2, id) {
+        return !!ctx2.state.player.statuses?.some((s2) => s2.id === id);
+      },
+      /**
+      * Наложить статус на игрока (в мире — только игрок, v1). Повторное
+      * наложение обновляет длительность по максимуму.
+      */
+      applyStatus(ctx2, _target, id, duration) {
+        const def = needs.statusDef(ctx2, id);
+        if (!def || def.scope === "combat") return;
         const left = duration ?? def.duration;
         if (left <= 0) return;
-        const existing = c2.statuses.find((s2) => s2.id === statusId);
+        const list = ctx2.state.player.statuses ??= [];
+        const existing = list.find((s2) => s2.id === id);
         if (existing) {
           existing.left = Math.max(existing.left, left);
-        } else {
-          c2.statuses.push({ id: statusId, left });
-          this.log.push(def.apply_message ?? `${c2.label}: ${def.label.toLowerCase()}.`);
-        }
-        this.engine.notify();
-      }
-      removeStatusFrom(combatantId, statusId) {
-        const c2 = this.combatants.find((x2) => x2.id === combatantId);
-        if (!c2) return;
-        c2.statuses = c2.statuses.filter((s2) => s2.id !== statusId);
-        this.engine.notify();
-      }
-      /** суммарный модификатор навыка бойца от его статусов */
-      statusSkillMod(c2, skill) {
-        let mod = 0;
-        for (const s2 of c2.statuses) {
-          const def = this.statusDef(s2.id);
-          for (const m2 of def?.skill_mods ?? []) if (m2.skill === skill) mod += m2.delta;
-        }
-        return mod;
-      }
-      statusMovMod(c2) {
-        let mod = 0;
-        for (const s2 of c2.statuses) mod += this.statusDef(s2.id)?.mov_mod ?? 0;
-        return mod;
-      }
-      /** тик статусов в начале раунда: DoT, декремент, истечение */
-      tickStatuses() {
-        for (const c2 of this.combatants) {
-          if (c2.dead || !c2.statuses.length) continue;
-          const expired = [];
-          for (const s2 of c2.statuses) {
-            const def = this.statusDef(s2.id);
-            if (!def) continue;
-            if (def.dot?.hp) {
-              c2.hp = Math.max(0, c2.hp - def.dot.hp);
-              this.log.push(`${c2.label}: ${def.label.toLowerCase()} \u2014 \u2212${def.dot.hp} HP.`);
-              if (c2.hp <= 0 && !c2.down) {
-                if (c2.id === "c_player" && this.deathMode === "brp" && this.conSave(c2, `\u0441\u0442\u0430\u0442\u0443\u0441 \xAB${def.label}\xBB`)) {
-                  c2.hp = 1;
-                  c2.down = true;
-                  this.log.push(`${c2.label} \u043F\u0430\u0434\u0430\u0435\u0442 \u0431\u0435\u0437 \u0441\u043E\u0437\u043D\u0430\u043D\u0438\u044F \u043E\u0442 \u0441\u0442\u0430\u0442\u0443\u0441\u0430 \u2014 \u043D\u043E \u0434\u044B\u0448\u0438\u0442. (1 HP)`);
-                } else {
-                  c2.dead = true;
-                  this.log.push(`${c2.label} \u043F\u043E\u0433\u0438\u0431\u0430\u0435\u0442 \u043E\u0442 \u0441\u0442\u0430\u0442\u0443\u0441\u0430 \xAB${def.label}\xBB.`);
-                  playUi("kill");
-                }
-              }
-            }
-            if (!c2.dead) s2.left -= 1;
-            if (s2.left <= 0) expired.push(def);
-          }
-          if (expired.length) {
-            c2.statuses = c2.statuses.filter((s2) => s2.left > 0);
-            for (const def of expired) this.log.push(`${c2.label}: \xAB${def.label}\xBB \u0437\u0430\u043A\u0430\u043D\u0447\u0438\u0432\u0430\u0435\u0442\u0441\u044F.`);
-          }
-        }
-      }
-      nextTurn() {
-        let guard = 0;
-        do {
-          this.activeIndex++;
-          if (this.activeIndex >= this.combatants.length) {
-            this.activeIndex = 0;
-            this.round++;
-            this.log.push(`\u2014 \u0420\u0430\u0443\u043D\u0434 ${this.round} \u2014`);
-            this.startRound();
-            this.checkEnd();
-          }
-          guard++;
-        } while (!this.result && (this.active.dead || this.active.down || this.active.fled) && guard < 100);
-      }
-      processUntilPlayer() {
-        let guard = 0;
-        while (!this.result && this.active.id !== "c_player" && guard < 200) {
-          this.aiTurn(this.active);
-          this.checkEnd();
-          if (this.result) break;
-          this.nextTurn();
-          guard++;
-        }
-        if (!this.result && (this.active.dead || this.active.down || this.active.fled) && this.active.id !== "c_player")
-          this.nextTurn();
-      }
-      // ─────────────── AI (базовый: к ближайшему, атаковать) ───────────────
-      /** шаг отступления: уйти на максимально дальний гекс в радиусе хода (приказ 'retreat') */
-      stepAway(c2, foe) {
-        const reach = reachable(c2.pos, c2.movLeft, this.passable, this.moveCost);
-        let bestKey = null;
-        let bestScore = hexDistance(c2.pos, foe.pos);
-        for (const [k2, cost] of reach) {
-          const [col, row] = k2.split(",").map(Number);
-          const d2 = hexDistance({ col, row }, foe.pos);
-          if (d2 > bestScore) {
-            bestScore = d2;
-            bestKey = k2;
-            void cost;
-          }
-        }
-        if (bestKey) {
-          const [col, row] = bestKey.split(",").map(Number);
-          c2.movLeft -= reach.get(bestKey) ?? 0;
-          c2.pos = { col, row };
-        }
-      }
-      /** приказы отряду для UI (аудит §5.6 п.11) */
-      companionOrders() {
-        const out = [];
-        for (const comp of this.engine.state.party) {
-          const c2 = this.combatants.find((x2) => x2.id === `c_ally_${comp.entity}`);
-          if (!c2 || c2.dead) continue;
-          const def = this.engine.campaign.entities[comp.entity];
-          out.push({ entityId: comp.entity, label: def?.label ?? comp.entity, order: comp.order ?? "free" });
-        }
-        return out;
-      }
-      /** смена приказа напарнику */
-      setCompanionOrder(entityId, order) {
-        const comp = this.engine.state.party.find((x2) => x2.entity === entityId);
-        if (!comp) return;
-        comp.order = order === "free" ? void 0 : order;
-        this.engine.notify();
-      }
-      aiTurn(c2) {
-        if (c2.fled || c2.down || c2.dead) return;
-        if (c2.side === "player" && c2.id !== "c_player") {
-          const comp = this.engine.state.party.find((x2) => x2.entity === c2.entityId);
-          const order = comp?.order ?? "free";
-          const hero = this.combatants.find((x2) => x2.id === "c_player");
-          if (order === "hold") {
-            const near = this.combatants.find((x2) => x2.side === "enemy" && !x2.dead && !x2.fled && !x2.down && hexDistance(c2.pos, x2.pos) <= this.weaponRange(c2));
-            if (near) this.resolveAttack(c2, near);
-            return;
-          }
-          if (order === "retreat") {
-            const foes = this.combatants.filter((x2) => x2.side === "enemy" && !x2.dead && !x2.fled && !x2.down);
-            if (foes.length && c2.movLeft > 0) {
-              const nearest = foes.sort((a2, b2) => hexDistance(c2.pos, a2.pos) - hexDistance(c2.pos, b2.pos))[0];
-              if (hexDistance(c2.pos, nearest.pos) <= 2) {
-                const from = { ...c2.pos };
-                this.stepAway(c2, nearest);
-                this.triggerOpportunity(c2, from);
-              }
-            }
-            return;
-          }
-          if (order === "follow") {
-            if (hexDistance(c2.pos, hero.pos) > 2 && c2.movLeft > 0) {
-              const path = astar(c2.pos, hero.pos, this.passable, this.moveCost);
-              if (path) {
-                for (const step of path) {
-                  if (this.occupantAt(step)) break;
-                  const cost = this.moveCost(step);
-                  if (c2.movLeft < cost) break;
-                  if (hexDistance(step, hero.pos) <= 2) break;
-                  c2.pos = { ...step };
-                  c2.movLeft -= cost;
-                }
-              }
-            }
-            return;
-          }
-        }
-        if (c2.side === "enemy") {
-          const npcDef = this.engine.campaign.entities[c2.entityId];
-          const morale = npcDef?.morale;
-          if (morale && c2.hp / c2.maxHp * 100 < morale.below_hp_pct) {
-            if (this.engine.rng.next() * 100 < morale.flee_chance) {
-              c2.fled = true;
-              this.log.push(`${c2.label} \u043F\u0430\u0434\u0430\u0435\u0442 \u0434\u0443\u0445\u043E\u043C \u0438 \u043E\u0431\u0440\u0430\u0449\u0430\u0435\u0442\u0441\u044F \u0432 \u0431\u0435\u0433\u0441\u0442\u0432\u043E!`);
-              playUi("flee");
-              return;
-            }
-          }
-        }
-        const targets = this.combatants.filter((x2) => !x2.dead && !x2.fled && !x2.down && !x2.hidden && x2.side !== c2.side);
-        if (!targets.length) {
-          if (c2.side === "enemy" && this.combatants.some((x2) => x2.hidden && !x2.dead && x2.side !== c2.side)) {
-            this.log.push(`${c2.label} \u043E\u0437\u0438\u0440\u0430\u0435\u0442\u0441\u044F \u2014 \u0446\u0435\u043B\u044C \u043F\u043E\u0442\u0435\u0440\u044F\u043D\u0430 \u0438\u0437 \u0432\u0438\u0434\u0443.`);
-          }
           return;
         }
-        targets.sort((a2, b2) => hexDistance(c2.pos, a2.pos) - hexDistance(c2.pos, b2.pos));
-        let target = targets[0];
-        if (this.tryUseAiAbility(c2, target)) return;
-        if (hexDistance(c2.pos, target.pos) > this.weaponRange(c2)) {
-          const from = { ...c2.pos };
-          const path = astar(c2.pos, target.pos, this.passable, this.moveCost);
-          if (path) {
-            for (const step of path) {
-              if (this.occupantAt(step)) break;
-              const cost = this.moveCost(step);
-              if (c2.movLeft < cost) break;
-              if (hexDistance(c2.pos, target.pos) <= this.weaponRange(c2)) break;
-              c2.pos = { ...step };
-              c2.movLeft -= cost;
-            }
-          }
-          this.triggerOpportunity(c2, from);
+        const entry = { id, left };
+        if (def.disease) {
+          entry.severity = 1;
+          entry.next_check = ctx2.state.tick + def.disease.interval_ticks;
         }
-        let guard = 0;
-        while (!this.result && guard++ < 8) {
-          if (target.dead || target.down || target.fled || hexDistance(c2.pos, target.pos) > this.weaponRange(c2)) {
-            const rest = this.combatants.filter((x2) => !x2.dead && !x2.fled && !x2.down && x2.side !== c2.side).sort((a2, b2) => hexDistance(c2.pos, a2.pos) - hexDistance(c2.pos, b2.pos));
-            if (!rest.length || hexDistance(c2.pos, rest[0].pos) > this.weaponRange(c2)) break;
-            target = rest[0];
-          }
-          if (!this.canAttack(c2, target)) break;
-          this.faceTowards(c2, target.pos);
-          this.resolveAttack(c2, target);
-          this.checkEnd();
+        list.push(entry);
+        ctx2.pushLog(def.apply_message ?? `${def.label}: \u044D\u0444\u0444\u0435\u043A\u0442 \u043D\u0430\u043B\u043E\u0436\u0435\u043D.`);
+        if (def.apply_sound) playInteraction(def.apply_sound, { sound: def.apply_sound });
+        if (def.on_apply?.length) ctx2.applyEffects(def.on_apply);
+        ctx2.notify();
+      },
+      /** снять статус (без срабатывания on_expire) */
+      removeStatus(ctx2, _target, id) {
+        const list = ctx2.state.player.statuses;
+        if (!list?.some((s2) => s2.id === id)) return;
+        ctx2.state.player.statuses = list.filter((s2) => s2.id !== id);
+        const def = needs.statusDef(ctx2, id);
+        if (def) {
+          ctx2.pushLog(`${def.label}: \u044D\u0444\u0444\u0435\u043A\u0442 \u0441\u043D\u044F\u0442.`);
+          if (def.remove_sound) playInteraction(def.remove_sound, { sound: def.remove_sound });
         }
+        ctx2.notify();
+      },
+      /** суммарный модификатор навыка от активных статусов (болезни масштабированы тяжестью) */
+      statusSkillMod(ctx2, skill) {
+        let mod = 0;
+        for (const s2 of ctx2.state.player.statuses ?? []) {
+          const def = needs.statusDef(ctx2, s2.id);
+          const sev = def?.disease ? Math.max(1, s2.severity ?? 1) : 1;
+          for (const m2 of def?.skill_mods ?? []) if (m2.skill === skill) mod += m2.delta * sev;
+        }
+        return mod;
       }
-      // ─────────────── способности (блок 6 ТЗ «Гибкий движок») ───────────────
-      /** ИИ: шанс 50% применить готовую способность вместо атаки. */
-      tryUseAiAbility(c2, target) {
-        if (!c2.abilities.length) return false;
-        const usable = c2.abilities.map((id) => this.abilityDef(id)).filter((a2) => !!a2 && a2.kind !== "heal" && a2.mp_cost <= c2.mp && (c2.cooldowns[a2.id] ?? 0) <= 0).filter((a2) => hexDistance(c2.pos, target.pos) <= a2.range);
-        if (!usable.length) return false;
-        if (this.engine.rng.next() >= 0.5) return false;
-        const ab = usable[this.engine.rng.int(0, usable.length - 1)];
-        this.resolveAbility(c2, ab, target);
+    };
+  }
+});
+
+// src/core/party.ts
+var party;
+var init_party = __esm({
+  "src/core/party.ts"() {
+    init_caps();
+    init_brp();
+    init_audio();
+    party = {
+      // ─────────────── напарники (ТЗ 4.11) ───────────────
+      joinParty(ctx2, entityId) {
+        const max = ctx2.campaign.meta.max_companions ?? 1;
+        if (ctx2.state.party.length >= max) return;
+        if (ctx2.state.party.some((c2) => c2.entity === entityId)) return;
+        const def = ctx2.campaign.entities[entityId];
+        if (!def || def.type !== "npc") return;
+        const hp = def.stats.HP ?? derivedHP(def.stats);
+        const comp = { entity: entityId, hp, max_hp: hp };
+        if (def.companion_needs?.length && featureOn(ctx2.campaign.meta, "needs")) {
+          comp.needs = {};
+          for (const id of def.companion_needs) {
+            const need = ctx2.campaign.meta.needs.find((n2) => n2.id === id);
+            if (need) comp.needs[id] = need.max;
+          }
+          if (!Object.keys(comp.needs).length) delete comp.needs;
+        }
+        if (def.companion_carry) comp.inventory = [];
+        ctx2.state.party.push(comp);
+        ctx2.pushLog(`${def.label} \u043F\u0440\u0438\u0441\u043E\u0435\u0434\u0438\u043D\u044F\u0435\u0442\u0441\u044F \u043A \u0432\u0430\u043C.`);
+        ctx2.messages.push({ text: `${def.label} \u043F\u0440\u0438\u0441\u043E\u0435\u0434\u0438\u043D\u044F\u0435\u0442\u0441\u044F \u043A \u043E\u0442\u0440\u044F\u0434\u0443.` });
+      },
+      /** Текущее значение потребности напарника; null — не в отряде или у существа
+      *  потребность не отслеживается… но по контракту «робот не голодает»
+      *  неотслеживаемая потребность возвращается максимальной, а не null. */
+      companionNeed(ctx2, entity, needId) {
+        const comp = ctx2.state.party.find((c2) => c2.entity === entity);
+        if (!comp) return null;
+        const need = ctx2.campaign.meta.needs.find((n2) => n2.id === needId);
+        if (!need) return null;
+        return comp.needs?.[needId] ?? need.max;
+      },
+      /** Сдвиг потребности напарника; переход через ноль — заметка в лог (без game over). */
+      changeCompanionNeed(ctx2, entity, needId, delta) {
+        const comp = ctx2.state.party.find((c2) => c2.entity === entity);
+        const need = ctx2.campaign.meta.needs.find((n2) => n2.id === needId);
+        if (!comp || !need || comp.needs?.[needId] === void 0) return;
+        const cur = comp.needs[needId];
+        const next = Math.min(need.max, Math.max(0, cur + delta));
+        comp.needs[needId] = next;
+        if (next <= 0 && cur > 0) {
+          const def = ctx2.campaign.entities[entity];
+          ctx2.pushLog(`${def?.label ?? entity} \u043D\u0430 \u043F\u0440\u0435\u0434\u0435\u043B\u0435: ${need.label.toLowerCase()} \u043D\u0430 \u043D\u0443\u043B\u0435.`);
+        }
+      },
+      /** Набор отслеживаемых напарником потребностей (для UI): определения из meta.needs. */
+      companionNeedDefs(ctx2, entity) {
+        const comp = ctx2.state.party.find((c2) => c2.entity === entity);
+        if (!comp?.needs) return [];
+        return ctx2.campaign.meta.needs.filter((n2) => comp.needs[n2.id] !== void 0);
+      },
+      // ── «вторая сумка» напарника (NpcDef.companion_carry) ──
+      /** Груз в сумке напарника, кг. */
+      companionLoad(ctx2, entity) {
+        const comp = ctx2.state.party.find((c2) => c2.entity === entity);
+        let sum = 0;
+        for (const e2 of comp?.inventory ?? []) {
+          const def = ctx2.campaign.entities[e2.item];
+          if (def?.type === "item") sum += (def.weight ?? 0) * e2.quantity;
+        }
+        return Math.round(sum * 10) / 10;
+      },
+      /** Грузоподъёмность напарника: та же формула энкадменса, что у героя,
+      *  но по характеристикам существа (его carry_capacity_bonus/mult учтены). */
+      companionCapacity(ctx2, entity) {
+        const def = ctx2.campaign.entities[entity];
+        if (!def?.stats) return 0;
+        const encRules = ctx2.campaign.meta.encumbrance;
+        const formula = encRules?.formula ?? "str_siz";
+        let base = (def.stats.STR ?? 10) + (def.stats.SIZ ?? 10);
+        if (formula === "str_con") base = (def.stats.STR ?? 10) + (def.stats.CON ?? 10);
+        else if (formula === "str_only") base = (def.stats.STR ?? 10) * 2;
+        else if (formula === "fixed") base = Math.max(1, encRules?.capacity_multiplier ?? 20);
+        const worldMult = encRules?.capacity_multiplier && formula !== "fixed" ? encRules.capacity_multiplier : 1;
+        const total = base * worldMult * (def.carry_capacity_mult ?? 1) + (def.carry_capacity_bonus ?? 0);
+        return Math.max(1, Math.round(total * 10) / 10);
+      },
+      /** Передать предмет из сумки героя напарнику (нужны оба: в отряде, companion_carry).
+      *  Сюжетные предметы (quest_item) — как выбросить и продать — отдать нельзя:
+      *  уход или гибель напарника не должна стирать критические вещи навсегда.
+      *  `opts.forceQuest` — только для сюжетных эффектов (transfer_to_companion):
+      *  мастер сам решает отдать квестовый предмет скриптом. */
+      giveItemToCompanion(ctx2, entity, itemId, quantity = 1, opts = {}) {
+        const comp = ctx2.state.party.find((c2) => c2.entity === entity);
+        const def = ctx2.campaign.entities[entity];
+        if (!comp || !def?.companion_carry || quantity <= 0) return false;
+        const itemDef = ctx2.campaign.entities[itemId];
+        if (itemDef?.quest_item && !opts.forceQuest) {
+          ctx2.pushToast(`${itemDef?.label ?? itemId} \u2014 \u0441\u044E\u0436\u0435\u0442\u043D\u0430\u044F \u0432\u0435\u0449\u044C: \u0435\u0451 \u043D\u0435\u043B\u044C\u0437\u044F \u043F\u0435\u0440\u0435\u0434\u0430\u0442\u044C \u043D\u0430\u043F\u0430\u0440\u043D\u0438\u043A\u0443.`, "info");
+          return false;
+        }
+        const have = ctx2.state.player.inventory.find((i2) => i2.item === itemId)?.quantity ?? 0;
+        if (have < quantity) return false;
+        if (!comp.inventory) comp.inventory = [];
+        ctx2.removeItem(itemId, quantity, { silent: true });
+        const slot = comp.inventory.find((i2) => i2.item === itemId);
+        if (slot) slot.quantity += quantity;
+        else comp.inventory.push({ item: itemId, quantity });
+        ctx2.pushLog(`${def.label} \u0431\u0435\u0440\u0451\u0442: ${itemDef?.label ?? itemId} \xD7${quantity}.`);
+        ctx2.notify();
         return true;
-      }
-      /** Применение способности: расход MP, кулдаун, проверка навыка, эффект. */
-      resolveAbility(caster, ab, target) {
-        this.spendAction(caster);
-        caster.mp = Math.max(0, caster.mp - ab.mp_cost);
-        if (ab.cooldown_rounds) caster.cooldowns[ab.id] = ab.cooldown_rounds;
-        this.faceTowards(caster, target.pos);
-        const rng = this.engine.rng;
-        if (ab.kind === "heal") {
-          const amount = rollDice(ab.heal ?? "1d6", rng);
-          target.hp = Math.min(target.maxHp, target.hp + amount);
-          this.log.push(`${caster.label}: \xAB${ab.label}\xBB \u2014 ${target.label} \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u0430\u0432\u043B\u0438\u0432\u0430\u0435\u0442 ${amount} HP.`);
-          playUi("heal");
-          this.syncParty();
-          return;
+      },
+      /** Забрать предмет из сумки напарника себе. */
+      takeItemFromCompanion(ctx2, entity, itemId, quantity = 1) {
+        const comp = ctx2.state.party.find((c2) => c2.entity === entity);
+        const slot = comp?.inventory?.find((i2) => i2.item === itemId);
+        if (!comp || !slot || slot.quantity < quantity || quantity <= 0) return false;
+        slot.quantity -= quantity;
+        if (slot.quantity <= 0) {
+          comp.inventory = comp.inventory.filter((i2) => i2.quantity > 0);
+          for (const [k2, v2] of Object.entries(comp.equipment ?? {})) if (v2 === itemId && !comp.inventory.some((i2) => i2.item === itemId)) delete comp.equipment[k2];
         }
-        if (ab.skill) {
-          const skillVal = Math.max(1, (caster.skills[ab.skill] ?? 25) + this.statusSkillMod(caster, ab.skill));
-          const atk = skillCheck(skillVal, rng, 0, this.engine.diceRules);
-          this.log.push(
-            `${caster.label}: \u0441\u043F\u043E\u0441\u043E\u0431\u043D\u043E\u0441\u0442\u044C \xAB${ab.label}\xBB \u2014 d100=${atk.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${atk.target} \u2192 ${labelResult(atk.result)}`
-          );
-          if (caster.id === "c_player" && atk.success) this.engine.markSkill(ab.skill);
-          if (RANK[atk.result] < 2) {
-            this.log.push(`${target.label} \u0438\u0437\u0431\u0435\u0433\u0430\u0435\u0442 \u044D\u0444\u0444\u0435\u043A\u0442\u0430.`);
-            playUi("miss");
-            if (atk.result === "fumble" && ab.backlash_table?.length) this.applyBacklash(caster, ab);
-            return;
-          }
-          if (this.defenderSaves(target, RANK[atk.result])) return;
-        }
-        if (ab.kind === "damage") {
-          let dmg = Math.max(0, rollDice(ab.damage ?? "1d6", rng) - target.armor);
-          if (caster.side === "enemy" && target.id === "c_player") dmg = Math.round(dmg * this.enemyDamageMult(caster));
-          this.log.push(`${caster.label}: \xAB${ab.label}\xBB \u043F\u043E\u043F\u0430\u0434\u0430\u0435\u0442.`);
-          playUi("hit");
-          this.finishDamage(target, dmg);
-        } else if (ab.kind === "status" && ab.status) {
-          this.log.push(`${caster.label}: \xAB${ab.label}\xBB \u2014 \u043D\u0430 \xAB${target.label}\xBB \u0434\u0435\u0439\u0441\u0442\u0432\u0443\u0435\u0442 \xAB${this.statusLabel(ab.status)}\xBB.`);
-          this.applyStatusTo(target.id, ab.status, ab.status_duration);
-        }
-      }
-      /** множитель урона врагов по герою (мастерской пресет сложности, выбранный игроком) */
-      enemyDamageMult(from) {
-        return from.side === "enemy" ? this.engine.difficultyDef()?.enemy_damage ?? 1 : 1;
-      }
-      /** магический откат (backlash_table способности): бросок по весам, действует на заклинателя */
-      applyBacklash(caster, ab) {
-        const table = ab.backlash_table;
-        const total = table.reduce((s2, e2) => s2 + Math.max(0, e2.weight), 0);
-        if (total <= 0) return;
-        let roll = this.engine.rng.int(1, total);
-        const entry = table.find((e2) => (roll -= Math.max(0, e2.weight)) <= 0) ?? table[table.length - 1];
-        this.log.push(`${caster.label}: \u041D\u0410\u0420\u0423\u0428\u0415\u041D\u0418\u0415 \u0421\u0418\u041B\u042B!${entry.text ? ` ${entry.text}` : ""}`);
-        if (entry.hp_delta) {
-          if (entry.hp_delta < 0) this.finishDamage(caster, -entry.hp_delta);
-          else caster.hp = Math.min(caster.maxHp, caster.hp + entry.hp_delta);
-        }
-        if (entry.mp_delta) caster.mp = Math.max(0, Math.min(caster.maxMp, caster.mp + entry.mp_delta));
-        if (entry.status) this.applyStatusTo(caster.id, entry.status, entry.status_duration);
-      }
-      /** Способности игрока и готовность каждой на этом ходу. */
-      playerAbilities() {
-        const c2 = this.combatants.find((x2) => x2.id === "c_player");
-        if (!c2) return [];
-        const out = [];
-        const magicSlots = this.engine.campaign.meta.magic?.slots;
-        const prepared = this.engine.state.player.prepared_abilities ?? [];
-        for (const id of c2.abilities) {
-          const def = this.abilityDef(id);
-          if (!def) continue;
-          let reason = "";
-          if (!this.isPlayerTurn() || c2.attacked) reason = "\u0441\u0435\u0439\u0447\u0430\u0441 \u043D\u0435 \u0432\u0430\u0448 \u0445\u043E\u0434";
-          else if (magicSlots && def.prepare && !prepared.includes(id)) reason = "\u043D\u0435 \u043F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u043B\u0435\u043D\u0430 \u2014 \u0437\u0430\u043D\u0435\u0441\u0438\u0442\u0435 \u0432 \u0441\u043B\u043E\u0442\u044B \u0432 \u043B\u0438\u0441\u0442\u0435 \u043F\u0435\u0440\u0441\u043E\u043D\u0430\u0436\u0430 (\u0432\u043D\u0435 \u0431\u043E\u044F)";
-          else if (c2.mp < def.mp_cost) reason = `\u043D\u0435 \u0445\u0432\u0430\u0442\u0430\u0435\u0442 MP (${def.mp_cost})`;
-          else if ((c2.cooldowns[id] ?? 0) > 0) reason = `\u043A\u0443\u043B\u0434\u0430\u0443\u043D \u0435\u0449\u0451 ${c2.cooldowns[id]} \u0440\u0430\u0443\u043D\u0434(\u0430)`;
-          out.push({ def, usable: reason === "", reason });
-        }
-        return out;
-      }
-      /** Допустимые цели способности из текущей позиции игрока. */
-      abilityTargets(abilityId) {
-        const ab = this.abilityDef(abilityId);
-        const c2 = this.combatants.find((x2) => x2.id === "c_player");
-        if (!ab || !c2 || c2.dead) return [];
-        const pool = ab.kind === "heal" ? this.combatants.filter((x2) => x2.side === c2.side && !x2.dead) : this.combatants.filter((x2) => x2.side !== c2.side && !x2.dead && !x2.fled);
-        return pool.filter((t5) => hexDistance(c2.pos, t5.pos) <= ab.range);
-      }
-      /** Игрок применяет способность — ход завершается, как после атаки. */
-      useAbility(abilityId, targetId) {
-        if (!this.isPlayerTurn() || this.active.attacked) return;
-        const c2 = this.active;
-        const ab = this.abilityDef(abilityId);
-        if (!ab || !c2.abilities.includes(abilityId)) return;
-        if (c2.mp < ab.mp_cost || (c2.cooldowns[abilityId] ?? 0) > 0) return;
-        const target = this.combatants.find((x2) => x2.id === targetId);
-        if (!target || target.dead || target.fled) return;
-        if (ab.kind === "heal" ? target.side !== c2.side : target.side === c2.side) return;
-        if (hexDistance(c2.pos, target.pos) > ab.range) return;
-        this.resolveAbility(c2, ab, target);
-        this.checkEnd();
-        if (!this.result) {
-          this.nextTurn();
-          this.processUntilPlayer();
-        }
-        this.engine.notify();
-      }
-      // ─────────────── разрешение атаки (BRP) ───────────────
-      /**
-       * Удар по цели. `opts.free` — бесплатная атака (рубеж вслед убегающему):
-       * не тратит атаку хода и не получает штрафа мультиатаки.
-       */
-      resolveAttack(attacker, defender, opts) {
-        let penalty = 0;
-        if (!opts?.free) {
-          const apr = Math.max(1, attacker.weapon.attacks_per_round ?? 1);
-          penalty = (apr - attacker.attacksLeft) * this.multiAttackPenalty;
-          attacker.attacksLeft -= 1;
-          if (attacker.attacksLeft <= 0) this.spendAction(attacker);
-          if (attacker.id === "c_player" && attacker.weapon.ammo_item) {
-            this.engine.removeItem(attacker.weapon.ammo_item, 1);
-            const left = this.engine.itemCount(attacker.weapon.ammo_item);
-            if (left === 0) this.log.push(`\u0411\u043E\u0435\u043F\u0440\u0438\u043F\u0430\u0441\u044B \u043A \xAB${attacker.weaponLabel}\xBB \u043A\u043E\u043D\u0447\u0438\u043B\u0438\u0441\u044C!`);
-          }
-        }
-        const rng = this.engine.rng;
-        const fromShadow = !!attacker.hidden;
-        const flank = this.flankRules();
-        const fromBehind = !!flank && this.isRearArc(defender, attacker.pos, flank.arc);
-        const aim = attacker.aimBonus ?? 0;
-        attacker.aimBonus = 0;
-        const skillVal = Math.max(
-          1,
-          (attacker.skills[attacker.weapon.skill] ?? 25) + this.statusSkillMod(attacker, attacker.weapon.skill) + this.weatherSkillMod(attacker.weapon.skill) + aim
-        );
-        const coverP = attacker.weapon.range > 1 && this.coverHexes.has(hexKey(defender.pos)) ? this.coverPenalty() : null;
-        const atk = skillCheck(skillVal, rng, penalty + (coverP ?? 0), this.engine.diceRules);
-        this.log.push(
-          `${attacker.label}: ${fromShadow ? "\u0412\u041D\u0415\u0417\u0410\u041F\u041D\u0410\u042F \u0430\u0442\u0430\u043A\u0430" : "\u0430\u0442\u0430\u043A\u0430"} \xAB${attacker.weaponLabel}\xBB${penalty ? ` (\u043F\u043E\u0432\u0442\u043E\u0440\u043D\u0430\u044F, ${penalty}%)` : ""}${aim ? ` (\u043F\u0440\u0438\u0446\u0435\u043B\u044C\u043D\u0430\u044F, +${aim}%)` : ""}${coverP ? ` (\u0443\u043A\u0440\u044B\u0442\u0438\u0435, ${coverP}%)` : ""} \u2014 d100=${atk.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${atk.target} \u2192 ${labelResult(atk.result)}`
-        );
-        attacker.hidden = false;
-        if (attacker.id === "c_player" && atk.success) this.engine.markSkill(attacker.weapon.skill);
-        if (RANK[atk.result] < 2) {
-          playUi("miss");
-          if (atk.result === "fumble" && !opts?.free) {
-            this.wearWeapon(attacker);
-            this.applyFumble(attacker);
-          }
-          return;
-        }
-        if (fromShadow) {
-          this.log.push(`${defender.label} \u043D\u0435 \u0432\u0438\u0434\u0438\u0442 \u043D\u0430\u043F\u0430\u0434\u0430\u044E\u0449\u0435\u0433\u043E \u2014 \u0437\u0430\u0449\u0438\u0442\u0430 \u043D\u0435\u0432\u043E\u0437\u043C\u043E\u0436\u043D\u0430!`);
-        } else if (fromBehind) {
-          this.log.push(`${attacker.label} \u0431\u044C\u0451\u0442 ${defender.label} \u0432 \u0441\u043F\u0438\u043D\u0443 \u2014 \u0437\u0430\u0449\u0438\u0442\u0430 \u043D\u0435\u0432\u043E\u0437\u043C\u043E\u0436\u043D\u0430!`);
-        } else if (this.defenderSaves(defender, RANK[atk.result])) {
-          return;
-        }
-        const w2 = attacker.weapon;
-        const dbNotation = w2.damage_bonus ? damageBonus(attacker.stats) : "0";
-        const harmless = w2.traits?.includes("push_harmless");
-        const critEntry = atk.result === "critical" ? this.rollCritEntry() : null;
-        const loc = this.rollHitLocation(rng);
-        if (loc) this.log.push(`${loc.text ?? `\u041F\u043E\u043F\u0430\u0434\u0430\u043D\u0438\u0435: ${loc.label}.`}`);
-        const locMult = loc?.damage_mult ?? 1;
-        const locArmor = loc?.armor ?? defender.armor;
-        let dmg;
-        if (atk.result === "critical" && critEntry?.kind === "double_damage") {
-          dmg = harmless ? 0 : Math.max(0, Math.round(2 * (rollDice(w2.damage, rng) + Math.max(0, rollSigned(dbNotation, rng))) * locMult) - locArmor);
-          this.log.push(`\u041A\u0440\u0438\u0442\u0438\u0447\u0435\u0441\u043A\u0438\u0439 \u0443\u0434\u0430\u0440 \u2014 \u0443\u0440\u043E\u043D \u0443\u0434\u0432\u043E\u0435\u043D!${critEntry.text ? ` ${critEntry.text}` : ""}`);
-          playUi("crit");
-        } else if (atk.result === "critical") {
-          dmg = harmless ? 0 : Math.max(0, Math.round((maxOf(w2.damage) + Math.max(0, maxOf(dbNotation))) * locMult) - (loc ? locArmor : 0));
-          this.log.push(`\u041A\u0440\u0438\u0442\u0438\u0447\u0435\u0441\u043A\u0438\u0439 \u0443\u0434\u0430\u0440! ${loc ? "\u0411\u0440\u043E\u043D\u044F \u0442\u043E\u043B\u044C\u043A\u043E \u0443 \u043B\u043E\u043A\u0430\u0446\u0438\u0438." : "\u0411\u0440\u043E\u043D\u044F \u043D\u0435 \u0441\u043F\u0430\u0441\u0430\u0435\u0442."}${critEntry?.text ? ` ${critEntry.text}` : ""}`);
-          playUi("crit");
-        } else if (harmless) {
-          dmg = 0;
-          playUi("hit");
-        } else {
-          const raw = rollDice(w2.damage, rng) + rollSigned(dbNotation, rng);
-          dmg = Math.max(0, Math.round(raw * locMult) - locArmor);
-          playUi("hit");
-        }
-        if (fromBehind && flank?.bonus && !harmless) {
-          const extra = rollDice(flank.bonus, rng);
-          if (extra > 0) {
-            dmg += extra;
-            this.log.push(`\u0423\u0434\u0430\u0440 \u0432 \u0441\u043F\u0438\u043D\u0443: +${extra} \u0443\u0440\u043E\u043D\u0430.`);
-          }
-        }
-        if (attacker.side === "enemy" && defender.id === "c_player") dmg = Math.round(dmg * this.enemyDamageMult(attacker));
-        this.finishDamage(defender, dmg);
-        if (critEntry && !defender.dead && !defender.down) {
-          if (critEntry.kind === "disarm") this.disarm(defender, attacker);
-          if (critEntry.kind === "status" && critEntry.status) this.applyStatusTo(defender.id, critEntry.status, critEntry.duration);
-        }
-        if (loc && !defender.dead && !defender.down) {
-          if (atk.result === "critical" && loc.status_on_crit) this.applyStatusTo(defender.id, loc.status_on_crit);
-          else if (dmg > 0 && loc.status_on_hit) this.applyStatusTo(defender.id, loc.status_on_hit);
-        }
-        if (dmg > 0) this.wearArmor(defender);
-        if (!defender.dead && !defender.down && RANK[atk.result] >= RANK.hard) {
-          this.applyWeaponTraits(attacker, defender);
-        }
-      }
-      /** таблица критических успехов мастера (meta.combat.crit_table) — бросок по весам */
-      rollCritEntry() {
-        const table = this.combatRules()?.crit_table;
-        if (!table?.length) return null;
-        const total = table.reduce((s2, e2) => s2 + Math.max(0, e2.weight), 0);
-        if (total <= 0) return null;
-        let roll = this.engine.rng.int(1, total);
-        return table.find((e2) => (roll -= Math.max(0, e2.weight)) <= 0) ?? table[table.length - 1];
-      }
-      /** хит-локации мастера (combat.hit_locations): бросок d100 по диапазонам; механика выкл. — null */
-      rollHitLocation(rng) {
-        const rule = this.combatRules()?.hit_locations;
-        if (!rule?.table?.length) return null;
-        const roll = rng.int(1, 100);
-        return rule.table.find((t5) => roll >= t5.from && roll <= t5.to) ?? null;
-      }
-      /** штраф укрытия (combat.cover); null — механика выключена */
-      coverPenalty() {
-        const c2 = this.combatRules()?.cover;
-        if (!c2) return null;
-        return typeof c2 === "object" ? c2.penalty ?? -20 : -20;
-      }
-      /** настройка удара в спину (combat.flank); null — механика выключена */
-      flankRules() {
-        const f2 = this.combatRules()?.flank;
-        if (!f2) return null;
-        return {
-          arc: typeof f2 === "object" ? f2.arc ?? 120 : 120,
-          bonus: typeof f2 === "object" ? f2.damage_bonus ?? null : null
-        };
-      }
-      /** стоит ли `from` в задней дуге цели (за её взглядом); дуга arcDeg с центром строго сзади */
-      isRearArc(defender, from, arcDeg) {
-        const size = this.arena.hex_grid.hex_size;
-        const a2 = hexToPixel(defender.pos, size, { x: 0, y: 0 });
-        const b2 = hexToPixel(from, size, { x: 0, y: 0 });
-        const dx = b2.x - a2.x;
-        const dy = b2.y - a2.y;
-        if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) return false;
-        const dir = Math.atan2(dx, -dy) * 180 / Math.PI;
-        const diff = Math.abs(((dir - defender.facing) % 360 + 540) % 360 - 180);
-        return diff >= 180 - arcDeg / 2;
-      }
-      /** особые удары оружия: пронзание, отброс, разоружение, захват */
-      applyWeaponTraits(attacker, defender) {
-        const traits = attacker.weapon.traits;
-        if (!traits?.length) return;
-        const rng = this.engine.rng;
-        if (traits.includes("impale")) {
-          const extra = rollDice(attacker.weapon.damage, rng);
-          this.log.push(`\u041F\u0440\u043E\u043D\u0437\u0430\u043D\u0438\u0435! \xAB${attacker.weaponLabel}\xBB \u0432\u043F\u0438\u0432\u0430\u0435\u0442\u0441\u044F \u0433\u043B\u0443\u0431\u043E\u043A\u043E: +${extra} \u0443\u0440\u043E\u043D\u0430 \u0431\u0435\u0437 \u0431\u0440\u043E\u043D\u0438.`);
-          this.finishDamage(defender, extra);
-          if (defender.dead || defender.down) return;
-        }
-        if (traits.includes("knockback") || traits.includes("push_harmless")) {
-          const dc = defender.pos.col - attacker.pos.col;
-          const dr = defender.pos.row - attacker.pos.row;
-          const step = { col: defender.pos.col + Math.sign(dc), row: defender.pos.row + Math.sign(dr) };
-          if (this.passable(step)) {
-            defender.pos = step;
-            this.log.push(`${defender.label} \u043E\u0442\u0431\u0440\u043E\u0448\u0435\u043D \u043D\u0430\u0437\u0430\u0434.`);
-          }
-        }
-        if (traits.includes("disarm")) {
-          this.disarm(defender, attacker);
-          if (defender.dead || defender.down) return;
-        }
-        if (traits.includes("grapple")) {
-          defender.skipNext = true;
-          this.log.push(`${attacker.label} \u0437\u0430\u0445\u0432\u0430\u0442\u044B\u0432\u0430\u0435\u0442 ${defender.label} \u2014 \u0442\u043E\u0442 \u043F\u0440\u043E\u043F\u0443\u0441\u0442\u0438\u0442 \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0438\u0439 \u0445\u043E\u0434!`);
-        }
-      }
-      /** разоружение: игрок теряет оружие в инвентарь, NPC — навсегда */
-      disarm(defender, attacker) {
-        if (!defender.weaponItemId) return;
-        const label = defender.weaponLabel;
-        if (defender.id === "c_player") {
-          const eq = this.engine.state.player.equipment;
-          if (eq.weapon === defender.weaponItemId) delete eq.weapon;
-          this.log.push(`${attacker.label} \u0432\u044B\u0431\u0438\u0432\u0430\u0435\u0442 \xAB${label}\xBB \u0438\u0437 \u0440\u0443\u043A ${defender.label}! \u041E\u0440\u0443\u0436\u0438\u0435 \u043E\u0442\u043B\u0435\u0442\u0435\u043B\u043E \u0432 \u0440\u044E\u043A\u0437\u0430\u043A.`);
-        } else {
-          this.log.push(`${attacker.label} \u0432\u044B\u0431\u0438\u0432\u0430\u0435\u0442 \xAB${label}\xBB \u0438\u0437 \u0440\u0443\u043A ${defender.label}!`);
-        }
-        defender.weapon = { ...FISTS };
-        defender.weaponLabel = FISTS.label;
-        defender.weaponItemId = null;
-        defender.attacksLeft = Math.min(defender.attacksLeft, 1);
-      }
-      /** таблица критических провалов мастера (meta.combat.fumble_table) */
-      applyFumble(attacker) {
-        const table = this.combatRules()?.fumble_table;
-        if (!table?.length) return;
-        const total = table.reduce((s2, e2) => s2 + Math.max(0, e2.weight), 0);
-        if (total <= 0) return;
-        let roll = this.engine.rng.int(1, total);
-        const entry = table.find((e2) => (roll -= Math.max(0, e2.weight)) <= 0) ?? table[table.length - 1];
-        const note = entry.text ? ` ${entry.text}` : "";
-        switch (entry.kind) {
-          case "drop_weapon":
-            this.log.push(`${attacker.label} \u0440\u043E\u043D\u044F\u0435\u0442 \u043E\u0440\u0443\u0436\u0438\u0435!${note}`);
-            this.disarm(attacker, attacker);
-            break;
-          case "stuck":
-            attacker.skipNext = true;
-            this.log.push(`${attacker.label}: \u043E\u0440\u0443\u0436\u0438\u0435 \u0437\u0430\u0441\u0442\u0440\u044F\u043B\u043E \u2014 \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0438\u0439 \u0445\u043E\u0434 \u0443\u0439\u0434\u0451\u0442 \u043D\u0430 \u0438\u0437\u0432\u043B\u0435\u0447\u0435\u043D\u0438\u0435.${note}`);
-            break;
-          case "self_hit": {
-            const dmg = Math.max(0, rollDice(attacker.weapon.damage, this.engine.rng) - attacker.armor);
-            this.log.push(`${attacker.label} \u0440\u0430\u043D\u0438\u0442 \u0441\u0435\u0431\u044F!${note}`);
-            this.finishDamage(attacker, dmg);
-            break;
-          }
-          case "skip_next":
-            attacker.skipNext = true;
-            this.log.push(`${attacker.label} \u0441\u043F\u043E\u0442\u044B\u043A\u0430\u0435\u0442\u0441\u044F \u2014 \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0438\u0439 \u0445\u043E\u0434 \u043F\u043E\u0442\u0435\u0440\u044F\u043D.${note}`);
-            break;
-        }
-      }
-      /** износ оружия атакующего при критическом провале; слом — переход на кулаки */
-      wearWeapon(attacker) {
-        if (!attacker.weaponItemId) return;
-        if (attacker.id === "c_player") {
-          const broke = this.engine.damageItemDurability(attacker.weaponItemId, 1);
-          if (broke) {
-            attacker.weapon = { ...FISTS };
-            attacker.weaponLabel = FISTS.label;
-            attacker.weaponItemId = null;
-            this.log.push(`${attacker.label}: \u043E\u0440\u0443\u0436\u0438\u0435 \u0441\u043B\u043E\u043C\u0430\u043B\u043E\u0441\u044C \u2014 \u0434\u0430\u043B\u044C\u0448\u0435 \u043A\u0443\u043B\u0430\u043A\u0430\u043C\u0438.`);
-          }
-          return;
-        }
-        const item = this.engine.campaign.entities[attacker.weaponItemId];
-        const max = item?.weapon_data?.durability;
-        if (max === void 0) return;
-        attacker.wear ??= {};
-        const left = (attacker.wear[attacker.weaponItemId] ?? max) - 1;
-        attacker.wear[attacker.weaponItemId] = left;
-        if (left <= 0) {
-          attacker.weapon = { ...FISTS };
-          attacker.weaponLabel = FISTS.label;
-          attacker.weaponItemId = null;
-          this.log.push(`${attacker.label}: \xAB${item?.label ?? "\u043E\u0440\u0443\u0436\u0438\u0435"}\xBB \u0441\u043B\u043E\u043C\u0430\u043D\u043E \u2014 \u0434\u0430\u043B\u044C\u0448\u0435 \u0433\u043E\u043B\u044B\u043C\u0438.`);
-        }
-      }
-      /** износ брони защитника после пробившего удара */
-      wearArmor(defender) {
-        if (defender.id === "c_player") {
-          for (const id of Object.values(this.engine.state.player.equipment)) {
-            if (!id) continue;
-            const item = this.engine.campaign.entities[id];
-            if (item?.armor_data?.durability === void 0 || !this.engine.isItemUsable(id)) continue;
-            const broke = this.engine.damageItemDurability(id, 1);
-            if (broke) {
-              defender.armor = this.engine.playerArmor().points;
-              this.log.push(`${defender.label}: \xAB${item.label}\xBB \u0440\u0430\u0437\u0431\u0438\u0442\u0430 \u043D\u0430\u0441\u043C\u0435\u0440\u0442\u044C \u2014 \u0431\u0440\u043E\u043D\u044F ${defender.armor}.`);
+        ctx2.addItem(itemId, quantity, { silent: true });
+        const def = ctx2.campaign.entities[entity];
+        const itemDef = ctx2.campaign.entities[itemId];
+        ctx2.pushLog(`${def?.label ?? entity} \u0432\u043E\u0437\u0432\u0440\u0430\u0449\u0430\u0435\u0442: ${itemDef?.label ?? itemId} \xD7${quantity}.`);
+        ctx2.notify();
+        return true;
+      },
+      /** Надеть/снять предмет из сумки напарника на слот экипировки (null — снять). */
+      equipCompanionItem(ctx2, entity, slotId, itemId) {
+        const comp = ctx2.state.party.find((c2) => c2.entity === entity);
+        if (!comp) return;
+        if (itemId && !comp.inventory?.some((i2) => i2.item === itemId)) return;
+        comp.equipment = { ...comp.equipment ?? {} };
+        if (itemId) comp.equipment[slotId] = itemId;
+        else delete comp.equipment[slotId];
+        ctx2.notify();
+      },
+      /** Применить предмет из сумки героя к напарнику: перенаправляет on_use-эффекты
+      *  «здоровье» (change_hp) и «потребности» (change_need) на напарника, остальные
+      *  эффекты игнорируются; расход предмета — как у героя (on_use.consume). */
+      useItemOnCompanion(ctx2, entity, itemId) {
+        const comp = ctx2.state.party.find((c2) => c2.entity === entity);
+        const def = ctx2.campaign.entities[entity];
+        const item = ctx2.campaign.entities[itemId];
+        if (!comp || !def || !item || item.type !== "item" || !item.on_use) return false;
+        if (!(ctx2.state.player.inventory.find((i2) => i2.item === itemId)?.quantity ?? 0)) return false;
+        let touched = false;
+        for (const eff of item.on_use.effects) {
+          if (eff.type === "change_hp" && comp.hp > 0) {
+            const before = comp.hp;
+            comp.hp = Math.max(1, Math.min(comp.max_hp, comp.hp + eff.delta));
+            if (comp.hp !== before) touched = true;
+          } else if (eff.type === "change_need") {
+            if (comp.needs?.[eff.need] !== void 0) {
+              ctx2.changeCompanionNeed(entity, eff.need, eff.delta);
+              touched = true;
             }
-            return;
           }
+        }
+        if (!touched) return false;
+        playInteraction("use", { entity: item });
+        if (item.on_use.consume !== false) ctx2.removeItem(itemId, 1, { verb: "\u0418\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u043E" });
+        ctx2.pushLog(`${item.label} \u2014 \u043F\u0440\u0438\u043C\u0435\u043D\u0435\u043D\u043E \u043A ${def.label}.`);
+        ctx2.checkRules();
+        ctx2.notify();
+        return true;
+      },
+      /** Напарник покидает отряд (отпустить, скрипт, гибель в бою).
+      *  Его сумка возвращается герою — иначе переданные вещи стирались бы навсегда
+      *  (до этого так и было: мягкая блокировка при гибели носильщика). */
+      leaveParty(ctx2, entityId) {
+        const i2 = ctx2.state.party.findIndex((c2) => c2.entity === entityId);
+        if (i2 < 0) return;
+        const comp = ctx2.state.party[i2];
+        const def = ctx2.campaign.entities[entityId];
+        const returned = (comp.inventory ?? []).filter((e2) => e2.quantity > 0);
+        if (returned.length) {
+          for (const e2 of returned) ctx2.addItem(e2.item, e2.quantity, { silent: true });
+          const list = returned.map((e2) => `${ctx2.campaign.entities[e2.item]?.label ?? e2.item}${e2.quantity > 1 ? ` \xD7${e2.quantity}` : ""}`).join(", ");
+          ctx2.pushLog(`${def?.label ?? entityId} \u043E\u0442\u0434\u0430\u0451\u0442 \u0432\u0430\u043C: ${list}.`);
+          ctx2.pushToast(`${def?.label ?? entityId} \u043E\u0442\u0434\u0430\u0451\u0442 \u0432\u0430\u043C \u0432\u0435\u0449\u0438 \u0438\u0437 \u0441\u0443\u043C\u043A\u0438: ${list}.`, "get");
+        }
+        ctx2.state.party.splice(i2, 1);
+        ctx2.notify();
+      },
+      isInParty(ctx2, entityId) {
+        return ctx2.state.party.some((c2) => c2.entity === entityId);
+      }
+    };
+  }
+});
+
+// src/core/social.ts
+var social;
+var init_social = __esm({
+  "src/core/social.ts"() {
+    init_brp();
+    init_dice();
+    social = {
+      // ─────────────── репутация и фракции (ТЗ 4.8) ───────────────
+      /**
+      * target: id фракции или id NPC.
+      * У NPC: base_disposition + личный сдвиг (dispositions[npc.id]) + фракция
+      * (если задана) + самочувствие. Личный сдвиг нужен накигэ/драмам, где
+      * отношение к человеку важнее «города» — раньше без faction delta глотался.
+      */
+      getDisposition(ctx2, target) {
+        const npc = ctx2.campaign.entities[target];
+        if (npc && npc.type === "npc") {
+          const personal = ctx2.state.dispositions[target] ?? 0;
+          const factionValue = npc.faction ? ctx2.state.dispositions[npc.faction] ?? 0 : 0;
+          const moodShift = Math.round((ctx2.npcMood(target) - 50) / 2);
+          return personal + factionValue + (npc.base_disposition ?? 0) + moodShift;
+        }
+        return ctx2.state.dispositions[target] ?? 0;
+      },
+      npcMood(ctx2, entityId) {
+        return ctx2.state.npc_mood?.[entityId] ?? 50;
+      },
+      /** сдвинуть самочувствие NPC (правила/эффекты; K.D. clamp 0..100) */
+      changeNpcMood(ctx2, entityId, delta) {
+        const m2 = ctx2.state.npc_mood ??= {};
+        m2[entityId] = Math.max(0, Math.min(100, (m2[entityId] ?? 50) + delta));
+      },
+      changeDisposition(ctx2, target, delta) {
+        const npc = ctx2.campaign.entities[target];
+        const key = target;
+        if (npc && npc.type !== "npc" && npc.type !== void 0) {
           return;
         }
-        const def = this.engine.campaign.entities[defender.entityId];
-        if (!def) return;
-        for (const itemId of Object.values(def.equipment ?? {})) {
-          const item = this.engine.campaign.entities[itemId];
-          const max = item?.armor_data?.durability;
-          if (max === void 0 || !item) continue;
-          defender.wear ??= {};
-          const left = (defender.wear[itemId] ?? max) - 1;
-          defender.wear[itemId] = left;
-          if (left <= 0) {
-            defender.armor = Math.max(0, defender.armor - item.armor_data.points);
-            this.log.push(`${defender.label}: \u0434\u043E\u0441\u043F\u0435\u0445 \xAB${item.label}\xBB \u0440\u0430\u0437\u0431\u0438\u0442 \u2014 \u0431\u0440\u043E\u043D\u044F ${defender.armor}.`);
+        const cur = ctx2.state.dispositions[key] ?? 0;
+        ctx2.state.dispositions[key] = Math.max(-100, Math.min(100, cur + delta));
+        const label = (npc && npc.type === "npc" ? npc.label : void 0) ?? ctx2.campaign.meta.factions?.find((f2) => f2.id === key)?.label ?? key;
+        ctx2.pushLog(`\u041E\u0442\u043D\u043E\u0448\u0435\u043D\u0438\u0435 \xAB${label}\xBB: ${delta > 0 ? "+" : ""}${delta} (\u0442\u0435\u043F\u0435\u0440\u044C ${ctx2.getDisposition(key)}).`);
+      },
+      /** репутация (opt-in meta.reputation) */
+      reputation(ctx2) {
+        return Math.max(0, ctx2.state.player.reputation ?? 0);
+      },
+      /** репутация включена мастером */
+      /** Настраиваемая системная надпись интерфейса (design-doc §9, meta.ui_labels) */
+      uiLabel(ctx2, key, fallback) {
+        return ctx2.campaign.meta.ui_labels?.[key]?.trim() || fallback;
+      },
+      reputationEnabled(ctx2) {
+        return !!ctx2.campaign.meta.reputation;
+      },
+      reputationLabel(ctx2) {
+        const cfg = ctx2.campaign.meta.reputation;
+        return typeof cfg === "object" && cfg?.label || "\u0420\u0435\u043F\u0443\u0442\u0430\u0446\u0438\u044F";
+      },
+      changeReputation(ctx2, delta) {
+        const next = Math.max(0, ctx2.reputation() + delta);
+        ctx2.state.player.reputation = next;
+        if (delta > 0) ctx2.pushLog(`\u0421\u043B\u0430\u0432\u0430 \u043E \u0432\u0430\u0441 \u0440\u0430\u0441\u0442\u0451\u0442: \u0440\u0435\u043F\u0443\u0442\u0430\u0446\u0438\u044F ${next}.`);
+        else if (delta < 0) ctx2.pushLog(`\u041E \u0432\u0430\u0441 \u043E\u0442\u0437\u044B\u0432\u0430\u044E\u0442\u0441\u044F \u0445\u0443\u0436\u0435: \u0440\u0435\u043F\u0443\u0442\u0430\u0446\u0438\u044F ${next}.`);
+        ctx2.checkRules();
+        ctx2.notify();
+      },
+      /** шкала достатка (opt-in meta.wealth_levels) */
+      wealthLevels(ctx2) {
+        return ctx2.campaign.meta.wealth_levels ?? [];
+      },
+      /** текущий уровень достатка (индекс в шкале) */
+      wealthLevel(ctx2) {
+        const lv = ctx2.wealthLevels();
+        return Math.max(0, Math.min(lv.length - 1, ctx2.state.player.wealth_level ?? 0));
+      },
+      wealthLevelLabel(ctx2) {
+        return ctx2.wealthLevels()[ctx2.wealthLevel()] ?? "";
+      },
+      /** сдвиг достатка на ±levels ступеней */
+      changeWealth(ctx2, levels) {
+        const lv = ctx2.wealthLevels();
+        if (!lv.length) return;
+        const next = Math.max(0, Math.min(lv.length - 1, ctx2.wealthLevel() + levels));
+        if (next === ctx2.wealthLevel()) return;
+        ctx2.state.player.wealth_level = next;
+        ctx2.pushLog(`\u0412\u0430\u0448 \u0434\u043E\u0441\u0442\u0430\u0442\u043E\u043A \u043C\u0435\u043D\u044F\u0435\u0442\u0441\u044F: \u0442\u0435\u043F\u0435\u0440\u044C \xAB${lv[next]}\xBB.`);
+        ctx2.checkRules();
+        ctx2.notify();
+      },
+      /** страсть: значение 0..100+ */
+      passion(ctx2, id) {
+        return ctx2.state.player.passions?.[id] ?? 0;
+      },
+      passionLabel(ctx2, id) {
+        return ctx2.campaign.meta.passions_list?.find((p2) => p2.id === id)?.label ?? id;
+      },
+      /** создать/сдвинуть страсть (clamped ≥ 0); лог первого появления */
+      changePassion(ctx2, id, delta) {
+        const p2 = ctx2.state.player;
+        p2.passions ??= {};
+        const next = Math.max(0, (p2.passions[id] ?? 0) + delta);
+        const fresh = p2.passions[id] == null;
+        p2.passions[id] = next;
+        if (fresh) ctx2.pushLog(`\u0412 \u0432\u0430\u0441 \u0437\u0430\u0436\u0438\u0433\u0430\u0435\u0442\u0441\u044F \u0441\u0442\u0440\u0430\u0441\u0442\u044C: \xAB${ctx2.passionLabel(id)}\xBB (${next}).`);
+        else ctx2.pushLog(`\u0421\u0442\u0440\u0430\u0441\u0442\u044C \xAB${ctx2.passionLabel(id)}\xBB: ${delta > 0 ? "+" : ""}${delta} \u2192 ${next}.`);
+        ctx2.checkRules();
+        ctx2.notify();
+      },
+      /** очки причастности силе */
+      allegiance(ctx2, id) {
+        return ctx2.state.player.allegiance?.[id] ?? 0;
+      },
+      allegianceLabel(ctx2, id) {
+        return ctx2.campaign.meta.allegiances?.find((a2) => a2.id === id)?.label ?? id;
+      },
+      /** +очки причастности (по книге без снижения, дельта 0..100+) */
+      changeAllegiance(ctx2, id, points) {
+        const p2 = ctx2.state.player;
+        p2.allegiance ??= {};
+        const next = Math.max(0, (p2.allegiance[id] ?? 0) + points);
+        const fresh = p2.allegiance[id] == null;
+        p2.allegiance[id] = next;
+        if (fresh) ctx2.pushLog(`\u0412\u044B \u043E\u0431\u0440\u0435\u0442\u0430\u0435\u0442\u0435 \u043F\u0440\u0438\u0447\u0430\u0441\u0442\u043D\u043E\u0441\u0442\u044C \u043A \xAB${ctx2.allegianceLabel(id)}\xBB (${next}).`);
+        else if (points > 0) ctx2.pushLog(`\u041F\u0440\u0438\u0447\u0430\u0441\u0442\u043D\u043E\u0441\u0442\u044C \xAB${ctx2.allegianceLabel(id)}\xBB: +${points} \u2192 ${next}.`);
+        else ctx2.pushLog(`\u041F\u0440\u0438\u0447\u0430\u0441\u0442\u043D\u043E\u0441\u0442\u044C \xAB${ctx2.allegianceLabel(id)}\xBB: ${points} \u2192 ${next}.`);
+        ctx2.checkRules();
+        ctx2.notify();
+      },
+      // ─────────────── опасности, преступления, цены, лагерь (аудит B7) ───────────────
+      /**
+      * Падение (аудит B7): урон = floor(meters / porog) кубиков, смягчающая
+      * проверка навыком (умолчание dodge) уполовинивает. Порог и кубик
+      * настраиваются в meta.hazards (книжные: 3 м на 1d6).
+      */
+      applyFall(ctx2, meters, skill) {
+        const hz = ctx2.campaign.meta.hazards;
+        const perDie = Math.max(1, hz?.fall_meters_per_die ?? 3);
+        const dice = Math.floor(Math.max(0, meters) / perDie);
+        const sane = dice <= 0 ? "0" : `${dice}d6`;
+        let dmg = 0;
+        let modLog = "";
+        const p2 = ctx2.state.player;
+        if (dice > 0) {
+          const skillId = skill ?? "dodge";
+          const known = p2.skills[skillId];
+          if (known != null && known > 0) {
+            const out = skillCheck(Math.max(1, known), ctx2.rng, 0, ctx2.diceRules);
+            if (out.success) {
+              modLog = ` (${ctx2.skillLabel(skillId)} \u0441\u043C\u044F\u0433\u0447\u0430\u0435\u0442: \u043F\u043E\u043B\u043E\u0432\u0438\u043D\u0430)`;
+            }
+            dmg = rollDice(sane, ctx2.rng);
+            if (out.success) dmg = Math.max(0, Math.ceil(dmg / 2));
+            ctx2.pushLog(`\u041F\u0430\u0434\u0435\u043D\u0438\u0435 \u0441 ${meters} \u043C \u2014 d100=${out.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${out.target}: ${CHECK_RESULT_LABEL[out.result]}${modLog}`);
+          } else {
+            dmg = rollDice(sane, ctx2.rng);
+            ctx2.pushLog(`\u041F\u0430\u0434\u0435\u043D\u0438\u0435 \u0441 ${meters} \u043C: ${dmg} \u0443\u0440\u043E\u043D\u0430 (${sane}).`);
           }
-          return;
+        }
+        if (dmg > 0) ctx2.changeHp(-dmg);
+        else ctx2.pushLog("\u041F\u0430\u0434\u0435\u043D\u0438\u0435 \u043E\u0431\u043E\u0448\u043B\u043E\u0441\u044C \u0431\u0435\u0437 \u0441\u0435\u0440\u044C\u0451\u0437\u043D\u044B\u0445 \u0442\u0440\u0430\u0432\u043C.");
+        ctx2.notify();
+      },
+      /** реестр преступления из кампании */
+      crimeLabel(ctx2, id) {
+        return ctx2.campaign.meta.crimes?.find((c2) => c2.id === id)?.label ?? id;
+      },
+      /** зафиксировать преступление героя (аудит B7) */
+      commitCrime(ctx2, id, bounty = 0) {
+        const s2 = ctx2.state;
+        s2.crimes ??= {};
+        if (s2.crimes[id]) {
+          s2.crimes[id].bounty += Math.max(0, bounty);
+        } else {
+          s2.crimes[id] = { bounty: Math.max(0, bounty), tick: s2.tick };
+        }
+        ctx2.pushLog(`\u0421\u043E\u0432\u0435\u0440\u0448\u0435\u043D\u043E \u043F\u0440\u0435\u0441\u0442\u0443\u043F\u043B\u0435\u043D\u0438\u0435: \xAB${ctx2.crimeLabel(id)}\xBB${bounty > 0 ? ` (\u043D\u0430\u0433\u0440\u0430\u0434\u0430 \u0437\u0430 \u0433\u043E\u043B\u043E\u0432\u0443 ${bounty})` : ""}.`);
+        ctx2.checkRules();
+        ctx2.notify();
+      },
+      /** преступление совершено? (любое — без id; minBounty — порог награды) */
+      hasCrime(ctx2, id, minBounty = 0) {
+        const list = ctx2.state.crimes ?? {};
+        if (!id) return Object.values(list).some((c3) => minBounty <= 0 ? true : c3.bounty >= minBounty);
+        const c2 = list[id];
+        if (!c2) return false;
+        return minBounty <= 0 ? true : c2.bounty >= minBounty;
+      },
+      /** суммарная награда за голову героя */
+      bountyTotal(ctx2) {
+        return Object.values(ctx2.state.crimes ?? {}).reduce((sum, c2) => sum + c2.bounty, 0);
+      },
+      /** активные ценовые события */
+      priceEventsActive(ctx2) {
+        const reg = ctx2.campaign.meta.price_events ?? [];
+        return (ctx2.state.price_events ?? []).map((id) => ({ id, label: reg.find((e2) => e2.id === id)?.label ?? id }));
+      },
+      /** включить/выключить ценовое событие (аудит B7) */
+      setPriceEvent(ctx2, id, on) {
+        const list = ctx2.state.price_events ??= [];
+        if (on) {
+          if (!ctx2.campaign.meta.price_events?.some((e2) => e2.id === id)) return;
+          if (!list.includes(id)) {
+            list.push(id);
+            ctx2.pushLog(`\u0426\u0435\u043D\u043D\u0438\u043A \u043C\u0435\u043D\u044F\u0435\u0442\u0441\u044F: \xAB${ctx2.campaign.meta.price_events.find((e2) => e2.id === id).label}\xBB.`);
+          }
+        } else if (id) {
+          const i2 = list.indexOf(id);
+          if (i2 >= 0) list.splice(i2, 1);
+        } else if (list.length) {
+          list.length = 0;
+          ctx2.pushLog("\u0426\u0435\u043D\u043D\u0438\u043A\u0438 \u0441\u043D\u043E\u0432\u0430 \u043F\u0440\u0435\u0436\u043D\u0438\u0435.");
+        }
+        ctx2.checkRules();
+        ctx2.notify();
+      },
+      /** множитель цен по активным ценовым событиям для данного предмета */
+      priceEventMultiplier(ctx2, item) {
+        if (!ctx2.state.price_events?.length) return 1;
+        let mult = 1;
+        for (const id of ctx2.state.price_events) {
+          const ev = ctx2.campaign.meta.price_events?.find((e2) => e2.id === id);
+          if (!ev) continue;
+          if (ev.items?.length && !ev.items.includes(item.id)) continue;
+          if (ev.categories?.length && !ev.categories.includes(item.category)) continue;
+          mult *= ev.multiplier;
+        }
+        return mult;
+      },
+      /** разрешён ли здесь лагерь (аудит B7): meta.camping + локация с camp: true */
+      campAvailable(ctx2) {
+        const cfg = ctx2.campaign.meta.camping;
+        if (!cfg) return { ok: false, reason: "\u043C\u0430\u0441\u0442\u0435\u0440 \u043D\u0435 \u0432\u043A\u043B\u044E\u0447\u0438\u043B \u043D\u043E\u0447\u043B\u0435\u0433 (meta.camping)" };
+        if (ctx2.combat || ctx2.trade || ctx2.craftRequest) return { ok: false, reason: "\u0441\u0435\u0439\u0447\u0430\u0441 \u043D\u0435 \u0434\u043E \u043E\u0442\u0434\u044B\u0445\u0430" };
+        const loc = ctx2.findLocation(ctx2.state.location)?.location;
+        if (!loc?.camp) return { ok: false, reason: "\u0437\u0434\u0435\u0441\u044C \u043B\u0430\u0433\u0435\u0440\u044C \u043D\u0435 \u0440\u0430\u0437\u0431\u0438\u0442\u044C (location.camp)" };
+        return { ok: true, reason: "" };
+      },
+      /**
+      * Раз в сутки: самочувствие NPC с расписанием. Чьё расписание покрывает
+      * ночь (от начала ночи до утра) — тот отсыпается (+10); кто без ночёвки
+      * по расписанию — устаёт (−10). Диапазоны времени поддерживают полночь.
+      */
+      tickNpcMood(ctx2) {
+        const meta2 = ctx2.campaign.meta;
+        const tpd = meta2.ticks_per_day ?? 24;
+        const nightStart = meta2.time_of_day?.night ?? 22;
+        const morning = meta2.time_of_day?.morning ?? 6;
+        const spanNight = ((morning - nightStart) % tpd + tpd) % tpd || tpd;
+        const nightPts = [0, 0.25, 0.5, 0.75].map((f2) => (nightStart + Math.floor(spanNight * f2)) % tpd);
+        for (const [id, ent] of Object.entries(ctx2.campaign.entities)) {
+          if (!ent || ent.type !== "npc") continue;
+          const sch = ent.schedule;
+          if (!sch?.length) continue;
+          const slept = sch.some((e2) => {
+            let [a2, b2] = e2.time_range;
+            a2 = (a2 % tpd + tpd) % tpd;
+            b2 = (b2 % tpd + tpd) % tpd;
+            const covers = (t5) => a2 <= b2 ? t5 >= a2 && t5 < b2 : t5 >= a2 || t5 < b2;
+            return nightPts.every(covers);
+          });
+          ctx2.changeNpcMood(id, slept ? 10 : -10);
         }
       }
-      /** Защита от удара: уклонение/парирование. Истина — атака отражена. */
-      defenderSaves(defender, atkRank) {
-        if (this.round === 1 && this.surprise) {
-          const ambusher = this.surprise === "player" ? "player" : "enemy";
-          if (defender.side !== ambusher) return false;
-        }
-        const rng = this.engine.rng;
-        const dodgeVal = Math.max(0, (defender.skills["dodge"] ?? 0) + this.statusSkillMod(defender, "dodge") + this.weatherSkillMod("dodge"));
-        const parryVal = defender.weapon.parry_capable ? Math.max(0, (defender.skills[defender.weapon.skill] ?? 0) + this.statusSkillMod(defender, defender.weapon.skill) + this.weatherSkillMod(defender.weapon.skill)) : 0;
-        const useParry = parryVal > dodgeVal;
-        const defBase = useParry ? parryVal : dodgeVal;
-        if (defBase > 0) {
-          const penalty = -30 * defender.defensesUsed;
-          defender.defensesUsed++;
-          const def = skillCheck(defBase, rng, penalty, this.engine.diceRules);
-          this.log.push(
-            `${defender.label}: ${useParry ? "\u043F\u0430\u0440\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435" : "\u0443\u043A\u043B\u043E\u043D\u0435\u043D\u0438\u0435"} \u2014 d100=${def.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${def.target} \u2192 ${labelResult(def.result)}`
-          );
-          if (RANK[def.result] >= 2 && RANK[def.result] >= atkRank) {
-            this.log.push(`${defender.label} ${useParry ? "\u043E\u0442\u0431\u0438\u0432\u0430\u0435\u0442 \u0443\u0434\u0430\u0440" : "\u0443\u0445\u043E\u0434\u0438\u0442 \u043E\u0442 \u0443\u0434\u0430\u0440\u0430"}.`);
-            playUi("parry");
-            if (defender.id === "c_player") this.engine.markSkill(useParry ? defender.weapon.skill : "dodge");
-            return true;
+    };
+  }
+});
+
+// src/core/inventory.ts
+var inventory;
+var init_inventory = __esm({
+  "src/core/inventory.ts"() {
+    init_audio();
+    inventory = {
+      // ─────────────── инвентарь ───────────────
+      hasItem(ctx2, id) {
+        return ctx2.itemCount(id) > 0;
+      },
+      itemCount(ctx2, id) {
+        return ctx2.state.player.inventory.filter((i2) => i2.item === id).reduce((s2, i2) => s2 + i2.quantity, 0);
+      },
+      addItem(ctx2, id, quantity = 1, opts = {}) {
+        const inv = ctx2.state.player.inventory;
+        const itemDef = ctx2.campaign.entities[id];
+        const isPerishable = itemDef?.decay_ticks !== void 0 && itemDef.decay_ticks > 0;
+        const initialFreshness = opts.freshness ?? itemDef?.decay_ticks;
+        if (ctx2.itemMaxDurability(id) !== void 0 || isPerishable) {
+          for (let i2 = 0; i2 < quantity; i2++) {
+            inv.push({
+              item: id,
+              quantity: 1,
+              durability: ctx2.itemMaxDurability(id),
+              freshness: initialFreshness
+            });
           }
+        } else {
+          const entry = inv.find((i2) => i2.item === id && i2.durability === void 0 && i2.freshness === void 0);
+          if (entry) entry.quantity += quantity;
+          else inv.push({ item: id, quantity });
+        }
+        if (!opts.silent) ctx2.pushToast(`\u041F\u043E\u043B\u0443\u0447\u0435\u043D\u043E: ${ctx2.itemTitle(id)}${quantity > 1 ? ` \xD7${quantity}` : ""}.`, "get");
+      },
+      removeItem(ctx2, id, quantity = 1, opts = {}) {
+        const inv = ctx2.state.player.inventory;
+        let left = quantity;
+        while (left > 0) {
+          const entries = inv.filter((i2) => i2.item === id);
+          if (!entries.length) break;
+          const max = ctx2.itemMaxDurability(id);
+          let pick = entries[0];
+          if (max !== void 0) {
+            pick = entries.reduce((a2, b2) => (a2.durability ?? max) <= (b2.durability ?? max) ? a2 : b2);
+          } else if (entries.some((e2) => e2.freshness !== void 0)) {
+            pick = entries.reduce((a2, b2) => (a2.freshness ?? Infinity) <= (b2.freshness ?? Infinity) ? a2 : b2);
+          }
+          if (pick.quantity > left) {
+            pick.quantity -= left;
+            left = 0;
+          } else {
+            left -= pick.quantity;
+            inv.splice(inv.indexOf(pick), 1);
+          }
+        }
+        if (!ctx2.hasItem(id)) {
+          const eq = ctx2.state.player.equipment;
+          for (const slot of Object.keys(eq)) {
+            if (eq[slot] === id) delete eq[slot];
+          }
+        }
+        const lost = quantity - left;
+        if (!opts.silent && lost > 0) {
+          const verb = opts.verb ?? (lost >= quantity ? "\u041F\u043E\u0442\u0435\u0440\u044F\u043D\u043E" : "\u0427\u0430\u0441\u0442\u0438\u0447\u043D\u043E \u043F\u043E\u0442\u0435\u0440\u044F\u043D\u043E");
+          ctx2.pushToast(`${verb}: ${ctx2.itemTitle(id)}${lost > 1 ? ` \xD7${lost}` : ""}.`, "lose");
+        }
+      },
+      // ─────────────── износ снаряжения (аудит §5.6 п.10) ───────────────
+      /** максимальная прочность предмета (оружие — weapon_data, броня — armor_data); нет — вечный */
+      itemMaxDurability(ctx2, itemId) {
+        const def = ctx2.campaign.entities[itemId];
+        if (!def || def.type !== "item") return void 0;
+        return def.weapon_data?.durability ?? def.armor_data?.durability;
+      },
+      /** осталось прочности у первого пригодного экземпляра (нет — null) */
+      itemDurabilityOf(ctx2, id) {
+        const max = ctx2.itemMaxDurability(id);
+        if (max === void 0) return null;
+        const entry = ctx2.state.player.inventory.find((i2) => i2.item === id);
+        if (!entry) return null;
+        return { left: entry.durability ?? max, max };
+      },
+      /** пригоден ли предмет к использованию (есть экземпляр с прочностью > 0) */
+      isItemUsable(ctx2, id) {
+        const max = ctx2.itemMaxDurability(id);
+        if (max === void 0) return ctx2.hasItem(id);
+        return ctx2.state.player.inventory.some((i2) => i2.item === id && (i2.durability ?? max) > 0);
+      },
+      /** экземпляры с износом от меньшей прочности (для UI) */
+      durabilityEntries(ctx2, id) {
+        const max = ctx2.itemMaxDurability(id);
+        if (max === void 0) return [];
+        return ctx2.state.player.inventory.filter((i2) => i2.item === id).map((entry) => ({ entry, left: entry.durability ?? max })).sort((a2, b2) => a2.left - b2.left);
+      },
+      /**
+      * Износ предмета игрока (урон в бою): −amount самому надетому экземпляру.
+      * Сломанный экземпляр с прочностью 0 сохраняется (для починки рецептом).
+      * Истина — предмет сломался этим износом.
+      */
+      damageItemDurability(ctx2, itemId, amount = 1) {
+        const max = ctx2.itemMaxDurability(itemId);
+        if (max === void 0) return false;
+        const entry = ctx2.state.player.inventory.filter((i2) => i2.item === itemId && (i2.durability ?? max) > 0).sort((a2, b2) => (a2.durability ?? max) - (b2.durability ?? max))[0];
+        if (!entry) return false;
+        const before = entry.durability ?? max;
+        entry.durability = Math.max(0, before - amount);
+        if (entry.durability === 0 && before > 0) {
+          const def = ctx2.campaign.entities[itemId];
+          ctx2.pushLog(`\xAB${def?.label ?? itemId}\xBB \u0441\u043B\u043E\u043C\u0430\u043B\u0441\u044F!`);
+          playUi("defeat");
+          return true;
         }
         return false;
-      }
-      /** Урон бойцу: лог, смерть, синхронизация с состоянием партии. */
-      finishDamage(defender, dmg) {
-        if (defender.id === "c_player" && this.engine.debugInvincible) {
-          this.log.push(`${defender.label}: \u0443\u0440\u043E\u043D \u043E\u0442\u043C\u0435\u043D\u0451\u043D \u0440\u0435\u0436\u0438\u043C\u043E\u043C \u043E\u0442\u043B\u0430\u0434\u043A\u0438.`);
-          return;
-        }
-        defender.hp -= dmg;
-        this.log.push(`${defender.label} \u043F\u043E\u043B\u0443\u0447\u0430\u0435\u0442 ${dmg} \u0443\u0440\u043E\u043D\u0430 (HP ${Math.max(0, defender.hp)}/${defender.maxHp}).`);
-        if (defender.id === "c_player" && this.deathMode === "brp" && !defender.dead && !defender.down) {
-          if (defender.hp > 0 && dmg >= Math.ceil(defender.maxHp / 2) && !this.conSave(defender, "\u0442\u044F\u0436\u0451\u043B\u0430\u044F \u0440\u0430\u043D\u0430")) {
-            defender.down = true;
-            this.log.push(`${defender.label} \u0442\u0435\u0440\u044F\u0435\u0442 \u0441\u043E\u0437\u043D\u0430\u043D\u0438\u0435 \u043E\u0442 \u0442\u044F\u0436\u0451\u043B\u043E\u0439 \u0440\u0430\u043D\u044B.`);
-          }
-          if (!defender.down && defender.hp <= 0 && this.conSave(defender, "\u0441\u043C\u0435\u0440\u0442\u0435\u043B\u044C\u043D\u044B\u0439 \u0443\u0434\u0430\u0440")) {
-            defender.hp = 1;
-            defender.down = true;
-            this.log.push(`${defender.label} \u043F\u0430\u0434\u0430\u0435\u0442 \u0431\u0435\u0437 \u0441\u043E\u0437\u043D\u0430\u043D\u0438\u044F \u2014 \u043D\u043E \u0434\u044B\u0448\u0438\u0442. (1 HP)`);
-          }
-        }
-        if (defender.hp <= 0 && !defender.down) {
-          defender.dead = true;
-          this.log.push(`\u2020 ${defender.label} \u043F\u043E\u0433\u0438\u0431\u0430\u0435\u0442.`);
-          playUi("death");
-          if (defender.side === "enemy") {
-            this.engine.state.dead_entities.push(defender.entityId);
-          } else if (defender.id.startsWith("c_ally_")) {
-            this.engine.leaveParty(defender.entityId);
-            this.engine.state.dead_entities.push(defender.entityId);
-            this.engine.pushLog(`${defender.label} \u043F\u043E\u0433\u0438\u0431\u0430\u0435\u0442 \u0432 \u0431\u043E\u044E. \u041D\u0430\u0432\u0441\u0435\u0433\u0434\u0430.`);
-          }
-        }
-        this.syncParty();
-        if (defender.down || defender.dead) this.checkEnd();
-      }
+      },
       /**
-       * Спасбросок CON×con_multiplier при критическом состоянии героя (режим
-       * 'brp'): тяжёлая рана — успех удерживает в сознании; смертельный удар —
-       * успех оставляет жить (без сознания). Истина — спасбросок пройден.
-       */
-      conSave(c2, cause) {
-        const mult = this.combatRules()?.death?.con_multiplier ?? 5;
-        const out = skillCheck(c2.stats.CON * mult, this.engine.rng, 0, this.engine.diceRules);
-        this.log.push(
-          `${c2.label}: \u0433\u0440\u0430\u043D\u044C \u0441\u043E\u0437\u043D\u0430\u043D\u0438\u044F (${cause}) \u2014 CON\xD7${mult}, d100=${out.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${out.target} \u2192 ${labelResult(out.result)}`
-        );
-        return out.success;
+      * Починка (мастер помечает рецепт `repair: true`): восстанавливает самый
+      * изношенный экземпляр до максимума. Истина — нашелся изношенный.
+      */
+      repairItem(ctx2, itemId) {
+        const max = ctx2.itemMaxDurability(itemId);
+        if (max === void 0) return false;
+        const entry = ctx2.state.player.inventory.filter((i2) => i2.item === itemId).sort((a2, b2) => (a2.durability ?? max) - (b2.durability ?? max))[0];
+        if (!entry || (entry.durability ?? max) >= max) return false;
+        entry.durability = max;
+        const def = ctx2.campaign.entities[itemId];
+        ctx2.pushLog(`\xAB${def?.label ?? itemId}\xBB \u043E\u0442\u0440\u0435\u043C\u043E\u043D\u0442\u0438\u0440\u043E\u0432\u0430\u043D.`);
+        ctx2.notify();
+        ctx2.autosave();
+        return true;
+      },
+      /** свободные «еда предмета» нет изношенных экземпляров — для рецепта починки */
+      hasDamaged(ctx2, itemId) {
+        const max = ctx2.itemMaxDurability(itemId);
+        if (max === void 0) return false;
+        return ctx2.state.player.inventory.some((i2) => i2.item === itemId && (i2.durability ?? max) < max);
       }
-      /** синхронизация HP/MP игрока и напарников с состоянием боя */
-      syncParty() {
-        const pc = this.combatants.find((x2) => x2.id === "c_player");
-        if (pc) {
-          this.engine.state.player.hp = Math.max(0, pc.hp);
-          this.engine.state.player.mp = Math.max(0, Math.min(pc.mp, this.engine.state.player.max_mp));
+    };
+  }
+});
+
+// src/core/equipment.ts
+var equipment;
+var init_equipment = __esm({
+  "src/core/equipment.ts"() {
+    init_types();
+    init_audio();
+    equipment = {
+      // ─────────────── экипировка (блок 7 ТЗ: слоты задаёт кампания) ───────────────
+      /** список слотов экипировки кампании (встроенные + свои) */
+      equipmentSlots(ctx2) {
+        return equipmentSlots(ctx2.campaign.meta);
+      },
+      slotLabel(ctx2, slotId) {
+        return equipment.equipmentSlots(ctx2).find((s2) => s2.id === slotId)?.label ?? slotId;
+      },
+      /** слот, в который экипируется предмет (нет — не экипируется) */
+      itemSlot(ctx2, id) {
+        const def = ctx2.campaign.entities[id];
+        if (!def || def.type !== "item") return void 0;
+        if (def.equip_slot) return def.equip_slot;
+        if (def.weapon_data) return "weapon";
+        if (def.armor_data) return "armor";
+        return void 0;
+      },
+      /** предмет надет? */
+      isEquipped(ctx2, id) {
+        return Object.values(ctx2.state.player.equipment).includes(id);
+      },
+      /** в каком слоте надет предмет (нет — '') */
+      equippedSlotOf(ctx2, id) {
+        const eq = ctx2.state.player.equipment;
+        for (const slot of Object.keys(eq)) if (eq[slot] === id) return slot;
+        return "";
+      },
+      /** надеть предмет из инвентаря в его слот */
+      equipItem(ctx2, id) {
+        if (!ctx2.hasItem(id)) return;
+        const def = ctx2.campaign.entities[id];
+        if (!def || def.type !== "item") return;
+        const slot = ctx2.itemSlot(id);
+        if (!slot) return;
+        playInteraction("equip", { entity: def });
+        ctx2.state.player.equipment[slot] = id;
+        ctx2.pushLog(slot === "weapon" ? `\u0412\u0437\u044F\u0442\u043E \u0432 \u0440\u0443\u043A\u0438: ${def.label}.` : `\u041D\u0430\u0434\u0435\u0442\u043E: ${def.label}.`);
+        ctx2.pushToast(slot === "weapon" ? `\u0412\u0437\u044F\u0442\u043E \u0432 \u0440\u0443\u043A\u0438: ${def.label}.` : `\u041D\u0430\u0434\u0435\u0442\u043E: ${def.label}.`, "info");
+        ctx2.autosave();
+        ctx2.notify();
+      },
+      /** снять предмет из слота */
+      unequipItem(ctx2, slot) {
+        const eq = ctx2.state.player.equipment;
+        const id = eq[slot];
+        if (!id) return;
+        const def = ctx2.campaign.entities[id];
+        if (def) playInteraction("unequip", { entity: def });
+        delete eq[slot];
+        ctx2.pushLog(`\u0421\u043D\u044F\u0442\u043E: ${def?.label ?? id}.`);
+        ctx2.pushToast(`\u0421\u043D\u044F\u0442\u043E: ${def?.label ?? id}.`, "info");
+        ctx2.autosave();
+        ctx2.notify();
+      },
+      /** текущее оружие игрока (для UI и боя): экипированное или кулаки; сломанное — кулаки */
+      playerWeapon(ctx2) {
+        const id = ctx2.state.player.equipment["weapon"];
+        if (id && ctx2.isItemUsable(id)) {
+          const def = ctx2.campaign.entities[id];
+          if (def?.weapon_data) return { itemId: id, weapon: def.weapon_data, label: def.label };
         }
-        for (const ally of this.combatants.filter((x2) => x2.id.startsWith("c_ally_"))) {
-          const comp = this.engine.state.party.find((c2) => c2.entity === ally.entityId);
-          if (comp) comp.hp = Math.max(0, ally.hp);
-        }
-      }
-      // ─────────────── завершение ───────────────
-      checkEnd() {
-        if (this.result) return;
-        const enemiesAlive = this.combatants.some((c2) => c2.side === "enemy" && !c2.dead && !c2.fled && !c2.down);
-        const pc = this.combatants.find((c2) => c2.id === "c_player");
-        const playerActive = !!pc && !pc.dead && !pc.down && !pc.fled;
-        if (!playerActive) {
-          this.result = "defeat";
-          playUi("defeat");
-          if (this.deathMode === "brp" && pc?.down && !pc.dead && (this.def.on_defeat?.length ?? 0) > 0) {
-            this.log.push("\u0411\u043E\u0439 \u043F\u0440\u043E\u0438\u0433\u0440\u0430\u043D, \u043D\u043E \u0432\u044B \u0436\u0438\u0432\u044B. \u0421\u043E\u0437\u043D\u0430\u043D\u0438\u0435 \u0433\u0430\u0441\u043D\u0435\u0442\u2026");
-            this.engine.onCombatResolve(this.def.on_defeat ?? []);
-          } else {
-            this.engine.gameOver("death", "\u0412\u044B \u043F\u0430\u043B\u0438 \u0432 \u0431\u043E\u044E.");
+        return {
+          itemId: null,
+          weapon: { skill: "brawl", damage: "1d3", damage_bonus: true, range: 1, attacks_per_round: 1, parry_capable: false, label: "\u041A\u0443\u043B\u0430\u043A\u0438" },
+          label: "\u041A\u0443\u043B\u0430\u043A\u0438"
+        };
+      },
+      /** броня игрока: сумма очков ВСЕХ надетых предметов с бронёй (шлем+кираса) */
+      playerArmor(ctx2) {
+        let points = 0;
+        let first = null;
+        const labels = [];
+        for (const slot of Object.keys(ctx2.state.player.equipment)) {
+          const id = ctx2.state.player.equipment[slot];
+          if (!id || !ctx2.isItemUsable(id)) continue;
+          const def = ctx2.campaign.entities[id];
+          if (def?.armor_data) {
+            points += def.armor_data.points;
+            labels.push(def.label);
+            if (!first) first = id;
           }
-          return;
         }
-        if (!enemiesAlive) {
-          this.result = "victory";
-          playUi("victory");
-          this.rollLoot();
-          this.log.push("\u041F\u043E\u0431\u0435\u0434\u0430! \u041F\u0440\u043E\u0442\u0438\u0432\u043D\u0438\u043A\u0438 \u043F\u043E\u0432\u0435\u0440\u0436\u0435\u043D\u044B.");
-          this.engine.onCombatResolve(this.def.on_victory ?? []);
+        if (!points) return { itemId: null, points: 0, label: "\u0411\u0435\u0437 \u0431\u0440\u043E\u043D\u0438" };
+        return { itemId: first, points, label: labels.join(" + ") };
+      },
+      useItem(ctx2, id) {
+        const def = ctx2.campaign.entities[id];
+        if (!def || def.type !== "item" || !def.on_use) return;
+        playInteraction("use", { entity: def });
+        ctx2.applyEffects(def.on_use.effects);
+        if (def.on_use.consume !== false) ctx2.removeItem(id, 1, { verb: "\u0418\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u043E" });
+        if (def.on_use.message) ctx2.messages.push({ text: ctx2.fmt(def.on_use.message) });
+        ctx2.checkRules();
+        ctx2.notify();
+      },
+      // ─────────────── груз и перегруз (ТЗ 4.6, универсальная BRP-система) ───────────────
+      currentLoad(ctx2) {
+        let sum = 0;
+        for (const e2 of ctx2.state.player.inventory) {
+          const def = ctx2.campaign.entities[e2.item];
+          if (def?.type === "item") sum += (def.weight ?? 0) * e2.quantity;
         }
-      }
-      rollLoot() {
-        const rng = this.engine.rng;
-        const counts = /* @__PURE__ */ new Map();
-        for (const c2 of this.combatants) {
-          if (c2.side !== "enemy" || !c2.dead) continue;
-          const def = this.engine.campaign.entities[c2.entityId];
-          for (const entry of def.loot_table ?? []) {
-            if (!rng.chance(entry.chance)) continue;
-            const qty = entry.min != null && entry.max != null ? rng.int(entry.min, entry.max) : 1;
-            counts.set(entry.item, (counts.get(entry.item) ?? 0) + qty);
-          }
+        return sum;
+      },
+      /**
+      * Подробный расчёт грузоподъёмности героя с учётом формулы кампании,
+      * расовых/видовых множителей существа и надетой экипировки (рюкзаки, экзоскелеты).
+      */
+      maxLoadDetails(ctx2) {
+        const s2 = ctx2.state.player.stats;
+        const encRules = ctx2.campaign.meta.encumbrance;
+        const formula = encRules?.formula ?? "str_siz";
+        let base = s2.STR + s2.SIZ;
+        if (formula === "str_con") base = s2.STR + s2.CON;
+        else if (formula === "str_only") base = s2.STR * 2;
+        else if (formula === "fixed") base = Math.max(1, encRules?.capacity_multiplier ?? 20);
+        const worldMult = encRules?.capacity_multiplier && formula !== "fixed" ? encRules.capacity_multiplier : 1;
+        const playerDef = ctx2.campaign.entities[ctx2.state.player.entity];
+        const charBonus = playerDef?.carry_capacity_bonus ?? 0;
+        const charMult = playerDef?.carry_capacity_mult ?? 1;
+        let equipBonus = 0;
+        let equipMult = 1;
+        for (const slotId of Object.keys(ctx2.state.player.equipment)) {
+          const itemId = ctx2.state.player.equipment[slotId];
+          if (!itemId) continue;
+          const itemDef = ctx2.campaign.entities[itemId];
+          if (!itemDef) continue;
+          if (typeof itemDef.carry_bonus === "number") equipBonus += itemDef.carry_bonus;
+          if (typeof itemDef.carry_mult === "number" && itemDef.carry_mult > 0) equipMult *= itemDef.carry_mult;
         }
-        for (const [item, qty] of counts) {
-          this.engine.addItem(item, qty);
-          const def = this.engine.campaign.entities[item];
-          playInteraction("pickup", { entity: def });
-          const label = this.engine.campaign.entities[item]?.label ?? item;
-          this.loot.push({ label, quantity: qty });
+        const calculated = (base * worldMult * charMult + charBonus + equipBonus) * equipMult;
+        const total = Math.max(1, Math.round(calculated * 10) / 10);
+        return {
+          base,
+          formula,
+          worldMult,
+          charBonus,
+          charMult,
+          equipBonus,
+          equipMult,
+          total
+        };
+      },
+      maxLoad(ctx2) {
+        return ctx2.maxLoadDetails().total;
+      },
+      /**
+      * Ступенчатый статус перегруза:
+      * 'normal' — в пределах лимита
+      * 'light' — лёгкий перегруз (1.0x .. 1.5x)
+      * 'heavy' — тяжёлый перегруз (1.5x .. 2.0x)
+      * 'critical' — критический перегруз (> 2.0x, передвижение заблокировано)
+      */
+      encumbranceStatus(ctx2) {
+        const encRules = ctx2.campaign.meta.encumbrance;
+        if (encRules?.enabled === false) return "normal";
+        const load = ctx2.currentLoad();
+        const max = ctx2.maxLoad();
+        if (load <= max) return "normal";
+        const critThresh = encRules?.critical_threshold ?? 2;
+        if (critThresh > 0 && load > max * critThresh) return "critical";
+        const heavyThresh = 1.5;
+        if (load > max * heavyThresh) return "heavy";
+        return "light";
+      },
+      encumbranceDebuffs(ctx2) {
+        const status = ctx2.encumbranceStatus();
+        const encRules = ctx2.campaign.meta.encumbrance;
+        if (status === "normal" || encRules?.enabled === false) {
+          return {
+            status: "normal",
+            label: "\u0412 \u043D\u043E\u0440\u043C\u0435",
+            dodgePenalty: 0,
+            movPenalty: 0,
+            skillPenalty: 0,
+            travelMultiplier: 1,
+            isBlocked: false
+          };
         }
+        if (status === "light") {
+          return {
+            status: "light",
+            label: "\u041B\u0451\u0433\u043A\u0438\u0439 \u043F\u0435\u0440\u0435\u0433\u0440\u0443\u0437",
+            dodgePenalty: encRules?.light_dodge_penalty ?? 10,
+            movPenalty: encRules?.light_mov_penalty ?? 1,
+            skillPenalty: encRules?.light_agility_skills_penalty ?? 10,
+            travelMultiplier: encRules?.travel_penalty === false ? 1 : encRules?.light_travel_multiplier ?? 1.5,
+            isBlocked: false
+          };
+        }
+        if (status === "heavy") {
+          return {
+            status: "heavy",
+            label: "\u0422\u044F\u0436\u0451\u043B\u044B\u0439 \u043F\u0435\u0440\u0435\u0433\u0440\u0443\u0437",
+            dodgePenalty: encRules?.heavy_dodge_penalty ?? 25,
+            movPenalty: encRules?.heavy_mov_penalty ?? 2,
+            skillPenalty: encRules?.heavy_agility_skills_penalty ?? 25,
+            travelMultiplier: encRules?.travel_penalty === false ? 1 : encRules?.heavy_travel_multiplier ?? 2,
+            isBlocked: false
+          };
+        }
+        return {
+          status: "critical",
+          label: "\u041A\u0440\u0438\u0442\u0438\u0447\u0435\u0441\u043A\u0438\u0439 \u043F\u0435\u0440\u0435\u0433\u0440\u0443\u0437",
+          dodgePenalty: encRules?.critical_dodge_penalty ?? 50,
+          movPenalty: encRules?.critical_mov_penalty ?? 3,
+          skillPenalty: encRules?.critical_agility_skills_penalty ?? 50,
+          travelMultiplier: 999,
+          isBlocked: encRules?.travel_penalty !== false
+        };
+      },
+      isOverloaded(ctx2) {
+        return ctx2.encumbranceStatus() !== "normal";
+      },
+      /**
+      * Заблокировано ли перемещение между локациями из-за критического перегруза
+      */
+      isTravelBlockedByOverload(ctx2) {
+        const encRules = ctx2.campaign.meta.encumbrance;
+        if (encRules?.enabled === false || encRules?.travel_penalty === false) return false;
+        return ctx2.encumbranceStatus() === "critical";
       }
     };
   }
@@ -12485,65 +16897,52 @@ var init_engine = __esm({
     init_types();
     init_savemigrate();
     init_prng();
+    init_world();
+    init_effects();
+    init_director();
+    init_character();
+    init_checks();
+    init_economy();
+    init_dialogue_runtime();
+    init_encounters();
+    init_meta();
+    init_roguelike();
+    init_scene_slots();
+    init_needs();
+    init_quests();
+    init_party();
+    init_social();
+    init_inventory();
+    init_equipment();
     init_brp();
-    init_dice();
-    init_conditions();
-    init_time();
-    init_dialogue();
-    init_skills();
     init_audio();
-    init_voiceAudio();
-    init_migrate();
-    init_combat();
     init_savemigrate();
     GameEngine = class _GameEngine {
+      audio = { playUi, playInteraction, stopSound };
       campaign;
       state;
       rng;
-      /** Временный флаг отладки, не сохраняется в состоянии забега. */
       debugInvincible = false;
       listeners = /* @__PURE__ */ new Set();
       activeStory = null;
       activeNpc = null;
-      /** Ink-истории этого забега (состояние once-выборов живёт в пределах забега) */
       dialogue = null;
-      /** накопленная история реплик и выборов текущего разговора (backlog) */
       dialogueHistory = [];
-      /**
-       * Таймер на выбор в диалоге (фидбек 27, §9): ink-вызов
-       * `~ set_dialogue_timer(15, "node_x")` задаёт дедлайн на текущем наборе
-       * реплик. Пока он жив, плеер показывает полоску обратного отсчёта, а по
-       * истечении вызывает `dialogueTimeout()`. Истёк без цели — разговор
-       * заканчивается сам: игрок промолчал.
-       */
       dialogueTimer = null;
-      /** таймер, объявленный ink-ом в текущем проходе до показа выбора */
       pendingDialogueTimer = null;
-      /** ожидающий запрос предъявления предмета, объявленный ink-ом в текущем проходе */
       pendingDialoguePresenting = null;
       combat = null;
-      /** последняя ошибка запуска диалога (компиляция / отсутствующий узел) — для отладки и плейтеста */
       lastDialogueError = null;
-      /** открытая торговля: id NPC-торговца */
       trade = null;
-      /**
-       * Запрос на открытие окна изготовления (эффект/реплика `open_craft`).
-       * Плеер показывает панель крафта, пока поле не сброшено closeCraft().
-       * `recipe` — рецепт, который надо подсветить (ремонт клапана и т.п.).
-       */
       craftRequest = null;
-      /** Конкретная сущность (верстак, плита, наковальня), у которой открыто окно крафта */
       craftSourceEntity = null;
-      /** транзитные всплывающие подсказки (не в сейве): «Получено: …» и т.п. — UI отображает и сам гасит */
       toasts = [];
       toastSeq = 0;
-      /** Последняя осмотренная сущность (для панели отладки и режима инспектора) */
       inspectedEntityId = null;
       inspectEntity(id) {
         this.inspectedEntityId = id;
         this.notify();
       }
-      /** Сюжетное переопределение музыки (поверх текущей сцены/локации) */
       musicOverride = null;
       setMusicOverride(tracks, fade) {
         this.musicOverride = { tracks, fade };
@@ -12554,8 +16953,6 @@ var init_engine = __esm({
         this.musicOverride = null;
         this.notify();
       }
-      /** добавить короткое всплывающее уведомление (записывается и в журнал).
-       *  Гаснет само — обращать внимание важно, а закрывать каждое рукой — перебор (баг-фитч №6). */
       pushToast(text, kind = "info") {
         const toast = { id: ++this.toastSeq, text, kind };
         this.toasts = [...this.toasts, toast];
@@ -12564,26 +16961,16 @@ var init_engine = __esm({
         this.notify();
         setTimeout(() => this.dismissToast(toast.id), 5200);
       }
-      /** UI погасил подсказку по таймеру */
       dismissToast(id) {
         if (this.toasts.some((t5) => t5.id === id)) {
           this.toasts = this.toasts.filter((t5) => t5.id !== id);
           this.notify();
         }
       }
-      /** всплывающие сообщения (show_message) */
       messages = [];
-      /**
-       * Очередь катсцен (итерация 8, блок E). Эффект play_cutscene ставит
-       * катсцену в очередь; остальные эффекты применяются сразу, но их экраны
-       * (диалог, бой, торговля, сообщения) UI показывает только после ролика —
-       * для игрока поток эффектов «продолжается по окончании катсцены».
-       */
       cutsceneQueue = [];
       cutsceneSerial = 0;
-      /** забег создан с нуля (а не загружен из сейва) — для правил «на старте» */
       freshRun;
-      /** обёртка последнего сохранения: версии кампании/движка и даты (`SaveEnvelope`) */
       envelope = null;
       constructor(campaign2, state) {
         this.campaign = campaign2;
@@ -12601,7 +16988,6 @@ var init_engine = __esm({
           this.state = this.newState();
         }
       }
-      // ─────────────── подписка UI ───────────────
       subscribe(fn) {
         this.listeners.add(fn);
         return () => this.listeners.delete(fn);
@@ -12613,21 +16999,17 @@ var init_engine = __esm({
         this.state.log.push(text);
         if (this.state.log.length > 200) this.state.log.shift();
       }
-      /** подпись спикера реплики в истории диалога: явный # speaker — его имя, иначе собеседник */
-      dlgSpeakerLabel(line, npc) {
-        if (!line.speaker) return npc.label;
-        const ent = this.campaign.entities[line.speaker];
-        return ent?.label ?? npc.label;
+      log(text) {
+        this.pushLog(text);
       }
-      // ─────────────── создание нового забега ───────────────
       newState() {
-        const meta = this.campaign.meta;
-        const playerDef = this.campaign.entities[meta.default_player];
+        const meta2 = this.campaign.meta;
+        const playerDef = this.campaign.entities[meta2.default_player];
         const stats = { ...playerDef.stats };
         const hp = stats.HP ?? derivedHP(stats);
         const mp = stats.MP ?? derivedMP(stats);
-        const needs = {};
-        for (const n2 of meta.needs) needs[n2.id] = n2.max;
+        const needs2 = {};
+        for (const n2 of meta2.needs) needs2[n2.id] = n2.max;
         const player = {
           entity: playerDef.id,
           stats,
@@ -12637,20 +17019,20 @@ var init_engine = __esm({
           max_hp: hp,
           mp,
           max_mp: mp,
-          needs,
+          needs: needs2,
           inventory: (playerDef.inventory ?? []).map((i2) => ({ ...i2 })),
           equipment: { ...playerDef.equipment ?? {} }
         };
         const dispositions = {};
-        for (const f2 of meta.factions ?? []) dispositions[f2.id] = f2.base_disposition;
+        for (const f2 of meta2.factions ?? []) dispositions[f2.id] = f2.base_disposition;
         return {
           save_version: SAVE_VERSION,
-          campaign_id: meta.id,
+          campaign_id: meta2.id,
           seed: this.rng.seed,
-          tick: startTick(meta),
-          region: meta.starting_region,
-          location: meta.starting_location,
-          scene: meta.starting_scene,
+          tick: startTick(meta2),
+          region: meta2.starting_region,
+          location: meta2.starting_location,
+          scene: meta2.starting_scene,
           flags: {},
           variables: {},
           fired_rules: [],
@@ -12670,36 +17052,15 @@ var init_engine = __esm({
           stats_run: { travels: 0, dialogues: 0, ticks_survived: 0, kills: 0, quests_completed: 0 }
         };
       }
-      /** Нужно ли показывать вводное повествование сцены (narrative_intro) */
       shouldShowNarrativeIntro(scene) {
-        if (!scene.narrative_intro || scene.narrative_intro.length === 0) return false;
-        const once = scene.narrative_intro_once ?? true;
-        if (!once) return true;
-        return !(this.state.seen_narrative_intros ?? []).includes(scene.id);
+        return director.shouldShowNarrativeIntro.call(this, scene);
       }
-      /** Активно ли сейчас нарративное вводное повествование сцены */
       isSceneIntroActive() {
-        const sc = this.campaign.scenes[this.state.scene];
-        if (!sc) return false;
-        return this.shouldShowNarrativeIntro(sc) && !this.cutscene && !this.dialogue && !this.combat;
+        return director.isSceneIntroActive.call(this);
       }
-      /** Пометить вводное повествование сцены как просмотренное */
       markNarrativeIntroSeen(sceneId) {
-        if (!this.state.seen_narrative_intros) this.state.seen_narrative_intros = [];
-        if (!this.state.seen_narrative_intros.includes(sceneId)) {
-          this.state.seen_narrative_intros.push(sceneId);
-          this.autosave();
-        }
-        if (this.postcard && this.postcardPendingSeconds > 0 && !this.cutsceneQueue.length) {
-          const at2 = this.postcardPendingSeconds;
-          this.postcardPendingSeconds = 0;
-          this.postcardTimer = globalThis.setTimeout(() => this.hidePostcard(), at2 * 1e3);
-        } else {
-          this.flushPendingBannersIfClear();
-        }
-        this.notify();
+        return director.markNarrativeIntroSeen.call(this, sceneId);
       }
-      /** Установить флаг (с поддержкой сброса при false) */
       setFlag(f2, value = true) {
         if (value === false || value === 0 || value === "false") {
           delete this.state.flags[f2];
@@ -12709,17 +17070,14 @@ var init_engine = __esm({
         if (!this.combat && !this.trade) this.checkRules();
         this.notify();
       }
-      /** Сбросить флаг */
       clearFlag(f2) {
         delete this.state.flags[f2];
         if (!this.combat && !this.trade) this.checkRules();
         this.notify();
       }
-      /** Проверка присутствия спутника в отряде */
       inParty(entityId) {
         return this.isInParty(entityId);
       }
-      /** Вызывается один раз после создания/загрузки. */
       start() {
         if (this.freshRun) {
           this.freshRun = false;
@@ -12732,4207 +17090,756 @@ var init_engine = __esm({
         this.autosave();
         this.notify();
       }
-      /**
-       * Применить выбор с экрана создания персонажа (блок 11 ТЗ) к шаблону
-       * `default_player`: имя, характеристики (с пересчётом производных),
-       * навыки, снаряжение профессии. Вызывается ДО `start()` на новом забеге.
-       */
       applyCharCreation(choice) {
-        const creation = this.campaign.meta.char_creation;
-        if (!creation) return;
-        const s2 = this.state;
-        const profession = creation.professions?.find((p2) => p2.id === choice.profession);
-        const name = choice.name.trim();
-        if (name) s2.player.name = name;
-        if (creation.choose_age && choice.age !== void 0) s2.player.age = choice.age;
-        if (choice.difficulty && this.campaign.meta.difficulties?.some((d2) => d2.id === choice.difficulty)) {
-          s2.player.difficulty = choice.difficulty;
-        }
-        const pc = {};
-        if (choice.portrait && creation.portraits?.some((p2) => p2.id === choice.portrait)) pc.gallery = choice.portrait;
-        if (choice.portrait_layers && creation.portrait_layers?.length) {
-          const layers = {};
-          for (const layer of creation.portrait_layers) {
-            const sel = choice.portrait_layers[layer.id];
-            if (sel && layer.options.some((o2) => o2.id === sel)) layers[layer.id] = sel;
-          }
-          if (Object.keys(layers).length) pc.layers = layers;
-        }
-        if (Object.keys(pc).length) s2.player.portrait_choice = pc;
-        else delete s2.player.age;
-        if (creation.choose_bio && choice.bio?.trim()) s2.player.bio = choice.bio.trim();
-        else delete s2.player.bio;
-        const stats = { ...choice.stats };
-        delete stats.HP;
-        delete stats.MP;
-        s2.player.stats = stats;
-        s2.player.max_hp = derivedHP(stats);
-        s2.player.hp = s2.player.max_hp;
-        s2.player.max_mp = derivedMP(stats);
-        s2.player.mp = s2.player.max_mp;
-        s2.player.skills = { ...choice.skills };
-        for (const it2 of profession?.items ?? []) this.addItem(it2.item, it2.quantity, { silent: true });
-        s2.char_choice = JSON.parse(JSON.stringify(choice));
-        this.pushLog(`${name || "\u0413\u0435\u0440\u043E\u0439"}: \u0437\u0430\u0431\u0435\u0433 \u043D\u0430\u0447\u0438\u043D\u0430\u0435\u0442\u0441\u044F.`);
+        return character.applyCharCreation.call(this, choice);
       }
-      // ─────────────── катсцены (итерация 8, блок E) ───────────────
-      /** текущая катсцена (первая в очереди) */
       get cutscene() {
-        return this.cutsceneQueue[0]?.def ?? null;
+        return director.cutscene.call(this);
       }
-      /** уникальный номер показа текущей катсцены (ключ для UI) */
       get cutsceneKey() {
-        return this.cutsceneQueue[0]?.serial ?? 0;
+        return director.cutsceneKey.call(this);
       }
-      // ─────────────── баннеры и «открытки» (кинематографические эффекты правил) ───────────────
-      /** активные баннеры этого забега (визуальный слой, в сохранения не входит) */
       banners = [];
-      /** активная «открытка» (одна за раз, новая вытесняет) */
       postcard = null;
       postcardTimer = null;
       postcardPendingSeconds = 0;
       bannerSerial = 1;
       bannerPendingTimers = [];
       showBanner(e2) {
-        const serial = this.bannerSerial++;
-        this.banners = [...this.banners, { serial, ...e2 }];
-        const seconds = e2.seconds ?? Math.min(8, Math.max(3, e2.text.length * 0.06));
-        if (this.cutsceneQueue.length > 0) {
-          this.bannerPendingTimers.push({ serial, seconds });
-        } else {
-          globalThis.setTimeout(() => {
-            if (this.banners.some((b2) => b2.serial === serial)) {
-              this.banners = this.banners.filter((b2) => b2.serial !== serial);
-              this.notify();
-            }
-          }, seconds * 1e3);
-        }
-        this.notify();
+        void this.bannerSerial;
+        void this.bannerPendingTimers;
+        void this.postcardTimer;
+        void this.postcardPendingSeconds;
+        void this.cutsceneSerial;
+        return director.showBanner.call(this, e2);
       }
       showPostcard(e2) {
-        if (this.postcardTimer) {
-          clearTimeout(this.postcardTimer);
-          this.postcardTimer = null;
-        }
-        this.postcard = { image: e2.image, art: e2.art, text: e2.text, preset: e2.preset, seconds: e2.seconds, camera: e2.camera };
-        const at2 = Math.max(1, e2.seconds ?? 6);
-        if (this.cutsceneQueue.length > 0 || this.isSceneIntroActive()) {
-          this.postcardPendingSeconds = at2;
-        } else if ((e2.seconds ?? 6) > 0) {
-          this.postcardPendingSeconds = 0;
-          this.postcardTimer = globalThis.setTimeout(() => this.hidePostcard(), at2 * 1e3);
-        }
-        this.notify();
+        return director.showPostcard.call(this, e2);
       }
-      /** закрыть «открытку» (тап или таймер) */
       hidePostcard() {
-        if (this.postcardTimer) {
-          clearTimeout(this.postcardTimer);
-          this.postcardTimer = null;
-        }
-        this.postcardPendingSeconds = 0;
-        if (!this.postcard) return;
-        this.postcard = null;
-        this.flushPendingBannersIfClear();
-        this.notify();
+        return director.hidePostcard.call(this);
       }
       flushPendingBannersIfClear() {
-        if (!this.cutsceneQueue.length && !this.isSceneIntroActive() && !this.postcard && !this.messages.length) {
-          if (this.bannerPendingTimers.length) {
-            for (const item of this.bannerPendingTimers) {
-              globalThis.setTimeout(() => {
-                if (this.banners.some((b2) => b2.serial === item.serial)) {
-                  this.banners = this.banners.filter((b2) => b2.serial !== item.serial);
-                  this.notify();
-                }
-              }, item.seconds * 1e3);
-            }
-            this.bannerPendingTimers = [];
-          }
-        }
+        return director.flushPendingBannersIfClear.call(this);
       }
       playCutscene(id) {
-        const def = this.campaign.cutscenes?.[id];
-        if (!def || !def.slides?.length) return;
-        if (this.cutsceneQueue.some((c2) => c2.def.id === id)) return;
-        stopVoiceAudio();
-        this.cutsceneQueue.push({ def, serial: ++this.cutsceneSerial });
-        this.pushLog(`\u041A\u0430\u0442\u0441\u0446\u0435\u043D\u0430: \xAB${def.label}\xBB`);
-        this.notify();
+        return director.playCutscene.call(this, id);
       }
-      /** катсцена досмотрена или пропущена */
       endCutscene() {
-        if (!this.cutsceneQueue.length) return;
-        stopVoiceAudio();
-        this.cutsceneQueue.shift();
-        if (!this.cutsceneQueue.length) {
-          if (!this.isSceneIntroActive()) {
-            if (this.postcard && this.postcardPendingSeconds > 0) {
-              const at2 = this.postcardPendingSeconds;
-              this.postcardPendingSeconds = 0;
-              this.postcardTimer = globalThis.setTimeout(() => this.hidePostcard(), at2 * 1e3);
-            }
-            this.flushPendingBannersIfClear();
-          }
-          this.checkRules();
-          this.autosave();
-        }
-        this.notify();
-      }
-      // ─────────────── время и потребности ───────────────
-      /**
-       * Условие потребности (когда убывает / когда восстанавливается).
-       * Итерация 8, А3: «в локации» и «есть/надет предмет» — СПИСКИ id,
-       * условие истинно, если выполнено хотя бы одно значение («любой из»).
-       */
-      needCondOk(raw) {
-        const c2 = migrateNeedCondition(raw);
-        switch (c2.type) {
-          case "time_of_day":
-            return c2.values.includes(timeOfDay(this.state.tick, this.campaign.meta));
-          case "flag":
-            return !!this.state.flags[c2.flag] !== !!c2.not;
-          case "in_location":
-            return (c2.locations ?? []).includes(this.state.location) !== !!c2.not;
-          case "has_item":
-            return (c2.items ?? []).some((id) => this.hasItem(id)) !== !!c2.not;
-          case "equipped":
-            return (c2.items ?? []).some((id) => this.isEquipped(id)) !== !!c2.not;
-          case "weather":
-            return (this.state.weather ?? "") === c2.weather !== !!c2.not;
-        }
+        return director.endCutscene.call(this);
       }
       advanceTicks(ticks) {
-        const meta = this.campaign.meta;
-        const needsOn = featureOn(meta, "needs");
-        for (let i2 = 0; i2 < ticks; i2++) {
-          if (this.state.game_over) return;
-          this.state.tick += 1;
-          this.state.stats_run.ticks_survived += 1;
-          if (needsOn) {
-            for (const need of meta.needs) {
-              const cur = this.state.player.needs[need.id] ?? need.max;
-              let next = cur;
-              const decays = !need.decay_when?.length || need.decay_when.every((c2) => this.needCondOk(c2));
-              if (decays) next = Math.max(0, next - need.decay_per_tick * (this.difficultyDef()?.need_decay ?? 1));
-              if (need.restore_per_tick && (!need.restore_when?.length || need.restore_when.every((c2) => this.needCondOk(c2)))) {
-                next = Math.min(need.max, next + need.restore_per_tick);
-              }
-              this.state.player.needs[need.id] = next;
-              if (next <= 0 && cur > 0) this.onNeedZero(need.id);
-            }
-          }
-          if (needsOn && this.state.party.length) {
-            for (const comp of this.state.party) {
-              if (!comp.needs) continue;
-              for (const need of meta.needs) {
-                const cur = comp.needs[need.id];
-                if (cur === void 0) continue;
-                let next = cur;
-                const decays = !need.decay_when?.length || need.decay_when.every((c2) => this.needCondOk(c2));
-                if (decays) next = Math.max(0, next - need.decay_per_tick * (this.difficultyDef()?.need_decay ?? 1));
-                if (need.restore_per_tick && (!need.restore_when?.length || need.restore_when.every((c2) => this.needCondOk(c2)))) {
-                  next = Math.min(need.max, next + need.restore_per_tick);
-                }
-                comp.needs[need.id] = next;
-                if (next <= 0 && cur > 0) {
-                  const cdef = this.campaign.entities[comp.entity];
-                  this.pushLog(`${cdef?.label ?? comp.entity} \u043D\u0430 \u043F\u0440\u0435\u0434\u0435\u043B\u0435: ${need.label.toLowerCase()} \u043D\u0430 \u043D\u0443\u043B\u0435.`);
-                }
-              }
-            }
-          }
-          this.tickStatuses();
-          if (this.state.pursuit) {
-            this.state.pursuit.left -= 1;
-            if (this.state.pursuit.left <= 0) this.tickPursuit();
-          }
-          const tpd = meta.ticks_per_day ?? 24;
-          if (tpd > 0 && this.state.tick > 0 && this.state.tick % tpd === 0) this.tickNpcMood();
-          this.tickPerishableItems(1);
-        }
-        this.checkAchievements();
-        this.tickEventTables();
-        this.checkRules();
-      }
-      /** Обработка порчи скоропортящихся предметов со временем (decay_ticks / freshness) */
-      tickPerishableItems(ticks) {
-        const inv = this.state.player.inventory;
-        for (let i2 = inv.length - 1; i2 >= 0; i2--) {
-          const slot = inv[i2];
-          if (slot.freshness === void 0) continue;
-          slot.freshness = Math.max(0, slot.freshness - ticks);
-          if (slot.freshness === 0) {
-            const def = this.campaign.entities[slot.item];
-            const title = def?.label ?? slot.item;
-            const msg = def?.spoil_msg || `\xAB${title}\xBB \u0438\u0441\u043F\u043E\u0440\u0442\u0438\u043B\u0441\u044F \u043E\u0442 \u0432\u0440\u0435\u043C\u0435\u043D\u0438.`;
-            this.pushLog(msg);
-            this.pushToast(msg, "info");
-            if (def?.spoil_action === "rule" && def.spoil_rule) {
-              this.fireRule(def.spoil_rule);
-            }
-            if (def?.spoil_into) {
-              const replacement = def.spoil_into;
-              const repDef = this.campaign.entities[replacement];
-              slot.item = replacement;
-              slot.freshness = repDef?.decay_ticks !== void 0 ? repDef.decay_ticks : void 0;
-              if (repDef?.label) {
-                this.pushLog(`\u041F\u0440\u0435\u0432\u0440\u0430\u0442\u0438\u043B\u043E\u0441\u044C \u0432: ${repDef.label}.`);
-              }
-            } else {
-              inv.splice(i2, 1);
-              for (const eqSlot of Object.keys(this.state.player.equipment)) {
-                if (this.state.player.equipment[eqSlot] === slot.item) {
-                  delete this.state.player.equipment[eqSlot];
-                }
-              }
-            }
-          }
-        }
-      }
-      /** один тик мировых статусов игрока; статус сам по себе не убивает (мин. 1 HP) */
-      tickStatuses() {
-        const list = this.state.player.statuses;
-        if (!list?.length) return;
-        const expired = [];
-        const cured = [];
-        for (const s2 of list) {
-          const def = this.statusDef(s2.id);
-          if (!def) continue;
-          const severity = Math.max(1, s2.severity ?? 1);
-          if (def.dot?.hp) this.state.player.hp = Math.max(1, this.state.player.hp - def.dot.hp * severity);
-          if (def.dot?.mp) this.state.player.mp = Math.max(0, this.state.player.mp - def.dot.mp * severity);
-          if (def.dot?.hp) this.pushLog(`${def.label}: \u2212${def.dot.hp * severity} HP${severity > 1 ? ` (\u0442\u044F\u0436\u0435\u0441\u0442\u044C ${severity})` : ""}.`);
-          if (def.disease && (s2.next_check ?? Infinity) <= this.state.tick) {
-            const mult = def.disease.con_multiplier ?? 5;
-            const out = skillCheck(this.state.player.stats.CON * mult, this.rng, 0, this.diceRules);
-            this.pushLog(`${def.label}: \u0441\u0442\u0430\u0434\u0438\u044F \u0442\u0435\u0447\u0435\u043D\u0438\u044F \u2014 CON\xD7${mult}, d100=${out.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${out.target} \u2192 ${CHECK_RESULT_LABEL[out.result]}`);
-            s2.next_check = this.state.tick + def.disease.interval_ticks;
-            if (out.success) {
-              s2.severity = Math.max(0, severity - 1);
-              if (s2.severity === 0) {
-                cured.push(s2.id);
-                continue;
-              }
-              this.pushLog(`${def.label}: \u0442\u044F\u0436\u0435\u0441\u0442\u044C \u0441\u043D\u0438\u0436\u0430\u0435\u0442\u0441\u044F \u0434\u043E ${s2.severity}.`);
-            } else {
-              const cap = def.disease.severity_max ?? 5;
-              s2.severity = Math.min(cap, severity + 1);
-              this.pushLog(`${def.label}: \u0431\u043E\u043B\u0435\u0437\u043D\u044C \u0443\u0445\u0443\u0434\u0448\u0430\u0435\u0442\u0441\u044F \u2014 \u0442\u044F\u0436\u0435\u0441\u0442\u044C ${s2.severity}/${cap}.`);
-            }
-          }
-          s2.left -= 1;
-          if (s2.left <= 0) expired.push(def);
-        }
-        if (cured.length) {
-          this.state.player.statuses = (this.state.player.statuses ?? []).filter((s2) => !cured.includes(s2.id));
-          for (const id of cured) {
-            const def = this.statusDef(id);
-            this.pushLog(`${def?.label ?? id}: \u0432\u044B\u0437\u0434\u043E\u0440\u043E\u0432\u043B\u0435\u043D\u0438\u0435.`);
-          }
-        }
-        if (expired.length) {
-          this.state.player.statuses = list.filter((s2) => s2.left > 0);
-          for (const def of expired) {
-            this.pushLog(def.expire_message ?? `${def.label}: \u044D\u0444\u0444\u0435\u043A\u0442 \u0437\u0430\u043A\u043E\u043D\u0447\u0438\u043B\u0441\u044F.`);
-            if (def.on_expire?.length) this.applyEffects(def.on_expire);
-          }
-          this.notify();
-        }
-      }
-      onNeedZero(needId) {
-        const need = this.campaign.meta.needs.find((n2) => n2.id === needId);
-        if (!need) return;
-        if (need.on_zero_effect === "death" || !need.on_zero_effect) {
-          this.gameOver("death", `\u0421\u043C\u0435\u0440\u0442\u044C \u043E\u0442 \u0438\u0441\u0442\u043E\u0449\u0435\u043D\u0438\u044F: ${need.label.toLowerCase()} \u043D\u0430 \u043D\u0443\u043B\u0435.`);
-          return;
-        }
-        const rule = this.campaign.rules[need.on_zero_effect];
-        if (rule) this.applyEffects(rule.effects ?? []);
+        needs.advanceTicks(this, ticks, { tickPursuit: () => this.tickPursuit(), tickNpcMood: () => this.tickNpcMood(), tickEventTables: () => this.tickEventTables() });
       }
       changeNeed(needId, delta) {
-        if (!featureOn(this.campaign.meta, "needs")) return;
-        const need = this.campaign.meta.needs.find((n2) => n2.id === needId);
-        if (!need) return;
-        const cur = this.state.player.needs[needId] ?? 0;
-        const next = Math.min(need.max, Math.max(0, cur + delta));
-        this.state.player.needs[needId] = next;
-        if (delta > 0) {
-          for (const comp of this.state.party) {
-            if (comp.needs?.[needId] !== void 0) this.changeCompanionNeed(comp.entity, needId, delta);
-          }
-        }
-        if (next <= 0 && cur > 0) this.onNeedZero(needId);
+        needs.changeNeed(this, needId, delta);
       }
       changeHp(delta) {
-        if (this.debugInvincible && delta < 0) return;
-        const p2 = this.state.player;
-        p2.hp = Math.min(p2.max_hp, p2.hp + delta);
-        if (p2.hp <= 0 && !this.tryBrpSurvival()) this.gameOver("death", "\u0412\u0430\u0448\u0438 \u0440\u0430\u043D\u044B \u043E\u043A\u0430\u0437\u0430\u043B\u0438\u0441\u044C \u0441\u043C\u0435\u0440\u0442\u0435\u043B\u044C\u043D\u044B\u043C\u0438.");
+        needs.changeHp(this, delta);
       }
-      /**
-       * Мировой спасбросок от смерти (режим combat.death.mode='brp'): при HP ≤ 0
-       * бросок CON×con_multiplier; успех — герой выживает на грани (1 HP).
-       * Истина — смерть отменена.
-       */
-      tryBrpSurvival() {
-        const death = this.campaign.meta.combat?.death;
-        if (death?.mode !== "brp") return false;
-        const mult = death.con_multiplier ?? 5;
-        const out = skillCheck(this.state.player.stats.CON * mult, this.rng, 0, this.diceRules);
-        this.pushLog(`\u0413\u0440\u0430\u043D\u044C \u0441\u043C\u0435\u0440\u0442\u0438: CON\xD7${mult} \u2014 d100=${out.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${out.target}: ${CHECK_RESULT_LABEL[out.result]}`);
-        if (!out.success) return false;
-        this.state.player.hp = 1;
-        this.pushLog("\u0413\u0435\u0440\u043E\u0439 \u0432\u044B\u0436\u0438\u0432\u0430\u0435\u0442 \u043D\u0430 \u0433\u0440\u0430\u043D\u0438 \u0441\u043C\u0435\u0440\u0442\u0438 (1 HP).");
-        return true;
-      }
-      /**
-       * Естественное лечение при отдыхе (аудит §5.6 п.3): сон (ink-вызов `sleep`)
-       * лечит HP костями из `meta.rest.hp` (умолчание '1d3') и, если не отключено
-       * (`rest.mp_full: false`), полностью восстанавливает MP.
-       */
       restHeal() {
-        const rest = this.campaign.meta.rest;
-        const p2 = this.state.player;
-        let healed = 0;
-        if (p2.hp > 0 && p2.hp < p2.max_hp) {
-          healed = Math.min(p2.max_hp - p2.hp, rollDice(rest?.hp ?? "1d3", this.rng));
-          if (healed > 0) {
-            p2.hp += healed;
-            this.pushLog(`\u041E\u0442\u0434\u044B\u0445 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u0430\u0432\u043B\u0438\u0432\u0430\u0435\u0442 ${healed} HP.`);
-          }
-        }
-        for (const comp of this.state.party) {
-          if (comp.hp > 0 && comp.hp < comp.max_hp) {
-            const cHealed = Math.min(comp.max_hp - comp.hp, rollDice(rest?.hp ?? "1d3", this.rng));
-            if (cHealed > 0) {
-              comp.hp += cHealed;
-              const cdef = this.campaign.entities[comp.entity];
-              this.pushLog(`${cdef?.label ?? comp.entity} \u043F\u043E\u0434\u043B\u0430\u0442\u0430\u043B\u0441\u044F: +${cHealed} HP.`);
-            }
-          }
-        }
-        const mpFull = rest?.mp_full ?? true;
-        if (mpFull && p2.mp < p2.max_mp) {
-          p2.mp = p2.max_mp;
-          this.pushLog("\u0421\u0438\u043B\u044B \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u044B (MP \u043F\u043E\u043B\u043D\u043E\u0441\u0442\u044C\u044E).");
-        }
-        if (this.luckMax() > 0 && (this.campaign.meta.luck?.rest_luck ?? true) && this.luck() < this.luckMax()) {
-          this.state.player.luck = this.luckMax();
-          this.pushLog("\u0413\u0435\u0440\u043E\u0439 \u0447\u0443\u0432\u0441\u0442\u0432\u0443\u0435\u0442: \u0443\u0434\u0430\u0447\u0430 \u0432\u0435\u0440\u043D\u0443\u043B\u0430\u0441\u044C.");
-        }
-        if (this.fatigueMax() > 0) {
-          const cfg = this.campaign.meta.vitals?.fatigue;
-          const restore = cfg === true ? true : typeof cfg === "object" ? cfg.rest_restore !== false : true;
-          if (restore && this.fatigue() < this.fatigueMax()) {
-            this.state.player.fatigue = this.fatigueMax();
-            this.pushLog("\u0423\u0441\u0442\u0430\u043B\u043E\u0441\u0442\u044C \u043F\u0440\u043E\u0448\u043B\u0430 (\u043E\u0442\u0434\u044B\u0445).");
-          }
-        }
-        return { hp: healed, mpFull };
+        return needs.restHeal(this);
       }
-      // ─────────────── статусы (блок 5 ТЗ «Гибкий движок») ───────────────
-      /** определение статуса из реестра кампании */
       statusDef(id) {
-        return this.campaign.meta.statuses?.find((s2) => s2.id === id);
+        return needs.statusDef(this, id);
       }
-      /** активен ли статус у игрока */
       hasStatus(id) {
-        return !!this.state.player.statuses?.some((s2) => s2.id === id);
+        return needs.hasStatus(this, id);
       }
-      /**
-       * Наложить статус на игрока (в мире — только игрок, v1). Повторное
-       * наложение обновляет длительность по максимуму.
-       */
       applyStatus(_target, id, duration) {
-        const def = this.statusDef(id);
-        if (!def || def.scope === "combat") return;
-        const left = duration ?? def.duration;
-        if (left <= 0) return;
-        const list = this.state.player.statuses ??= [];
-        const existing = list.find((s2) => s2.id === id);
-        if (existing) {
-          existing.left = Math.max(existing.left, left);
-          return;
-        }
-        const entry = { id, left };
-        if (def.disease) {
-          entry.severity = 1;
-          entry.next_check = this.state.tick + def.disease.interval_ticks;
-        }
-        list.push(entry);
-        this.pushLog(def.apply_message ?? `${def.label}: \u044D\u0444\u0444\u0435\u043A\u0442 \u043D\u0430\u043B\u043E\u0436\u0435\u043D.`);
-        if (def.apply_sound) playInteraction(def.apply_sound, { sound: def.apply_sound });
-        if (def.on_apply?.length) this.applyEffects(def.on_apply);
-        this.notify();
+        needs.applyStatus(this, _target, id, duration);
       }
-      /** снять статус (без срабатывания on_expire) */
       removeStatus(_target, id) {
-        const list = this.state.player.statuses;
-        if (!list?.some((s2) => s2.id === id)) return;
-        this.state.player.statuses = list.filter((s2) => s2.id !== id);
-        const def = this.statusDef(id);
-        if (def) {
-          this.pushLog(`${def.label}: \u044D\u0444\u0444\u0435\u043A\u0442 \u0441\u043D\u044F\u0442.`);
-          if (def.remove_sound) playInteraction(def.remove_sound, { sound: def.remove_sound });
-        }
-        this.notify();
+        needs.removeStatus(this, _target, id);
       }
-      /** суммарный модификатор навыка от активных статусов (болезни масштабированы тяжестью) */
       statusSkillMod(skill) {
-        let mod = 0;
-        for (const s2 of this.state.player.statuses ?? []) {
-          const def = this.statusDef(s2.id);
-          const sev = def?.disease ? Math.max(1, s2.severity ?? 1) : 1;
-          for (const m2 of def?.skill_mods ?? []) if (m2.skill === skill) mod += m2.delta * sev;
-        }
-        return mod;
+        return needs.statusSkillMod(this, skill);
       }
-      // ─────────────── инвентарь ───────────────
       hasItem(id) {
-        return this.itemCount(id) > 0;
+        return inventory.hasItem(this, id);
       }
       itemCount(id) {
-        return this.state.player.inventory.filter((i2) => i2.item === id).reduce((s2, i2) => s2 + i2.quantity, 0);
+        return inventory.itemCount(this, id);
+      }
+      itemTitle(id) {
+        return economy.itemTitle.call(this, id);
       }
       addItem(id, quantity = 1, opts = {}) {
-        const inv = this.state.player.inventory;
-        const itemDef = this.campaign.entities[id];
-        const isPerishable = itemDef?.decay_ticks !== void 0 && itemDef.decay_ticks > 0;
-        const initialFreshness = opts.freshness ?? itemDef?.decay_ticks;
-        if (this.itemMaxDurability(id) !== void 0 || isPerishable) {
-          for (let i2 = 0; i2 < quantity; i2++) {
-            inv.push({
-              item: id,
-              quantity: 1,
-              durability: this.itemMaxDurability(id),
-              freshness: initialFreshness
-            });
-          }
-        } else {
-          const entry = inv.find((i2) => i2.item === id && i2.durability === void 0 && i2.freshness === void 0);
-          if (entry) entry.quantity += quantity;
-          else inv.push({ item: id, quantity });
-        }
-        if (!opts.silent) this.pushToast(`\u041F\u043E\u043B\u0443\u0447\u0435\u043D\u043E: ${this.itemTitle(id)}${quantity > 1 ? ` \xD7${quantity}` : ""}.`, "get");
+        void this.itemTitle;
+        inventory.addItem(this, id, quantity, opts);
       }
       removeItem(id, quantity = 1, opts = {}) {
-        const inv = this.state.player.inventory;
-        let left = quantity;
-        while (left > 0) {
-          const entries = inv.filter((i2) => i2.item === id);
-          if (!entries.length) break;
-          const max = this.itemMaxDurability(id);
-          let pick = entries[0];
-          if (max !== void 0) {
-            pick = entries.reduce((a2, b2) => (a2.durability ?? max) <= (b2.durability ?? max) ? a2 : b2);
-          } else if (entries.some((e2) => e2.freshness !== void 0)) {
-            pick = entries.reduce((a2, b2) => (a2.freshness ?? Infinity) <= (b2.freshness ?? Infinity) ? a2 : b2);
-          }
-          if (pick.quantity > left) {
-            pick.quantity -= left;
-            left = 0;
-          } else {
-            left -= pick.quantity;
-            inv.splice(inv.indexOf(pick), 1);
-          }
-        }
-        if (!this.hasItem(id)) {
-          const eq = this.state.player.equipment;
-          for (const slot of Object.keys(eq)) {
-            if (eq[slot] === id) delete eq[slot];
-          }
-        }
-        const lost = quantity - left;
-        if (!opts.silent && lost > 0) {
-          const verb = opts.verb ?? (lost >= quantity ? "\u041F\u043E\u0442\u0435\u0440\u044F\u043D\u043E" : "\u0427\u0430\u0441\u0442\u0438\u0447\u043D\u043E \u043F\u043E\u0442\u0435\u0440\u044F\u043D\u043E");
-          this.pushToast(`${verb}: ${this.itemTitle(id)}${lost > 1 ? ` \xD7${lost}` : ""}.`, "lose");
-        }
+        inventory.removeItem(this, id, quantity, opts);
       }
-      // ─────────────── износ снаряжения (аудит §5.6 п.10) ───────────────
-      /** максимальная прочность предмета (оружие — weapon_data, броня — armor_data); нет — вечный */
       itemMaxDurability(itemId) {
-        const def = this.campaign.entities[itemId];
-        if (!def || def.type !== "item") return void 0;
-        return def.weapon_data?.durability ?? def.armor_data?.durability;
+        return inventory.itemMaxDurability(this, itemId);
       }
-      /** осталось прочности у первого пригодного экземпляра (нет — null) */
       itemDurabilityOf(id) {
-        const max = this.itemMaxDurability(id);
-        if (max === void 0) return null;
-        const entry = this.state.player.inventory.find((i2) => i2.item === id);
-        if (!entry) return null;
-        return { left: entry.durability ?? max, max };
+        return inventory.itemDurabilityOf(this, id);
       }
-      /** пригоден ли предмет к использованию (есть экземпляр с прочностью > 0) */
       isItemUsable(id) {
-        const max = this.itemMaxDurability(id);
-        if (max === void 0) return this.hasItem(id);
-        return this.state.player.inventory.some((i2) => i2.item === id && (i2.durability ?? max) > 0);
+        return inventory.isItemUsable(this, id);
       }
-      /** экземпляры с износом от меньшей прочности (для UI) */
       durabilityEntries(id) {
-        const max = this.itemMaxDurability(id);
-        if (max === void 0) return [];
-        return this.state.player.inventory.filter((i2) => i2.item === id).map((entry) => ({ entry, left: entry.durability ?? max })).sort((a2, b2) => a2.left - b2.left);
+        return inventory.durabilityEntries(this, id);
       }
-      /**
-       * Износ предмета игрока (урон в бою): −amount самому надетому экземпляру.
-       * Сломанный экземпляр с прочностью 0 сохраняется (для починки рецептом).
-       * Истина — предмет сломался этим износом.
-       */
       damageItemDurability(itemId, amount = 1) {
-        const max = this.itemMaxDurability(itemId);
-        if (max === void 0) return false;
-        const entry = this.state.player.inventory.filter((i2) => i2.item === itemId && (i2.durability ?? max) > 0).sort((a2, b2) => (a2.durability ?? max) - (b2.durability ?? max))[0];
-        if (!entry) return false;
-        const before = entry.durability ?? max;
-        entry.durability = Math.max(0, before - amount);
-        if (entry.durability === 0 && before > 0) {
-          const def = this.campaign.entities[itemId];
-          this.pushLog(`\xAB${def?.label ?? itemId}\xBB \u0441\u043B\u043E\u043C\u0430\u043B\u0441\u044F!`);
-          playUi("defeat");
-          return true;
-        }
-        return false;
+        return inventory.damageItemDurability(this, itemId, amount);
       }
-      /**
-       * Починка (мастер помечает рецепт `repair: true`): восстанавливает самый
-       * изношенный экземпляр до максимума. Истина — нашелся изношенный.
-       */
       repairItem(itemId) {
-        const max = this.itemMaxDurability(itemId);
-        if (max === void 0) return false;
-        const entry = this.state.player.inventory.filter((i2) => i2.item === itemId).sort((a2, b2) => (a2.durability ?? max) - (b2.durability ?? max))[0];
-        if (!entry || (entry.durability ?? max) >= max) return false;
-        entry.durability = max;
-        const def = this.campaign.entities[itemId];
-        this.pushLog(`\xAB${def?.label ?? itemId}\xBB \u043E\u0442\u0440\u0435\u043C\u043E\u043D\u0442\u0438\u0440\u043E\u0432\u0430\u043D.`);
-        this.notify();
-        this.autosave();
-        return true;
+        return inventory.repairItem(this, itemId);
       }
-      /** свободные «еда предмета» нет изношенных экземпляров — для рецепта починки */
       hasDamaged(itemId) {
-        const max = this.itemMaxDurability(itemId);
-        if (max === void 0) return false;
-        return this.state.player.inventory.some((i2) => i2.item === itemId && (i2.durability ?? max) < max);
+        return inventory.hasDamaged(this, itemId);
       }
-      // ─────────────── экипировка (блок 7 ТЗ: слоты задаёт кампания) ───────────────
-      /** список слотов экипировки кампании (встроенные + свои) */
       equipmentSlots() {
-        return equipmentSlots(this.campaign.meta);
+        return equipment.equipmentSlots(this);
       }
       slotLabel(slotId) {
-        return this.equipmentSlots().find((s2) => s2.id === slotId)?.label ?? slotId;
+        return equipment.slotLabel(this, slotId);
       }
-      /** слот, в который экипируется предмет (нет — не экипируется) */
       itemSlot(id) {
-        const def = this.campaign.entities[id];
-        if (!def || def.type !== "item") return void 0;
-        if (def.equip_slot) return def.equip_slot;
-        if (def.weapon_data) return "weapon";
-        if (def.armor_data) return "armor";
-        return void 0;
+        return equipment.itemSlot(this, id);
       }
-      /** предмет надет? */
       isEquipped(id) {
-        return Object.values(this.state.player.equipment).includes(id);
+        return equipment.isEquipped(this, id);
       }
-      /** в каком слоте надет предмет (нет — '') */
       equippedSlotOf(id) {
-        const eq = this.state.player.equipment;
-        for (const slot of Object.keys(eq)) if (eq[slot] === id) return slot;
-        return "";
+        return equipment.equippedSlotOf(this, id);
       }
-      /** надеть предмет из инвентаря в его слот */
       equipItem(id) {
-        if (!this.hasItem(id)) return;
-        const def = this.campaign.entities[id];
-        if (!def || def.type !== "item") return;
-        const slot = this.itemSlot(id);
-        if (!slot) return;
-        playInteraction("equip", { entity: def });
-        this.state.player.equipment[slot] = id;
-        this.pushLog(slot === "weapon" ? `\u0412\u0437\u044F\u0442\u043E \u0432 \u0440\u0443\u043A\u0438: ${def.label}.` : `\u041D\u0430\u0434\u0435\u0442\u043E: ${def.label}.`);
-        this.pushToast(slot === "weapon" ? `\u0412\u0437\u044F\u0442\u043E \u0432 \u0440\u0443\u043A\u0438: ${def.label}.` : `\u041D\u0430\u0434\u0435\u0442\u043E: ${def.label}.`, "info");
-        this.autosave();
-        this.notify();
+        equipment.equipItem(this, id);
       }
-      /** снять предмет из слота */
       unequipItem(slot) {
-        const eq = this.state.player.equipment;
-        const id = eq[slot];
-        if (!id) return;
-        const def = this.campaign.entities[id];
-        if (def) playInteraction("unequip", { entity: def });
-        delete eq[slot];
-        this.pushLog(`\u0421\u043D\u044F\u0442\u043E: ${def?.label ?? id}.`);
-        this.pushToast(`\u0421\u043D\u044F\u0442\u043E: ${def?.label ?? id}.`, "info");
-        this.autosave();
-        this.notify();
+        equipment.unequipItem(this, slot);
       }
-      /** текущее оружие игрока (для UI и боя): экипированное или кулаки; сломанное — кулаки */
       playerWeapon() {
-        const id = this.state.player.equipment["weapon"];
-        if (id && this.isItemUsable(id)) {
-          const def = this.campaign.entities[id];
-          if (def?.weapon_data) return { itemId: id, weapon: def.weapon_data, label: def.label };
-        }
-        return {
-          itemId: null,
-          weapon: { skill: "brawl", damage: "1d3", damage_bonus: true, range: 1, attacks_per_round: 1, parry_capable: false, label: "\u041A\u0443\u043B\u0430\u043A\u0438" },
-          label: "\u041A\u0443\u043B\u0430\u043A\u0438"
-        };
+        return equipment.playerWeapon(this);
       }
-      /** броня игрока: сумма очков ВСЕХ надетых предметов с бронёй (шлем+кираса) */
       playerArmor() {
-        let points = 0;
-        let first = null;
-        const labels = [];
-        for (const slot of Object.keys(this.state.player.equipment)) {
-          const id = this.state.player.equipment[slot];
-          if (!id || !this.isItemUsable(id)) continue;
-          const def = this.campaign.entities[id];
-          if (def?.armor_data) {
-            points += def.armor_data.points;
-            labels.push(def.label);
-            if (!first) first = id;
-          }
-        }
-        if (!points) return { itemId: null, points: 0, label: "\u0411\u0435\u0437 \u0431\u0440\u043E\u043D\u0438" };
-        return { itemId: first, points, label: labels.join(" + ") };
+        return equipment.playerArmor(this);
       }
       useItem(id) {
-        const def = this.campaign.entities[id];
-        if (!def || def.type !== "item" || !def.on_use) return;
-        playInteraction("use", { entity: def });
-        this.applyEffects(def.on_use.effects);
-        if (def.on_use.consume !== false) this.removeItem(id, 1, { verb: "\u0418\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u043E" });
-        if (def.on_use.message) this.messages.push({ text: this.fmt(def.on_use.message) });
-        this.checkRules();
-        this.notify();
+        equipment.useItem(this, id);
       }
-      // ─────────────── груз и перегруз (ТЗ 4.6, универсальная BRP-система) ───────────────
       currentLoad() {
-        let sum = 0;
-        for (const e2 of this.state.player.inventory) {
-          const def = this.campaign.entities[e2.item];
-          if (def?.type === "item") sum += (def.weight ?? 0) * e2.quantity;
-        }
-        return sum;
+        return equipment.currentLoad(this);
       }
-      /**
-       * Подробный расчёт грузоподъёмности героя с учётом формулы кампании,
-       * расовых/видовых множителей существа и надетой экипировки (рюкзаки, экзоскелеты).
-       */
       maxLoadDetails() {
-        const s2 = this.state.player.stats;
-        const encRules = this.campaign.meta.encumbrance;
-        const formula = encRules?.formula ?? "str_siz";
-        let base = s2.STR + s2.SIZ;
-        if (formula === "str_con") base = s2.STR + s2.CON;
-        else if (formula === "str_only") base = s2.STR * 2;
-        else if (formula === "fixed") base = Math.max(1, encRules?.capacity_multiplier ?? 20);
-        const worldMult = encRules?.capacity_multiplier && formula !== "fixed" ? encRules.capacity_multiplier : 1;
-        const playerDef = this.campaign.entities[this.state.player.entity];
-        const charBonus = playerDef?.carry_capacity_bonus ?? 0;
-        const charMult = playerDef?.carry_capacity_mult ?? 1;
-        let equipBonus = 0;
-        let equipMult = 1;
-        for (const slotId of Object.keys(this.state.player.equipment)) {
-          const itemId = this.state.player.equipment[slotId];
-          if (!itemId) continue;
-          const itemDef = this.campaign.entities[itemId];
-          if (!itemDef) continue;
-          if (typeof itemDef.carry_bonus === "number") equipBonus += itemDef.carry_bonus;
-          if (typeof itemDef.carry_mult === "number" && itemDef.carry_mult > 0) equipMult *= itemDef.carry_mult;
-        }
-        const calculated = (base * worldMult * charMult + charBonus + equipBonus) * equipMult;
-        const total = Math.max(1, Math.round(calculated * 10) / 10);
-        return {
-          base,
-          formula,
-          worldMult,
-          charBonus,
-          charMult,
-          equipBonus,
-          equipMult,
-          total
-        };
+        return equipment.maxLoadDetails(this);
       }
       maxLoad() {
-        return this.maxLoadDetails().total;
+        return equipment.maxLoad(this);
       }
-      /**
-       * Ступенчатый статус перегруза:
-       * 'normal' — в пределах лимита
-       * 'light' — лёгкий перегруз (1.0x .. 1.5x)
-       * 'heavy' — тяжёлый перегруз (1.5x .. 2.0x)
-       * 'critical' — критический перегруз (> 2.0x, передвижение заблокировано)
-       */
       encumbranceStatus() {
-        const encRules = this.campaign.meta.encumbrance;
-        if (encRules?.enabled === false) return "normal";
-        const load = this.currentLoad();
-        const max = this.maxLoad();
-        if (load <= max) return "normal";
-        const critThresh = encRules?.critical_threshold ?? 2;
-        if (critThresh > 0 && load > max * critThresh) return "critical";
-        const heavyThresh = 1.5;
-        if (load > max * heavyThresh) return "heavy";
-        return "light";
+        return equipment.encumbranceStatus(this);
       }
       encumbranceDebuffs() {
-        const status = this.encumbranceStatus();
-        const encRules = this.campaign.meta.encumbrance;
-        if (status === "normal" || encRules?.enabled === false) {
-          return {
-            status: "normal",
-            label: "\u0412 \u043D\u043E\u0440\u043C\u0435",
-            dodgePenalty: 0,
-            movPenalty: 0,
-            skillPenalty: 0,
-            travelMultiplier: 1,
-            isBlocked: false
-          };
-        }
-        if (status === "light") {
-          return {
-            status: "light",
-            label: "\u041B\u0451\u0433\u043A\u0438\u0439 \u043F\u0435\u0440\u0435\u0433\u0440\u0443\u0437",
-            dodgePenalty: encRules?.light_dodge_penalty ?? 10,
-            movPenalty: encRules?.light_mov_penalty ?? 1,
-            skillPenalty: encRules?.light_agility_skills_penalty ?? 10,
-            travelMultiplier: encRules?.travel_penalty === false ? 1 : encRules?.light_travel_multiplier ?? 1.5,
-            isBlocked: false
-          };
-        }
-        if (status === "heavy") {
-          return {
-            status: "heavy",
-            label: "\u0422\u044F\u0436\u0451\u043B\u044B\u0439 \u043F\u0435\u0440\u0435\u0433\u0440\u0443\u0437",
-            dodgePenalty: encRules?.heavy_dodge_penalty ?? 25,
-            movPenalty: encRules?.heavy_mov_penalty ?? 2,
-            skillPenalty: encRules?.heavy_agility_skills_penalty ?? 25,
-            travelMultiplier: encRules?.travel_penalty === false ? 1 : encRules?.heavy_travel_multiplier ?? 2,
-            isBlocked: false
-          };
-        }
-        return {
-          status: "critical",
-          label: "\u041A\u0440\u0438\u0442\u0438\u0447\u0435\u0441\u043A\u0438\u0439 \u043F\u0435\u0440\u0435\u0433\u0440\u0443\u0437",
-          dodgePenalty: encRules?.critical_dodge_penalty ?? 50,
-          movPenalty: encRules?.critical_mov_penalty ?? 3,
-          skillPenalty: encRules?.critical_agility_skills_penalty ?? 50,
-          travelMultiplier: 999,
-          isBlocked: encRules?.travel_penalty !== false
-        };
+        return equipment.encumbranceDebuffs(this);
       }
       isOverloaded() {
-        return this.encumbranceStatus() !== "normal";
+        return equipment.isOverloaded(this);
       }
-      /**
-       * Заблокировано ли перемещение между локациями из-за критического перегруза
-       */
       isTravelBlockedByOverload() {
-        const encRules = this.campaign.meta.encumbrance;
-        if (encRules?.enabled === false || encRules?.travel_penalty === false) return false;
-        return this.encumbranceStatus() === "critical";
+        return equipment.isTravelBlockedByOverload(this);
       }
-      // ─────────────── репутация и фракции (ТЗ 4.8) ───────────────
-      /**
-       * target: id фракции или id NPC.
-       * У NPC: base_disposition + личный сдвиг (dispositions[npc.id]) + фракция
-       * (если задана) + самочувствие. Личный сдвиг нужен накигэ/драмам, где
-       * отношение к человеку важнее «города» — раньше без faction delta глотался.
-       */
       getDisposition(target) {
-        const npc = this.campaign.entities[target];
-        if (npc && npc.type === "npc") {
-          const personal = this.state.dispositions[target] ?? 0;
-          const factionValue = npc.faction ? this.state.dispositions[npc.faction] ?? 0 : 0;
-          const moodShift = Math.round((this.npcMood(target) - 50) / 2);
-          return personal + factionValue + (npc.base_disposition ?? 0) + moodShift;
-        }
-        return this.state.dispositions[target] ?? 0;
+        return social.getDisposition(this, target);
       }
-      /** самочувствие NPC (0..100, умолчание 50): усталость от пропуска ночёвки по расписанию */
-      /**
-       * Ключ состояния облика героя: первый активный статус с совпадающим
-       * ключом в meta.emotions… но практичнее — известные ключи по порядку:
-       * статус из списка активных, иначе 'wounded' (HP < 50%), 'tired' (любая
-       * потребность ≤ 25), иначе 'neutral'. Ключи — из реестра состояний мастера.
-       */
       heroPortraitStateKey() {
-        const p2 = this.state.player;
-        if (p2.statuses?.length) return p2.statuses[0].id;
-        if (p2.hp * 2 < p2.max_hp) return "wounded";
-        for (const v2 of Object.values(this.state.player.needs ?? {})) if (v2 <= 25) return "tired";
-        return "neutral";
+        return sceneSlots.heroPortraitStateKey.call(this);
       }
-      /**
-       * Стек изображений портрета героя (низ → верх) с учётом состояния:
-       * галерея — один кадр; слои — кадры выбранных вариантов по порядку
-       * сегментов мастера; вариант облика под ключ состояния меняет кадр,
-       * если мастер задал такую запись. Пусто — портрета нет.
-       */
       heroPortraitImages() {
-        const meta = this.campaign.meta;
-        const choice = this.state.player.portrait_choice;
-        const key = this.heroPortraitStateKey();
-        const withState = (img, states) => states?.[key] || img;
-        const out = [];
-        if (choice?.layers && meta.char_creation?.portrait_layers?.length) {
-          for (const layer of meta.char_creation.portrait_layers) {
-            const opt = layer.options.find((o2) => o2.id === choice.layers[layer.id]) ?? layer.options[0];
-            if (opt) out.push(withState(opt.image, opt.states));
-          }
-        } else if (choice?.gallery) {
-          const def = meta.char_creation?.portraits?.find((p2) => p2.id === choice.gallery);
-          if (def) out.push(withState(def.image, def.states));
-        }
-        const overlays = Object.entries(this.state.player.equipment ?? {}).flatMap(([slot, id], index) => {
-          const item = this.campaign.entities[id];
-          return item?.type === "item" && item.hero_appearance?.overlay ? [{ slot, index, order: item.hero_appearance.order ?? index, image: item.hero_appearance.overlay }] : [];
-        }).sort((a2, b2) => a2.order - b2.order || a2.index - b2.index);
-        out.push(...overlays.map((x2) => x2.image));
-        return out;
+        return sceneSlots.heroPortraitImages.call(this);
       }
-      /** Статичная боевая фигурка выбирается только из постоянного облика при создании. */
       heroCombatFigure() {
-        const meta = this.campaign.meta.char_creation;
-        const choice = this.state.player.portrait_choice;
-        if (!meta || !choice) return {};
-        if (choice.layers && meta.portrait_layers?.length) {
-          for (const layer of meta.portrait_layers) {
-            const option = layer.options.find((o2) => o2.id === choice.layers[layer.id]);
-            if (option?.combat_figure)
-              return {
-                figure: option.combat_figure,
-                mode: option.combat_figure_mode,
-                offset: option.combat_facing_offset
-              };
-          }
-        }
-        const portrait = meta.portraits?.find((p2) => p2.id === choice.gallery);
-        return portrait?.combat_figure ? {
-          figure: portrait.combat_figure,
-          mode: portrait.combat_figure_mode,
-          offset: portrait.combat_facing_offset
-        } : {};
+        return sceneSlots.heroCombatFigure.call(this);
       }
       npcMood(entityId) {
-        return this.state.npc_mood?.[entityId] ?? 50;
+        return social.npcMood(this, entityId);
       }
-      /** сдвинуть самочувствие NPC (правила/эффекты; K.D. clamp 0..100) */
       changeNpcMood(entityId, delta) {
-        const m2 = this.state.npc_mood ??= {};
-        m2[entityId] = Math.max(0, Math.min(100, (m2[entityId] ?? 50) + delta));
+        social.changeNpcMood(this, entityId, delta);
       }
       changeDisposition(target, delta) {
-        const npc = this.campaign.entities[target];
-        const key = target;
-        if (npc && npc.type !== "npc" && npc.type !== void 0) {
-          return;
-        }
-        const cur = this.state.dispositions[key] ?? 0;
-        this.state.dispositions[key] = Math.max(-100, Math.min(100, cur + delta));
-        const label = (npc && npc.type === "npc" ? npc.label : void 0) ?? this.campaign.meta.factions?.find((f2) => f2.id === key)?.label ?? key;
-        this.pushLog(`\u041E\u0442\u043D\u043E\u0448\u0435\u043D\u0438\u0435 \xAB${label}\xBB: ${delta > 0 ? "+" : ""}${delta} (\u0442\u0435\u043F\u0435\u0440\u044C ${this.getDisposition(key)}).`);
+        social.changeDisposition(this, target, delta);
       }
-      // ─────────────── квесты (ТЗ 3.7) ───────────────
       startQuest(questId) {
-        const quest = this.campaign.quests[questId];
-        if (!quest || this.state.quests[questId]) return;
-        const first = quest.stages[0];
-        this.state.quests[questId] = { stage: first.id, status: "active", journal: [] };
-        this.pushLog(`\u041D\u043E\u0432\u044B\u0439 \u043A\u0432\u0435\u0441\u0442: \xAB${quest.label}\xBB`);
-        this.messages.push({ text: `\u041D\u043E\u0432\u044B\u0439 \u043A\u0432\u0435\u0441\u0442: \xAB${quest.label}\xBB` });
-        playUi("quest_started");
-        if (first.on_enter_effects) this.applyEffects(first.on_enter_effects);
+        quests.startQuest(this, questId);
       }
       advanceQuestTo(questId, stageId) {
-        const quest = this.campaign.quests[questId];
-        const qs = this.state.quests[questId];
-        if (!quest || !qs || qs.status !== "active" || qs.stage === stageId) return;
-        const stage = quest.stages.find((s2) => s2.id === stageId);
-        if (!stage) return;
-        qs.stage = stageId;
-        if (stage.final) {
-          qs.status = stage.outcome === "failure" ? "failed" : "completed";
-          if (qs.status === "completed") {
-            this.state.stats_run.quests_completed += 1;
-            this.messages.push({ text: `\u041A\u0432\u0435\u0441\u0442 \u0437\u0430\u0432\u0435\u0440\u0448\u0451\u043D: \xAB${quest.label}\xBB` });
-            playUi("quest_completed");
-          } else {
-            this.messages.push({ text: `\u041A\u0432\u0435\u0441\u0442 \u043F\u0440\u043E\u0432\u0430\u043B\u0435\u043D: \xAB${quest.label}\xBB` });
-          }
-          this.pushLog(`\u041A\u0432\u0435\u0441\u0442 \xAB${quest.label}\xBB: ${qs.status === "completed" ? "\u0437\u0430\u0432\u0435\u0440\u0448\u0451\u043D" : "\u043F\u0440\u043E\u0432\u0430\u043B\u0435\u043D"}.`);
-        }
-        if (stage.on_enter_effects) this.applyEffects(stage.on_enter_effects);
+        quests.advanceQuestTo(this, questId, stageId);
       }
       journalUpdate(questId, textKey) {
-        const quest = this.campaign.quests[questId];
-        const qs = this.state.quests[questId];
-        if (!quest || !qs) return;
-        const text = quest.journal_entries[textKey];
-        if (text && !qs.journal.includes(text)) {
-          qs.journal.push(text);
-          this.pushLog(`\u0416\u0443\u0440\u043D\u0430\u043B: ${text}`);
-        }
+        quests.journalUpdate(this, questId, textKey);
       }
-      /** Переходы стадий активных квестов (вызывается из checkRules). */
-      checkQuestTransitions() {
-        for (const [questId, qs] of Object.entries(this.state.quests)) {
-          if (qs.status !== "active") continue;
-          const quest = this.campaign.quests[questId];
-          const stage = quest?.stages.find((s2) => s2.id === qs.stage);
-          if (!stage?.transitions) continue;
-          for (const t5 of stage.transitions) {
-            if ((t5.conditions ?? []).every((c2) => evalCondition(c2, this))) {
-              this.advanceQuestTo(questId, t5.to);
-              break;
-            }
-          }
-        }
-      }
-      // ─────────────── напарники (ТЗ 4.11) ───────────────
       joinParty(entityId) {
-        const max = this.campaign.meta.max_companions ?? 1;
-        if (this.state.party.length >= max) return;
-        if (this.state.party.some((c2) => c2.entity === entityId)) return;
-        const def = this.campaign.entities[entityId];
-        if (!def || def.type !== "npc") return;
-        const hp = def.stats.HP ?? derivedHP(def.stats);
-        const comp = { entity: entityId, hp, max_hp: hp };
-        if (def.companion_needs?.length && featureOn(this.campaign.meta, "needs")) {
-          comp.needs = {};
-          for (const id of def.companion_needs) {
-            const need = this.campaign.meta.needs.find((n2) => n2.id === id);
-            if (need) comp.needs[id] = need.max;
-          }
-          if (!Object.keys(comp.needs).length) delete comp.needs;
-        }
-        if (def.companion_carry) comp.inventory = [];
-        this.state.party.push(comp);
-        this.pushLog(`${def.label} \u043F\u0440\u0438\u0441\u043E\u0435\u0434\u0438\u043D\u044F\u0435\u0442\u0441\u044F \u043A \u0432\u0430\u043C.`);
-        this.messages.push({ text: `${def.label} \u043F\u0440\u0438\u0441\u043E\u0435\u0434\u0438\u043D\u044F\u0435\u0442\u0441\u044F \u043A \u043E\u0442\u0440\u044F\u0434\u0443.` });
+        party.joinParty(this, entityId);
       }
-      /** Текущее значение потребности напарника; null — не в отряде или у существа
-       *  потребность не отслеживается… но по контракту «робот не голодает»
-       *  неотслеживаемая потребность возвращается максимальной, а не null. */
       companionNeed(entity, needId) {
-        const comp = this.state.party.find((c2) => c2.entity === entity);
-        if (!comp) return null;
-        const need = this.campaign.meta.needs.find((n2) => n2.id === needId);
-        if (!need) return null;
-        return comp.needs?.[needId] ?? need.max;
+        return party.companionNeed(this, entity, needId);
       }
-      /** Сдвиг потребности напарника; переход через ноль — заметка в лог (без game over). */
       changeCompanionNeed(entity, needId, delta) {
-        const comp = this.state.party.find((c2) => c2.entity === entity);
-        const need = this.campaign.meta.needs.find((n2) => n2.id === needId);
-        if (!comp || !need || comp.needs?.[needId] === void 0) return;
-        const cur = comp.needs[needId];
-        const next = Math.min(need.max, Math.max(0, cur + delta));
-        comp.needs[needId] = next;
-        if (next <= 0 && cur > 0) {
-          const def = this.campaign.entities[entity];
-          this.pushLog(`${def?.label ?? entity} \u043D\u0430 \u043F\u0440\u0435\u0434\u0435\u043B\u0435: ${need.label.toLowerCase()} \u043D\u0430 \u043D\u0443\u043B\u0435.`);
-        }
+        party.changeCompanionNeed(this, entity, needId, delta);
       }
-      /** Набор отслеживаемых напарником потребностей (для UI): определения из meta.needs. */
       companionNeedDefs(entity) {
-        const comp = this.state.party.find((c2) => c2.entity === entity);
-        if (!comp?.needs) return [];
-        return this.campaign.meta.needs.filter((n2) => comp.needs[n2.id] !== void 0);
+        return party.companionNeedDefs(this, entity);
       }
-      // ── «вторая сумка» напарника (NpcDef.companion_carry) ──
-      /** Груз в сумке напарника, кг. */
       companionLoad(entity) {
-        const comp = this.state.party.find((c2) => c2.entity === entity);
-        let sum = 0;
-        for (const e2 of comp?.inventory ?? []) {
-          const def = this.campaign.entities[e2.item];
-          if (def?.type === "item") sum += (def.weight ?? 0) * e2.quantity;
-        }
-        return Math.round(sum * 10) / 10;
+        return party.companionLoad(this, entity);
       }
-      /** Грузоподъёмность напарника: та же формула энкадменса, что у героя,
-       *  но по характеристикам существа (его carry_capacity_bonus/mult учтены). */
       companionCapacity(entity) {
-        const def = this.campaign.entities[entity];
-        if (!def?.stats) return 0;
-        const encRules = this.campaign.meta.encumbrance;
-        const formula = encRules?.formula ?? "str_siz";
-        let base = (def.stats.STR ?? 10) + (def.stats.SIZ ?? 10);
-        if (formula === "str_con") base = (def.stats.STR ?? 10) + (def.stats.CON ?? 10);
-        else if (formula === "str_only") base = (def.stats.STR ?? 10) * 2;
-        else if (formula === "fixed") base = Math.max(1, encRules?.capacity_multiplier ?? 20);
-        const worldMult = encRules?.capacity_multiplier && formula !== "fixed" ? encRules.capacity_multiplier : 1;
-        const total = base * worldMult * (def.carry_capacity_mult ?? 1) + (def.carry_capacity_bonus ?? 0);
-        return Math.max(1, Math.round(total * 10) / 10);
+        return party.companionCapacity(this, entity);
       }
-      /** Передать предмет из сумки героя напарнику (нужны оба: в отряде, companion_carry).
-       *  Сюжетные предметы (quest_item) — как выбросить и продать — отдать нельзя:
-       *  уход или гибель напарника не должна стирать критические вещи навсегда.
-       *  `opts.forceQuest` — только для сюжетных эффектов (transfer_to_companion):
-       *  мастер сам решает отдать квестовый предмет скриптом. */
       giveItemToCompanion(entity, itemId, quantity = 1, opts = {}) {
-        const comp = this.state.party.find((c2) => c2.entity === entity);
-        const def = this.campaign.entities[entity];
-        if (!comp || !def?.companion_carry || quantity <= 0) return false;
-        const itemDef = this.campaign.entities[itemId];
-        if (itemDef?.quest_item && !opts.forceQuest) {
-          this.pushToast(`${itemDef?.label ?? itemId} \u2014 \u0441\u044E\u0436\u0435\u0442\u043D\u0430\u044F \u0432\u0435\u0449\u044C: \u0435\u0451 \u043D\u0435\u043B\u044C\u0437\u044F \u043F\u0435\u0440\u0435\u0434\u0430\u0442\u044C \u043D\u0430\u043F\u0430\u0440\u043D\u0438\u043A\u0443.`, "info");
-          return false;
-        }
-        const have = this.state.player.inventory.find((i2) => i2.item === itemId)?.quantity ?? 0;
-        if (have < quantity) return false;
-        if (!comp.inventory) comp.inventory = [];
-        this.removeItem(itemId, quantity, { silent: true });
-        const slot = comp.inventory.find((i2) => i2.item === itemId);
-        if (slot) slot.quantity += quantity;
-        else comp.inventory.push({ item: itemId, quantity });
-        this.pushLog(`${def.label} \u0431\u0435\u0440\u0451\u0442: ${itemDef?.label ?? itemId} \xD7${quantity}.`);
-        this.notify();
-        return true;
+        return party.giveItemToCompanion(this, entity, itemId, quantity, opts);
       }
-      /** Забрать предмет из сумки напарника себе. */
       takeItemFromCompanion(entity, itemId, quantity = 1) {
-        const comp = this.state.party.find((c2) => c2.entity === entity);
-        const slot = comp?.inventory?.find((i2) => i2.item === itemId);
-        if (!comp || !slot || slot.quantity < quantity || quantity <= 0) return false;
-        slot.quantity -= quantity;
-        if (slot.quantity <= 0) {
-          comp.inventory = comp.inventory.filter((i2) => i2.quantity > 0);
-          for (const [k2, v2] of Object.entries(comp.equipment ?? {})) if (v2 === itemId && !comp.inventory.some((i2) => i2.item === itemId)) delete comp.equipment[k2];
-        }
-        this.addItem(itemId, quantity, { silent: true });
-        const def = this.campaign.entities[entity];
-        const itemDef = this.campaign.entities[itemId];
-        this.pushLog(`${def?.label ?? entity} \u0432\u043E\u0437\u0432\u0440\u0430\u0449\u0430\u0435\u0442: ${itemDef?.label ?? itemId} \xD7${quantity}.`);
-        this.notify();
-        return true;
+        return party.takeItemFromCompanion(this, entity, itemId, quantity);
       }
-      /** Надеть/снять предмет из сумки напарника на слот экипировки (null — снять). */
       equipCompanionItem(entity, slotId, itemId) {
-        const comp = this.state.party.find((c2) => c2.entity === entity);
-        if (!comp) return;
-        if (itemId && !comp.inventory?.some((i2) => i2.item === itemId)) return;
-        comp.equipment = { ...comp.equipment ?? {} };
-        if (itemId) comp.equipment[slotId] = itemId;
-        else delete comp.equipment[slotId];
-        this.notify();
+        party.equipCompanionItem(this, entity, slotId, itemId);
       }
-      /** Применить предмет из сумки героя к напарнику: перенаправляет on_use-эффекты
-       *  «здоровье» (change_hp) и «потребности» (change_need) на напарника, остальные
-       *  эффекты игнорируются; расход предмета — как у героя (on_use.consume). */
       useItemOnCompanion(entity, itemId) {
-        const comp = this.state.party.find((c2) => c2.entity === entity);
-        const def = this.campaign.entities[entity];
-        const item = this.campaign.entities[itemId];
-        if (!comp || !def || !item || item.type !== "item" || !item.on_use) return false;
-        if (!(this.state.player.inventory.find((i2) => i2.item === itemId)?.quantity ?? 0)) return false;
-        let touched = false;
-        for (const eff of item.on_use.effects) {
-          if (eff.type === "change_hp" && comp.hp > 0) {
-            const before = comp.hp;
-            comp.hp = Math.max(1, Math.min(comp.max_hp, comp.hp + eff.delta));
-            if (comp.hp !== before) touched = true;
-          } else if (eff.type === "change_need") {
-            if (comp.needs?.[eff.need] !== void 0) {
-              this.changeCompanionNeed(entity, eff.need, eff.delta);
-              touched = true;
-            }
-          }
-        }
-        if (!touched) return false;
-        playInteraction("use", { entity: item });
-        if (item.on_use.consume !== false) this.removeItem(itemId, 1, { verb: "\u0418\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u043E" });
-        this.pushLog(`${item.label} \u2014 \u043F\u0440\u0438\u043C\u0435\u043D\u0435\u043D\u043E \u043A ${def.label}.`);
-        this.checkRules();
-        this.notify();
-        return true;
+        return party.useItemOnCompanion(this, entity, itemId);
       }
-      /** Напарник покидает отряд (отпустить, скрипт, гибель в бою).
-       *  Его сумка возвращается герою — иначе переданные вещи стирались бы навсегда
-       *  (до этого так и было: мягкая блокировка при гибели носильщика). */
       leaveParty(entityId) {
-        const i2 = this.state.party.findIndex((c2) => c2.entity === entityId);
-        if (i2 < 0) return;
-        const comp = this.state.party[i2];
-        const def = this.campaign.entities[entityId];
-        const returned = (comp.inventory ?? []).filter((e2) => e2.quantity > 0);
-        if (returned.length) {
-          for (const e2 of returned) this.addItem(e2.item, e2.quantity, { silent: true });
-          const list = returned.map((e2) => `${this.campaign.entities[e2.item]?.label ?? e2.item}${e2.quantity > 1 ? ` \xD7${e2.quantity}` : ""}`).join(", ");
-          this.pushLog(`${def?.label ?? entityId} \u043E\u0442\u0434\u0430\u0451\u0442 \u0432\u0430\u043C: ${list}.`);
-          this.pushToast(`${def?.label ?? entityId} \u043E\u0442\u0434\u0430\u0451\u0442 \u0432\u0430\u043C \u0432\u0435\u0449\u0438 \u0438\u0437 \u0441\u0443\u043C\u043A\u0438: ${list}.`, "get");
-        }
-        this.state.party.splice(i2, 1);
-        this.notify();
+        party.leaveParty(this, entityId);
       }
       isInParty(entityId) {
-        return this.state.party.some((c2) => c2.entity === entityId);
+        return party.isInParty(this, entityId);
       }
-      // ─────────────── удача (аудит §5.6 п.8) ───────────────
-      /** максимум удачи: POW × meta.luck.multiplier (умолчание 5). Система opt-in: нет meta.luck — удачи нет. */
       luckMax() {
-        const cfg = this.campaign.meta.luck;
-        if (!cfg) return 0;
-        const mult = cfg.multiplier ?? 5;
-        return Math.max(0, this.state.player.stats.POW * mult);
+        return checks.luckMax.call(this);
       }
-      /** текущие очки удачи (старые сейвы без поля считаются полными) */
       luck() {
-        const max = this.luckMax();
-        return Math.min(max, this.state.player.luck ?? max);
+        return checks.luck.call(this);
       }
-      /** потратить/вернуть очки удачи; ложь — не хватает */
       changeLuck(delta) {
-        const cur = this.luck();
-        const next = Math.max(0, Math.min(this.luckMax(), cur + delta));
-        if (delta < 0 && cur + delta < 0) return false;
-        this.state.player.luck = next;
-        return true;
+        return checks.changeLuck.call(this, delta);
       }
-      // ─────────────── производные опции B6: усталость, рассудок, репутация, достаток, страсти, причастность ───────────────
-      /** максимум усталости: (STR+CON)×множитель; opt-in meta.vitals.fatigue */
       fatigueMax() {
-        const cfg = this.campaign.meta.vitals?.fatigue;
-        if (!cfg) return 0;
-        const mult = cfg === true ? 1 : cfg.multiplier ?? 1;
-        return Math.max(0, Math.round((this.state.player.stats.STR + this.state.player.stats.CON) * mult));
+        return character.fatigueMax.call(this);
       }
-      /** текущая усталость (полная по умолчанию, как удача) */
       fatigue() {
-        const max = this.fatigueMax();
-        return Math.min(max, this.state.player.fatigue ?? max);
+        return character.fatigue.call(this);
       }
-      /** израсходовать/восстановить усталость; ложь — запаса не хватит */
       changeFatigue(delta) {
-        const max = this.fatigueMax();
-        if (max === 0 && delta !== 0) return true;
-        const cur = this.fatigue();
-        if (delta < 0 && cur + delta < 0) {
-          this.state.player.fatigue = 0;
-          this.pushLog("\u0412\u044B \u043D\u0430 \u043F\u0440\u0435\u0434\u0435\u043B\u0435: \u043E\u0447\u043A\u0438 \u0443\u0441\u0442\u0430\u043B\u043E\u0441\u0442\u0438 \u043D\u0430 \u043D\u0443\u043B\u0435!");
-          this.checkRules();
-          this.notify();
-          return false;
-        }
-        this.state.player.fatigue = Math.max(0, Math.min(max, cur + delta));
-        this.checkRules();
-        this.notify();
-        return true;
+        return character.changeFatigue.call(this, delta);
       }
-      /** максимум рассудка: POW×множитель; opt-in meta.vitals.sanity */
       sanityMax() {
-        const cfg = this.campaign.meta.vitals?.sanity;
-        if (!cfg) return 0;
-        const mult = cfg === true ? 5 : cfg.multiplier ?? 5;
-        return Math.max(0, this.state.player.stats.POW * mult);
+        return character.sanityMax.call(this);
       }
-      /** текущий рассудок */
       sanity() {
-        const max = this.sanityMax();
-        return Math.min(max, this.state.player.sanity ?? max);
+        return character.sanity.call(this);
       }
-      /** потеря/исцеление рассудка; пороги/психозы — правилами на sanity_le */
       changeSanity(delta) {
-        const max = this.sanityMax();
-        if (max === 0 && delta !== 0) return;
-        const next = Math.max(0, Math.min(max, this.sanity() + delta));
-        const lost = next - this.sanity();
-        this.state.player.sanity = next;
-        if (lost < 0) this.pushLog(`\u0420\u0430\u0441\u0441\u0443\u0434\u043E\u043A \u0442\u0440\u0435\u0449\u0438\u0442: ${lost}. (\u0441\u0435\u0439\u0447\u0430\u0441 ${next}/${max})`);
-        else if (lost > 0) this.pushLog(`\u041C\u044B\u0441\u043B\u0438 \u043F\u0440\u043E\u044F\u0441\u043D\u044F\u044E\u0442\u0441\u044F: \u0440\u0430\u0441\u0441\u0443\u0434\u043E\u043A +${lost}. (\u0441\u0435\u0439\u0447\u0430\u0441 ${next}/${max})`);
-        this.checkRules();
-        this.notify();
+        return character.changeSanity.call(this, delta);
       }
-      /** репутация (opt-in meta.reputation) */
       reputation() {
-        return Math.max(0, this.state.player.reputation ?? 0);
+        return social.reputation(this);
       }
-      /** репутация включена мастером */
-      /** Настраиваемая системная надпись интерфейса (design-doc §9, meta.ui_labels) */
       uiLabel(key, fallback) {
-        return this.campaign.meta.ui_labels?.[key]?.trim() || fallback;
+        return social.uiLabel(this, key, fallback);
       }
       reputationEnabled() {
-        return !!this.campaign.meta.reputation;
+        return social.reputationEnabled(this);
       }
       reputationLabel() {
-        const cfg = this.campaign.meta.reputation;
-        return typeof cfg === "object" && cfg?.label || "\u0420\u0435\u043F\u0443\u0442\u0430\u0446\u0438\u044F";
+        return social.reputationLabel(this);
       }
       changeReputation(delta) {
-        const next = Math.max(0, this.reputation() + delta);
-        this.state.player.reputation = next;
-        if (delta > 0) this.pushLog(`\u0421\u043B\u0430\u0432\u0430 \u043E \u0432\u0430\u0441 \u0440\u0430\u0441\u0442\u0451\u0442: \u0440\u0435\u043F\u0443\u0442\u0430\u0446\u0438\u044F ${next}.`);
-        else if (delta < 0) this.pushLog(`\u041E \u0432\u0430\u0441 \u043E\u0442\u0437\u044B\u0432\u0430\u044E\u0442\u0441\u044F \u0445\u0443\u0436\u0435: \u0440\u0435\u043F\u0443\u0442\u0430\u0446\u0438\u044F ${next}.`);
-        this.checkRules();
-        this.notify();
+        social.changeReputation(this, delta);
       }
-      /** шкала достатка (opt-in meta.wealth_levels) */
       wealthLevels() {
-        return this.campaign.meta.wealth_levels ?? [];
+        return social.wealthLevels(this);
       }
-      /** текущий уровень достатка (индекс в шкале) */
       wealthLevel() {
-        const lv = this.wealthLevels();
-        return Math.max(0, Math.min(lv.length - 1, this.state.player.wealth_level ?? 0));
+        return social.wealthLevel(this);
       }
       wealthLevelLabel() {
-        return this.wealthLevels()[this.wealthLevel()] ?? "";
+        return social.wealthLevelLabel(this);
       }
-      /** сдвиг достатка на ±levels ступеней */
       changeWealth(levels) {
-        const lv = this.wealthLevels();
-        if (!lv.length) return;
-        const next = Math.max(0, Math.min(lv.length - 1, this.wealthLevel() + levels));
-        if (next === this.wealthLevel()) return;
-        this.state.player.wealth_level = next;
-        this.pushLog(`\u0412\u0430\u0448 \u0434\u043E\u0441\u0442\u0430\u0442\u043E\u043A \u043C\u0435\u043D\u044F\u0435\u0442\u0441\u044F: \u0442\u0435\u043F\u0435\u0440\u044C \xAB${lv[next]}\xBB.`);
-        this.checkRules();
-        this.notify();
+        social.changeWealth(this, levels);
       }
-      /** страсть: значение 0..100+ */
       passion(id) {
-        return this.state.player.passions?.[id] ?? 0;
+        return social.passion(this, id);
       }
       passionLabel(id) {
-        return this.campaign.meta.passions_list?.find((p2) => p2.id === id)?.label ?? id;
+        return social.passionLabel(this, id);
       }
-      /** создать/сдвинуть страсть (clamped ≥ 0); лог первого появления */
       changePassion(id, delta) {
-        const p2 = this.state.player;
-        p2.passions ??= {};
-        const next = Math.max(0, (p2.passions[id] ?? 0) + delta);
-        const fresh = p2.passions[id] == null;
-        p2.passions[id] = next;
-        if (fresh) this.pushLog(`\u0412 \u0432\u0430\u0441 \u0437\u0430\u0436\u0438\u0433\u0430\u0435\u0442\u0441\u044F \u0441\u0442\u0440\u0430\u0441\u0442\u044C: \xAB${this.passionLabel(id)}\xBB (${next}).`);
-        else this.pushLog(`\u0421\u0442\u0440\u0430\u0441\u0442\u044C \xAB${this.passionLabel(id)}\xBB: ${delta > 0 ? "+" : ""}${delta} \u2192 ${next}.`);
-        this.checkRules();
-        this.notify();
+        social.changePassion(this, id, delta);
       }
-      /** очки причастности силе */
       allegiance(id) {
-        return this.state.player.allegiance?.[id] ?? 0;
+        return social.allegiance(this, id);
       }
       allegianceLabel(id) {
-        return this.campaign.meta.allegiances?.find((a2) => a2.id === id)?.label ?? id;
+        return social.allegianceLabel(this, id);
       }
-      /** +очки причастности (по книге без снижения, дельта 0..100+) */
       changeAllegiance(id, points) {
-        const p2 = this.state.player;
-        p2.allegiance ??= {};
-        const next = Math.max(0, (p2.allegiance[id] ?? 0) + points);
-        const fresh = p2.allegiance[id] == null;
-        p2.allegiance[id] = next;
-        if (fresh) this.pushLog(`\u0412\u044B \u043E\u0431\u0440\u0435\u0442\u0430\u0435\u0442\u0435 \u043F\u0440\u0438\u0447\u0430\u0441\u0442\u043D\u043E\u0441\u0442\u044C \u043A \xAB${this.allegianceLabel(id)}\xBB (${next}).`);
-        else if (points > 0) this.pushLog(`\u041F\u0440\u0438\u0447\u0430\u0441\u0442\u043D\u043E\u0441\u0442\u044C \xAB${this.allegianceLabel(id)}\xBB: +${points} \u2192 ${next}.`);
-        else this.pushLog(`\u041F\u0440\u0438\u0447\u0430\u0441\u0442\u043D\u043E\u0441\u0442\u044C \xAB${this.allegianceLabel(id)}\xBB: ${points} \u2192 ${next}.`);
-        this.checkRules();
-        this.notify();
+        social.changeAllegiance(this, id, points);
       }
-      /**
-       * Базовый шанс навыка (без обучения). Формула 'DEX×2' ('×' или '*'),
-       * несколько слагаемых через '+': 'DEX×2+INT'.
-       * Возвращает 0, если у навыка нет base (необученный даёт 0% — как раньше).
-       */
       skillBaseChance(skillId) {
-        const def = this.campaign.meta.skills?.find((s2) => s2.id === skillId);
-        const base = def?.base;
-        if (base == null) return 0;
-        if (typeof base === "number") return base;
-        const stats = this.state.player.stats;
-        let total = 0;
-        for (const part of base.split("+")) {
-          const m2 = part.trim().match(/^([A-Z]+)(?:\s*[×x*]\s*(\d+))?$/);
-          if (!m2) continue;
-          const stat = stats[m2[1]] ?? 0;
-          total += stat * (m2[2] ? parseInt(m2[2], 10) : 1);
-        }
-        return total;
+        return character.skillBaseChance.call(this, skillId);
       }
-      /**
-       * Эффективное значение навыка для проверок вне боя: изученный навык,
-       * иначе базовый шанс (если у навыка задан `base` в реестре кампании).
-       */
       skillEffective(skillId) {
-        const learned = this.state.player.skills[skillId];
-        return learned != null ? learned : this.skillBaseChance(skillId);
+        return character.skillEffective.call(this, skillId);
       }
-      /**
-       * Тренировка характеристики (аудит B6): прибавка с клампом по stat_limits
-       * кампании; пересчитывает производные пулы (HP/MP/усталость/рассудок).
-       */
       trainStat(stat, delta) {
-        const p2 = this.state.player;
-        const stats = p2.stats;
-        if (!(stat in stats)) return;
-        const lim = this.campaign.meta.char_creation?.stat_limits;
-        const min = lim?.min ?? 1;
-        const max = lim?.max ?? 99;
-        const next = Math.max(min, Math.min(max, stats[stat] + delta));
-        if (next === stats[stat]) return;
-        stats[stat] = next;
-        this.pushLog(`\u0422\u0440\u0435\u043D\u0438\u0440\u043E\u0432\u043A\u0430 \u0434\u0430\u043B\u0430 \u043F\u043B\u043E\u0434\u044B: ${this.statLabel(stat)} ${delta > 0 ? "+" : ""}${delta} \u2192 ${next}.`);
-        const newMaxHp = derivedHP(p2.stats);
-        if (newMaxHp !== p2.max_hp) {
-          const diff = newMaxHp - p2.max_hp;
-          p2.max_hp = newMaxHp;
-          p2.hp = Math.max(1, Math.min(p2.max_hp, p2.hp + Math.max(0, diff)));
-        }
-        const newMaxMp = derivedMP(p2.stats);
-        if (newMaxMp !== p2.max_mp) {
-          const diff = newMaxMp - p2.max_mp;
-          p2.max_mp = newMaxMp;
-          p2.mp = Math.max(0, Math.min(p2.max_mp, p2.mp + Math.max(0, diff)));
-        }
-        this.checkRules();
-        this.notify();
+        return character.trainStat.call(this, stat, delta);
       }
-      /** каноническое имя характеристики (всегда на латинице: STR, CON, SIZ, DEX, INT, POW, CHA, EDU) */
       statLabel(stat) {
-        return stat.toUpperCase();
+        return character.statLabel.call(this, stat);
       }
-      // ─────────────── уровни и черты (аудит B8, opt-in meta.progression) ───────────────
-      /** система уровней включена мастером */
       progressionEnabled() {
-        return !!this.campaign.meta.progression;
+        return character.progressionEnabled.call(this);
       }
-      /** текущий уровень (старт 1) */
       level() {
-        return Math.max(1, this.state.player.level ?? 1);
+        return character.level.call(this);
       }
-      /** текущий запас опыта */
       xp() {
-        return Math.max(0, this.state.player.xp ?? 0);
+        return character.xp.call(this);
       }
-      /** сколько опыта нужно, чтобы взять следующий уровень (кумулятивно) */
-      xpForLevel(level) {
-        const base = this.campaign.meta.progression?.xp_per_level ?? 100;
-        return base * level;
+      xpForLevel(level2) {
+        return character.xpForLevel.call(this, level2);
       }
-      /** опыт до следующего уровня или до потолка */
       xpToNext() {
-        if (!this.progressionEnabled()) return null;
-        const max = this.campaign.meta.progression?.max_level;
-        if (max != null && this.level() >= max) return null;
-        return this.xpForLevel(this.level()) - this.xp();
+        return character.xpToNext.call(this);
       }
-      /** нераспределённых черт (по умолчанию по одной за уровень) */
       pendingFeats() {
-        if (!this.progressionEnabled()) return 0;
-        const per = this.campaign.meta.progression?.feats_per_level ?? 1;
-        return Math.max(0, (this.level() - 1) * per - (this.state.player.feats ?? []).length);
+        return character.pendingFeats.call(this);
       }
-      /** начислить опыт; при достижении порога — уровень ↑ (одна итерация) */
       grantXp(points) {
-        if (!this.progressionEnabled() || points <= 0) return;
-        const p2 = this.state.player;
-        const cap = this.campaign.meta.progression?.max_level;
-        if (cap != null && this.level() >= cap) return;
-        p2.xp = this.xp() + points;
-        this.pushLog(`\u041E\u043F\u044B\u0442: +${points} (\u0432\u0441\u0435\u0433\u043E ${p2.xp}, \u0434\u043E \u0441\u043B\u0435\u0434. \u0443\u0440\u043E\u0432\u043D\u044F ${this.xpToNext() ?? "\u043F\u043E\u0442\u043E\u043B\u043E\u043A"}).`);
-        while (this.xp() >= this.xpForLevel(this.level())) {
-          const max = this.campaign.meta.progression?.max_level;
-          if (max != null && this.level() >= max) break;
-          p2.xp = this.xp() - this.xpForLevel(this.level());
-          p2.level = this.level() + 1;
-          const slots = this.campaign.meta.progression?.feats_per_level ?? 1;
-          this.pushLog(`\u0423\u0440\u043E\u0432\u0435\u043D\u044C ${p2.level}!${slots > 0 ? ` \u0414\u043E\u0441\u0442\u0443\u043F\u043D\u043E ${slots} \u0447\u0451\u0440\u0442(\u0430) \u043A \u0432\u044B\u0431\u043E\u0440\u0443 \u0432 \u043B\u0438\u0441\u0442\u0435 \u043F\u0435\u0440\u0441\u043E\u043D\u0430\u0436\u0430.` : ""}`);
-          this.checkRules();
-        }
-        this.notify();
+        return character.grantXp.call(this, points);
       }
-      /** дефолтного набора черт */
       availableFeats() {
-        if (!this.progressionEnabled()) return [];
-        const taken = new Set(this.state.player.feats ?? []);
-        return (this.campaign.meta.progression?.feats ?? []).filter((f2) => !taken.has(f2.id));
+        return character.availableFeats.call(this);
       }
-      /** доступна ли черта (условия requires) */
       featEligible(feat) {
-        if (!feat.requires?.length) return true;
-        return feat.requires.every((c2) => evalCondition(c2, this));
+        return character.featEligible.call(this, feat);
       }
-      /** взять черту точкой прокачки (слоты расходуются) */
       takeFeat(id) {
-        if (!this.progressionEnabled() || this.pendingFeats() <= 0) return false;
-        const feat = this.availableFeats().find((f2) => f2.id === id);
-        if (!feat || !this.featEligible(feat)) return false;
-        this.applyFeat(feat);
-        this.pushLog(`\u0412\u0437\u044F\u0442\u0430 \u0447\u0435\u0440\u0442\u0430 \xAB${feat.label}\xBB.`);
-        this.notify();
-        return true;
+        return character.takeFeat.call(this, id);
       }
-      /** выдать черту напрямую (эффект grant_feat, без счёта слотов) */
       grantFeat(id) {
-        if (!this.progressionEnabled()) return;
-        const feat = this.campaign.meta.progression?.feats?.find((f2) => f2.id === id);
-        if (!feat || (this.state.player.feats ?? []).includes(id)) return;
-        this.applyFeat(feat);
-        this.pushLog(`\u041E\u0441\u0432\u043E\u0435\u043D\u0430 \u0447\u0435\u0440\u0442\u0430 \xAB${feat.label}\xBB.`);
-        this.checkRules();
-        this.notify();
+        return character.grantFeat.call(this, id);
       }
-      /** применение бонусов черты (уже взята) */
-      applyFeat(feat) {
-        const p2 = this.state.player;
-        p2.feats ??= [];
-        p2.feats.push(feat.id);
-        const mods = feat.mods ?? {};
-        for (const [skill, delta] of Object.entries(mods.skills ?? {})) {
-          p2.skills[skill] = Math.max(0, (p2.skills[skill] ?? 0) + delta);
-        }
-        for (const [stat, delta] of Object.entries(mods.stats ?? {})) {
-          if (delta) this.trainStat(stat, delta);
-        }
-        if (mods.hp) {
-          p2.max_hp = Math.max(1, p2.max_hp + mods.hp);
-          p2.hp = Math.min(p2.max_hp, p2.hp + mods.hp);
-        }
-        if (mods.mp) {
-          p2.max_mp = Math.max(0, p2.max_mp + mods.mp);
-          p2.mp = Math.min(p2.max_mp, p2.mp + mods.mp);
-        }
-        this.checkRules();
-      }
-      /** движение героя: базовое + перманентные бонусы черт */
       playerMovement() {
-        let mov = movement(this.state.player.stats);
-        for (const fid of this.state.player.feats ?? []) {
-          const f2 = this.campaign.meta.progression?.feats?.find((x2) => x2.id === fid);
-          mov += f2?.mods?.mov ?? 0;
-        }
-        return Math.max(1, mov);
+        return character.playerMovement.call(this);
       }
-      // ─────────────── опасности, преступления, цены, лагерь (аудит B7) ───────────────
-      /**
-       * Падение (аудит B7): урон = floor(meters / porog) кубиков, смягчающая
-       * проверка навыком (умолчание dodge) уполовинивает. Порог и кубик
-       * настраиваются в meta.hazards (книжные: 3 м на 1d6).
-       */
       applyFall(meters, skill) {
-        const hz = this.campaign.meta.hazards;
-        const perDie = Math.max(1, hz?.fall_meters_per_die ?? 3);
-        const dice = Math.floor(Math.max(0, meters) / perDie);
-        const sane = dice <= 0 ? "0" : `${dice}d6`;
-        let dmg = 0;
-        let modLog = "";
-        const p2 = this.state.player;
-        if (dice > 0) {
-          const skillId = skill ?? "dodge";
-          const known = p2.skills[skillId];
-          if (known != null && known > 0) {
-            const out = skillCheck(Math.max(1, known), this.rng, 0, this.diceRules);
-            if (out.success) {
-              modLog = ` (${this.skillLabel(skillId)} \u0441\u043C\u044F\u0433\u0447\u0430\u0435\u0442: \u043F\u043E\u043B\u043E\u0432\u0438\u043D\u0430)`;
-            }
-            dmg = rollDice(sane, this.rng);
-            if (out.success) dmg = Math.max(0, Math.ceil(dmg / 2));
-            this.pushLog(`\u041F\u0430\u0434\u0435\u043D\u0438\u0435 \u0441 ${meters} \u043C \u2014 d100=${out.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${out.target}: ${CHECK_RESULT_LABEL[out.result]}${modLog}`);
-          } else {
-            dmg = rollDice(sane, this.rng);
-            this.pushLog(`\u041F\u0430\u0434\u0435\u043D\u0438\u0435 \u0441 ${meters} \u043C: ${dmg} \u0443\u0440\u043E\u043D\u0430 (${sane}).`);
-          }
-        }
-        if (dmg > 0) this.changeHp(-dmg);
-        else this.pushLog("\u041F\u0430\u0434\u0435\u043D\u0438\u0435 \u043E\u0431\u043E\u0448\u043B\u043E\u0441\u044C \u0431\u0435\u0437 \u0441\u0435\u0440\u044C\u0451\u0437\u043D\u044B\u0445 \u0442\u0440\u0430\u0432\u043C.");
-        this.notify();
+        social.applyFall(this, meters, skill);
       }
-      /** реестр преступления из кампании */
       crimeLabel(id) {
-        return this.campaign.meta.crimes?.find((c2) => c2.id === id)?.label ?? id;
+        return social.crimeLabel(this, id);
       }
-      /** зафиксировать преступление героя (аудит B7) */
       commitCrime(id, bounty = 0) {
-        const s2 = this.state;
-        s2.crimes ??= {};
-        if (s2.crimes[id]) {
-          s2.crimes[id].bounty += Math.max(0, bounty);
-        } else {
-          s2.crimes[id] = { bounty: Math.max(0, bounty), tick: s2.tick };
-        }
-        this.pushLog(`\u0421\u043E\u0432\u0435\u0440\u0448\u0435\u043D\u043E \u043F\u0440\u0435\u0441\u0442\u0443\u043F\u043B\u0435\u043D\u0438\u0435: \xAB${this.crimeLabel(id)}\xBB${bounty > 0 ? ` (\u043D\u0430\u0433\u0440\u0430\u0434\u0430 \u0437\u0430 \u0433\u043E\u043B\u043E\u0432\u0443 ${bounty})` : ""}.`);
-        this.checkRules();
-        this.notify();
+        social.commitCrime(this, id, bounty);
       }
-      /** преступление совершено? (любое — без id; minBounty — порог награды) */
       hasCrime(id, minBounty = 0) {
-        const list = this.state.crimes ?? {};
-        if (!id) return Object.values(list).some((c3) => minBounty <= 0 ? true : c3.bounty >= minBounty);
-        const c2 = list[id];
-        if (!c2) return false;
-        return minBounty <= 0 ? true : c2.bounty >= minBounty;
+        return social.hasCrime(this, id, minBounty);
       }
-      /** суммарная награда за голову героя */
       bountyTotal() {
-        return Object.values(this.state.crimes ?? {}).reduce((sum, c2) => sum + c2.bounty, 0);
+        return social.bountyTotal(this);
       }
-      /** активные ценовые события */
       priceEventsActive() {
-        const reg = this.campaign.meta.price_events ?? [];
-        return (this.state.price_events ?? []).map((id) => ({ id, label: reg.find((e2) => e2.id === id)?.label ?? id }));
+        return social.priceEventsActive(this);
       }
-      /** включить/выключить ценовое событие (аудит B7) */
       setPriceEvent(id, on) {
-        const list = this.state.price_events ??= [];
-        if (on) {
-          if (!this.campaign.meta.price_events?.some((e2) => e2.id === id)) return;
-          if (!list.includes(id)) {
-            list.push(id);
-            this.pushLog(`\u0426\u0435\u043D\u043D\u0438\u043A \u043C\u0435\u043D\u044F\u0435\u0442\u0441\u044F: \xAB${this.campaign.meta.price_events.find((e2) => e2.id === id).label}\xBB.`);
-          }
-        } else if (id) {
-          const i2 = list.indexOf(id);
-          if (i2 >= 0) list.splice(i2, 1);
-        } else if (list.length) {
-          list.length = 0;
-          this.pushLog("\u0426\u0435\u043D\u043D\u0438\u043A\u0438 \u0441\u043D\u043E\u0432\u0430 \u043F\u0440\u0435\u0436\u043D\u0438\u0435.");
-        }
-        this.checkRules();
-        this.notify();
+        social.setPriceEvent(this, id, on);
       }
-      /** множитель цен по активным ценовым событиям для данного предмета */
       priceEventMultiplier(item) {
-        if (!this.state.price_events?.length) return 1;
-        let mult = 1;
-        for (const id of this.state.price_events) {
-          const ev = this.campaign.meta.price_events?.find((e2) => e2.id === id);
-          if (!ev) continue;
-          if (ev.items?.length && !ev.items.includes(item.id)) continue;
-          if (ev.categories?.length && !ev.categories.includes(item.category)) continue;
-          mult *= ev.multiplier;
-        }
-        return mult;
+        return social.priceEventMultiplier(this, item);
       }
-      /** разрешён ли здесь лагерь (аудит B7): meta.camping + локация с camp: true */
       campAvailable() {
-        const cfg = this.campaign.meta.camping;
-        if (!cfg) return { ok: false, reason: "\u043C\u0430\u0441\u0442\u0435\u0440 \u043D\u0435 \u0432\u043A\u043B\u044E\u0447\u0438\u043B \u043D\u043E\u0447\u043B\u0435\u0433 (meta.camping)" };
-        if (this.combat || this.trade || this.craftRequest) return { ok: false, reason: "\u0441\u0435\u0439\u0447\u0430\u0441 \u043D\u0435 \u0434\u043E \u043E\u0442\u0434\u044B\u0445\u0430" };
-        const loc = this.findLocation(this.state.location)?.location;
-        if (!loc?.camp) return { ok: false, reason: "\u0437\u0434\u0435\u0441\u044C \u043B\u0430\u0433\u0435\u0440\u044C \u043D\u0435 \u0440\u0430\u0437\u0431\u0438\u0442\u044C (location.camp)" };
-        return { ok: true, reason: "" };
+        return social.campAvailable(this);
       }
-      /**
-       * Ночлег в лагере (аудит B7): advanceTicks(cfg.ticks), рост навыков,
-       * естественное лечение, возможная засада — правило мастера
-       * (meta.camping.ambush_rule, шанс ambush_chance). Восстановление
-       * потребностей — опционально, meta.camping.restore (аудит кампании 2026):
-       * применяется ПОСЛЕ хода времени через changeNeed (общий стол для плюса).
-       */
-      // ─────────────── длительные действия (dz.20) ───────────────
-      /**
-       * Запрос окна выбора длительности (сон и т.п.). Не сохраняется в сейв:
-       * если игрок закрыл игру с открытым окном — действие просто не началось.
-       */
       durationRequest = null;
-      /** Типы эффектов, разрешённых в почасовом per_tick (белый список dz.20). */
-      static DURATION_TICK_EFFECTS = /* @__PURE__ */ new Set([
-        "change_need",
-        "change_hp",
-        "change_fatigue",
-        "change_sanity"
-      ]);
-      applyTickEffects(effects, skipped) {
-        if (!effects) return;
-        for (const fx of effects) {
-          if (!_GameEngine.DURATION_TICK_EFFECTS.has(fx.type)) {
-            if (!skipped.done) {
-              this.pushLog(`\u0414\u0432\u0438\u0433\u0430\u0442\u0435\u043B\u044C: \u044D\u0444\u0444\u0435\u043A\u0442 '${fx.type}' \u043D\u0435 \u0432\u0445\u043E\u0434\u0438\u0442 \u0432 \u0431\u0435\u043B\u044B\u0439 \u0441\u043F\u0438\u0441\u043E\u043A \u0434\u043B\u0438\u0442\u0435\u043B\u044C\u043D\u043E\u0433\u043E \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044F \u0438 \u043F\u0440\u043E\u043F\u0443\u0449\u0435\u043D.`);
-              skipped.done = true;
-            }
-            continue;
-          }
-          this.applyEffect(fx);
-        }
-      }
-      /**
-       * Общий цикл «провести N тиков»: почасовое применение per_tick ДО
-       * тикания потребностей, честные почасовые прерывания, стан-условия
-       * break_when, эффекты on_finish — только при полном завершении.
-       * Смерть/конец игры посреди цикла обрывают действие (on_zero_effect
-       * потребностей и смертельный урон честны: «умереть во сне» возможно).
-       */
-      runTicksFlow(opts) {
-        const skipped = { done: false };
-        for (let i2 = 0; i2 < opts.ticks; i2++) {
-          if (this.state.game_over) return;
-          this.applyTickEffects(opts.perTick, skipped);
-          this.advanceTicks(1);
-          if (this.state.game_over) return;
-          if (opts.breakWhen && opts.breakWhen.some((c2) => evalCondition(c2, this))) {
-            this.interruptTicksFlow(opts.label, opts.interruptRule, i2 + 1);
-            return;
-          }
-          if ((opts.interruptChance ?? 0) > 0 && this.rng.chance(opts.interruptChance)) {
-            this.interruptTicksFlow(opts.label, opts.interruptRule, i2 + 1);
-            return;
-          }
-        }
-        opts.after?.();
-        if (opts.onFinish) {
-          for (const fx of opts.onFinish) this.applyEffect(fx);
-        }
-        this.pushLog(`${opts.label} \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043D\u043E: \u043F\u0440\u043E\u0448\u043B\u043E ${opts.ticks} \u0447.`);
-        this.autosave();
-        this.notify();
-      }
-      interruptTicksFlow(label, rule, afterTicks) {
-        this.pushLog(`${label} \u043F\u0440\u0435\u0440\u0432\u0430\u043D\u043E \u043D\u0430 ${afterTicks}-\u043C \u0447\u0430\u0441\u0443: \u0447\u0442\u043E-\u0442\u043E \u043F\u043E\u0448\u043B\u043E \u043D\u0435 \u043F\u043E \u043F\u043B\u0430\u043D\u0443.`);
-        if (rule) this.fireRule(rule);
-        this.autosave();
-        this.notify();
-      }
-      /** Границы/параметры текущего запроса — читает UI-окно выбора. */
       durationRequestInfo() {
-        const req = this.durationRequest;
-        if (!req) return null;
-        if (req.kind === "camp") {
-          const cfg = this.campaign.meta.camping;
-          if (!cfg) return null;
-          const min2 = Math.max(1, Math.floor(cfg.min_ticks ?? cfg.ticks ?? 8));
-          return {
-            label: "\u041D\u043E\u0447\u043B\u0435\u0433",
-            min: min2,
-            max: Math.max(min2, Math.floor(cfg.max_ticks ?? cfg.ticks ?? 8)),
-            step: 1,
-            perTick: cfg.per_tick,
-            interruptChance: 0,
-            startTick: this.state.tick
-          };
-        }
-        const def = req.action;
-        const min = Math.max(1, Math.floor(def.min_ticks ?? 1));
-        return {
-          label: def.label,
-          min,
-          max: Math.max(min, Math.floor(def.max_ticks ?? min)),
-          step: Math.max(1, Math.floor(def.step ?? 1)),
-          perTick: def.per_tick,
-          interruptChance: Math.max(0, Math.min(1, def.interrupt_chance_per_tick ?? 0)),
-          startTick: this.state.tick
-        };
+        return checks.durationRequestInfo.call(this);
       }
       cancelDurationRequest() {
-        if (!this.durationRequest) return;
-        this.durationRequest = null;
-        this.notify();
+        return checks.cancelDurationRequest.call(this);
       }
-      /** Игрок подтвердил длину в окне выбора. */
       confirmDurationRequest(ticks) {
-        const req = this.durationRequest;
-        if (!req) return;
-        this.durationRequest = null;
-        if (req.kind === "camp") {
-          this.campRest(ticks);
-          return;
-        }
-        this.runDurationAction(req.action, ticks);
+        return checks.confirmDurationRequest.call(this, ticks);
       }
-      /** Игрок нажал «Разбить лагерь»: всегда через окно выбора (при фиксированной длине — как окно подтверждения с прогнозом). */
       requestCampRest() {
-        const cfg = this.campaign.meta.camping;
-        if (!cfg || !this.campAvailable().ok) return;
-        this.durationRequest = { kind: "camp" };
-        this.notify();
+        return checks.requestCampRest.call(this);
       }
-      /**
-       * Запуск длительного действия из реестра (эффект start_duration_action).
-       * ticks задан — запуск немедленно; не задан — окно выбора (или мгновенный
-       * запуск при фиксированной длине min == max). Недоступное (available_when
-       * ложно) действие молча отказывает: контент должен был скрыть вариант.
-       */
       requestDurationAction(id, ticks) {
-        const def = (this.campaign.meta.duration_actions ?? []).find((d2) => d2.id === id);
-        if (!def) {
-          this.pushLog(`\u0414\u0432\u0438\u0433\u0430\u0442\u0435\u043B\u044C: \u0434\u043B\u0438\u0442\u0435\u043B\u044C\u043D\u043E\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435 '${id}' \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E \u0432 \u0440\u0435\u0435\u0441\u0442\u0440\u0435 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438.`);
-          this.notify();
-          return;
-        }
-        if (def.available_when && !def.available_when.every((c2) => evalCondition(c2, this))) return;
-        const min = Math.max(1, Math.floor(def.min_ticks ?? 1));
-        const max = Math.max(min, Math.floor(def.max_ticks ?? min));
-        if (ticks != null && ticks > 0) {
-          this.runDurationAction(def, ticks);
-          return;
-        }
-        if (max === min) {
-          this.runDurationAction(def, min);
-          return;
-        }
-        this.durationRequest = { kind: "action", action: def };
-        this.notify();
+        return checks.requestDurationAction.call(this, id, ticks);
       }
-      /** Выполнить длительное действие (с клампом длины в min..max и выравниванием по step). */
       runDurationAction(def, ticks) {
-        const min = Math.max(1, Math.floor(def.min_ticks ?? 1));
-        const max = Math.max(min, Math.floor(def.max_ticks ?? min));
-        const step = Math.max(1, Math.floor(def.step ?? 1));
-        let chosen = Math.min(max, Math.max(min, Number.isFinite(ticks) ? Math.floor(ticks) : min));
-        chosen = Math.min(max, min + step * Math.round((chosen - min) / step));
-        if (def.available_when && !def.available_when.every((c2) => evalCondition(c2, this))) return;
-        this.pushLog(`${def.label}: \u043D\u0430\u0447\u0430\u043B\u043E \u2014 ${chosen} \u0447.`);
-        this.runTicksFlow({
-          label: def.label,
-          ticks: chosen,
-          perTick: def.per_tick,
-          interruptChance: Math.max(0, Math.min(1, def.interrupt_chance_per_tick ?? 0)),
-          interruptRule: def.interrupt_rule,
-          breakWhen: def.break_when,
-          onFinish: def.on_finish
-        });
+        return checks.runDurationAction.call(this, def, ticks);
       }
       campRest(ticks) {
-        const cfg = this.campaign.meta.camping;
-        if (!cfg || !this.campAvailable().ok) return;
-        const min = Math.max(1, Math.floor(cfg.min_ticks ?? cfg.ticks ?? 8));
-        const max = Math.max(min, Math.floor(cfg.max_ticks ?? cfg.ticks ?? 8));
-        const chosen = Math.min(max, Math.max(min, Math.floor(ticks ?? cfg.ticks ?? 8)));
-        this.pushLog("\u0412\u044B \u0440\u0430\u0437\u0431\u0438\u0432\u0430\u0435\u0442\u0435 \u043B\u0430\u0433\u0435\u0440\u044C \u0438 \u0443\u0441\u0442\u0440\u0430\u0438\u0432\u0430\u0435\u0442\u0435\u0441\u044C \u043D\u0430 \u043D\u043E\u0447\u043B\u0435\u0433\u2026");
-        this.runTicksFlow({
-          label: "\u041D\u043E\u0447\u043B\u0435\u0433",
-          ticks: chosen,
-          perTick: cfg.per_tick,
-          after: () => {
-            this.restAndGrow();
-            this.restHeal();
-            if (cfg.restore) {
-              for (const [needId, v2] of Object.entries(cfg.restore)) {
-                if (v2 !== 0) this.changeNeed(needId, v2);
-              }
-            }
-            const chance = Math.max(0, Math.min(1, cfg.ambush_chance ?? 0));
-            if (chance > 0 && this.rng.chance(chance)) {
-              this.pushLog("\u041D\u043E\u0447\u044C\u044E \u2014 \u0442\u0440\u0435\u0432\u043E\u0433\u0430! \u0412 \u043B\u0430\u0433\u0435\u0440\u044C \u043A\u0442\u043E-\u0442\u043E \u043F\u0440\u043E\u043A\u0440\u0430\u043B\u0441\u044F!");
-              if (cfg.ambush_rule) this.fireRule(cfg.ambush_rule);
-            } else {
-              this.pushLog("\u041D\u043E\u0447\u044C \u043F\u0440\u043E\u0448\u043B\u0430 \u0441\u043F\u043E\u043A\u043E\u0439\u043D\u043E.");
-            }
-          }
-        });
+        return checks.campRest.call(this, ticks);
       }
-      /**
-       * Предложение переброска за удачу (аудит §5.6 п.8). Не сохраняется в сейв:
-       * если игрок закрыл игру с открытым предложением — применится ветка провала.
-       */
       luckOffer = null;
-      /** игрок ответил на предложение удачи (UI) */
       resolveLuckOffer(reroll) {
-        const offer = this.luckOffer;
-        this.luckOffer = null;
-        offer?.decide(reroll);
-        this.notify();
+        return checks.resolveLuckOffer.call(this, reroll);
       }
-      /** Бросок проверки характеристики героя (POW×5 — удача, INT×5 — идея). */
       statCheck(stat, multiplier = 5, modifier = 0) {
-        return this.playerCheckOutcome(
-          (this.state.player.stats[stat] ?? 0) * multiplier,
-          modifier,
-          `\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u0445\u0430\u0440\u0430\u043A\u0442\u0435\u0440\u0438\u0441\u0442\u0438\u043A\u0438 ${stat}\xD7${multiplier}`
-        );
+        return checks.statCheck.call(this, stat, multiplier, modifier);
       }
-      /**
-       * Синхронно бросить проверку и применить успех/провал-эффекты.
-       * Если включена удача и броска не вышло — игроку предлагают переброс,
-       * но эффекты ждут ответа (ложь возвращает «эффекты уже применились»).
-       */
       applyByCheck(outcome, describe, retry, onOk, onFail) {
-        if (outcome.success) {
-          onOk();
-          return false;
-        }
-        const cfg = this.campaign.meta.luck;
-        const cost = Math.max(1, cfg?.reroll_cost ?? 1);
-        if (!cfg || this.luckMax() <= 0 || this.luck() < cost) {
-          onFail();
-          return false;
-        }
-        this.changeLuck(-cost);
-        this.pushLog(`\u041F\u0440\u043E\u0432\u0430\u043B \u043C\u043E\u0436\u043D\u043E \u0438\u0441\u043F\u0440\u0430\u0432\u0438\u0442\u044C \u0437\u0430 \u0443\u0434\u0430\u0447\u0443: \u2212${cost} (\u043E\u0441\u0442\u0430\u043B\u043E\u0441\u044C ${this.luck()}).`);
-        this.luckOffer = {
-          text: `${describe} \u2014 \u043F\u0440\u043E\u0432\u0430\u043B (d100=${outcome.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${outcome.target}).`,
-          cost,
-          decide: (reroll) => {
-            if (reroll) {
-              const second = retry();
-              this.pushLog(`\u041F\u0435\u0440\u0435\u0431\u0440\u043E\u0441 \u0437\u0430 \u0443\u0434\u0430\u0447\u0443: d100=${second.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${second.target} \u2192 ${CHECK_RESULT_LABEL[second.result]}.`);
-              if (second.success) onOk();
-              else onFail();
-            } else {
-              this.pushLog("\u0423\u0434\u0430\u0447\u0430 \u043F\u0440\u0438\u0431\u0435\u0440\u0435\u0436\u0435\u043D\u0430 \u2014 \u043E\u0441\u0442\u0430\u0451\u0442\u0441\u044F \u043F\u0440\u043E\u0432\u0430\u043B.");
-              onFail();
-            }
-            this.checkRules();
-            this.autosave();
-          }
-        };
-        return true;
+        return checks.applyByCheck.call(this, outcome, describe, retry, onOk, onFail);
       }
-      /** единый путь мировых бросков героя: бросок + журнал (+ метки навыка в playerSkillCheck) */
-      playerCheckOutcome(target, modifier, describe) {
-        const out = skillCheck(Math.max(1, target), this.rng, modifier, this.diceRules);
-        this.pushLog(`${describe} \u2014 d100=${out.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${out.target}: ${CHECK_RESULT_LABEL[out.result]}`);
-        return out;
-      }
-      /**
-       * Аугмент страсти и подмога союзника (аудит B6, книжные аугменты):
-       * порог значения — meta.augments.threshold (умолчание 50),
-       * прибавка к броску — meta.augments.bonus (умолчание +20, книжно).
-       */
-      augmentBonus(e2, fallbackSkill) {
-        let mod = 0;
-        const cfg = this.campaign.meta.augments;
-        const threshold = Math.max(1, cfg?.threshold ?? 50);
-        const bonus = Math.max(0, cfg?.bonus ?? 20);
-        if (e2.augment_passion && this.passion(e2.augment_passion) >= threshold) {
-          mod += bonus;
-          this.pushLog(`\u0421\u0442\u0440\u0430\u0441\u0442\u044C \xAB${this.passionLabel(e2.augment_passion)}\xBB \u043F\u043E\u0434\u0445\u0432\u0430\u0442\u044B\u0432\u0430\u0435\u0442 \u0432\u0430\u0441 (+${bonus}%).`);
-        }
-        if (e2.assist_entity) {
-          const npc = this.campaign.entities[e2.assist_entity];
-          const sk = e2.assist_skill ?? fallbackSkill;
-          if (sk && (npc?.skills?.[sk] ?? 0) >= threshold) {
-            mod += bonus;
-            this.pushLog(`${npc?.label ?? e2.assist_entity} \u043F\u043E\u043C\u043E\u0433\u0430\u0435\u0442 (+${bonus}%).`);
-          }
-        }
-        return mod;
-      }
-      /**
-       * Противоборство навыком героя (аудит §5.6 п.6): бросок героя против
-       * броска оппонента (NPC или числовой порог), ранги из diceRules-таблицы.
-       */
       opposedCheck(e2) {
-        const skill = e2.skill;
-        const playerValue = Math.max(1, this.skillEffective(skill) + this.statusSkillMod(skill) + this.augmentBonus(e2, skill));
-        const player = this.playerCheckOutcome(playerValue, 0, `\u041F\u0440\u043E\u0442\u0438\u0432\u043E\u0431\u043E\u0440\u0441\u0442\u0432\u043E \xAB${this.skillLabel(skill)}\xBB (\u0433\u0435\u0440\u043E\u0439)`);
-        let rivalValue;
-        let rivalLabel = "";
-        if (e2.entity) {
-          const npc = this.campaign.entities[e2.entity];
-          const rSkill = e2.against_skill ?? skill;
-          rivalValue = Math.max(1, npc?.skills?.[rSkill] ?? 25);
-          rivalLabel = npc?.label ?? e2.entity;
-          if (npc && e2.against_skill) rivalLabel += ` (${this.skillLabel(rSkill)})`;
-        } else {
-          rivalValue = Math.max(1, e2.against_value ?? 50);
-          rivalLabel = `\u043F\u043E\u0440\u043E\u0433 ${rivalValue}`;
-        }
-        const rival = this.playerCheckOutcome(rivalValue, 0, `\u041F\u0440\u043E\u0442\u0438\u0432\u043E\u0431\u043E\u0440\u0441\u0442\u0432\u043E (${rivalLabel})`);
-        const RANK2 = { fumble: 0, fail: 1, success: 2, hard: 3, critical: 4 };
-        const cmp = (RANK2[player.result] ?? 1) - (RANK2[rival.result] ?? 1);
-        const wins = cmp > 0 || cmp === 0 && (e2.tie ?? "player") === "player";
-        if (cmp === 0) this.pushLog(`\u0420\u0430\u0432\u043D\u044B\u0439 \u0438\u0441\u0445\u043E\u0434 \u2014 \u043F\u043E\u0431\u0435\u0434\u0430 ${wins ? "\u0433\u0435\u0440\u043E\u044F" : "\u043E\u043F\u043F\u043E\u043D\u0435\u043D\u0442\u0430"} \u043F\u043E \u0443\u043C\u043E\u043B\u0447\u0430\u043D\u0438\u044E.`);
-        this.pushLog(wins ? "\u0413\u0435\u0440\u043E\u0439 \u043F\u043E\u0431\u0435\u0436\u0434\u0430\u0435\u0442 \u0432 \u043F\u0440\u043E\u0442\u0438\u0432\u043E\u0431\u043E\u0440\u0441\u0442\u0432\u0435." : "\u0413\u0435\u0440\u043E\u0439 \u043F\u0440\u043E\u0438\u0433\u0440\u044B\u0432\u0430\u0435\u0442 \u043F\u0440\u043E\u0442\u0438\u0432\u043E\u0431\u043E\u0440\u0441\u0442\u0432\u043E.");
-        if (player.success) this.markSkill(skill);
-        return { success: wins, player, rival };
+        return checks.opposedCheck.call(this, e2);
       }
-      // ─────────────── скрытность и обнаружение (аудит §5.6 п.12) ───────────────
-      /** включена ли скрытность мастером (meta.stealth); боевой режим — отдельно */
       stealthEnabled() {
-        return !!this.campaign.meta.stealth;
+        return encounters.stealthEnabled.call(this);
       }
-      /** герой сейчас крадётся */
       isSneaking() {
-        return this.state.stealth?.sneaking === true;
+        return encounters.isSneaking.call(this);
       }
-      /** героя заметили в текущей сцене */
       isDetected() {
-        return this.state.stealth?.detected === true;
+        return encounters.isDetected.call(this);
       }
-      /** Получает значение навыка игрока (с модификаторами статусов) */
       playerSkill(skill) {
-        return Math.max(0, (this.state.player.skills[skill] ?? 0) + this.statusSkillMod(skill));
+        return encounters.playerSkill.call(this, skill);
       }
-      /**
-       * Переключить красться/идти открыто. Вход в красться — моментальная
-       * проверка против всех наблюдателей в сцене; заметили — режим включён,
-       * но скрытым вас не считают.
-       */
       toggleSneak() {
-        if (!this.stealthEnabled()) return;
-        const st2 = this.state.stealth ??= { sneaking: false, detected: false };
-        const wasSneaking = st2.sneaking;
-        st2.sneaking = !wasSneaking;
-        st2.detected = false;
-        if (st2.sneaking) {
-          this.pushLog("\u0412\u044B \u043F\u0435\u0440\u0435\u0445\u043E\u0434\u0438\u0442\u0435 \u043D\u0430 \u0441\u043A\u0440\u044B\u0442\u043D\u043E\u0435 \u043F\u0435\u0440\u0435\u0434\u0432\u0438\u0436\u0435\u043D\u0438\u0435. \u0411\u0440\u043E\u0441\u043E\u043A \u0441\u043A\u0440\u044B\u0442\u043D\u043E\u0441\u0442\u0438 \u043F\u0440\u0438 \u0441\u043C\u0435\u043D\u0435 \u0441\u0446\u0435\u043D\u044B...");
-          this.detectCheck("\u0432\u044B \u043F\u043E\u044F\u0432\u043B\u044F\u0435\u0442\u0435\u0441\u044C \u0432 \u043F\u043E\u043B\u0435 \u0437\u0440\u0435\u043D\u0438\u044F");
-        } else {
-          this.pushLog("\u0412\u044B \u0431\u043E\u043B\u044C\u0448\u0435 \u043D\u0435 \u0441\u043A\u0440\u044B\u0432\u0430\u0435\u0442\u0435\u0441\u044C.");
-        }
-        this.autosave();
-        this.notify();
+        return encounters.toggleSneak.call(this);
       }
-      /**
-       * Проверка обнаружения: бросок скрытности героя против лучшей
-       * внимательности живых NPC в текущей сцене. Поражение — `detected`.
-       * Истина — остался незамеченным.
-       */
       detectCheck(context) {
-        if (!this.stealthEnabled() || !this.isSneaking() || this.isDetected()) return true;
-        const scene = this.currentScene();
-        if (!scene) return true;
-        const st2 = this.campaign.meta.stealth;
-        let bestNpc = null;
-        for (const occ of this.slotOccupants(scene)) {
-          const def = occ.entity;
-          if (!def || def.type !== "npc") continue;
-          const value = def.perception ?? Math.max(1, (def.skills[st2.perception_skill ?? "perception"] ?? 0) || def.stats.INT * 2);
-          if (!bestNpc || value > bestNpc.value) bestNpc = { label: def.label, value };
-        }
-        if (!bestNpc) return true;
-        const skill = st2.skill ?? "stealth";
-        const hero = Math.max(1, (this.state.player.skills[skill] ?? 0) + this.statusSkillMod(skill));
-        const mine = skillCheck(hero, this.rng, 0, this.diceRules);
-        const theirs = skillCheck(bestNpc.value, this.rng, 0, this.diceRules);
-        const RANK2 = { fumble: 0, fail: 1, success: 2, hard: 3, critical: 4 };
-        const wins = (RANK2[mine.result] ?? 1) >= (RANK2[theirs.result] ?? 1);
-        this.pushLog(
-          `\u0421\u043A\u0440\u044B\u0442\u043D\u043E\u0441\u0442\u044C (${context}): \u0432\u0430\u0448 ${mine.result} (d100=${mine.roll}/${hero}) \u043F\u0440\u043E\u0442\u0438\u0432 \xAB${bestNpc.label}\xBB ${theirs.result} (d100=${theirs.roll}/${bestNpc.value}) \u2192 ${wins ? "\u0432\u0430\u0441 \u043D\u0435 \u0437\u0430\u043C\u0435\u0442\u0438\u043B\u0438" : "\u0412\u0410\u0421 \u0417\u0410\u041C\u0415\u0422\u0418\u041B\u0418!"}`
-        );
-        if (!wins) {
-          this.state.stealth.detected = true;
-        }
-        return wins;
+        return encounters.detectCheck.call(this, context);
       }
-      /** Внезапность при начале боя из скрытности: враги застигнуты врасплох. */
       consumeSurpriseFromSneak() {
-        const st2 = this.state.stealth;
-        if (st2?.sneaking && !st2.detected) return true;
-        return false;
+        return encounters.consumeSurpriseFromSneak.call(this);
       }
-      // ─────────────── рост навыков (ТЗ 4.3) ───────────────
       markSkill(skill) {
-        if (!featureOn(this.campaign.meta, "skills")) return;
-        if (this.state.player.skills[skill] != null) this.state.player.skill_marks[skill] = true;
+        return character.markSkill.call(this, skill);
       }
-      /** Проверка навыка игрока с «галочкой» опыта при успехе. */
       playerSkillCheck(skill, difficulty = 50) {
-        if (!featureOn(this.campaign.meta, "skills")) {
-          return { roll: 0, target: 100, result: "success", success: true };
-        }
-        const value = Math.max(0, this.skillEffective(skill) + this.statusSkillMod(skill));
-        const out = skillCheck(value, this.rng, difficultyModifier(value, difficulty), this.diceRules);
-        this.pushLog(
-          `\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \xAB${this.skillLabel(skill)}\xBB (${difficultyLabel(difficulty)}) \u2014 d100=${out.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${out.target}: ${CHECK_RESULT_LABEL[out.result]}`
-        );
-        if (out.success) this.markSkill(skill);
-        return out;
+        return character.playerSkillCheck.call(this, skill, difficulty);
       }
-      /** Отдых: броски роста отмеченных навыков (d100 > навык → +1d6). */
-      /** русское название навыка (реестр кампании → встроенный словарь → id) */
       skillLabel(id) {
-        return skillLabel(id, this.campaign.meta.skills);
+        return character.skillLabel.call(this, id);
       }
       restAndGrow() {
-        if (!featureOn(this.campaign.meta, "skills")) return [];
-        const grown = [];
-        for (const skill of Object.keys(this.state.player.skill_marks)) {
-          const cur = this.state.player.skills[skill] ?? 0;
-          const roll = this.rng.int(1, 100);
-          if (roll > cur) {
-            const gain = rollDice("1d6", this.rng);
-            this.state.player.skills[skill] = cur + gain;
-            grown.push(`${this.skillLabel(skill)} +${gain} (${cur} \u2192 ${cur + gain})`);
-            this.pushLog(`\u041D\u0430\u0432\u044B\u043A \xAB${this.skillLabel(skill)}\xBB \u0432\u044B\u0440\u043E\u0441 \u043D\u0430 ${gain} (${cur} \u2192 ${cur + gain}).`);
-          }
-        }
-        this.state.player.skill_marks = {};
-        if (grown.length) {
-          this.messages.push({ text: `\u0412\u043E \u0441\u043D\u0435 \u043F\u0440\u0438\u0445\u043E\u0434\u0438\u0442 \u043E\u043F\u044B\u0442. \u0420\u043E\u0441\u0442 \u043D\u0430\u0432\u044B\u043A\u043E\u0432: ${grown.join(", ")}.` });
-          playUi("skill_up");
-        }
-        return grown;
+        return character.restAndGrow.call(this);
       }
-      // ─────────────── торговля (ТЗ 4.7) ───────────────
       openTrade(entityId) {
-        if (!featureOn(this.campaign.meta, "trade")) return;
-        const npc = this.campaign.entities[entityId];
-        if (!npc || npc.type !== "npc" || !npc.trader) return;
-        this.dialogue = null;
-        this.dialogueTimer = null;
-        this.trade = npc;
-        this.notify();
+        return economy.openTrade.call(this, entityId);
       }
       closeTrade() {
-        this.trade = null;
-        this.autosave();
-        this.notify();
+        return economy.closeTrade.call(this);
       }
-      /**
-       * Открыть окно изготовления по ходу игры (эффект `open_craft`, реплика
-       * `~ open_craft("recipe_id")`). Неизвестный или незаданный рецепт — просто
-       * открывается список: рецепт может открыться позже эффектом unlock_recipe.
-       * Разговор и торговля при этом закрываются, как у `open_trade`.
-       */
       openCraft(recipeId, sourceEntity) {
-        if (!featureOn(this.campaign.meta, "inventory")) return;
-        const known = recipeId && this.knownRecipes().some((r2) => r2.id === recipeId);
-        this.dialogue = null;
-        this.dialogueTimer = null;
-        this.activeStory = null;
-        this.activeNpc = null;
-        this.trade = null;
-        if (sourceEntity) this.craftSourceEntity = sourceEntity;
-        this.craftRequest = { recipe: known ? recipeId : void 0 };
-        this.notify();
+        return economy.openCraft.call(this, recipeId, sourceEntity);
       }
       closeCraft() {
-        this.craftRequest = null;
-        this.craftSourceEntity = null;
-        this.autosave();
-        this.notify();
+        return economy.closeCraft.call(this);
       }
-      // ─────────────── таймер выбора в диалоге ───────────────
-      /**
-       * Ink-вызов `~ set_dialogue_timer(секунды, "узел")`: сколько секунд игрок
-       * может думать над ответами и куда уйти, если он промолчал. Пустой узел —
-       * по истечении разговор заканчивается. `0` снимает таймер.
-       * Действует, только если на узле есть варианты ответа.
-       */
       setDialogueTimer(seconds, knot) {
-        const s2 = Math.floor(Number(seconds) || 0);
-        this.pendingDialogueTimer = s2 > 0 ? { seconds: s2, knot: knot ? String(knot) : void 0 } : null;
+        return dialogueRuntime.setDialogueTimer.call(this, seconds, knot);
       }
-      /**
-       * Зафиксировать таймер, объявленный ink-ом в этом проходе: он живёт, пока
-       * игроку показаны варианты ответа. Без вариантов таймер снимается, а
-       * забытый ink-ом таймер не «переезжает» на следующую реплику.
-       */
-      commitDialogueTimer(_choices) {
-        const next = this.pendingDialogueTimer;
-        this.pendingDialogueTimer = null;
-        this.dialogueTimer = next ? next : null;
-      }
-      /** Истёк таймер: уходим в назначенный узел или заканчиваем разговор. */
       dialogueTimeout() {
-        const t5 = this.dialogueTimer;
-        const story = this.activeStory;
-        this.dialogueTimer = null;
-        if (!t5 || !story || !this.dialogue) return;
-        if (!t5.knot) {
-          this.pushLog("\u0420\u0430\u0437\u0433\u043E\u0432\u043E\u0440 \u043E\u0431\u043E\u0440\u0432\u0430\u043B\u0441\u044F: \u0432\u044B \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u0434\u043E\u043B\u0433\u043E \u043C\u043E\u043B\u0447\u0430\u043B\u0438.");
-          this.endDialogue();
-          return;
-        }
-        try {
-          story.ChoosePathString(t5.knot);
-        } catch {
-          this.pushLog(`\u0423\u0437\u0435\u043B \xAB${t5.knot}\xBB \u0434\u043B\u044F \u0442\u0430\u0439\u043C\u0435\u0440\u0430 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D \u2014 \u0440\u0430\u0437\u0433\u043E\u0432\u043E\u0440 \u0437\u0430\u043A\u0430\u043D\u0447\u0438\u0432\u0430\u0435\u0442\u0441\u044F.`);
-          this.endDialogue();
-          return;
-        }
-        this.pushLog("\u0412\u044B \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u0434\u043E\u043B\u0433\u043E \u043C\u043E\u043B\u0447\u0430\u043B\u0438 \u2014 \u0441\u043E\u0431\u0435\u0441\u0435\u0434\u043D\u0438\u043A \u043F\u0435\u0440\u0435\u0432\u0451\u043B \u0440\u0430\u0437\u0433\u043E\u0432\u043E\u0440 \u043D\u0430 \u0441\u0432\u043E\u0451.");
-        const drained = drainStory(story);
-        for (const l2 of drained.lines) {
-          this.dialogueHistory.push({
-            speaker: l2.action ? "" : this.dlgSpeakerLabel(l2, this.dialogue.npc),
-            text: l2.text,
-            emotion: l2.emotion,
-            action: l2.action
-          });
-        }
-        if (this.combat || this.trade || this.craftRequest || this.state.game_over || !this.activeStory) {
-          this.dialogue = null;
-          this.dialogueHistory = [];
-          this.activeStory = null;
-          this.activeNpc = null;
-          this.notify();
-          return;
-        }
-        this.dialogue = {
-          npc: this.dialogue.npc,
-          lines: drained.lines,
-          choices: drained.choices,
-          finished: drained.finished,
-          history: [...this.dialogueHistory]
-        };
-        this.commitDialogueTimer(drained.choices.length);
-        this.commitDialoguePresenting();
-        this.dialogue.timer = this.dialogueTimer ?? void 0;
-        this.notify();
+        return dialogueRuntime.dialogueTimeout.call(this);
       }
-      // ─────────────── предъявление предмета в диалоге ───────────────
-      /**
-       * Ink-вызов `~ present_item("ok_knot", "fail_knot", "required_item")`:
-       * предлагает игроку выбрать предмет из инвентаря для предъявления собеседнику.
-       */
       promptPresentItem(okKnot, failKnot, required) {
-        this.pendingDialoguePresenting = { ok: okKnot, fail: failKnot, required: required || void 0 };
+        return dialogueRuntime.promptPresentItem.call(this, okKnot, failKnot, required);
       }
-      commitDialoguePresenting() {
-        const next = this.pendingDialoguePresenting;
-        this.pendingDialoguePresenting = null;
-        if (this.dialogue) {
-          this.dialogue.presenting = next ? next : void 0;
-        }
-      }
-      /**
-       * Игрок выбрал предмет для предъявления (или отменил выбор: itemId === null).
-       */
       submitPresentedItem(itemId) {
-        const pres = this.dialogue?.presenting;
-        const story = this.activeStory;
-        if (!pres || !story || !this.dialogue) return;
-        this.dialogue.presenting = void 0;
-        if (itemId) {
-          playUi("dialogue_present");
-          const itDef = this.campaign.entities[itemId];
-          this.dialogueHistory.push({
-            speaker: this.state.player.name || "\u0412\u044B",
-            text: `[\u041F\u0440\u0435\u0434\u044A\u044F\u0432\u043B\u0435\u043D\u043E: ${itDef?.label || itemId}]`,
-            isChoice: true
-          });
-        } else {
-          playUi("click");
-          this.dialogueHistory.push({
-            speaker: this.state.player.name || "\u0412\u044B",
-            text: "[\u041D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u043F\u0440\u0435\u0434\u044A\u044F\u0432\u043B\u0435\u043D\u043E]",
-            isChoice: true
-          });
-        }
-        const success = itemId ? !pres.required || pres.required === itemId : false;
-        const targetKnot = success ? pres.ok : pres.fail;
-        try {
-          story.ChoosePathString(targetKnot);
-        } catch {
-          this.pushLog(`\u0423\u0437\u0435\u043B \xAB${targetKnot}\xBB \u0434\u043B\u044F \u0440\u0435\u0437\u0443\u043B\u044C\u0442\u0430\u0442\u0430 \u043F\u0440\u0435\u0434\u044A\u044F\u0432\u043B\u0435\u043D\u0438\u044F \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D.`);
-          this.endDialogue();
-          return;
-        }
-        const drained = drainStory(story);
-        for (const l2 of drained.lines) {
-          this.dialogueHistory.push({
-            speaker: l2.action ? "" : this.dlgSpeakerLabel(l2, this.dialogue.npc),
-            text: l2.text,
-            emotion: l2.emotion,
-            action: l2.action
-          });
-        }
-        if (this.combat || this.trade || this.craftRequest || this.state.game_over || !this.activeStory) {
-          this.dialogue = null;
-          this.dialogueHistory = [];
-          this.activeStory = null;
-          this.activeNpc = null;
-          this.notify();
-          return;
-        }
-        this.dialogue = {
-          npc: this.dialogue.npc,
-          lines: drained.lines,
-          choices: drained.choices,
-          finished: drained.finished,
-          history: [...this.dialogueHistory]
-        };
-        this.commitDialogueTimer(drained.choices.length);
-        this.commitDialoguePresenting();
-        this.dialogue.timer = this.dialogueTimer ?? void 0;
-        this.notify();
+        return dialogueRuntime.submitPresentedItem.call(this, itemId);
       }
-      /** Модификатор цены: репутация и навык торговли (ТЗ 4.7). */
       priceModifier(npc) {
-        const disp = this.getDisposition(npc.id);
-        const bargain = this.state.player.skills["bargain"] ?? 0;
-        const mod = 1.25 - disp * 3e-3 - bargain * 4e-3;
-        return Math.min(1.6, Math.max(0.7, mod));
+        return economy.priceModifier.call(this, npc);
       }
-      /** id основной валюты кампании (первая в реестре) */
       get mainCurrency() {
-        return this.campaign.meta.currencies[0]?.id ?? "silver";
+        return economy.mainCurrency.call(this);
       }
-      /** id предмета-монеты, который является единственным источником баланса */
       currencyItemId(currencyId = this.mainCurrency) {
-        const currency = this.campaign.meta.currencies.find((c2) => c2.id === currencyId);
-        return currency?.item_id || `item_${currencyId}`;
+        return economy.currencyItemId.call(this, currencyId);
       }
-      /** Баланс валюты читается из инвентаря, а не из устаревшего поля сохранения. */
       currencyAmount(currencyId = this.mainCurrency) {
-        return this.itemCount(this.currencyItemId(currencyId));
+        return economy.currencyAmount.call(this, currencyId);
       }
       buyPrice(npc, itemId, basePrice) {
-        const item = this.campaign.entities[itemId];
-        const base = basePrice ?? item?.value?.[this.mainCurrency] ?? 1;
-        const dynamic = item ? this.priceEventMultiplier(item) : 1;
-        const diff = this.difficultyDef()?.prices ?? 1;
-        return Math.max(1, Math.round(base * this.priceModifier(npc) * dynamic * diff));
+        return economy.buyPrice.call(this, npc, itemId, basePrice);
       }
       sellPrice(npc, itemId) {
-        const item = this.campaign.entities[itemId];
-        if (item?.quest_item) return 0;
-        const base = item?.value?.[this.mainCurrency] ?? 0;
-        const rate = npc.trader?.buy_rate ?? 0.4;
-        const dynamic = item ? this.priceEventMultiplier(item) : 1;
-        return Math.max(0, Math.floor(base * rate * dynamic / this.priceModifier(npc)));
+        return economy.sellPrice.call(this, npc, itemId);
       }
-      /** полный список продаваемых торговцем товаров, включая выкупленные у игрока */
       traderSells(npc) {
-        if (!npc.trader) return [];
-        const base = [...npc.trader.sells];
-        const bought = this.state.trader_bought_items?.[npc.id] ?? [];
-        for (const b2 of bought) {
-          if (!base.some((s2) => s2.item === b2.item)) {
-            base.push(b2);
-          }
-        }
-        return base;
+        return economy.traderSells.call(this, npc);
       }
-      /** текущий остаток товара на складе торговца (undefined — бесконечный запас) */
       traderItemStock(npcId, itemId) {
-        const npc = this.campaign.entities[npcId];
-        if (!npc?.trader) return void 0;
-        const traderSaved = this.state.trader_stocks?.[npcId];
-        if (traderSaved && itemId in traderSaved) {
-          return traderSaved[itemId];
-        }
-        const sellDef = npc.trader.sells.find((s2) => s2.item === itemId);
-        if (sellDef && sellDef.stock !== void 0) return sellDef.stock;
-        const boughtDef = (this.state.trader_bought_items?.[npcId] ?? []).find((s2) => s2.item === itemId);
-        if (boughtDef && boughtDef.stock !== void 0) return boughtDef.stock;
-        return void 0;
+        return economy.traderItemStock.call(this, npcId, itemId);
       }
       buyItem(itemId, price) {
-        const currencyItem = this.currencyItemId();
-        if (this.itemCount(currencyItem) < price) return false;
-        if (this.trade) {
-          const stock = this.traderItemStock(this.trade.id, itemId);
-          if (stock !== void 0 && stock <= 0) return false;
-        }
-        this.removeItem(currencyItem, price, { silent: true });
-        this.addItem(itemId, 1, { silent: true });
-        if (this.trade) {
-          const stock = this.traderItemStock(this.trade.id, itemId);
-          if (stock !== void 0) {
-            if (!this.state.trader_stocks) this.state.trader_stocks = {};
-            if (!this.state.trader_stocks[this.trade.id]) this.state.trader_stocks[this.trade.id] = {};
-            this.state.trader_stocks[this.trade.id][itemId] = Math.max(0, stock - 1);
-          }
-        }
-        this.markSkill("bargain");
-        playUi("coin");
-        this.notify();
-        return true;
+        return economy.buyItem.call(this, itemId, price);
       }
       sellItem(itemId, price) {
-        const item = this.campaign.entities[itemId];
-        if (item?.quest_item) return false;
-        if (this.itemCount(itemId) < 1) return false;
-        this.removeItem(itemId, 1, { silent: true });
-        this.addItem(this.currencyItemId(), price, { silent: true });
-        if (this.trade) {
-          const traderId = this.trade.id;
-          const npc = this.campaign.entities[traderId];
-          if (npc?.trader) {
-            const inBase = npc.trader.sells.some((s2) => s2.item === itemId);
-            if (inBase) {
-              const curStock = this.traderItemStock(traderId, itemId);
-              if (curStock !== void 0) {
-                if (!this.state.trader_stocks) this.state.trader_stocks = {};
-                if (!this.state.trader_stocks[traderId]) this.state.trader_stocks[traderId] = {};
-                this.state.trader_stocks[traderId][itemId] = curStock + 1;
-              }
-            } else {
-              if (!this.state.trader_bought_items) this.state.trader_bought_items = {};
-              if (!this.state.trader_bought_items[traderId]) this.state.trader_bought_items[traderId] = [];
-              const existing = this.state.trader_bought_items[traderId].find((s2) => s2.item === itemId);
-              const curStock = this.traderItemStock(traderId, itemId) ?? 0;
-              const nextStock = curStock + 1;
-              if (!existing) {
-                this.state.trader_bought_items[traderId].push({ item: itemId, stock: nextStock });
-              } else {
-                existing.stock = nextStock;
-              }
-              if (!this.state.trader_stocks) this.state.trader_stocks = {};
-              if (!this.state.trader_stocks[traderId]) this.state.trader_stocks[traderId] = {};
-              this.state.trader_stocks[traderId][itemId] = nextStock;
-            }
-          }
-        }
-        this.markSkill("bargain");
-        playUi("coin");
-        this.notify();
-        return true;
+        return economy.sellItem.call(this, itemId, price);
       }
-      // ─────────────── крафт (блок 4 ТЗ «Гибкий движок») ───────────────
-      /** название предмета по id (фолбэк — сам id) */
-      itemTitle(id) {
-        return this.campaign.entities[id]?.label ?? id;
-      }
-      /** все рецепты кампании, по алфавиту (русский) */
       allRecipes() {
-        return Object.values(this.campaign.recipes).sort((a2, b2) => a2.label.localeCompare(b2.label, "ru"));
+        return economy.allRecipes.call(this);
       }
-      /** доступен ли конкретный верстак / рабочее место в текущем контексте */
       isWorkbenchAvailable(workbenchReq) {
-        if (!workbenchReq) return true;
-        if (typeof workbenchReq === "string") {
-          if (this.craftSourceEntity) {
-            if (this.craftSourceEntity.id === workbenchReq || this.craftSourceEntity.category === workbenchReq) {
-              return true;
-            }
-          }
-          const sc2 = this.campaign.scenes[this.state.scene];
-          if (sc2) {
-            const occupants = this.slotOccupants(sc2);
-            for (const occ of occupants) {
-              if (!occ.entity) continue;
-              const it2 = occ.entity;
-              if (it2.id === workbenchReq || it2.category === workbenchReq) return true;
-              if (occ.slot.type.includes(workbenchReq)) return true;
-            }
-          }
-          const loc2 = this.findLocation(this.state.location)?.location;
-          if (loc2 && loc2[workbenchReq]) return true;
-          return false;
-        }
-        if (this.craftRequest || this.craftSourceEntity) return true;
-        const sc = this.campaign.scenes[this.state.scene];
-        if (sc) {
-          if (sc.workbench) return true;
-          const occupants = this.slotOccupants(sc);
-          for (const occ of occupants) {
-            if (!occ.entity) continue;
-            const it2 = occ.entity;
-            if (it2.id === "item_bench" || it2.category === "workbench") return true;
-            if (occ.slot.type.includes("workbench")) return true;
-            if (it2.interact_options?.some((o2) => o2.effects?.some((ef) => ef.type === "open_craft"))) return true;
-          }
-        }
-        const loc = this.findLocation(this.state.location)?.location;
-        if (loc && loc.workbench) return true;
-        return false;
+        return economy.isWorkbenchAvailable.call(this, workbenchReq);
       }
-      /** Название рабочего места для подсказки в интерфейсе */
       workbenchLabel(req) {
-        if (!req) return "";
-        if (req === true) return "\u0412\u0435\u0440\u0441\u0442\u0430\u043A \u0438\u043B\u0438 \u043C\u0430\u0441\u0442\u0435\u0440\u0441\u043A\u0430\u044F";
-        if (typeof req === "string") {
-          const ent = this.campaign.entities[req];
-          if (ent) return ent.label;
-          const cat = this.campaign.meta.item_categories?.find((c2) => c2.id === req);
-          if (cat) return cat.label;
-          return req;
-        }
-        return "";
+        return economy.workbenchLabel.call(this, req);
       }
-      /** чего не хватает для рецепта: компоненты, инструменты, условия, верстак */
       recipeMissing(r2) {
-        const missing = [];
-        if (r2.workbench && !this.isWorkbenchAvailable(r2.workbench)) {
-          missing.push(`\u0442\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F: ${this.workbenchLabel(r2.workbench)}`);
-        }
-        for (const need of r2.inputs ?? []) {
-          const have = this.itemCount(need.item);
-          if (have < need.quantity) missing.push(`${this.itemTitle(need.item)} \xD7${need.quantity} (\u0435\u0441\u0442\u044C ${have})`);
-        }
-        for (const tool of r2.tools ?? []) {
-          if (!this.hasItem(tool)) missing.push(`\u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442: ${this.itemTitle(tool)}`);
-        }
-        let blocked = false;
-        for (const c2 of r2.requires ?? []) {
-          if (!evalCondition(c2, this)) blocked = true;
-        }
-        if (blocked) missing.push("\u043D\u0435 \u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D\u044B \u0443\u0441\u043B\u043E\u0432\u0438\u044F");
-        return missing;
+        return economy.recipeMissing.call(this, r2);
       }
-      /**
-       * Изготовление по рецепту. Если у рецепта есть проверка навыка — бросок
-       * идёт первым: провал сохраняет компоненты. Успех расходует компоненты,
-       * выдаёт результат и проматывает время.
-       */
       craft(recipeId) {
-        const r2 = this.campaign.recipes[recipeId];
-        if (!r2 || this.recipeMissing(r2).length > 0) return false;
-        if (r2.repair && !this.hasDamaged(r2.output.item)) {
-          this.messages.push({ text: `\u041D\u0435 \u0438\u0437\u043D\u0430\u0448\u0438\u0432\u0448\u0438\u0439\u0441\u044F \xAB${this.itemTitle(r2.output.item)}\xBB \u2014 \u0447\u0438\u043D\u0438\u0442\u044C \u043D\u0435\u0447\u0435\u0433\u043E.` });
-          return false;
-        }
-        if (r2.skill) {
-          const out = this.playerSkillCheck(r2.skill.id, r2.skill.difficulty);
-          if (!out.success) {
-            const spent = Math.max(0, Math.floor(r2.fail_time_ticks ?? 0));
-            if (spent > 0 && !this.state.game_over) this.advanceTicks(spent);
-            this.messages.push({ text: `\u041D\u0435 \u043F\u043E\u043B\u0443\u0447\u0438\u043B\u043E\u0441\u044C \u0438\u0437\u0433\u043E\u0442\u043E\u0432\u0438\u0442\u044C \xAB${r2.label}\xBB. \u041C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u044B \u043E\u0441\u0442\u0430\u043B\u0438\u0441\u044C \u0446\u0435\u043B\u044B.${spent > 0 ? ` \u041F\u043E\u0442\u0440\u0430\u0447\u0435\u043D\u043E ${spent} \u0442\u0438\u043A(\u043E\u0432) \u0432\u0440\u0435\u043C\u0435\u043D\u0438.` : ""}` });
-            this.autosave();
-            this.notify();
-            return false;
-          }
-        }
-        for (const need of r2.inputs ?? []) this.removeItem(need.item, need.quantity, { silent: true });
-        if (r2.repair) {
-          this.repairItem(r2.output.item);
-        } else {
-          this.addItem(r2.output.item, r2.output.quantity ?? 1);
-        }
-        if (r2.time_ticks) this.advanceTicks(r2.time_ticks);
-        const outLabel = this.itemTitle(r2.output.item);
-        this.pushLog(`\u0418\u0437\u0433\u043E\u0442\u043E\u0432\u043B\u0435\u043D\u043E: ${outLabel} (\u0440\u0435\u0446\u0435\u043F\u0442 \xAB${r2.label}\xBB).`);
-        this.messages.push({ text: r2.message ?? `\u0418\u0437\u0433\u043E\u0442\u043E\u0432\u043B\u0435\u043D\u043E: ${outLabel}.` });
-        if (r2.sound) playInteraction(r2.sound, { sound: r2.sound }, r2.sound_volume ?? 1);
-        else playUi("craft");
-        this.autosave();
-        this.notify();
-        return true;
+        return economy.craft.call(this, recipeId);
       }
-      // ─────────────── случайные встречи (ТЗ 4.9) ───────────────
       rollEncounter(conn) {
-        if (!conn.random_encounter_table) return;
-        const table = this.campaign.encounters[conn.random_encounter_table];
-        if (!table) return;
-        for (let roll = 0; roll < (table.rolls ?? 1); roll++) {
-          const total = table.entries.reduce((s2, e2) => s2 + e2.weight, 0);
-          let pick = this.rng.next() * total;
-          let entry = null;
-          for (const e2 of table.entries) {
-            pick -= e2.weight;
-            if (pick <= 0) {
-              entry = e2;
-              break;
-            }
-          }
-          if (!entry) continue;
-          this.resolveEncounter(entry);
-          if (this.combat || this.state.game_over) return;
-        }
+        return encounters.rollEncounter.call(this, conn);
       }
-      resolveEncounter(entry) {
-        switch (entry.type) {
-          case "nothing":
-            return;
-          case "combat": {
-            if (!featureOn(this.campaign.meta, "combat")) return;
-            const enemies = entry.enemies.map((e2) => ({
-              entity: e2.entity,
-              count: this.rng.int(e2.count_min, e2.count_max)
-            }));
-            this.startCombat({
-              type: "start_combat",
-              enemies,
-              arena: entry.arena,
-              intro: entry.intro ?? "\u0412 \u0434\u043E\u0440\u043E\u0433\u0435 \u043D\u0430 \u0432\u0430\u0441 \u043D\u0430\u043F\u0430\u0434\u0430\u044E\u0442!"
-            });
-            return;
-          }
-          case "dialogue":
-            this.startDialogue(entry.entity, entry.knot);
-            return;
-          case "skill_check": {
-            const out = this.playerSkillCheck(entry.skill, entry.difficulty);
-            if (entry.message) this.messages.push({ text: entry.message });
-            this.applyEffects(out.success ? entry.success_effects : entry.fail_effects);
-            return;
-          }
-          case "event":
-            this.applyEffects(entry.effects);
-            if (entry.message) this.messages.push({ text: entry.message });
-            return;
-        }
-      }
-      // ─────────────── мир: регионы, локации, сцены ───────────────
       allRegions() {
-        const out = [];
-        const walk2 = (rs) => {
-          for (const r2 of rs) {
-            out.push(r2);
-            if (r2.sub_regions) walk2(r2.sub_regions);
-          }
-        };
-        walk2(this.campaign.world.regions);
-        return out;
+        return world.allRegions(this);
       }
       findRegion(id) {
-        return this.allRegions().find((r2) => r2.id === id);
+        return world.findRegion(this, id);
       }
       findLocation(id) {
-        for (const region of this.allRegions()) {
-          const location = region.locations.find((l2) => l2.id === id);
-          if (location) return { region, location };
-        }
-        return void 0;
+        return world.findLocation(this, id);
       }
       currentScene() {
-        return this.campaign.scenes[this.state.scene];
+        return world.currentScene(this);
       }
-      /**
-       * Сцена, в которую игрок попадает при входе в локацию (итерация 8, А5):
-       * arrival_scene локации, если она есть среди её сцен, иначе первая.
-       */
       arrivalSceneOf(location) {
-        const arrival = location.arrival_scene;
-        if (arrival && location.scenes.includes(arrival)) return arrival;
-        return location.scenes[0];
+        return world.arrivalSceneOf(this, location);
       }
-      /** Правила бросков d100 этой кампании (итерация 8, А7). */
       get diceRules() {
-        return this.campaign.meta.dice_rules ?? DEFAULT_DICE_RULES;
+        return checks.diceRules.call(this);
       }
-      /** Активное состояние сцены: первое, чьё условие истинно; иначе первое. */
+      // Selection in world.activeSceneState: st.condition && evalSceneCondition(st.condition, this).
       activeSceneState(scene) {
-        for (const st2 of scene.states) {
-          if (this.state.flags[`scene_state:${scene.id}:${st2.id}`]) return st2;
-        }
-        for (const st2 of scene.states) {
-          if (st2.condition && evalSceneCondition(st2.condition, this)) return st2;
-        }
-        const base = scene.states.find((st2) => !st2.condition);
-        return base ?? scene.states[0];
+        return world.activeSceneState(this, scene);
       }
       changeSceneState(sceneIdOrState, maybeState) {
-        const sceneId = maybeState ? sceneIdOrState : this.state.scene;
-        const stateId = maybeState ?? sceneIdOrState;
-        const sc = this.campaign.scenes[sceneId];
-        if (sc) {
-          for (const st2 of sc.states) {
-            delete this.state.flags[`scene_state:${sceneId}:${st2.id}`];
-          }
-          this.state.flags[`scene_state:${sceneId}:${stateId}`] = true;
-          this.notify();
-        }
+        world.changeSceneState(this, sceneIdOrState, maybeState);
       }
       goToSceneFromDialogue(sceneId, closeDialogue = true) {
-        if (closeDialogue) {
-          this.endDialogue();
-        }
-        this.goToScene(sceneId, 0);
+        world.goToSceneFromDialogue(this, sceneId, closeDialogue);
       }
       startCombatFromDialogue(arenaId) {
-        const enemyId = this.activeNpc?.id || Object.keys(this.campaign.entities).find((k2) => this.campaign.entities[k2]?.type === "npc") || "";
-        this.endDialogue();
-        this.startCombat({
-          type: "start_combat",
-          arena: arenaId,
-          enemies: [{ entity: enemyId, count: 1 }],
-          intro: `\u0411\u043E\u0439 \u0441 ${this.activeNpc?.label ?? "\u043F\u0440\u043E\u0442\u0438\u0432\u043D\u0438\u043A\u043E\u043C"}!`
-        });
+        world.startCombatFromDialogue(this, arenaId);
       }
-      /** Активное «особое место» НПС: первый оверрайд, чей флаг-условие выполнено. */
-      activePresenceOverride(def) {
-        if (def.type !== "npc" || !def.presence_overrides) return void 0;
-        return def.presence_overrides.find(
-          (o2) => (!o2.flag || !!this.state.flags[o2.flag]) && (!o2.not_flag || !this.state.flags[o2.not_flag])
-        );
-      }
-      /**
-       * Есть ли у NPC реальное расписание (непустой массив). Пустой `schedule: []`
-       * — частый артефакт редактора/ИИ: это «расписания нет», а не «занят всегда
-       * где-то ещё». Иначе default_entity в слоте никогда не появляется.
-       */
-      npcHasSchedule(def) {
-        return def.type === "npc" && Array.isArray(def.schedule) && def.schedule.length > 0;
-      }
-      npcHasPresenceOverrides(def) {
-        return def.type === "npc" && Array.isArray(def.presence_overrides) && def.presence_overrides.length > 0;
-      }
-      /** Занятость слотов с учётом расписаний NPC (ТЗ 4.1: обновление расписания). */
       slotOccupants(scene) {
-        const hour = hourOfDay(this.state.tick, this.campaign.meta);
-        const out = [];
-        for (const slot of scene.slots) {
-          if (!evalSceneCondition(slot.condition, this)) continue;
-          let entity = null;
-          const spawned = this.state.spawned.find((s2) => s2.scene === scene.id && s2.slot === slot.id);
-          if (spawned) entity = this.campaign.entities[spawned.entity] ?? null;
-          if (!entity) {
-            for (const def of Object.values(this.campaign.entities)) {
-              if (def.type !== "npc" || !this.npcHasSchedule(def) && !this.npcHasPresenceOverrides(def)) continue;
-              if (this.state.dead_entities.includes(def.id)) continue;
-              if (this.state.removed_entities.includes(def.id)) continue;
-              if (this.isInParty(def.id)) continue;
-              const ov = this.activePresenceOverride(def);
-              if (ov) {
-                if (ov.scene === scene.id && ov.slot === slot.id) {
-                  entity = def;
-                  break;
-                }
-                continue;
-              }
-              const entry = def.schedule?.find(
-                (e2) => e2.scene === scene.id && e2.slot === slot.id && inTimeRange(hour, e2.time_range)
-              );
-              if (entry) {
-                entity = def;
-                break;
-              }
-            }
-          }
-          if (!entity && slot.default_entity) {
-            const def = this.campaign.entities[slot.default_entity];
-            const busyElsewhere = def?.type === "npc" && (this.npcHasSchedule(def) || !!this.activePresenceOverride(def));
-            const gone = this.state.dead_entities.includes(slot.default_entity) || this.state.removed_entities.includes(slot.default_entity) || this.isInParty(slot.default_entity);
-            if (def && !busyElsewhere && !gone) entity = def;
-          }
-          out.push({ slot, entity });
-        }
-        return out;
+        return world.slotOccupants(this, scene);
       }
-      /** Переход между сценами внутри локации (или в сцену другой локации). */
       goToScene(sceneId, costTicks = 0) {
-        const scene = this.campaign.scenes[sceneId];
-        if (!scene) return;
-        stopVoiceAudio();
-        if (costTicks > 0) this.advanceTicks(costTicks);
-        if (this.state.game_over) return this.notify();
-        playInteraction("travel");
-        const prevLocation = this.state.location;
-        this.state.scene = sceneId;
-        this.state.location = scene.location;
-        if (this.state.stealth) this.state.stealth.detected = false;
-        if (this.isSneaking()) this.detectCheck("\u0441\u043C\u0435\u043D\u0430 \u0441\u0446\u0435\u043D\u044B");
-        if (scene.location !== prevLocation) {
-          this.onEnterLocation(scene.location);
-        } else {
-          this.checkRules();
-          this.autosave();
-        }
-        this.fireTrigger("enter_scene", { sceneId });
-        this.notify();
+        world.goToScene(this, sceneId, costTicks);
       }
-      /**
-       * Проверка и выполнение перехода по зоне навигации (с поддержкой условий блокировки,
-       * сообщений, окликов персонажей и правил-перехватчиков).
-       */
       navigate(nav) {
-        if (nav.open_map) return false;
-        if (nav.conditions && nav.conditions.length > 0) {
-          const ok = nav.conditions.every((c2) => evalCondition(c2, this));
-          if (!ok) {
-            if (nav.blocked_message) {
-              this.pushLog(nav.blocked_message);
-              this.messages.push({ text: nav.blocked_message });
-              this.notify();
-            }
-            return false;
-          }
-        }
-        if (nav.intercept_dialogue) {
-          this.startDialogue(nav.intercept_dialogue);
-          return false;
-        }
-        if (nav.intercept_rule) {
-          const fired = this.tryFireRule(nav.intercept_rule);
-          if (fired) return false;
-        }
-        const blocked = this.fireTrigger("leave_scene", { sceneId: this.state.scene });
-        if (blocked) return false;
-        if (nav.go_to_scene) {
-          this.goToScene(nav.go_to_scene, nav.cost_ticks ?? 0);
-          return true;
-        }
-        return false;
+        return world.navigate(this, nav);
       }
-      /** Путешествие между локациями по travel_connections (ТЗ 4.9). */
       travelTo(locationId) {
-        if (this.isTravelBlockedByOverload()) {
-          const load = this.currentLoad();
-          const max = this.maxLoad();
-          this.messages.push({
-            text: `\u0413\u0440\u0443\u0437 \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u0432\u0435\u043B\u0438\u043A (${load.toFixed(1)} \u043A\u0433 \u043F\u0440\u0438 \u043B\u0438\u043C\u0438\u0442\u0435 ${max.toFixed(1)} \u043A\u0433). \u0412\u044B \u043D\u0435 \u043C\u043E\u0436\u0435\u0442\u0435 \u043E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u044C\u0441\u044F \u0432 \u043F\u0443\u0442\u044C \u0441 \u043A\u0440\u0438\u0442\u0438\u0447\u0435\u0441\u043A\u0438\u043C \u043F\u0435\u0440\u0435\u0433\u0440\u0443\u0437\u043E\u043C \u2014 \u0441\u0431\u0440\u043E\u0441\u044C\u0442\u0435 \u043B\u0438\u0448\u043D\u0438\u0435 \u0432\u0435\u0449\u0438.`
-          });
-          this.notify();
-          return;
-        }
-        const from = this.findLocation(this.state.location);
-        const conn = from?.location.travel_connections.find((c2) => c2.to === locationId);
-        const cost = this.travelCost(locationId) ?? conn?.cost_ticks ?? 1;
-        if (this.state.blocked_paths.includes(`${this.state.location}->${locationId}`)) {
-          this.messages.push({ text: "\u041F\u0443\u0442\u044C \u0437\u0430\u043A\u0440\u044B\u0442." });
-          this.notify();
-          return;
-        }
-        if (conn?.requirements && !conn.requirements.every((c2) => evalCondition(c2, this))) {
-          this.messages.push({ text: "\u041F\u0443\u0442\u044C \u0437\u0430\u043A\u0440\u044B\u0442." });
-          this.notify();
-          return;
-        }
-        if (conn?.depart_sound) playInteraction(conn.depart_sound, { sound: conn.depart_sound }, conn.depart_sound_volume ?? 1);
-        else if (conn?.sound) playInteraction(conn.sound, { sound: conn.sound }, conn.sound_volume ?? 1);
-        else playUi("travel_depart");
-        this.advanceTicks(cost);
-        this.state.stats_run.travels += 1;
-        if (this.state.game_over) return this.notify();
-        const target = this.findLocation(locationId);
-        if (!target) return;
-        this.state.region = target.region.id;
-        this.state.location = locationId;
-        const firstScene = this.arrivalSceneOf(target.location);
-        if (firstScene) this.state.scene = firstScene;
-        if (conn?.arrive_sound) playInteraction(conn.arrive_sound, { sound: conn.arrive_sound }, conn.arrive_sound_volume ?? 1);
-        else playUi("travel_arrive");
-        this.onEnterLocation(locationId);
-        if (conn && !this.state.game_over && !this.combat) this.rollEncounter(conn);
-        this.notify();
+        world.travelTo(this, locationId, (conn) => this.rollEncounter(conn));
       }
-      onEnterLocation(locationId) {
-        this.state.location = locationId;
-        this.runLocationRules(locationId);
-        this.checkRules();
-        this.autosave();
-      }
-      /** Локации региона, доступные/видимые на карте. */
       visibleLocations(region) {
-        return region.locations.filter(
-          (l2) => !l2.hidden || this.state.revealed_locations.includes(l2.id)
-        );
+        return world.visibleLocations(this, region);
       }
-      /**
-       * Время пути до локации в тиках с учётом штрафов перегруза
-       */
       travelCost(toLocation) {
-        const from = this.findLocation(this.state.location);
-        const conn = from?.location.travel_connections.find((c2) => c2.to === toLocation);
-        if (!conn) return null;
-        const baseCost = conn.cost_ticks ?? 1;
-        const encRules = this.campaign.meta.encumbrance;
-        if (encRules?.enabled === false || encRules?.travel_penalty === false) {
-          return baseCost;
-        }
-        const status = this.encumbranceStatus();
-        if (status === "critical") {
-          return null;
-        }
-        if (status === "heavy") {
-          const mult = encRules?.heavy_travel_multiplier ?? 2;
-          return Math.max(baseCost + 1, Math.round(baseCost * mult));
-        }
-        if (status === "light") {
-          const mult = encRules?.light_travel_multiplier ?? 1.5;
-          return Math.max(baseCost + 1, Math.round(baseCost * mult));
-        }
-        return baseCost;
+        return world.travelCost(this, toLocation);
       }
-      /**
-       * Базовая стоимость пути без учёта штрафа перегруза (для отображения в UI)
-       */
       travelBaseCost(toLocation) {
-        const from = this.findLocation(this.state.location);
-        const conn = from?.location.travel_connections.find((c2) => c2.to === toLocation);
-        return conn ? conn.cost_ticks ?? 1 : null;
+        return world.travelBaseCost(this, toLocation);
       }
-      // ─────────────── правила ───────────────
       runLocationRules(locationId) {
-        const loc = this.findLocation(locationId)?.location;
-        if (!loc?.on_enter_rules) return;
-        for (const ruleId of loc.on_enter_rules) {
-          this.tryFireRule(ruleId);
-        }
+        return effects.runLocationRules.call(this, locationId);
       }
-      /** Проверка всех правил (после каждого значимого действия — ТЗ 4.1). */
       checkRules() {
-        for (const rule of Object.values(this.campaign.rules)) {
-          if (rule.manual) continue;
-          if (rule.trigger && rule.trigger !== "always") continue;
-          this.tryFireRule(rule.id);
-        }
-        this.checkQuestTransitions();
+        return effects.checkRules.call(this);
       }
-      /** вызов правил, привязанных к конкретному событийному триггеру */
       fireTrigger(trigger, _context) {
-        let anyFired = false;
-        for (const rule of Object.values(this.campaign.rules)) {
-          if (rule.manual) continue;
-          if (rule.trigger !== trigger) continue;
-          if (this.tryFireRule(rule.id)) {
-            anyFired = true;
-          }
-        }
-        return anyFired;
-      }
-      /** условия правила: все `conditions` И (если заданы) хотя бы одна ИЛИ-группа */
-      ruleConditionsOk(rule) {
-        if (!(rule.conditions ?? []).every((c2) => evalCondition(c2, this))) return false;
-        const groups = rule.conditions_any;
-        if (!groups || groups.length === 0) return true;
-        return groups.some((g2) => !g2.length || g2.every((c2) => evalCondition(c2, this)));
+        return effects.fireTrigger.call(this, trigger, _context);
       }
       tryFireRule(ruleId, depth = 0) {
-        const rule = this.campaign.rules[ruleId];
-        if (!rule) return false;
-        if (rule.once && this.state.fired_rules.includes(rule.id)) return false;
-        if (!this.ruleConditionsOk(rule)) return false;
-        this.state.fired_rules.push(rule.id);
-        this.applyEffects(rule.effects ?? [], depth);
-        return true;
+        return effects.tryFireRule.call(this, ruleId, depth);
       }
-      // ─────────────── механика «Незнакомец» (Unknown / Anonymous NPC) ───────────────
-      /** раскрыто ли настоящее имя персонажа игроку */
       isNpcNameKnown(entityId) {
-        if (this.state.flags[`known_${entityId}`] || this.state.flags[`npc_known_${entityId}`]) return true;
-        const def = this.campaign.entities[entityId];
-        if (!def || !def.unknown_label) return true;
-        return (this.state.known_npcs ?? []).includes(entityId);
+        return sceneSlots.isNpcNameKnown.call(this, entityId);
       }
-      /** актуальное имя персонажа с учётом статуса знакомства */
       npcLabel(entity) {
-        const def = typeof entity === "string" ? this.campaign.entities[entity] : entity;
-        if (!def) return typeof entity === "string" ? entity : "";
-        if (!def.unknown_label) return def.label;
-        if (this.isNpcNameKnown(def.id)) return def.label;
-        return def.unknown_label;
+        return sceneSlots.npcLabel.call(this, entity);
       }
-      /** раскрыть настоящее имя персонажа игроку */
       learnNpcName(npcId, silent = false) {
-        const def = this.campaign.entities[npcId];
-        const list = this.state.known_npcs ??= [];
-        if (list.includes(npcId)) return;
-        list.push(npcId);
-        if (!silent && def?.unknown_label) {
-          const msg = `\u0412\u044B \u0443\u0437\u043D\u0430\u043B\u0438: \xAB${def.unknown_label}\xBB \u2014 \u044D\u0442\u043E ${def.label}.`;
-          this.pushLog(msg);
-          this.pushToast(msg, "info");
-        }
-        this.notify();
-        this.checkRules();
+        return sceneSlots.learnNpcName.call(this, npcId, silent);
       }
-      // ─────────────── эффекты ───────────────
-      /** актуальное описание сущности (с учётом динамических изменений set_description) */
       descOf(entityId) {
-        const def = this.campaign.entities[entityId];
-        return this.state.desc_overrides?.[entityId] ?? def?.description ?? "";
+        return sceneSlots.descOf.call(this, entityId);
       }
-      /**
-       * Раз в сутки: самочувствие NPC с расписанием. Чьё расписание покрывает
-       * ночь (от начала ночи до утра) — тот отсыпается (+10); кто без ночёвки
-       * по расписанию — устаёт (−10). Диапазоны времени поддерживают полночь.
-       */
       tickNpcMood() {
-        const meta = this.campaign.meta;
-        const tpd = meta.ticks_per_day ?? 24;
-        const nightStart = meta.time_of_day?.night ?? 22;
-        const morning = meta.time_of_day?.morning ?? 6;
-        const spanNight = ((morning - nightStart) % tpd + tpd) % tpd || tpd;
-        const nightPts = [0, 0.25, 0.5, 0.75].map((f2) => (nightStart + Math.floor(spanNight * f2)) % tpd);
-        for (const [id, ent] of Object.entries(this.campaign.entities)) {
-          if (!ent || ent.type !== "npc") continue;
-          const sch = ent.schedule;
-          if (!sch?.length) continue;
-          const slept = sch.some((e2) => {
-            let [a2, b2] = e2.time_range;
-            a2 = (a2 % tpd + tpd) % tpd;
-            b2 = (b2 % tpd + tpd) % tpd;
-            const covers = (t5) => a2 <= b2 ? t5 >= a2 && t5 < b2 : t5 >= a2 || t5 < b2;
-            return nightPts.every(covers);
-          });
-          this.changeNpcMood(id, slept ? 10 : -10);
-        }
+        social.tickNpcMood(this);
       }
-      /** периодическая проверка погони: герой + до двух союзников цепочкой; провал наращивает счётчик до облавы */
       tickPursuit() {
-        const p2 = this.state.pursuit;
-        if (!p2) return;
-        const companions = this.state.party.slice(0, 2);
-        let wins = 0;
-        const outP = this.playerSkillCheck(p2.skill, 50);
-        if (outP.success) wins++;
-        for (const c2 of companions) {
-          const def = this.campaign.entities[c2.entity];
-          if (!def || def.type !== "npc") continue;
-          const out = skillCheck(Math.max(1, def.skills?.[p2.skill] ?? 0), this.rng, difficultyModifier(def.skills?.[p2.skill] ?? 0, 50), this.diceRules);
-          this.pushLog(`${def.label}: d100=${out.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${out.target} \u2192 ${CHECK_RESULT_LABEL[out.result]}`);
-          if (out.success) wins++;
-        }
-        p2.left = p2.every;
-        if (wins > 0) {
-          if (p2.fails > 0) this.pushLog(`\u0421\u043B\u0435\u0434 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u043F\u0443\u0442\u0430\u0442\u044C \u2014 ${p2.label ?? "\u043F\u043E\u0433\u043E\u043D\u044F"} \u043F\u043E\u043A\u0430 \u043D\u0435 \u043D\u0430\u0441\u0442\u0438\u0433\u0430\u0435\u0442.`);
-          p2.fails = 0;
-          return;
-        }
-        p2.fails += 1;
-        if (p2.fails < p2.fails_needed) {
-          this.pushLog(`${p2.label ?? "\u041F\u043E\u0433\u043E\u043D\u044F"} \u043D\u0435 \u043E\u0442\u0441\u0442\u0430\u0451\u0442 \u2014 \u0435\u0449\u0451 ${p2.fails_needed - p2.fails} \u0441\u043E\u0440\u0432\u0430\u043D\u043D\u0430\u044F \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0430, \u0438 \u043E\u0442\u0440\u044F\u0434 \u043D\u0430\u0441\u0442\u0438\u0433\u043D\u0443\u0442!`);
-          return;
-        }
-        this.pushLog(`${p2.label ?? "\u041F\u043E\u0433\u043E\u043D\u044F"} \u043D\u0430\u0441\u0442\u0438\u0433\u043B\u0430 \u043E\u0442\u0440\u044F\u0434!`);
-        const effects = p2.on_fail;
-        delete this.state.pursuit;
-        this.applyEffects(effects);
+        return encounters.tickPursuit.call(this);
       }
-      /** подготовка способности в слот магии (meta.magic.slots): true — получилось */
       togglePreparedAbility(id) {
-        const s2 = this.state;
-        const slots = this.campaign.meta.magic?.slots;
-        if (!slots) return false;
-        const cur = new Set(s2.player.prepared_abilities ?? []);
-        if (cur.has(id)) cur.delete(id);
-        else {
-          if (cur.size >= slots) return false;
-          cur.add(id);
-        }
-        const arr = [...cur];
-        s2.player.prepared_abilities = arr;
-        if (!arr.length) delete s2.player.prepared_abilities;
-        return true;
+        return character.togglePreparedAbility.call(this, id);
       }
-      /** динамически изменить описание сущности (правила/диалоги, действие set_description) */
       setEntityDescription(entityId, text) {
-        const s2 = this.state;
-        s2.desc_overrides = { ...s2.desc_overrides ?? {}, [entityId]: text };
+        return sceneSlots.setEntityDescription.call(this, entityId, text);
       }
-      applyEffects(effects, depth = 0) {
-        for (const e2 of effects) this.applyEffect(e2, depth);
+      applyEffects(effects2, depth = 0) {
+        return effects.applyEffects.call(this, effects2, depth);
       }
-      /**
-       * Глубина вложенных вызовов правил (эффект fire_rule). Больше двух — стоп:
-       * иначе «правило вызывает правило вызывает правило» зациклит забег. Прямые и
-       * транзитивные петли ловит «Проверить кампанию» (см. store.validateContent).
-       */
-      static FIRE_RULE_MAX_DEPTH = 2;
       applyEffect(e2, depth = 0) {
-        const s2 = this.state;
-        switch (e2.type) {
-          case "fire_rule":
-            if (depth >= _GameEngine.FIRE_RULE_MAX_DEPTH) {
-              this.pushLog("\u041F\u0440\u0430\u0432\u0438\u043B\u043E \u043D\u0435 \u0432\u044B\u0437\u0432\u0430\u043D\u043E: \u043F\u0440\u0435\u0432\u044B\u0448\u0435\u043D\u0430 \u0433\u043B\u0443\u0431\u0438\u043D\u0430 \u0446\u0435\u043F\u043E\u0447\u043A\u0438 \u0432\u044B\u0437\u043E\u0432\u043E\u0432.");
-              break;
-            }
-            this.tryFireRule(e2.rule, depth + 1);
-            break;
-          case "unlock_recipe":
-            this.unlockRecipe(e2.recipe);
-            break;
-          case "open_craft":
-            this.openCraft(e2.recipe || void 0);
-            break;
-          case "set_entity_state": {
-            const m2 = s2.entity_states ??= {};
-            if (e2.state) m2[e2.entity] = e2.state;
-            else delete m2[e2.entity];
-            this.notify();
-            break;
-          }
-          case "learn_name":
-            this.learnNpcName(e2.entity, e2.silent);
-            break;
-          case "set_flag":
-            if (e2.value === false || e2.value === 0 || e2.value === "false") {
-              delete s2.flags[e2.flag];
-            } else {
-              s2.flags[e2.flag] = e2.value ?? true;
-            }
-            break;
-          case "set_description":
-            this.setEntityDescription(e2.entity, e2.text);
-            break;
-          case "clear_flag":
-            delete s2.flags[e2.flag];
-            break;
-          case "apply_status":
-            this.applyStatus(e2.target, e2.status, e2.duration);
-            break;
-          case "remove_status":
-            this.removeStatus(e2.target, e2.status);
-            break;
-          case "set_weather": {
-            const next = e2.weather || void 0;
-            if (s2.weather !== next) {
-              s2.weather = next;
-              const w2 = this.campaign.meta.weathers?.find((x2) => x2.id === next);
-              this.pushLog(next ? `\u041F\u043E\u0433\u043E\u0434\u0430 \u043C\u0435\u043D\u044F\u0435\u0442\u0441\u044F: ${w2?.label ?? next}.` : "\u041D\u0435\u0431\u043E \u043F\u0440\u043E\u044F\u0441\u043D\u044F\u0435\u0442\u0441\u044F.");
-            }
-            break;
-          }
-          case "unlock_codex":
-            this.unlockCodex(e2.entry);
-            break;
-          case "set_variable":
-            s2.variables[e2.var] = e2.value;
-            break;
-          case "change_variable":
-            s2.variables[e2.var] = Number(s2.variables[e2.var] ?? 0) + e2.delta;
-            break;
-          case "start_duration_action": {
-            this.requestDurationAction(e2.action, e2.ticks ?? null);
-            break;
-          }
-          case "start_dialogue":
-            this.startDialogue(e2.entity, e2.dialogue_knot);
-            break;
-          case "start_combat":
-            this.startCombat(e2);
-            break;
-          case "teleport_player": {
-            const target = this.findLocation(e2.location);
-            if (target) {
-              s2.region = target.region.id;
-              s2.location = e2.location;
-              s2.scene = e2.scene ?? this.arrivalSceneOf(target.location) ?? s2.scene;
-            }
-            break;
-          }
-          case "change_scene_state":
-            s2.flags[`scene_state:${e2.scene}:${e2.state}`] = true;
-            break;
-          case "add_item":
-            this.addItem(e2.item, e2.quantity ?? 1);
-            break;
-          case "remove_item":
-            this.removeItem(e2.item, e2.quantity ?? 1);
-            break;
-          case "change_need":
-            this.changeNeed(e2.need, e2.delta);
-            break;
-          case "change_hp":
-            this.changeHp(e2.delta);
-            break;
-          case "change_companion_need":
-            this.changeCompanionNeed(e2.entity, e2.need, e2.delta);
-            break;
-          // сюжетный эффект мастера: quest_item-ограничение не применяется — мастер решает сам
-          case "transfer_to_companion":
-            this.giveItemToCompanion(e2.entity, e2.item, e2.quantity ?? 1, { forceQuest: true });
-            break;
-          case "change_skill": {
-            if (!featureOn(this.campaign.meta, "skills")) break;
-            const cur = s2.player.skills[e2.skill] ?? 0;
-            s2.player.skills[e2.skill] = Math.max(0, cur + e2.delta);
-            this.pushLog(`\u041D\u0430\u0432\u044B\u043A \xAB${e2.skill}\xBB: ${e2.delta > 0 ? "+" : ""}${e2.delta} (\u0442\u0435\u043F\u0435\u0440\u044C ${s2.player.skills[e2.skill]}).`);
-            break;
-          }
-          case "skill_check_gate": {
-            const out = this.playerSkillCheck(e2.skill, e2.difficulty);
-            const retry = () => this.playerSkillCheck(e2.skill, e2.difficulty);
-            const deferred = this.applyByCheck(
-              out,
-              `\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \xAB${this.skillLabel(e2.skill)}\xBB`,
-              retry,
-              () => {
-                this.markSkill(e2.skill);
-                this.applyEffects(e2.success_effects);
-              },
-              () => this.applyEffects(e2.fail_effects)
-            );
-            void deferred;
-            break;
-          }
-          case "stat_check": {
-            const mult = e2.multiplier ?? 5;
-            const aug = this.augmentBonus(e2);
-            const modifier = (e2.modifier ?? 0) + aug;
-            const out = this.statCheck(e2.stat, mult, modifier);
-            this.applyByCheck(
-              out,
-              `\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u0445\u0430\u0440\u0430\u043A\u0442\u0435\u0440\u0438\u0441\u0442\u0438\u043A\u0438 ${e2.stat}\xD7${mult}`,
-              () => this.statCheck(e2.stat, mult, modifier),
-              () => this.applyEffects(e2.success_effects),
-              () => this.applyEffects(e2.fail_effects)
-            );
-            break;
-          }
-          case "group_stat_check": {
-            const bySkill = (e2.mode ?? (e2.stat ? "stat" : "skill")) === "skill";
-            const helpersN = Math.max(0, e2.helpers ?? 2);
-            const companions = this.state.party.slice(0, helpersN);
-            const total = 1 + companions.length;
-            const need = Math.max(1, e2.need ?? Math.ceil(total / 2));
-            let wins = 0;
-            const whatLabel = bySkill ? `\u0413\u0440\u0443\u043F\u043F\u043E\u0432\u0430\u044F \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \xAB${this.skillLabel(e2.skill)}\xBB` : `\u0413\u0440\u0443\u043F\u043F\u043E\u0432\u0430\u044F \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 ${e2.stat}\xD7${e2.multiplier ?? 5}`;
-            this.pushLog(`${whatLabel} \u2014 \u0446\u0435\u043F\u043E\u0447\u043A\u0430 \u0438\u0437 ${total} \u0447\u0435\u043B., \u043D\u0443\u0436\u043D\u043E \u0443\u0441\u043F\u0435\u0448\u043D\u044B\u0445: ${need}.`);
-            if (bySkill) {
-              const out = this.playerSkillCheck(e2.skill, e2.difficulty ?? 50);
-              if (out.success) wins++;
-            } else {
-              const out = this.statCheck(e2.stat, e2.multiplier ?? 5, e2.modifier ?? 0);
-              if (out.success) wins++;
-            }
-            const mult = e2.multiplier ?? 5;
-            for (const c2 of companions) {
-              const def = this.campaign.entities[c2.entity];
-              if (!def || def.type !== "npc") continue;
-              const value = bySkill ? def.skills?.[e2.skill] ?? 0 : (def.stats[e2.stat] ?? 0) * mult;
-              const out = skillCheck(
-                Math.max(1, value),
-                this.rng,
-                bySkill ? difficultyModifier(value, e2.difficulty ?? 50) : e2.modifier ?? 0,
-                this.diceRules
-              );
-              this.pushLog(`${def.label}: d100=${out.roll} \u043F\u0440\u043E\u0442\u0438\u0432 ${out.target} \u2192 ${CHECK_RESULT_LABEL[out.result]}`);
-              if (out.success) wins++;
-            }
-            if (wins >= need) {
-              this.pushLog(`\u0426\u0435\u043F\u043E\u0447\u043A\u0430 \u0432\u044B\u0434\u0435\u0440\u0436\u0430\u043B\u0430: ${wins} \u0438\u0437 ${total} \u0443\u0441\u043F\u0435\u0448\u043D\u043E.`);
-              this.applyEffects(e2.success_effects);
-            } else {
-              this.pushLog(`\u0426\u0435\u043F\u043E\u0447\u043A\u0430 \u043F\u043E\u0440\u0432\u0430\u043B\u0430\u0441\u044C: ${wins} \u0438\u0437 ${total} \u0443\u0441\u043F\u0435\u0448\u043D\u043E (\u043D\u0443\u0436\u043D\u043E ${need}).`);
-              this.applyEffects(e2.fail_effects);
-            }
-            break;
-          }
-          case "opposed_check": {
-            const res = this.opposedCheck(e2);
-            const finalize = (r2) => {
-              if (r2.success) this.markSkill(e2.skill);
-              this.applyEffects(r2.success ? e2.success_effects : e2.fail_effects);
-            };
-            if (res.success) {
-              finalize(res);
-              break;
-            }
-            const cfg = this.campaign.meta.luck;
-            const cost = Math.max(1, cfg?.reroll_cost ?? 1);
-            if (!cfg || this.luckMax() <= 0 || this.luck() < cost) {
-              finalize(res);
-              break;
-            }
-            this.changeLuck(-cost);
-            this.pushLog(`\u041F\u043E\u0440\u0430\u0436\u0435\u043D\u0438\u0435 \u043C\u043E\u0436\u043D\u043E \u043E\u0441\u043F\u043E\u0440\u0438\u0442\u044C \u0437\u0430 \u0443\u0434\u0430\u0447\u0443: \u2212${cost} (\u043E\u0441\u0442\u0430\u043B\u043E\u0441\u044C ${this.luck()}).`);
-            this.luckOffer = {
-              text: `\u041F\u0440\u043E\u0442\u0438\u0432\u043E\u0431\u043E\u0440\u0441\u0442\u0432\u043E \xAB${this.skillLabel(e2.skill)}\xBB \u2014 \u043F\u043E\u0440\u0430\u0436\u0435\u043D\u0438\u0435 \u0433\u0435\u0440\u043E\u044F.`,
-              cost,
-              decide: (reroll) => {
-                if (reroll) finalize(this.opposedCheck(e2));
-                else {
-                  this.pushLog("\u0423\u0434\u0430\u0447\u0430 \u043F\u0440\u0438\u0431\u0435\u0440\u0435\u0436\u0435\u043D\u0430 \u2014 \u043E\u0441\u0442\u0430\u0451\u0442\u0441\u044F \u043F\u043E\u0440\u0430\u0436\u0435\u043D\u0438\u0435.");
-                  finalize(res);
-                }
-                this.checkRules();
-                this.autosave();
-              }
-            };
-            break;
-          }
-          case "change_luck":
-            this.changeLuck(e2.delta);
-            break;
-          case "change_fatigue":
-            this.changeFatigue(e2.delta);
-            break;
-          case "change_sanity":
-            this.changeSanity(e2.delta);
-            break;
-          case "change_reputation":
-            this.changeReputation(e2.delta);
-            break;
-          case "change_wealth":
-            this.changeWealth(e2.levels);
-            break;
-          case "change_passion":
-            this.changePassion(e2.id, e2.delta ?? (e2.set != null ? e2.set - (this.state.player.passions?.[e2.id] ?? 0) : 0));
-            break;
-          case "change_allegiance":
-            this.changeAllegiance(e2.id, e2.points);
-            break;
-          case "train_stat":
-            this.trainStat(e2.stat, e2.delta);
-            break;
-          case "hazard_fall":
-            this.applyFall(e2.meters, e2.skill);
-            break;
-          case "commit_crime":
-            this.commitCrime(e2.id, e2.bounty);
-            break;
-          case "set_price_event":
-            this.setPriceEvent(e2.id, true);
-            break;
-          case "clear_price_event":
-            this.setPriceEvent(e2.id ?? "", false);
-            break;
-          case "banner":
-            this.showBanner(e2);
-            break;
-          case "postcard":
-            this.showPostcard(e2);
-            break;
-          case "grant_xp":
-            this.grantXp(e2.points);
-            break;
-          case "grant_feat":
-            this.grantFeat(e2.id);
-            break;
-          case "meta_currency":
-            this.grantMetaCurrency(e2.id, e2.amount);
-            break;
-          case "roll_event_table":
-            this.rollEventTable(e2.table, { forced: true, ignoreFilters: e2.ignore_filters });
-            break;
-          case "play_sound":
-            playInteraction(e2.sound, { sound: e2.sound }, e2.volume ?? 1);
-            break;
-          case "stop_sound":
-            stopSound(e2.sound);
-            break;
-          case "override_music":
-            this.setMusicOverride(e2.tracks, e2.fade);
-            break;
-          case "clear_music_override":
-            this.clearMusicOverride();
-            break;
-          case "generate_variables": {
-            for (const p2 of e2.pack) {
-              const val = this.genValue(e2.generator, p2.key, e2.seed);
-              s2.variables[p2.as ?? p2.key] = val;
-            }
-            this.pushLog("\u041C\u0438\u0440 \u0447\u0442\u043E-\u0442\u043E \u0437\u0430\u043C\u044B\u0448\u043B\u044F\u0435\u0442\u2026");
-            break;
-          }
-          case "change_disposition":
-            this.changeDisposition(e2.target, e2.delta);
-            break;
-          case "start_quest":
-            this.startQuest(e2.quest);
-            break;
-          case "advance_quest":
-            this.advanceQuestTo(e2.quest, e2.stage);
-            break;
-          case "fail_quest": {
-            const qs = s2.quests[e2.quest];
-            if (qs && qs.status === "active") {
-              qs.status = "failed";
-              this.messages.push({ text: `\u041A\u0432\u0435\u0441\u0442 \u043F\u0440\u043E\u0432\u0430\u043B\u0435\u043D: \xAB${this.campaign.quests[e2.quest]?.label ?? e2.quest}\xBB` });
-            }
-            break;
-          }
-          case "journal_update":
-            this.journalUpdate(e2.quest, e2.text_key);
-            break;
-          case "give_reward":
-            for (const it2 of e2.items ?? []) this.addItem(it2.item, it2.quantity);
-            break;
-          case "join_party":
-            this.joinParty(e2.entity);
-            break;
-          case "leave_party":
-            this.leaveParty(e2.entity);
-            break;
-          case "block_path":
-            if (!s2.blocked_paths.includes(`${e2.from}->${e2.to}`)) s2.blocked_paths.push(`${e2.from}->${e2.to}`);
-            break;
-          case "unblock_path": {
-            const i2 = s2.blocked_paths.indexOf(`${e2.from}->${e2.to}`);
-            if (i2 >= 0) s2.blocked_paths.splice(i2, 1);
-            break;
-          }
-          case "show_message": {
-            const msgText = this.fmt(e2.text);
-            if (!this.messages.some((m2) => m2.text === msgText) && this.messages.length < 5) {
-              this.messages.push({ text: msgText, portrait: e2.portrait });
-            }
-            break;
-          }
-          case "reveal_location":
-            if (!s2.revealed_locations.includes(e2.location)) s2.revealed_locations.push(e2.location);
-            break;
-          case "advance_time":
-            this.advanceTicks(e2.ticks);
-            break;
-          case "start_pursuit": {
-            s2.pursuit = {
-              label: e2.label,
-              skill: e2.skill ?? "stealth",
-              every: Math.max(1, e2.every_ticks ?? 4),
-              fails_needed: Math.max(1, e2.fails_to_catch ?? 1),
-              fails: 0,
-              left: Math.max(1, e2.every_ticks ?? 4),
-              on_fail: e2.on_fail
-            };
-            this.pushLog(`\u0417\u0430 \u0432\u0430\u043C\u0438 \u0441\u043B\u0435\u0434\u043E\u043C \u0438\u0434\u0443\u0442${e2.label ? ` \u2014 ${e2.label}` : ""}! \u0423\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0439\u0442\u0435 \u043C\u0430\u0441\u043A\u0438\u0440\u043E\u0432\u043A\u0443, \u043F\u043E\u043A\u0430 \u043D\u0435 \u043E\u0442\u043E\u0440\u0432\u0451\u0442\u0435\u0441\u044C.`);
-            break;
-          }
-          case "stop_pursuit": {
-            if (s2.pursuit) {
-              delete s2.pursuit;
-              this.pushLog("\u041F\u043E\u0433\u043E\u043D\u044F \u043E\u0441\u0442\u0430\u043B\u0430\u0441\u044C \u043F\u043E\u0437\u0430\u0434\u0438.");
-            }
-            break;
-          }
-          case "remove_entity":
-            if (!s2.removed_entities.includes(e2.entity)) s2.removed_entities.push(e2.entity);
-            break;
-          case "spawn_entity":
-            s2.spawned.push({ entity: e2.entity, scene: e2.scene, slot: e2.slot });
-            break;
-          case "game_over_victory":
-            this.gameOver("victory", "\u041A\u0430\u043C\u043F\u0430\u043D\u0438\u044F \u043F\u0440\u043E\u0439\u0434\u0435\u043D\u0430!");
-            break;
-          case "game_over_death":
-            this.gameOver("death", e2.reason ?? "\u0412\u044B \u043F\u043E\u0433\u0438\u0431\u043B\u0438.");
-            break;
-          case "play_cutscene":
-            this.playCutscene(e2.cutscene);
-            break;
-        }
-        this.checkAchievements();
+        return effects.applyEffect.call(this, e2, depth);
       }
-      // ─────────────── взаимодействие со слотами ───────────────
-      // ─────────────── предмет → слот сцены (блок 8 ТЗ «Гибкий движок») ───────────────
-      /** предметы игрока, применимые к слоту (для модалки выбора) */
       slotUseOptions(slot) {
-        return (slot.use_with ?? []).filter((u2) => u2.item && this.hasItem(u2.item)).map((u2) => ({
-          itemId: u2.item,
-          label: this.campaign.entities[u2.item]?.label ?? u2.item,
-          use: u2
-        }));
+        return sceneSlots.slotUseOptions.call(this, slot);
       }
-      /** применить предмет к слоту сцены; ложь — предмет/слот не подходят */
       useItemOnSlot(slotId, itemId) {
-        const scene = this.currentScene();
-        const slot = scene?.slots.find((s2) => s2.id === slotId);
-        const use = slot?.use_with?.find((u2) => u2.item === itemId);
-        if (!slot || !use || !this.hasItem(itemId)) return false;
-        const def = this.campaign.entities[itemId];
-        if (use.consume) this.removeItem(itemId, 1, { verb: "\u0418\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u043E" });
-        this.applyEffects(use.effects);
-        if (use.message) this.messages.push({ text: use.message });
-        this.pushLog(`${def?.label ?? itemId}: \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u043E \u043D\u0430 \xAB${slot.label ?? slotId}\xBB.`);
-        playInteraction("use", { entity: def });
-        this.checkRules();
-        this.autosave();
-        this.notify();
-        return true;
+        return sceneSlots.useItemOnSlot.call(this, slotId, itemId);
       }
-      /**
-       * Открыть рецепт крафта «по ходу игры». Рецепты без `known: false` открыты
-       * всегда; этот эффект лишь снимает «закрытость» и один раз радует игрока.
-       */
       unlockRecipe(recipeId) {
-        const r2 = this.campaign.recipes[recipeId];
-        if (!r2) return;
-        const s2 = this.state;
-        if (!s2.recipes_unlocked) s2.recipes_unlocked = [];
-        if (s2.recipes_unlocked.includes(recipeId)) return;
-        s2.recipes_unlocked.push(recipeId);
-        this.messages.push({ text: `\u041D\u043E\u0432\u044B\u0439 \u0440\u0435\u0446\u0435\u043F\u0442: ${r2.label}.` });
-        this.pushLog(`\u041E\u0442\u043A\u0440\u044B\u0442 \u0440\u0435\u0446\u0435\u043F\u0442: ${r2.label}.`);
-        playInteraction("pickup", {});
-        this.notify();
-        this.autosave();
+        return economy.unlockRecipe.call(this, recipeId);
       }
-      /** рецепт виден игроку? (неизвестные закрыты до unlock_recipe или выполнения условий) */
       recipeKnown(id) {
-        const r2 = this.campaign.recipes[id];
-        if (!r2) return false;
-        if (r2.known === false && !this.state.recipes_unlocked?.includes(id)) return false;
-        if (r2.conditions && r2.conditions.length > 0) {
-          if (!r2.conditions.every((c2) => evalCondition(c2, this))) return false;
-        }
-        return true;
+        return economy.recipeKnown.call(this, id);
       }
-      /** список рецептов, доступных игроку (вкладка «Крафт») */
       knownRecipes() {
-        return Object.values(this.campaign.recipes).filter((r2) => this.recipeKnown(r2.id)).sort((a2, b2) => a2.label.localeCompare(b2.label, "ru"));
+        return economy.knownRecipes.call(this);
       }
-      /** состояние облика сущности, заданное правилом (set_entity_state) */
       entityState(id) {
-        return this.state.entity_states?.[id] || void 0;
+        return sceneSlots.entityState.call(this, id);
       }
-      /**
-       * Разблокировать запись кодекса (блок 10 ТЗ): повтор — no-op.
-       * При первой разблокировке — сообщение «Новая запись в кодексе: …».
-       */
       unlockCodex(entryId) {
-        const entry = this.campaign.codex[entryId];
-        if (!entry) return;
-        const s2 = this.state;
-        if (!s2.codex_unlocked) s2.codex_unlocked = [];
-        if (s2.codex_unlocked.includes(entryId)) return;
-        s2.codex_unlocked.push(entryId);
-        this.messages.push({ text: `\u041D\u043E\u0432\u0430\u044F \u0437\u0430\u043F\u0438\u0441\u044C \u0432 \u043A\u043E\u0434\u0435\u043A\u0441\u0435: ${entry.label}.` });
-        this.pushLog(`\u041A\u043E\u0434\u0435\u043A\u0441 \u043F\u043E\u043F\u043E\u043B\u043D\u0435\u043D: ${entry.label}.`);
-        playInteraction("pickup", {});
-        this.notify();
-        this.autosave();
+        return sceneSlots.unlockCodex.call(this, entryId);
       }
-      /** разблокированные записи кодекса (блок 10 ТЗ) */
       unlockedCodexEntries() {
-        return (this.state.codex_unlocked ?? []).map((id) => this.campaign.codex[id]).filter((e2) => !!e2);
+        return sceneSlots.unlockedCodexEntries.call(this);
       }
-      /** категории кодекса: свои из меты, иначе встроенные три (блок 10 ТЗ) */
       codexCategories() {
-        return this.campaign.meta.codex_categories ?? BUILTIN_CODEX_CATEGORIES;
+        return sceneSlots.codexCategories.call(this);
       }
-      /**
-       * Можно ли взаимодействовать с предметом прямо сейчас (фидбек №8: условия
-       * блокируют клик — предмет остаётся «декорацией» в слоте).
-       */
-      /**
-       * Текст с упоминаниями героя (фидбек №11, «больше плейсхолдеров в диалогах»):
-       * `{имя}`/`{герой}` — имя персонажа, `{здоровье}`/`{здоровье_макс}` — HP,
-       * `{день}` — номер дня забега, `{время}` — время суток по-русски,
-       * `{переменная:<имя>}` — обычная переменная читалки ({имя} считает её латиницей).
-       */
       fmt(text) {
-        if (!text.includes("{")) return text;
-        const st2 = this.state;
-        const p2 = st2.player;
-        const day = Math.floor((st2.tick ?? 0) / Math.max(1, this.campaign.meta.ticks_per_day || 24)) + 1;
-        const out = {
-          "\u0438\u043C\u044F": p2.name ?? "\u0433\u0435\u0440\u043E\u0439",
-          "\u0433\u0435\u0440\u043E\u0439": p2.name ?? "\u0433\u0435\u0440\u043E\u0439",
-          "\u0438\u043C\u044F_\u0433\u0435\u0440\u043E\u044F": p2.name ?? "\u0433\u0435\u0440\u043E\u0439",
-          "\u0437\u0434\u043E\u0440\u043E\u0432\u044C\u0435": String(Math.max(0, p2.hp)),
-          "\u0437\u0434\u043E\u0440\u043E\u0432\u044C\u0435_\u043C\u0430\u043A\u0441": String(p2.max_hp),
-          "\u043C\u0430\u043D\u0430": String(Math.max(0, p2.mp)),
-          "\u043C\u0430\u043D\u0430_\u043C\u0430\u043A\u0441": String(p2.max_mp),
-          "\u0443\u0434\u0430\u0447\u0430": String(this.luck()),
-          "\u0443\u0440\u043E\u0432\u0435\u043D\u044C": String(p2.level ?? 1),
-          "\u043E\u043F\u044B\u0442": String(p2.xp ?? 0),
-          "\u0434\u0435\u043D\u044C": String(day)
-        };
-        return text.replace(/\{([^{}]+)\}/g, (_m, raw) => {
-          if (raw in out) return out[raw];
-          const cut = raw.indexOf(":");
-          if (cut > 0) {
-            const kind = raw.slice(0, cut);
-            const id = raw.slice(cut + 1).trim();
-            switch (kind) {
-              case "\u0441\u0447\u0451\u0442":
-              case "\u0441\u0447\u0435\u0442":
-                return String(this.itemCount(id));
-              case "\u043D\u0430\u0432\u044B\u043A":
-                return String(p2.skills[id] ?? 0);
-              case "\u043F\u043E\u0442\u0440\u0435\u0431\u043D\u043E\u0441\u0442\u044C":
-                return String(p2.needs[id] ?? 0);
-              case "\u0441\u0442\u0430\u0442":
-                return String(p2.stats[id] ?? 0);
-              case "\u0432\u0430\u043B\u044E\u0442\u0430":
-                return String(p2.currencies?.[id] ?? 0);
-            }
-          }
-          return `{${raw}}`;
-        });
+        return sceneSlots.fmt.call(this, text);
       }
       itemInteractable(item) {
-        return (item.interactable_when ?? []).every((c2) => evalCondition(c2, this));
+        return sceneSlots.itemInteractable.call(this, item);
       }
-      /** доступные сейчас варианты действий с предметом (условия показа) */
       itemInteractOptions(item) {
-        const itemOptions = item.interact_options ?? [];
-        return itemOptions.filter((o2, index) => {
-          if (o2.conditions && o2.conditions.length > 0 && !o2.conditions.every((c2) => evalCondition(c2, this))) return false;
-          if (o2.once) {
-            const key = `item:${item.id}:${index}`;
-            if (this.state.used_item_interacts?.includes(key)) return false;
-          }
-          return true;
-        });
+        return sceneSlots.itemInteractOptions.call(this, item);
       }
-      /** применить выбранный вариант взаимодействия с предметом */
       runItemInteract(item, option) {
-        const soundOpt = option.sound ?? "use";
-        playInteraction(soundOpt, { entity: item, sound: option.sound }, option.sound_volume ?? 1);
-        if (option.effects?.some((ef) => ef.type === "open_craft")) {
-          this.craftSourceEntity = item;
-        }
-        this.applyEffects(option.effects);
-        if (option.message) {
-          if (this.craftRequest || this.combat || this.dialogue) {
-            this.pushToast(this.fmt(option.message), "info");
-          } else {
-            this.messages.push({ text: this.fmt(option.message), portrait: item.portrait?.[option.emotion ?? "neutral"] ?? item.portrait?.["neutral"] });
-          }
-        }
-        if (option.consume) this.state.removed_entities.push(item.id);
-        if (option.once) {
-          const itemOptions = item.interact_options ?? [];
-          const optionIndex = itemOptions.findIndex((o2) => o2 === option);
-          if (optionIndex >= 0) {
-            const key = `item:${item.id}:${optionIndex}`;
-            if (!this.state.used_item_interacts) this.state.used_item_interacts = [];
-            if (!this.state.used_item_interacts.includes(key)) {
-              this.state.used_item_interacts.push(key);
-            }
-          }
-        }
-        this.checkRules();
-        this.notify();
+        return sceneSlots.runItemInteract.call(this, item, option);
       }
       interactWithSlot(occ) {
-        if (!occ.entity) return false;
-        this.inspectedEntityId = occ.entity.id;
-        if (occ.slot.sound) {
-          playInteraction(occ.slot.sound, { sound: occ.slot.sound }, occ.slot.sound_volume ?? 1);
-        }
-        if (occ.entity.type === "npc") {
-          const npc = occ.entity;
-          if (npc.dialogue) {
-            this.startDialogue(occ.entity.id);
-          } else {
-            const desc = this.descOf(npc.id);
-            if (desc) {
-              this.messages.push({
-                text: desc,
-                portrait: npc.portrait?.neutral || void 0
-              });
-              this.notify();
-            }
-          }
-          return true;
-        }
-        const item = occ.entity;
-        if (!this.itemInteractable(item)) return false;
-        const slotType = occ.slot.type[0];
-        const opts = this.itemInteractOptions(item);
-        if (opts.length) {
-          return false;
-        }
-        if (item.on_interact) {
-          const isOpen = occ.slot.type.includes("container") || item.category === "container";
-          playInteraction(isOpen ? "open" : "use", { entity: item, slotType });
-          this.applyEffects(item.on_interact.effects);
-          const desc = this.descOf(item.id) || item.description;
-          if (item.on_interact.message) {
-            this.messages.push({ text: this.fmt(item.on_interact.message) });
-          } else if (desc) {
-            this.messages.push({
-              text: desc,
-              portrait: item.portrait?.neutral || void 0
-            });
-          }
-          if (item.on_interact.consume) {
-            this.state.removed_entities.push(item.id);
-          }
-          this.checkRules();
-          this.notify();
-        } else {
-          const desc = this.descOf(item.id);
-          const textToShow = desc || item.description;
-          if (textToShow) {
-            this.messages.push({
-              text: textToShow,
-              portrait: item.portrait?.neutral || void 0
-            });
-          } else {
-            this.pushToast(`\xAB${item.label}\xBB (\u043D\u0435\u0442 \u043F\u043E\u0434\u0440\u043E\u0431\u043D\u043E\u0433\u043E \u043E\u043F\u0438\u0441\u0430\u043D\u0438\u044F)`);
-          }
-          this.notify();
-        }
-        return true;
+        return sceneSlots.interactWithSlot.call(this, occ);
       }
-      // ─────────────── бой (Фаза 1) ───────────────
-      /** эффекты on_victory, требующие закрытия экрана боя (диалог, телепорт и т.п.) */
       postCombatEffects = [];
-      /**
-       * Вызывается боем в момент его разрешения — победы, бегства игрока или
-       * «бессознательного» проигрыша (BRP-режим). Безопасные эффекты применяются
-       * сразу, пока игрок видит экран исхода; смена экрана (диалог, телепорт,
-       * новый бой, финал) — после закрытия боя.
-       */
-      onCombatResolve(effects) {
-        const defer = /* @__PURE__ */ new Set(["start_dialogue", "start_combat", "teleport_player", "game_over_victory", "game_over_death", "play_cutscene"]);
-        this.postCombatEffects = effects.filter((e2) => defer.has(e2.type));
-        this.applyEffects(effects.filter((e2) => !defer.has(e2.type)));
-        this.notify();
+      onCombatResolve(effects2) {
+        void this.postCombatEffects;
+        return director.onCombatResolve.call(this, effects2);
       }
       startCombat(def) {
-        if (!featureOn(this.campaign.meta, "combat")) {
-          this.pushLog("\u041A\u043E\u043D\u0444\u043B\u0438\u043A\u0442 \u0440\u0430\u0437\u0440\u0435\u0448\u0438\u043B\u0441\u044F \u0431\u0435\u0437 \u0431\u043E\u044F.");
-          this.applyEffects(def.on_victory ?? []);
-          this.checkRules();
-          this.notify();
-          return;
-        }
-        let effective = def;
-        if (!def.surprise && this.isSneaking() && !this.isDetected()) {
-          effective = { ...def, surprise: "player" };
-          this.pushLog("\u0412\u044B \u043D\u0430\u043F\u0430\u0434\u0430\u0435\u0442\u0435 \u0438\u0437 \u0441\u043A\u0440\u044B\u0442\u043D\u043E\u0441\u0442\u0438 \u2014 \u0432\u0440\u0430\u0433\u0438 \u0437\u0430\u0441\u0442\u0438\u0433\u043D\u0443\u0442\u044B \u0432\u0440\u0430\u0441\u043F\u043B\u043E\u0445!");
-        }
-        if (this.state.stealth) this.state.stealth.sneaking = false;
-        this.dialogue = null;
-        this.activeStory = null;
-        this.activeNpc = null;
-        this.combat = new CombatController(this, effective);
-        playUi("combat_start");
-        this.notify();
+        return director.startCombat.call(this, def);
       }
-      /** Вызывается UI после экрана исхода боя (победа / бегство / выживание). */
       endCombat() {
-        const combat = this.combat;
-        if (!combat) return;
-        this.combat = null;
-        for (const ally of combat.combatants.filter((c2) => c2.id.startsWith("c_ally_") && c2.dead)) {
-          const comp = this.state.party.find((p2) => p2.entity === ally.entityId);
-          if (comp) {
-            comp.hp = 0;
-            this.leaveParty(ally.entityId);
-            this.messages.push({ text: `${ally.label} \u043F\u043E\u0433\u0438\u0431(\u043B\u0430). \u0422\u0435\u043B\u043E \u043E\u0441\u0442\u0430\u043B\u043E\u0441\u044C \u043D\u0430 \xAB${combat.arena.label}\xBB.`, portrait: ally.portrait });
-          }
-        }
-        if (combat.result === "victory" || combat.result === "fled") {
-          const deferred = this.postCombatEffects;
-          this.postCombatEffects = [];
-          this.applyEffects(deferred);
-          this.advanceTicks(1);
-          this.state.stats_run.kills += combat.combatants.filter((c2) => c2.side === "enemy" && c2.dead).length;
-          this.pushLog(
-            combat.result === "victory" ? `\u0411\u043E\u0439 \xAB${combat.arena.label}\xBB \u0432\u044B\u0438\u0433\u0440\u0430\u043D \u0437\u0430 ${combat.round} \u0440\u0430\u0443\u043D\u0434(\u043E\u0432).` : `\u0412\u044B \u043E\u0442\u0441\u0442\u0443\u043F\u0438\u043B\u0438 \u0438\u0437 \u0431\u043E\u044F \xAB${combat.arena.label}\xBB.`
-          );
-          this.checkRules();
-          this.autosave();
-        } else if (combat.result === "defeat" && !this.state.game_over) {
-          const deferred = this.postCombatEffects;
-          this.postCombatEffects = [];
-          this.applyEffects(deferred);
-          this.advanceTicks(1);
-          this.pushLog("\u0412\u044B \u043F\u0440\u0438\u0445\u043E\u0434\u0438\u0442\u0435 \u0432 \u0441\u0435\u0431\u044F \u043F\u043E\u0441\u043B\u0435 \u043F\u043E\u0440\u0430\u0436\u0435\u043D\u0438\u044F.");
-          this.checkRules();
-          this.autosave();
-        }
-        this.notify();
+        return director.endCombat.call(this);
       }
-      /** Публичный запуск manual-правила (для Ink external fire_rule). */
       fireRule(ruleId) {
-        this.tryFireRule(ruleId);
+        return effects.fireRule.call(this, ruleId);
       }
-      // ─────────────── диалоги ───────────────
-      /**
-       * Найти ink-исходник диалога по ссылке NPC. Канон пакета —
-       * `dialogues/<id>.ink`; монолит до repair и ручные правки часто держат
-       * голый id (`dlg_orion`). Без фолбэков диалог «молча не открывался».
-       */
       resolveDialogueSource(ref) {
-        const map = this.campaign.dialogues;
-        if (!ref) return null;
-        if (map[ref]) return { key: ref, source: map[ref] };
-        const bare = ref.replace(/^dialogues\//, "").replace(/\.(dlg\.json|ink|json)$/i, "");
-        const candidates = [
-          `dialogues/${bare}.ink`,
-          bare,
-          `${bare}.ink`,
-          `dialogues/${bare}`
-        ];
-        for (const k2 of candidates) {
-          if (map[k2]) return { key: k2, source: map[k2] };
-        }
-        for (const [k2, src] of Object.entries(map)) {
-          if (k2 === bare || k2.endsWith(`/${bare}.ink`) || k2.endsWith(`/${bare}`)) {
-            return { key: k2, source: src };
-          }
-        }
-        return null;
+        return dialogueRuntime.resolveDialogueSource.call(this, ref);
       }
       startDialogue(entityId, knot) {
-        stopVoiceAudio();
-        let npc = this.campaign.entities[entityId];
-        if (!npc || npc.type !== "npc") {
-          npc = Object.values(this.campaign.entities).find((e2) => e2.type === "npc" && (e2.dialogue === entityId || e2.dialogue === `${entityId}.ink`));
-        }
-        if (!npc || npc.type !== "npc" || !npc.dialogue) return;
-        const resolved = this.resolveDialogueSource(npc.dialogue);
-        if (!resolved) return;
-        const { key: dialogueKey, source } = resolved;
-        playInteraction("talk", { entity: npc });
-        let story;
-        this.lastDialogueError = null;
-        try {
-          story = createStory(source, dialogueKey);
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          this.lastDialogueError = msg;
-          this.pushLog(`\u0414\u0438\u0430\u043B\u043E\u0433 \xAB${dialogueKey}\xBB \u043D\u0435 \u0441\u043A\u043E\u043C\u043F\u0438\u043B\u0438\u0440\u043E\u0432\u0430\u043B\u0441\u044F.`);
-          this.messages.push({ text: `\u0414\u0438\u0430\u043B\u043E\u0433 \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u0435\u043D (${npc.label}).` });
-          console.error(msg);
-          this.notify();
-          return;
-        }
-        bindExternals(story, this);
-        const entryKnot = knot ?? "main";
-        try {
-          story.ChoosePathString(entryKnot);
-        } catch {
-          const fallback = firstInkKnot(source);
-          if (fallback && fallback !== entryKnot) {
-            try {
-              story.ChoosePathString(fallback);
-            } catch {
-              this.lastDialogueError = `\u0421\u0442\u0430\u0440\u0442\u043E\u0432\u044B\u0439 \u0443\u0437\u0435\u043B \xAB${fallback}\xBB \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D \u0432 \u0434\u0438\u0430\u043B\u043E\u0433\u0435 \xAB${dialogueKey}\xBB.`;
-              return;
-            }
-          } else if (!story.canContinue) {
-            this.lastDialogueError = `\u0423\u0437\u0435\u043B \xAB${entryKnot}\xBB \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D \u0432 \u0434\u0438\u0430\u043B\u043E\u0433\u0435 \xAB${dialogueKey}\xBB.`;
-            return;
-          }
-        }
-        this.activeStory = story;
-        this.activeNpc = npc;
-        this.state.stats_run.dialogues += 1;
-        this.dialogueHistory = [];
-        const drained = drainStory(story);
-        for (const l2 of drained.lines) {
-          this.dialogueHistory.push({
-            speaker: l2.action ? "" : this.dlgSpeakerLabel(l2, npc),
-            text: l2.text,
-            emotion: l2.emotion,
-            action: l2.action
-          });
-        }
-        if (this.combat || this.trade || this.state.game_over || !this.activeStory) {
-          this.dialogue = null;
-          this.dialogueHistory = [];
-          this.activeStory = null;
-          this.activeNpc = null;
-        } else {
-          this.dialogue = {
-            npc,
-            lines: drained.lines,
-            choices: drained.choices,
-            finished: drained.finished,
-            history: [...this.dialogueHistory]
-          };
-          this.commitDialogueTimer(drained.choices.length);
-          this.commitDialoguePresenting();
-          this.dialogue.timer = this.dialogueTimer ?? void 0;
-        }
-        this.notify();
+        void this.activeStory;
+        void this.activeNpc;
+        void this.pendingDialogueTimer;
+        void this.pendingDialoguePresenting;
+        return dialogueRuntime.startDialogue.call(this, entityId, knot);
       }
       chooseDialogueOption(index) {
-        const story = this.activeStory;
-        const npc = this.activeNpc;
-        if (!story || !npc) return;
-        const chosenChoice = story.currentChoices[index]?.text;
-        if (chosenChoice) {
-          this.dialogueHistory.push({
-            speaker: this.state.player.name || "\u0412\u044B",
-            text: chosenChoice,
-            isChoice: true
-          });
-        }
-        story.ChooseChoiceIndex(index);
-        const drained = drainStory(story);
-        for (const l2 of drained.lines) {
-          this.dialogueHistory.push({
-            speaker: l2.action ? "" : this.dlgSpeakerLabel(l2, npc),
-            text: l2.text,
-            emotion: l2.emotion,
-            action: l2.action
-          });
-        }
-        if (this.combat || this.trade || this.state.game_over || !this.activeStory) {
-          this.dialogue = null;
-          this.dialogueHistory = [];
-          this.activeStory = null;
-          this.activeNpc = null;
-          this.notify();
-          return;
-        }
-        this.dialogue = {
-          npc,
-          lines: drained.lines,
-          choices: drained.choices,
-          finished: drained.finished,
-          history: [...this.dialogueHistory]
-        };
-        this.commitDialogueTimer(drained.choices.length);
-        this.commitDialoguePresenting();
-        this.dialogue.timer = this.dialogueTimer ?? void 0;
-        this.checkRules();
-        if (this.state.game_over) {
-          this.dialogue = null;
-          this.dialogueHistory = [];
-          this.activeStory = null;
-          this.activeNpc = null;
-        }
-        this.notify();
+        return dialogueRuntime.chooseDialogueOption.call(this, index);
       }
       endDialogue() {
-        stopVoiceAudio();
-        this.dialogueTimer = null;
-        this.pendingDialoguePresenting = null;
-        this.dialogue = null;
-        this.dialogueHistory = [];
-        this.activeStory = null;
-        this.activeNpc = null;
-        this.checkRules();
-        this.autosave();
-        this.notify();
+        return dialogueRuntime.endDialogue.call(this);
       }
       dismissMessage() {
         this.messages.shift();
         this.flushPendingBannersIfClear();
         this.notify();
       }
-      // ─────────────── рогалик-луп ───────────────
       gameOver(type, reason, force = false) {
-        if (this.debugInvincible && type === "death" && !force) return;
-        if (this.state.game_over) return;
-        const ending = (this.campaign.meta.endings ?? []).find(
-          (en) => (!en.on || en.on === type) && (en.conditions ?? []).every((c2) => evalCondition(c2, this))
-        );
-        this.state.game_over = { type, reason, ending: ending?.id };
-        if (ending?.id) this.rememberEnding(ending.id);
-        this.finalizeRunMeta(type === "victory");
-        this.dialogue = null;
-        this.dialogueTimer = null;
-        this.activeStory = null;
-        this.activeNpc = null;
-        this.trade = null;
-        deleteSave(this.campaign.meta.id);
-        this.notify();
+        return roguelike.gameOver.call(this, type, reason, force);
       }
-      /** Полный рестарт: новый seed (ТЗ 4.10). */
       restart() {
-        deleteSave(this.campaign.meta.id);
-        const fresh = new _GameEngine(this.campaign);
-        if (this.state.char_choice) {
-          fresh.applyCharCreation({ ...this.state.char_choice, calling: this.state.char_choice.calling ?? "" });
-        }
-        fresh.start();
-        return fresh;
+        return roguelike.restart.call(this, _GameEngine);
       }
-      /** New Game+ доступен? (мастер разрешил, забег завершён победой) */
       newGamePlusAvailable() {
-        return !!this.campaign.meta.new_game_plus && this.state.game_over?.type === "victory";
+        return roguelike.newGamePlusAvailable.call(this);
       }
-      /**
-       * New Game+: победивший герой возвращается в новый забег с наследием
-       * (keep мастера), круг +1 — множители сложности растут на boost-шаги.
-       * Пермадет-семантика сохранена: NG+ только за победу.
-       */
       newGamePlus() {
-        const cfg = this.campaign.meta.new_game_plus;
-        if (!this.newGamePlusAvailable() || !cfg) return null;
-        const prev = this.state;
-        deleteSave(this.campaign.meta.id);
-        const fresh = new _GameEngine(this.campaign);
-        if (prev.char_choice) {
-          fresh.applyCharCreation({ ...prev.char_choice, calling: prev.char_choice.calling ?? "" });
-        }
-        fresh.start();
-        const keep = new Set(cfg.keep ?? ["skills", "skill_marks", "stats", "inventory", "feats", "prepared"]);
-        const pp = prev.player;
-        const np = fresh.state.player;
-        if (keep.has("skills")) np.skills = JSON.parse(JSON.stringify(pp.skills));
-        if (keep.has("skill_marks")) np.skill_marks = { ...pp.skill_marks };
-        if (keep.has("stats")) {
-          np.stats = { ...pp.stats };
-          np.max_hp = pp.max_hp;
-          np.max_mp = pp.max_mp;
-        }
-        if (keep.has("inventory")) {
-          np.inventory = JSON.parse(JSON.stringify(pp.inventory));
-          np.equipment = { ...pp.equipment };
-        }
-        if (keep.has("feats")) {
-          np.xp = pp.xp;
-          np.level = pp.level;
-          np.feats = pp.feats?.slice();
-        }
-        if (keep.has("prepared")) np.prepared_abilities = pp.prepared_abilities?.slice();
-        np.portrait_choice = pp.portrait_choice && JSON.parse(JSON.stringify(pp.portrait_choice));
-        np.difficulty = pp.difficulty;
-        np.hp = np.max_hp;
-        np.mp = np.max_mp;
-        fresh.state.ng_cycle = (prev.ng_cycle ?? 0) + 1;
-        return fresh;
+        return roguelike.newGamePlus.call(this, _GameEngine);
       }
-      // ─────────────── мета-прогресс между забегами (аудит B8b) ───────────────
-      /** мета-прогресс включён мастером (блок meta.metaprogress) */
       metaProgressEnabled() {
-        return !!this.campaign.meta.metaprogress;
-      }
-      static metaKey(campaignId) {
-        return `narthex:meta:${campaignId}`;
+        return meta.metaProgressEnabled.call(this);
       }
       metaState = null;
-      static blankMetaState() {
-        return { runs: 0, deaths: 0, victories: 0, currencies: {}, achievements: {}, unlocks: [], counters: {} };
-      }
-      /** снимок мета-хранилища (ленивая загрузка из localStorage) */
       metaStore() {
-        if (this.metaState) return this.metaState;
-        let loaded;
-        try {
-          const raw = localStorage.getItem(_GameEngine.metaKey(this.campaign.meta.id));
-          loaded = raw ? { ..._GameEngine.blankMetaState(), ...JSON.parse(raw) } : _GameEngine.blankMetaState();
-        } catch {
-          loaded = _GameEngine.blankMetaState();
-        }
-        this.metaState = loaded;
-        return loaded;
+        void this.metaState;
+        return meta.metaStore.call(this);
       }
-      saveMetaStore() {
-        if (!this.metaProgressEnabled() || !this.metaState) return;
-        try {
-          localStorage.setItem(_GameEngine.metaKey(this.campaign.meta.id), JSON.stringify(this.metaState));
-        } catch {
-        }
-      }
-      /** баланс метавалюты */
       metaCurrency(id) {
-        return this.metaStore().currencies[id] ?? 0;
+        return meta.metaCurrency.call(this, id);
       }
-      /** начислить метавалюту (эффект/награда достижения) */
       grantMetaCurrency(id, amount) {
-        if (!this.metaProgressEnabled() || amount === 0) return;
-        const def = this.campaign.meta.metaprogress?.currencies?.find((c2) => c2.id === id);
-        if (!def) return;
-        const st2 = this.metaStore();
-        st2.currencies[id] = Math.max(0, (st2.currencies[id] ?? 0) + amount);
-        this.pushLog(`${def.label}: ${amount > 0 ? "+" : ""}${amount} (\u0432\u0441\u0435\u0433\u043E ${st2.currencies[id]}).`);
-        this.saveMetaStore();
-        this.notify();
+        return meta.grantMetaCurrency.call(this, id, amount);
       }
-      /** открыто ли достижение */
       metaAchievementDone(id) {
-        return !!this.metaStore().achievements[id];
+        return meta.metaAchievementDone.call(this, id);
       }
-      /**
-       * Счётчик хроники для условия meta_counter: «сколько раз это уже было»
-       * между забегами. Служебные ключи (runs/deaths/victories/endings_seen)
-       * читаются из хранилища как есть; любой другой ключ — накопленный счётчик
-       * stats_run плюс вклад текущего забега (как у достижений).
-       */
       metaCounter(key) {
-        const st2 = this.metaStore();
-        switch (key) {
-          case "runs":
-            return st2.runs;
-          case "deaths":
-            return st2.deaths;
-          case "victories":
-            return st2.victories;
-          case "endings_seen":
-            return (st2.endings ?? []).length;
-          default:
-            return (st2.counters[key] ?? 0) + (this.state.stats_run[key] ?? 0);
-        }
+        return meta.metaCounter.call(this, key);
       }
-      /** записать концовку в хронику (истина — впервые увидена) */
-      rememberEnding(endingId) {
-        const st2 = this.metaStore();
-        st2.endings ??= [];
-        if (st2.endings.includes(endingId)) return;
-        st2.endings.push(endingId);
-      }
-      /** достижения с состоянием (для экрана) */
       achievementStates() {
-        const cfg = this.campaign.meta.metaprogress;
-        if (!cfg) return [];
-        const st2 = this.metaStore();
-        return (cfg.achievements ?? []).filter((a2) => !a2.hidden || st2.achievements[a2.id]).map((a2) => ({
-          def: a2,
-          done: !!st2.achievements[a2.id],
-          ...a2.counter ? { progress: this.achievementCounter(a2), target: a2.counter.target } : {}
-        }));
+        return meta.achievementStates.call(this);
       }
-      achievementCounter(a2) {
-        if (!a2.counter) return 0;
-        const st2 = this.metaStore();
-        const total = st2.counters[a2.counter.stat] ?? 0;
-        return total + (this.state.stats_run[a2.counter.stat] ?? 0);
-      }
-      /**
-       * Проверка всех закрытых достижений (тики, эффекты, конец забега вызывают).
-       * Защёлкивает открывшиеся: лог, награда, сохранение.
-       */
       checkAchievements() {
-        const cfg = this.campaign.meta.metaprogress;
-        if (!cfg?.achievements?.length) return;
-        const st2 = this.metaStore();
-        let dirty = false;
-        for (const a2 of cfg.achievements) {
-          if (st2.achievements[a2.id]) continue;
-          const ok = a2.counter ? this.achievementCounter(a2) >= a2.counter.target : (a2.conditions ?? []).length > 0 && (a2.conditions ?? []).every((c2) => evalCondition(c2, this));
-          if (!ok) continue;
-          st2.achievements[a2.id] = (/* @__PURE__ */ new Date()).toISOString();
-          dirty = true;
-          this.unlockedThisRun.push(a2.id);
-          this.pushLog(`\u0414\u043E\u0441\u0442\u0438\u0436\u0435\u043D\u0438\u0435: \xAB${a2.label}\xBB!`);
-          if (a2.reward?.currency && a2.reward.amount) {
-            st2.currencies[a2.reward.currency] = Math.max(0, (st2.currencies[a2.reward.currency] ?? 0) + a2.reward.amount);
-            const curLabel = cfg.currencies?.find((c2) => c2.id === a2.reward.currency)?.label ?? a2.reward.currency;
-            this.pushLog(`${curLabel}: +${a2.reward.amount}.`);
-          }
-          if (a2.reward?.xp) this.grantXp(a2.reward.xp);
-        }
-        if (dirty) this.saveMetaStore();
+        return meta.checkAchievements.call(this);
       }
-      /** открытые в этом забеге достижения (для экрана исхода) */
       unlockedThisRun = [];
       achievementsUnlockedThisRun() {
-        const cfg = this.campaign.meta.metaprogress;
-        if (!cfg) return [];
-        return this.unlockedThisRun.map((id) => cfg.achievements?.find((a2) => a2.id === id)).filter((x2) => !!x2);
+        void this.unlockedThisRun;
+        return meta.achievementsUnlockedThisRun.call(this);
       }
-      /** вклад статистики текущего забега в суммарные счётчики + исход */
-      finalizeRunMeta(won) {
-        if (!this.metaProgressEnabled()) return;
-        const st2 = this.metaStore();
-        if (won) st2.victories += 1;
-        else st2.deaths += 1;
-        for (const [k2, v2] of Object.entries(this.state.stats_run)) {
-          st2.counters[k2] = (st2.counters[k2] ?? 0) + (v2 ?? 0);
-        }
-        this.checkAchievements();
-        this.saveMetaStore();
-      }
-      /** старт нового забега: счётчик и гранты купленных усилений */
       metaRunStart() {
-        const cfg = this.campaign.meta.metaprogress;
-        if (!cfg) return;
-        const st2 = this.metaStore();
-        st2.runs += 1;
-        this.saveMetaStore();
-        if (st2.runs > 1) this.pushLog(`\u0425\u0440\u043E\u043D\u0438\u043A\u0430 \u043F\u0440\u043E\u0434\u043E\u043B\u0436\u0430\u0435\u0442 \u043F\u0438\u0441\u0430\u0442\u044C\u0441\u044F \u2014 \u0437\u0430\u0431\u0435\u0433 \u2116${st2.runs}.`);
-        for (const uid of st2.unlocks) {
-          const u2 = cfg.unlocks?.find((x2) => x2.id === uid);
-          if (!u2) continue;
-          this.pushLog(`\u0423\u0441\u0438\u043B\u0435\u043D\u0438\u0435 \u0438\u0437 \u0445\u0440\u043E\u043D\u0438\u043A\u0438: \xAB${u2.label}\xBB.`);
-          this.applyEffects(u2.grants);
-        }
-        this.checkAchievements();
+        return meta.metaRunStart.call(this);
       }
-      /** куплено ли усиление */
       metaUnlockOwned(id) {
-        return this.metaStore().unlocks.includes(id);
+        return meta.metaUnlockOwned.call(this, id);
       }
-      /** можно ли купить усиление (валюты хватает, требования истинны) */
       metaUnlockAffordable(u2) {
-        if (this.metaUnlockOwned(u2.id)) return false;
-        if (u2.requires?.length && !u2.requires.every((c2) => evalCondition(c2, this))) return false;
-        return u2.cost.every((c2) => this.metaCurrency(c2.currency) >= c2.amount);
+        return meta.metaUnlockAffordable.call(this, u2);
       }
-      /** купить постоянное усиление (экран хроники/финала) */
       buyMetaUnlock(id) {
-        const u2 = this.campaign.meta.metaprogress?.unlocks?.find((x2) => x2.id === id);
-        if (!u2 || !this.metaUnlockAffordable(u2)) return false;
-        const st2 = this.metaStore();
-        for (const c2 of u2.cost) st2.currencies[c2.currency] = (st2.currencies[c2.currency] ?? 0) - c2.amount;
-        st2.unlocks.push(id);
-        this.saveMetaStore();
-        this.pushLog(`\u0412 \u0445\u0440\u043E\u043D\u0438\u043A\u0443 \u0437\u0430\u043F\u0438\u0441\u0430\u043D\u043E \u0443\u0441\u0438\u043B\u0435\u043D\u0438\u0435 \xAB${u2.label}\xBB \u2014 \u0431\u0443\u0434\u0435\u0442 \u0434\u0435\u0439\u0441\u0442\u0432\u043E\u0432\u0430\u0442\u044C \u043A\u0430\u0436\u0434\u043E\u043C \u043D\u043E\u0432\u043E\u043C \u0437\u0430\u0431\u0435\u0433\u0435.`);
-        this.notify();
-        return true;
+        return meta.buyMetaUnlock.call(this, id);
       }
-      // ─────────────── случайные события и генераторы (аудит B9) ───────────────
-      /** есть ли генераторы/таблицы вообще */
       generatorsEnabled() {
-        const g2 = this.campaign.meta.generators;
-        return !!(g2 && (g2.event_tables?.length || g2.npc?.length || g2.scenes?.length || g2.adventures?.length));
+        return encounters.generatorsEnabled.call(this);
       }
-      /** таблица событий по id */
       eventTableDef(id) {
-        return this.campaign.meta.generators?.event_tables?.find((t5) => t5.id === id);
+        return encounters.eventTableDef.call(this, id);
       }
-      /** таблица событий активна сейчас (не выключена, время/локация подходят) */
-      eventTableActive(t5) {
-        if (t5.disabled) return false;
-        if (t5.time_of_day?.length && !t5.time_of_day.includes(timeOfDay(this.state.tick, this.campaign.meta))) return false;
-        if (t5.locations?.length && !t5.locations.includes(this.state.location)) return false;
-        return true;
-      }
-      /**
-       * Один бросок таблицы: выбор случайного подходящего правила и его
-       * исполнение. Возвращает id исполненного правила или null.
-       * `forced` — вызыватель эффекта roll_event_table: без шанса-интервала,
-       * `ignoreFilters` — даже без проверок времени/локации.
-       */
       rollEventTable(tableId, opts = {}) {
-        const t5 = this.eventTableDef(tableId);
-        if (!t5 || t5.disabled) return null;
-        if (!opts.ignoreFilters && !this.eventTableActive(t5)) return null;
-        if (!opts.forced && (t5.chance ?? 1) < 1 && !this.rng.chance(t5.chance ?? 1)) return null;
-        const candidates = [];
-        for (const ruleId of t5.rules) {
-          const rule = this.campaign.rules[ruleId];
-          if (!rule) continue;
-          if (rule.once && this.state.fired_rules.includes(rule.id)) continue;
-          if (!this.ruleConditionsOk(rule)) continue;
-          candidates.push(ruleId);
-        }
-        if (!candidates.length) return null;
-        const picked = candidates[this.rng.int(0, candidates.length - 1)];
-        this.pushLog(`\u0421\u043E\u0431\u044B\u0442\u0438\u0435 (${t5.label})\u2026`);
-        this.fireRule(picked);
-        return picked;
+        return encounters.rollEventTable.call(this, tableId, opts);
       }
-      /** тики: у каждой таблицы свой шаг (tick % interval === 0) */
       tickEventTables() {
-        const tables = this.campaign.meta.generators?.event_tables;
-        if (!tables?.length) return;
-        for (const t5 of tables) {
-          if (t5.interval_ticks <= 0) continue;
-          if (this.state.tick % t5.interval_ticks !== 0) continue;
-          this.rollEventTable(t5.id);
-        }
+        return encounters.tickEventTables.call(this);
       }
-      /** взвешенный выбор из списка генератора (`genPick` используется и из ink) */
       genPickWeighted(items, rand) {
-        if (!items.length) return null;
-        let total = 0;
-        for (const it2 of items) total += Math.max(0, it2.weight ?? 1);
-        if (total <= 0) return items[0].value;
-        let roll = rand() * total;
-        for (const it2 of items) {
-          roll -= Math.max(0, it2.weight ?? 1);
-          if (roll <= 0) return it2.value;
-        }
-        return items[items.length - 1].value;
+        return encounters.genPickWeighted.call(this, items, rand);
       }
-      /** найти определение генератора (любого вида) по id или id списка */
-      genDef(generatorId) {
-        const g2 = this.campaign.meta.generators;
-        if (!g2) return void 0;
-        return g2.npc?.find((x2) => x2.id === generatorId) ?? g2.scenes?.find((x2) => x2.id === generatorId) ?? g2.adventures?.find((x2) => x2.id === generatorId);
-      }
-      /**
-       * Значение из списка генератора. `key` — ключ списка; компоновка имени —
-       * ключ `name` (через gen.name части). seed — стабильная строка: тот же
-       * seed+key даёт то же значение. Без seed — игровой PRNG.
-       */
       genValue(generatorId, key, seed) {
-        const def = this.genDef(generatorId);
-        if (!def) return "";
-        const rand = seed ? this.seedRand(`${seed}:${generatorId}:${key}`) : () => this.rng.next();
-        if (key === "name") {
-          const nameGen = this.campaign.meta.generators?.npc?.find((x2) => x2.id === generatorId);
-          if (nameGen?.name?.length) return this.composeGenName(nameGen, rand);
-        }
-        if (key.startsWith("goal:")) {
-          const adv = this.campaign.meta.generators?.adventures?.find((x2) => x2.id === generatorId);
-          const idx = parseInt(key.slice(5), 10);
-          const template = adv?.goals[idx];
-          if (template) return this.expandGenTemplate(template, def.lists, rand);
-          return "";
-        }
-        const list = def.lists[key];
-        return list ? this.genPickWeighted(list, rand) ?? "" : "";
+        return encounters.genValue.call(this, generatorId, key, seed);
       }
-      /** детерминированный PRNG из строки (стабильность по seed) */
-      seedRand(seed) {
-        let h2 = 2166136261 >>> 0;
-        for (let i2 = 0; i2 < seed.length; i2++) {
-          h2 ^= seed.charCodeAt(i2);
-          h2 = Math.imul(h2, 16777619) >>> 0;
-        }
-        let x2 = h2 || 1;
-        return () => {
-          x2 ^= x2 << 13;
-          x2 >>>= 0;
-          x2 ^= x2 >> 17;
-          x2 ^= x2 << 5;
-          x2 >>>= 0;
-          return x2 / 4294967296;
-        };
-      }
-      /** компоновка имени из частей (список/литерал) */
-      composeGenName(gen, rand) {
-        if (!gen.name?.length) return "";
-        return gen.name.map((p2) => {
-          if (p2.literal != null) return p2.literal;
-          const list = gen.lists[p2.list ?? ""];
-          return list ? this.genPickWeighted(list, rand) ?? "" : "";
-        }).filter(Boolean).join("").trim();
-      }
-      /** подстановка {list:key} в шаблон (цели приключений и слоты сцен) */
-      expandGenTemplate(template, lists, rand) {
-        return template.replace(/\{(?:list|список):([^\s{}]+)\}/g, (_m, key) => {
-          const list = lists[key];
-          return list ? this.genPickWeighted(list, rand) ?? "" : "";
-        });
-      }
-      // ─────────────── сохранение ───────────────
-      /**
-       * Автосейв: состояние пишется в обёртке (`SaveEnvelope`) вместе с версией
-       * кампании и версией движка — без этого нельзя ни перенести сейв, ни
-       * объяснить игроку, почему он не подошёл после обновления.
-       */
-      /** выбранный игроком уровень сложности (мастерские пресеты meta.difficulties) с накруткой круга New Game+ */
       difficultyDef() {
         const list = this.campaign.meta.difficulties;
         if (!list?.length) return null;
@@ -16953,11 +17860,6 @@ var init_engine = __esm({
         if (this.difficultyDef()?.no_autosave) return;
         this.envelope = writeSave(this.campaign.meta.id, this.state, this.campaign.meta.version, this.envelope ?? void 0) ?? this.envelope;
       }
-      /**
-       * Ручной сейв в слот игрока (аудит §5.6 п.9): перезаписывает слот.
-       * Пермадет стирает автосейв, ручные слоты переживают забег — честный
-       * «снимок на всякий случай», если мастер их не запретил (meta.save_slots).
-       */
       manualSave(slot) {
         if (this.state.game_over) return false;
         const env = writeSave(this.campaign.meta.id, this.state, this.campaign.meta.version, void 0, slot);
@@ -16967,7 +17869,6 @@ var init_engine = __esm({
         }
         return env !== null;
       }
-      /** сколько ручных слотов показывать игроку (мастер; умолчание 3) */
       saveSlotsCount() {
         return Math.max(0, Math.min(MAX_SAVE_SLOTS, this.campaign.meta.save_slots ?? 3));
       }
@@ -17040,25 +17941,62 @@ async function getText(url) {
   return res.text();
 }
 async function loadCampaign(basePath) {
-  const [meta, world, manifest] = await Promise.all([
+  const [meta2, world2, manifest] = await Promise.all([
     getJSON(`${basePath}/campaign.json`),
     getJSON(`${basePath}/world.json`),
     getJSON(`${basePath}/manifest.json`)
   ]);
-  const pkg = checkPackage(meta.package_format);
+  const pkg = checkPackage(meta2.package_format);
   if (!pkg.ok) throw new Error(pkg.message);
-  const engine = checkEngine(meta.min_engine ?? meta.engine_version);
+  const engine = checkEngine(meta2.min_engine ?? meta2.engine_version);
   if (!engine.ok) console.warn(`[narthex] ${engine.message}`);
   const scenes = {};
   const entities = {};
   const rules = {};
+  const ruleOrder = [];
   const arenas = {};
-  const quests = {};
-  const encounters = {};
+  const quests2 = {};
+  const encounters2 = {};
+  const encounterOrder = [];
+  const addEncounter = (table) => {
+    if (!Object.prototype.hasOwnProperty.call(encounters2, table.id)) encounterOrder.push(table.id);
+    encounters2[table.id] = table;
+  };
   const cutscenes = {};
   const recipes = {};
   const codex = {};
   const dialogues = {};
+  const [loadedEncounterFiles, loadedRuleFiles] = await Promise.all([
+    Promise.all((manifest.encounters ?? []).map(async (f2) => {
+      let tables;
+      try {
+        tables = await getJSON(`${basePath}/encounters/${f2}`);
+      } catch {
+        tables = await getJSON(`${basePath}/rules/${f2}`);
+      }
+      return tables.encounter_tables;
+    })),
+    Promise.all(manifest.rules.map(async (f2) => ({
+      file: f2,
+      verdict: parseRuleFile(f2, await getJSON(`${basePath}/rules/${f2}`))
+    })))
+  ]);
+  for (const tables of loadedEncounterFiles) {
+    for (const table of tables) addEncounter(table);
+  }
+  for (const { file, verdict } of loadedRuleFiles) {
+    for (const warning of verdict.warnings) console.warn(`[narthex] ${warning}`);
+    if (verdict.kind === "rule") {
+      if (rules[verdict.rule.id]) {
+        console.warn(`[narthex] rules/${file}: \u0434\u0443\u0431\u043B\u044C id \xAB${verdict.rule.id}\xBB \u2014 \u0444\u0430\u0439\u043B \u043F\u0440\u043E\u043F\u0443\u0449\u0435\u043D.`);
+        continue;
+      }
+      rules[verdict.rule.id] = verdict.rule;
+      ruleOrder.push(verdict.rule.id);
+    } else if (verdict.kind === "encounters") {
+      for (const table of verdict.tables) addEncounter(table);
+    }
+  }
   await Promise.all([
     ...(manifest.arenas ?? []).map(async (f2) => {
       const a2 = await getJSON(`${basePath}/arenas/${f2}`);
@@ -17066,16 +18004,7 @@ async function loadCampaign(basePath) {
     }),
     ...(manifest.quests ?? []).map(async (f2) => {
       const q2 = await getJSON(`${basePath}/quests/${f2}`);
-      quests[q2.id] = q2;
-    }),
-    ...(manifest.encounters ?? []).map(async (f2) => {
-      let tables;
-      try {
-        tables = await getJSON(`${basePath}/encounters/${f2}`);
-      } catch {
-        tables = await getJSON(`${basePath}/rules/${f2}`);
-      }
-      for (const t5 of tables.encounter_tables) encounters[t5.id] = t5;
+      quests2[q2.id] = q2;
     }),
     ...(manifest.cutscenes ?? []).map(async (f2) => {
       const c2 = await getJSON(`${basePath}/cutscenes/${f2}`);
@@ -17097,26 +18026,12 @@ async function loadCampaign(basePath) {
       const e2 = await getJSON(`${basePath}/entities/${f2}`);
       entities[e2.id] = migrateEntity(e2);
     }),
-    ...manifest.rules.map(async (f2) => {
-      const raw = await getJSON(`${basePath}/rules/${f2}`);
-      const verdict = parseRuleFile(f2, raw);
-      for (const w2 of verdict.warnings) console.warn(`[narthex] ${w2}`);
-      if (verdict.kind === "rule") {
-        if (rules[verdict.rule.id]) {
-          console.warn(`[narthex] rules/${f2}: \u0434\u0443\u0431\u043B\u044C id \xAB${verdict.rule.id}\xBB \u2014 \u0444\u0430\u0439\u043B \u043F\u0440\u043E\u043F\u0443\u0449\u0435\u043D.`);
-          return;
-        }
-        rules[verdict.rule.id] = verdict.rule;
-      } else if (verdict.kind === "encounters") {
-        for (const t5 of verdict.tables) encounters[t5.id] = t5;
-      }
-    }),
     ...manifest.dialogues.map(async (f2) => {
       dialogues[`dialogues/${f2}`] = await getText(`${basePath}/dialogues/${f2}`);
     })
   ]);
-  migrateCampaign(meta, world, scenes);
-  return { meta, world, scenes, entities, rules, arenas, quests, encounters, cutscenes, recipes, codex, dialogues, basePath };
+  migrateCampaign(meta2, world2, scenes);
+  return { meta: meta2, world: world2, scenes, entities, rules, ruleOrder, arenas, quests: quests2, encounters: encounters2, encounterOrder, cutscenes, recipes, codex, dialogues, basePath };
 }
 
 // scripts/playkit/cli.mts
@@ -17137,8 +18052,8 @@ function rollStat(creation, stat) {
   const { min, max } = creation.stat_limits;
   return Math.min(max, Math.max(min, v2));
 }
-function allSkillIds(meta) {
-  const reg = (meta.skills ?? []).map((s2) => ({ id: s2.id, label: s2.label || s2.id }));
+function allSkillIds(meta2) {
+  const reg = (meta2.skills ?? []).map((s2) => ({ id: s2.id, label: s2.label || s2.id }));
   return reg.sort((a2, b2) => a2.label.localeCompare(b2.label, "ru"));
 }
 function prof(creation, choice) {
@@ -17220,7 +18135,7 @@ function fitCallingTemplate(creation, choice, ids, target) {
   }));
   return allocateExactBudget(ids, creation.skill_points, bases, target, caps, new Set(creation.forbidden_skills ?? []));
 }
-function newCharChoice(creation, template, meta) {
+function newCharChoice(creation, template, meta2) {
   const first = creation.professions?.[0];
   const firstCall = creation.callings?.[0];
   const stats = {};
@@ -17229,7 +18144,7 @@ function newCharChoice(creation, template, meta) {
   } else {
     Object.assign(stats, fitStatTemplate(creation, first?.stats));
   }
-  const ids = /* @__PURE__ */ new Set([...allSkillIds(meta).map((s2) => s2.id), ...Object.keys(template.skills)]);
+  const ids = /* @__PURE__ */ new Set([...allSkillIds(meta2).map((s2) => s2.id), ...Object.keys(template.skills)]);
   const choice = {
     name: template.label,
     stats,
@@ -17282,7 +18197,7 @@ var ENTER_CONDITION = /* @__PURE__ */ new Set(["player_enters_scene", "player_en
 var START_COMBAT = /* @__PURE__ */ new Set(["start_combat"]);
 var START_DIALOGUE = /* @__PURE__ */ new Set(["start_dialogue"]);
 function walkCampaign(campaign2) {
-  const effects = [];
+  const effects2 = [];
   const conditions = [];
   const seen = /* @__PURE__ */ new Set();
   const visit = (value, depth) => {
@@ -17295,13 +18210,13 @@ function walkCampaign(campaign2) {
     }
     const type = typeof value.type === "string" ? String(value.type) : "";
     if (WRITE_FLAG.has(type) || QUEST_EFFECT.has(type) || TELEPORT.has(type) || START_COMBAT.has(type) || START_DIALOGUE.has(type)) {
-      effects.push(value);
+      effects2.push(value);
     }
     if (READ_FLAG.has(type) || QUEST_CONDITION.has(type) || ENTER_CONDITION.has(type)) conditions.push(value);
     for (const entry of Object.values(value)) visit(entry, depth + 1);
   };
   visit(campaign2, 0);
-  return { effects, conditions };
+  return { effects: effects2, conditions };
 }
 function parseInk(source) {
   const knots = [];
@@ -17362,8 +18277,8 @@ function buildGraph(campaign2, ink) {
       locationScenes.set(String(location.id), [...new Set(here)]);
     }
   }
-  const { effects } = walkCampaign(campaign2);
-  for (const effect of effects) {
+  const { effects: effects2 } = walkCampaign(campaign2);
+  for (const effect of effects2) {
     if (effect.type === "teleport_player") {
       if (effect.scene) effectScenes.add(String(effect.scene));
       if (effect.location) effectLocations.add(String(effect.location));
@@ -17421,16 +18336,16 @@ function collectGraph(campaign2, graph, startScene, startLocation, startRegion) 
 }
 function analyzeCampaign(campaign2) {
   const findings = [];
-  const meta = campaign2.meta ?? {};
+  const meta2 = campaign2.meta ?? {};
   const dialogues = [];
   const parsedInk = Object.entries(campaign2.dialogues ?? {}).map(([path, source]) => ({
     path,
     parsed: parseInk(String(source))
   }));
   const graph = buildGraph(campaign2, parsedInk.map((d2) => d2.parsed));
-  const startScene = String(meta.starting_scene ?? "");
-  const startLocation = String(meta.starting_location ?? "");
-  const startRegion = String(meta.starting_region ?? "");
+  const startScene = String(meta2.starting_scene ?? "");
+  const startLocation = String(meta2.starting_location ?? "");
+  const startRegion = String(meta2.starting_region ?? "");
   const reachability = collectGraph(campaign2, graph, startScene, startLocation, startRegion);
   for (const { path, parsed } of parsedInk) {
     const problems = [];
@@ -17581,8 +18496,8 @@ function analyzeCampaign(campaign2) {
       where: `world.json`
     });
   }
-  const { effects, conditions } = walkCampaign(campaign2);
-  for (const effect of effects) {
+  const { effects: effects2, conditions } = walkCampaign(campaign2);
+  for (const effect of effects2) {
     if (effect.type === "teleport_player") {
       if (effect.location && !campaign2.world?.regions?.some?.((r2) => (r2.locations ?? []).some((l2) => l2.id === effect.location)) && !reachability.locations.total) {
         findings.push({ code: "teleport_location_missing", severity: "error", message: `teleport_player \u2192 \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0430\u044F \u043B\u043E\u043A\u0430\u0446\u0438\u044F \xAB${effect.location}\xBB` });
@@ -17600,13 +18515,13 @@ function analyzeCampaign(campaign2) {
   }
   const flagWrites = /* @__PURE__ */ new Set();
   const flagReads = /* @__PURE__ */ new Set();
-  for (const effect of effects) if (WRITE_FLAG.has(effect.type) && effect.flag) flagWrites.add(String(effect.flag));
+  for (const effect of effects2) if (WRITE_FLAG.has(effect.type) && effect.flag) flagWrites.add(String(effect.flag));
   for (const condition of conditions) if (READ_FLAG.has(condition.type) && condition.flag) flagReads.add(String(condition.flag));
   for (const { parsed } of parsedInk) {
     for (const flag of parsed.flagWrites) flagWrites.add(flag);
     for (const flag of parsed.flagReads) flagReads.add(flag);
   }
-  for (const flag of meta.flags ?? []) flagWrites.add(String(flag.id));
+  for (const flag of meta2.flags ?? []) flagWrites.add(String(flag.id));
   for (const flag of flagReads) {
     if (!flagWrites.has(flag)) {
       findings.push({
@@ -17630,7 +18545,7 @@ function analyzeCampaign(campaign2) {
   for (const quest of Object.values(campaign2.quests ?? {})) {
     const stageIds = new Set((quest.stages ?? []).map((s2) => String(s2.id)));
     const referenced = /* @__PURE__ */ new Set();
-    for (const effect of effects) {
+    for (const effect of effects2) {
       if (effect.type !== "advance_quest" || effect.quest !== quest.id) continue;
       if (effect.stage && !stageIds.has(String(effect.stage))) {
         findings.push({
@@ -17706,7 +18621,7 @@ function analyzeCampaign(campaign2) {
       });
     }
   }
-  const endings = meta.endings ?? [];
+  const endings = meta2.endings ?? [];
   for (const ending of endings) {
     for (const condition of ending.conditions ?? []) {
       const flag = condition.flag;
@@ -17735,7 +18650,7 @@ function analyzeCampaign(campaign2) {
   };
   findings.sort((a2, b2) => severityRank(a2.severity) - severityRank(b2.severity) || a2.code.localeCompare(b2.code));
   return {
-    campaign: { id: String(meta.id ?? ""), title: String(meta.title ?? ""), version: String(meta.version ?? "") },
+    campaign: { id: String(meta2.id ?? ""), title: String(meta2.title ?? ""), version: String(meta2.version ?? "") },
     counts,
     reachability,
     dialogues,
@@ -18702,7 +19617,7 @@ async function cmdDialogue(config, target, maxDepth, maxNodes) {
       Object.entries(probe.state.flags ?? {}).filter(([name, value]) => !baseFlags[name] && value)
     );
     for (const name of Object.keys(flags)) seenFlags.add(name);
-    const quests = Object.fromEntries(
+    const quests2 = Object.fromEntries(
       Object.entries(probe.state.quests ?? {}).map(([id, q2]) => [id, String(q2?.stage ?? "")]).filter(([id, stage]) => baseQuests[id] !== stage)
     );
     const choices = ui ? (ui.choices ?? []).map((choice) => String(choice.text)) : [];
@@ -18712,7 +19627,7 @@ async function cmdDialogue(config, target, maxDepth, maxNodes) {
       choices,
       chosen: item.chosen,
       flags,
-      quests,
+      quests: quests2,
       combat: probe.combat ? String(probe.combat.arena?.id ?? "combat") : null,
       over: probe.state.game_over ? `${probe.state.game_over.type}: ${probe.state.game_over.reason ?? ""}` : null,
       closed: !ui && !probe.combat && !probe.state.game_over,
