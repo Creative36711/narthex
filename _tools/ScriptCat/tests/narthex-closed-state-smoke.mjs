@@ -14,8 +14,8 @@ const path = new URL('../narthex.user.js', import.meta.url);
 const src = readFileSync(path, 'utf8');
 
 // 1. Версия: Closed появился в 1.2.0, проверка шлюза — в 1.2.1,
-//    технический блок — в 1.3.2.
-assert.match(src, /@version\s+1\.3\.2/, 'версия 1.3.2');
+//    технический блок — в 1.3.2, пауза и ntfy — в 1.4.0.
+assert.match(src, /@version\s+1\.4\.53/, 'версия 1.4.53');
 assert.match(src, /gatewayIsOld/, 'есть проверка версии шлюза: старый пишет мимо Arena');
 assert.match(src, /major === 1 && minor < 5/, 'порог — шлюз 1.5');
 assert.match(src, /repo:\s*"[^"]+\/[^"]+"/, 'в конфиге есть repo для ссылки на PR');
@@ -24,7 +24,7 @@ assert.match(src, /repo:\s*"[^"]+\/[^"]+"/, 'в конфиге есть repo д�
 //    в DOM остаются скрытые бейджи прошлых состояний.
 assert.match(src, /badgeVisible\("Pull request merged"\)/, 'Merged — по aria-label "Pull request merged"');
 assert.match(src, /badgeVisible\("Pull request closed"\)/, 'Closed — по aria-label "Pull request closed"');
-assert.match(src, /getClientRects\(\)\.length === 0/, 'видимость считается по геометрии, а не по offsetParent');
+assert.match(src, /rect\.width > 0 && rect\.height > 0/, 'видимость считается по площади, а не по offsetParent');
 
 // 3. Порядок в ожидании мержа: Merged → Closed → Continue.
 //    Если Continue проверять раньше Closed, закрытый PR будет принят за слитый.
@@ -40,7 +40,7 @@ assert.match(src, /status.*=== "merged"/s, 'status: "merged" тоже прини
 assert.match(src, /"pr":<номер PR>,"merged":true/, 'в шаблоне маркера требуются pr и merged');
 
 // 5. Закрытие без мержа: причина в лог, Rework с ответом, ход Координатору.
-const closedPath = src.slice(src.indexOf('merged === "closed" && !hasMergedClaim(result)'));
+const closedPath = src.slice(src.indexOf('merged === "unconfirmed") && !hasMergedClaim(result)'));
 assert.ok(closedPath.length > 0, 'есть ветка «закрыт без мержа»');
 const block = closedPath.slice(0, 1400);
 assert.match(block, /:closed -->/, 'в лог пишется отдельный маркер закрытия');
@@ -61,4 +61,4 @@ assert.match(prFn, /\^\\d\+\$/, 'номер превращается в ссыл
 // 8. Сводка Координатору показывает Rework: иначе причина теряется.
 assert.match(src, /Есть Rework: посмотри «Ответ»/, 'Координатор получает подсказку про Rework');
 
-console.log('OK: narthex 1.3.2 — Merged / Closed / Timeout, Closed без мержа → Rework, шлюз 1.5');
+console.log('OK: narthex 1.4.53 — Merged / Closed / Timeout, Closed без мержа → Rework, шлюз 1.5');
