@@ -79,6 +79,7 @@ export type EditorSection =
   | 'combat'
   | 'recipes'
   | 'codex'
+  | 'packs'
 
 export class EditorStore {
   basePath: string // "/campaigns/ash-of-caerden"

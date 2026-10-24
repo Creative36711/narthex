@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "packs": [
+    "narrative",
+    "grid-strategy"
+  ]
+}
