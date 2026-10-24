@@ -168,7 +168,7 @@ assert.ok(consumeAt > 0 && gateAt > consumeAt, 'досылка очереди о
 // 4.1. Напоминание больше не создаёт «другой вид» ожидания.
 assert.match(
   src,
-  /await sendToRole\(role, markerReminder\(role, expect, sent \+ 1, markerName\), expect\.kind, expect\.ref,/,
+  /await sendToRole\(role, markerReminder\(role, expect, sent \+ 1, markerName, why\), expect\.kind, expect\.ref,/,
   'напоминание сохраняет вид ожидания',
 );
 assert.match(
@@ -195,7 +195,7 @@ const chatText = src.slice(chatFrom, chatTo);
 assert.ok(chatText.length > 0, 'блок исходящих текстов найден');
 assert.ok(!/ScriptCat/.test(chatText), 'в блоке, который уходит агентам, нет «ScriptCat»');
 
-const reminderFrom = src.indexOf('function markerReminder(role, expect, attempt, markerName) {');
+const reminderFrom = src.indexOf('function markerReminder(role, expect, attempt, markerName, why = "") {');
 const reminderTo = src.indexOf('function stillWorking() {');
 const reminderText = src.slice(reminderFrom, reminderTo);
 assert.ok(!/ScriptCat/.test(reminderText), 'в напоминании нет «ScriptCat»');
@@ -207,4 +207,4 @@ assert.match(src, /await sleep\(450 \+ Math\.floor\(Math\.random\(\) \* 900\)\);
 assert.match(src, /await sleep\(500 \+ Math\.floor\(Math\.random\(\) \* 1200\)\);/, 'пауза перед нажатием Send');
 assert.match(src, /«\$\{role\.name\}» уже открыт — отправляю задание здесь\./, 'свою же страницу не перезагружаем');
 
-console.log('OK: narthex 1.4.29 — ответ берётся из настоящего .prose, а не из «Thought for…», «думаю» не считается ответом, один шаг = одна отправка');
+console.log('OK: narthex 1.4.30 — ответ берётся из настоящего .prose, а не из «Thought for…», «думаю» не считается ответом, один шаг = одна отправка');

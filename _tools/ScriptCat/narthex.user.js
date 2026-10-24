@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.29
+// @version      1.4.30
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -57,6 +57,7 @@
     maxLog: 200, // журнал хранится в ScriptCat; панель показывает хвост
     markerIdleMs: 20000, // ответ стабилен столько — считаем, что маркера не будет
     markerReminders: 2, // напоминаний до паузы: дальше решает Мастер
+    minAnswerChars: 200, // маркер без отчёта — не ответ: короче — просим отчёт заново
     pendingTtlMs: 600000, // отправка старше 10 минут не досылается: адресат её не получил
     replyWaitMs: 1800000, // 30 минут без единого сообщения — повод остановиться
     sendVerifyMs: 6000, // сколько ждём своё сообщение в чате после нажатия Send
@@ -1433,8 +1434,11 @@
   /**
    * Напоминание о формате. Две формулировки — чтобы подряд идущие напоминания
    * не выглядели механической копией, и чтобы в чате не было слова ScriptCat.
+   *
+   * why = "thin" — маркер есть, а отчёта нет (NAR-1.8, 23.10.2026: агент понял
+   * «ответь одной последней строкой» буквально, а в журнал попал только маркер).
    */
-  function markerReminder(role, expect, attempt, markerName) {
+  function markerReminder(role, expect, attempt, markerName, why = "") {
     const line =
       expect.kind === "plan"
         ? `CF_COORDINATOR_RESULT {"mission_id":"${expect.missionId || expect.ref}","turn_id":"${expect.turnId || ""}","status":"completed","next":"<роль|done>"}`
@@ -1451,13 +1455,22 @@
       [
         `НАПОМИНАНИЕ О ФОРМАТЕ (${attempt} из ${C.markerReminders}; повторять работу не нужно).`,
         `В ответе${about} не нашлось последней строки с ${markerName}.`,
-        "Остальное на месте, не хватает только служебной строки.",
+        "Остальное в чате на месте — не хватает только служебной строки.",
       ],
     ];
+    // Маркер вместо отчёта. Просить «одну последнюю строку» нельзя: агент
+    // присылает ровно её, отчёт остаётся в чате, а журнал хода пустеет.
+    const thin = [
+      `ОТЧЁТ НЕ ЗАПИСАН (${attempt} из ${C.markerReminders}; это не задание и не новый ход).`,
+      `В последнем ответе${about} пришла только служебная строка ${markerName}, без отчёта.`,
+      "Маркер без фактов не считается ответом: по нему нельзя принять работу.",
+    ];
     return [
-      ...variants[(attempt - 1) % variants.length],
+      ...(why === "thin" ? thin : variants[(attempt - 1) % variants.length]),
       "Не повторяй уже сделанное и не жди Мастера — это ошибка формата, а не работы.",
-      "Если всё готово, ответь ровно одной последней строкой:",
+      why === "thin"
+        ? "Пришли ответ ещё раз целиком: что изменил, что показали команды, какие числа получились — и последней строкой маркер."
+        : "Пришли ответ ещё раз целиком и последней строкой добавь маркер: одним маркером вместо отчёта отвечать нельзя.",
       line,
       "Строка должна быть последней, без блока кода и без текста после неё.",
       "",
@@ -1500,10 +1513,46 @@
   }
 
   /**
+   * Текст ответа для журнала: все сообщения агента за ход, а не только последнее.
+   *
+   * Инцидент NAR-1.8 (23.10.2026). Kernel отчитался без маркера, получил
+   * напоминание и прислал одну строку маркера. В журнал попал только маркер:
+   * Координатор прочитал его, не увидел работы и поставил Rework при слитом PR.
+   * Теперь журнал собирается из всего хода, а одинаковые части не дублируются.
+   */
+  function runAnswer(expect, hit) {
+    const seen = new Set();
+    const parts = [];
+    const push = (m) => {
+      const text = String((m && m.text) || "").trim();
+      if (!text || seen.has(text)) return;
+      seen.add(text);
+      parts.push(text);
+    };
+    messagesAfter(expect.watermark).forEach(push);
+    push(hit);
+    const text = parts
+      .map((part, i) => (parts.length > 1 ? `### Часть ${i + 1} из ${parts.length}\n\n${part}` : part))
+      .join("\n\n");
+    return { text, parts: parts.length, body: answerBody(text) };
+  }
+
+  /** Длина текста без служебных строк маркера: по ней видно, есть ли отчёт. */
+  const answerBody = (text) =>
+    String(text || "")
+      .split("\n")
+      .filter((line) => !/^\s*CF_(AGENT|COORDINATOR)_RESULT\b/.test(line) && !/^### Часть \d+ из \d+/.test(line))
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim().length;
+
+  /**
    * Ждём ответ без маркера. Возвращает true, если ход уже обработан
    * (напоминание ушло или цикл поставлен на паузу).
+   *
+   * why = "thin" — маркер пришёл, а отчёта в нём нет.
    */
-  async function markerMissing(role, expect, markerName, manual = false) {
+  async function markerMissing(role, expect, markerName, manual = false, why = "") {
     // Пока агент печатает или «думает», ответа ещё нет: молчим, но по нажатию
     // «Шаг» объясняем, что именно ждём.
     if (stillWorking()) {
@@ -1542,16 +1591,18 @@
       return false;
     }
 
-    dbg("ответ без маркера", { id: last.id, length: last.raw.length, tail: tail(last.raw, 300) });
+    dbg("ответ без маркера", { id: last.id, length: last.raw.length, tail: tail(last.raw, 300), why });
     const sent = Number(expect.tries) || 0;
     if (markerStep(sent) === "remind") {
       log(
-        `${role.name} ответил без маркера ${markerName} — напоминание ${sent + 1} из ${C.markerReminders}. ` +
-          `Прочитан хвост: «${tail(last.text, 110)}»`,
+        why === "thin"
+          ? `${role.name} прислал только маркер ${markerName}, без отчёта — напоминание ${sent + 1} из ${C.markerReminders}.`
+          : `${role.name} ответил без маркера ${markerName} — напоминание ${sent + 1} из ${C.markerReminders}. ` +
+              `Прочитан хвост: «${tail(last.text, 110)}»`,
         true,
-        { ntfy: "quiet", title: "Narthex: нет маркера" },
+        { ntfy: "quiet", title: why === "thin" ? "Narthex: маркер без отчёта" : "Narthex: нет маркера" },
       );
-      await sendToRole(role, markerReminder(role, expect, sent + 1, markerName), expect.kind, expect.ref, {
+      await sendToRole(role, markerReminder(role, expect, sent + 1, markerName, why), expect.kind, expect.ref, {
         missionId: expect.missionId,
         turnId: expect.turnId,
         runId: expect.runId,
@@ -1562,7 +1613,11 @@
     }
 
     pause(
-      `${role.name} ответил без маркера ${markerName} после ${C.markerReminders} напоминаний. Нужен Мастер: проверьте страницу агента.`,
+      why === "thin"
+        ? `${role.name} присылает только маркер ${markerName}, без отчёта, после ${C.markerReminders} напоминаний. ` +
+            "Нужен Мастер: проверьте страницу агента."
+        : `${role.name} ответил без маркера ${markerName} после ${C.markerReminders} напоминаний. ` +
+            "Нужен Мастер: проверьте страницу агента.",
       { kind: "marker", ref: expect.ref, runId: expect.runId, turnId: expect.turnId, tries: sent },
     );
     return true;
@@ -3462,12 +3517,21 @@
       return false;
     }
 
+    // Журнал собирается из всего хода: ответ мог прийти частями — отчёт первым
+    // сообщением, маркер отдельным после напоминания. Маркер без отчёта в журнал
+    // не пишем вовсе: именно такая запись и обманула Координатора на NAR-1.8.
+    const answer = runAnswer(expect, hit);
+    if (answer.body < C.minAnswerChars) {
+      log(`В ответе ${role.name} только маркер, отчёта нет — в журнал не пишу.`, true);
+      return markerMissing(role, expect, "CF_AGENT_RESULT", manual, "thin");
+    }
     const logId = rt(page.properties["Output Drive File ID"]);
     if (!logId) throw new Error("В карточке нет Output Drive File ID.");
     const marker = `<!-- CF_DISPATCH ${result.dispatch_id}:${result.run_id} -->`;
+    const partsNote = answer.parts > 1 ? `_Ответ собран из ${answer.parts} сообщений хода._\n\n` : "";
     await gateway("append", logId, {
       marker,
-      entry: `\n\n${marker}\n## Ответ ${role.name}\n\n${hit.text}\n`,
+      entry: `\n\n${marker}\n## Ответ ${role.name}\n\n${partsNote}${answer.text}\n`,
     });
 
     // Аудитор не открывает PR: ждать мерж и нажимать Continue нечего.

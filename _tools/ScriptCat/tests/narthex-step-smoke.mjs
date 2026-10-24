@@ -16,7 +16,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.29/, 'версия 1.4.29');
+assert.match(src, /@version\s+1\.4\.30/, 'версия 1.4.30');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
@@ -26,7 +26,7 @@ assert.match(tickBody, /Date\.now\(\) - busyAt < 120000/, 'залипший ша
 assert.match(tickBody, /Шаг уже выполняется/, 'повторное нажатие объясняется, а не молчит');
 assert.match(tickBody, /else if \(!expect\)/, 'исполнитель без задания не падает в TypeError');
 assert.match(tickBody, /submitExecutor\(me, expect, fromToggle\)/, 'ручной режим передаётся исполнителю');
-assert.match(src, /async function markerMissing\(role, expect, markerName, manual = false\)/, 'ожидание маркера знает про ручной шаг');
+assert.match(src, /async function markerMissing\(role, expect, markerName, manual = false, why = ""\)/, 'ожидание маркера знает про ручной шаг');
 assert.match(src, /Жду ответ \$\{role.name\}: новых сообщений нет/, 'ручной шаг объясняет ожидание');
 
 // 1.1. «Шаг» работает с любой страницы: сам открывает нужную роль.
@@ -224,7 +224,7 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     skipBtn.click = () => { out.clicks.push("skip"); messages.length = 0; };
     messages.push({ querySelectorAll: () => (messages.length ? [skipBtn] : []) });
   }
-  // 1.4.29: окно проверки. `captcha` — видна сразу, `captchaAfterClick` —
+  // 1.4.30: окно проверки. `captcha` — видна сразу, `captchaAfterClick` —
   // появляется, как в жизни: после клика по Send, вместо отправки.
   const captchaNow = () => captcha || (captchaAfterClick && sent.length > 0);
   const captchaEl = captcha || captchaAfterClick
@@ -572,4 +572,4 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   assert.equal(out.logs.length, 0, 'и журнал не засоряется');
 }
 
-console.log("OK: narthex 1.4.29 — «Шаг» с любой страницы, чат освобождается от плашки и Skip, каждый отказ объяснён");
+console.log("OK: narthex 1.4.30 — «Шаг» с любой страницы, чат освобождается от плашки и Skip, каждый отказ объяснён");
