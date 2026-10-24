@@ -1,5 +1,5 @@
 import type { CompanionState, ItemDef, NeedDef, NpcDef } from '../shared/types'
-import { featureOn } from '../shared/types'
+import { featureOn } from './caps'
 import type { EngineCtx } from './context'
 import { derivedHP } from './brp'
 import { playInteraction } from '../shared/audio'

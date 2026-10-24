@@ -582,6 +582,8 @@ export interface ItemCategoryDef {
  * что механика ВКЛЮЧЕНА — старые кампании работают без изменений.
  * Тумблеры скрывают подсистему и в движке, и в интерфейсе игрока.
  */
+export type CapabilityId = string
+
 export interface CampaignFeatures {
   /** карта мира и путешествия между локациями */
   map?: boolean
@@ -601,10 +603,9 @@ export interface CampaignFeatures {
   time?: boolean
 }
 
-/** механика включена, если поле отсутствует или истинно */
-export function featureOn(meta: CampaignMeta, key: keyof CampaignFeatures): boolean {
-  return meta.features?.[key] !== false
-}
+// Runtime implementation lives with the capability registry; this re-export
+// preserves imports in the editor and player until their UI wiring is migrated.
+export { featureOn } from '../core/caps'
 
 /** Эффективный стартовый тик забега: единая точка (движок, HUD-дедлайн и
  *  условие elapsed_ge), чтобы «умолчание» не разъезжалось. Историческое
@@ -1061,7 +1062,9 @@ export interface CampaignMeta {
   default_music?: string[]
   /** трек(и) боя по умолчанию (если у арены нет своего arena.music) */
   combat_music?: string[]
-  /** профиль механик: что включено в этой кампании (нет поля — всё включено) */
+  /** Явно включённые возможности; при отсутствии читается legacy-поле features. */
+  caps?: CapabilityId[]
+  /** профиль механик: legacy-переключатели, читаются через caps.ts */
   features?: CampaignFeatures
   /** реестр шрифтов кампании (блок 2 ТЗ) */
   fonts?: FontDef[]

@@ -3,7 +3,7 @@ import type { FeatDef, PlayerState, SkillDifficulty, StatBlock } from '../shared
 import type { CharChoice } from './charcreate'
 import { derivedHP, derivedMP, movement, skillCheck, CHECK_RESULT_LABEL, difficultyModifier, difficultyLabel } from './brp'
 import { rollDice } from './dice'
-import { featureOn } from '../shared/types'
+import { featureOn } from './caps'
 import { skillLabel as sharedSkillLabel } from '../shared/skills'
 import { evalCondition } from './conditions'
 import { playUi } from '../shared/audio'

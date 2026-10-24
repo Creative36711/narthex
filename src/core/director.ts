@@ -1,6 +1,6 @@
 import type { EngineCtx } from './context'
 import type { ArtDoc, CameraDoc, CutsceneDef, Effect, SceneDef } from '../shared/types'
-import { featureOn } from '../shared/types'
+import { featureOn } from './caps'
 import { stopVoiceAudio } from '../shared/voiceAudio'
 import { playUi } from '../shared/audio'
 import { CombatController } from './combat'

@@ -1,6 +1,6 @@
 import type { EngineCtx } from './context'
 import type { ItemDef, NpcDef, RecipeDef } from '../shared/types'
-import { featureOn } from '../shared/types'
+import { featureOn } from './caps'
 import { evalCondition } from './conditions'
 import { playInteraction, playUi } from '../shared/audio'
 

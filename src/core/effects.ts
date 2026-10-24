@@ -1,6 +1,6 @@
 import type { EngineCtx } from './context'
 import type { Effect, RuleDef } from '../shared/types'
-import { featureOn } from '../shared/types'
+import { featureOn } from './caps'
 import { evalCondition } from './conditions'
 import { quests } from './quests'
 import { skillCheck, CHECK_RESULT_LABEL, difficultyModifier } from './brp'

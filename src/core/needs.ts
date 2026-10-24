@@ -1,5 +1,5 @@
 import type { ActiveStatus, ItemDef, NeedCondition, NpcDef, StatusDef } from '../shared/types'
-import { featureOn } from '../shared/types'
+import { featureOn } from './caps'
 import { migrateNeedCondition } from '../shared/migrate'
 import type { EngineCtx } from './context'
 import { CHECK_RESULT_LABEL, skillCheck } from './brp'
