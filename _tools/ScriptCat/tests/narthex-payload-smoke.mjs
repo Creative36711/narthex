@@ -38,6 +38,7 @@ function makeHarness({ payloadId = '', fileText = '', readFails = false } = {}) 
     'roles', 'rt', 'gateway', 'patch', 'taskLogEntry', 'executorPrompt',
     'log', 'taskTitle', 'uid', 'nowIso', 'sendToRole',
     'notion', 'taskState', 'GM_getValue', 'GM_setValue', 'pause', 'K',
+    'reworkClearProps', 'reworkKey',
     `${src.slice(from, to)}; return dispatchTask;`,
   )(
     async () => [{ id: 'agent-1', name: 'Kernel', fn: 'Executor' }],
@@ -72,6 +73,10 @@ function makeHarness({ payloadId = '', fileText = '', readFails = false } = {}) 
     },
     (text) => calls.push({ action: 'pause', text }),
     { pending: 'cfn-pending', expect: 'cfn-expect' },
+    // 1.4.56: снятие следов Rework проверяется отдельной пробой; здесь важно,
+    // что обычная выдача идёт прежним путём.
+    () => null,
+    (id) => `cfn-rework:${id}`,
   );
   return { dispatchTask, card, calls };
 }
@@ -144,4 +149,4 @@ assert.match(tech, /Arena\/payloads/, 'названа папка');
 assert.match(tech, /docs\/agents\/drive\.md/, 'есть ссылка на раскладку Диска');
 assert.doesNotMatch(tech, /кнопк|Continue|интерфейс/i, 'про интерфейс Координатору не рассказывают');
 
-console.log('OK: narthex 1.4.55 — текст из файла задания доходит до исполнителя и в журнал; без файла работает карточка');
+console.log('OK: narthex 1.4.56 — текст из файла задания доходит до исполнителя и в журнал; без файла работает карточка');
