@@ -21,8 +21,28 @@ function runLocationRules(this: EngineCtx, locationId: string): void {
     }
   }
 
+function rulesInManifestOrder(this: EngineCtx): RuleDef[] {
+  const order = this.campaign.ruleOrder
+  if (!order) return Object.values(this.campaign.rules)
+
+  const ordered: RuleDef[] = []
+  const included = new Set<string>()
+  for (const id of order) {
+    const rule = this.campaign.rules[id]
+    if (rule) {
+      ordered.push(rule)
+      included.add(id)
+    }
+  }
+  // Retain rules added after loading, without letting integer-like IDs disturb manifest order.
+  for (const rule of Object.values(this.campaign.rules)) {
+    if (!included.has(rule.id)) ordered.push(rule)
+  }
+  return ordered
+}
+
 function checkRules(this: EngineCtx): void {
-    for (const rule of Object.values(this.campaign.rules)) {
+    for (const rule of rulesInManifestOrder.call(this)) {
       if (rule.manual) continue
       if (rule.trigger && rule.trigger !== 'always') continue
       this.tryFireRule(rule.id)
@@ -32,7 +52,7 @@ function checkRules(this: EngineCtx): void {
 
 function fireTrigger(this: EngineCtx, trigger: 'enter_scene' | 'leave_scene' | 'interact' | 'time_tick', _context?: { sceneId?: string; entityId?: string }): boolean {
     let anyFired = false
-    for (const rule of Object.values(this.campaign.rules)) {
+    for (const rule of rulesInManifestOrder.call(this)) {
       if (rule.manual) continue
       if (rule.trigger !== trigger) continue
       if (this.tryFireRule(rule.id)) {

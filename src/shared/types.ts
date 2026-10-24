@@ -3344,9 +3344,13 @@ export interface CampaignData {
   scenes: Record<string, SceneDef>
   entities: Record<string, EntityDef>
   rules: Record<string, RuleDef>
+  /** Rule IDs in manifest order; unlike object-key order, this also preserves numeric-looking IDs. */
+  ruleOrder?: string[]
   arenas: Record<string, ArenaDef>
   quests: Record<string, QuestDef>
   encounters: Record<string, EncounterTableDef>
+  /** Encounter IDs in manifest order; unlike object-key order, this also preserves numeric-looking IDs. */
+  encounterOrder?: string[]
   /** катсцены по id (итерация 8, блок E) */
   cutscenes: Record<string, CutsceneDef>
   /** рецепты крафта по id (блок 4 ТЗ) */
