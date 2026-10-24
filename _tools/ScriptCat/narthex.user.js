@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.37
+// @version      1.4.38
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -245,7 +245,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.37";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.38";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -1044,13 +1044,18 @@
   }
 
   // ───────────────────────────── HTTP ─────────────────────────────
-  function request(method, url, headers, body) {
+  /** Сбой на уровне сети: запрос не дошёл. Повторять имеет смысл. */
+  const networkish = (text) => /сеть|таймаут|failed to fetch|network|load failed/i.test(String(text || ""));
+
+  function requestOnce(method, url, headers, body) {
     return new Promise((resolve, reject) => {
       GM_xmlhttpRequest({
         method,
         url,
         headers,
-        data: body === undefined ? undefined : JSON.stringify(body),
+        // Строка уходит как есть: шлюз Apps Script читает `postData.contents`
+        // и ждёт там JSON-текст, а не JSON-строку в кавычках.
+        data: body === undefined ? undefined : typeof body === "string" ? body : JSON.stringify(body),
         timeout: 45000,
         onload: (r) => {
           let parsed = null;
@@ -1062,10 +1067,32 @@
           if (r.status >= 200 && r.status < 300) resolve(parsed);
           else reject(new Error(`HTTP ${r.status}: ${(parsed && (parsed.message || parsed.error)) || r.statusText}`));
         },
-        onerror: () => reject(new Error("сеть недоступна")),
+        onerror: () => reject(new Error("сеть недоступна или хост не разрешён в @connect")),
         ontimeout: () => reject(new Error("таймаут запроса")),
       });
     });
+  }
+
+  /**
+   * Запрос с одним повтором на сетевом сбое.
+   *
+   * 24.10 (14:41) шаг упал на «Failed to fetch» посреди записи ответа: цикл
+   * встал на паузе из-за секундного сбоя сети. Повтор дешевле, чем Мастер у
+   * экрана; повторяем только то, что не дошло (сеть, таймаут), — отказ прав
+   * или HTTP 4xx повторять незачем.
+   */
+  async function request(method, url, headers, body) {
+    let last = null;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        return await requestOnce(method, url, headers, body);
+      } catch (e) {
+        last = e;
+        if (!networkish(e && e.message)) break;
+        await sleep(700);
+      }
+    }
+    throw last;
   }
 
   const isUuid = (value) =>
@@ -1103,24 +1130,61 @@
     const segment = String(path).match(/^(?:pages|blocks|data_sources)\/([^/?#]+)/);
     if (segment && !isUuid(segment[1]))
       throw new Error(`в адресе записи битый id «${segment[1]}» — запрос не отправлен`);
-    return request(method, `https://api.notion.com/v1/${path}`, {
-      Authorization: `Bearer ${token}`,
-      "Notion-Version": C.notionV,
-      "Content-Type": "application/json",
-    }, body);
+    try {
+      return await request(method, `https://api.notion.com/v1/${path}`, {
+        Authorization: `Bearer ${token}`,
+        "Notion-Version": C.notionV,
+        "Content-Type": "application/json",
+      }, body);
+    } catch (e) {
+      e.narthex = "notion";
+      e.message = `Notion не ответил на ${method} ${path}: ${e.message}`;
+      throw e;
+    }
   }
 
+  /**
+   * Вызов шлюза Drive.
+   *
+   * 24.10 (14:41) запись ответа упала на «Failed to fetch»: шлюз вызывался
+   * обычным `fetch` из страницы Arena, а такой запрос живёт по правилам
+   * страницы (CORS и её CSP). Сеть при этом была жива. Теперь первый путь —
+   * `GM_xmlhttpRequest` расширения: он страницу обходит, а `@connect
+   * script.google.com` в заголовке скрипта уже есть. `fetch` остался вторым,
+   * как у пушей.
+   */
   async function gateway(action, fileId, extra = {}) {
     const url = GM_getValue(K.gwUrl, "");
-    if (!url) throw new Error("Не задан URL шлюза Drive.");
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action, fileId, key: GM_getValue(K.gwKey, ""), ...extra }),
-    });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || "шлюз вернул отказ");
-    return data;
+    if (!url) throw new Error("Не задан URL шлюза Drive: откройте ⚙ и вставьте ссылку /exec.");
+    const payload = JSON.stringify({ action, fileId, key: GM_getValue(K.gwKey, ""), ...extra });
+    const headers = { "Content-Type": "text/plain;charset=utf-8" };
+
+    let gmError = "";
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const data = await request("POST", url, headers, payload);
+        if (!data || data.ok !== true) throw new Error(String((data && data.error) || "шлюз вернул отказ"));
+        return data;
+      } catch (e) {
+        gmError = String((e && e.message) || e);
+        if (!networkish(gmError)) break;
+        await sleep(700);
+      }
+    }
+
+    let fetchError = "";
+    try {
+      const res = await fetch(url, { method: "POST", headers, body: payload });
+      const data = await res.json();
+      if (data && data.ok === true) return data;
+      fetchError = String((data && data.error) || `HTTP ${res.status}`);
+    } catch (e) {
+      fetchError = String((e && e.message) || e);
+    }
+
+    const err = new Error(`шлюз Drive не ответил: GM: ${gmError}; fetch: ${fetchError}`);
+    err.narthex = "gateway";
+    throw err;
   }
 
   // ───────────────────────────── Notion ─────────────────────────────
@@ -4654,10 +4718,17 @@
       // что случилось и что делать, потом техническая строка — она нужна,
       // если придётся разбираться.
       const raw = String((e && e.message) || e);
+      // Причина называется по источнику: «Notion» и «шлюз Drive» — разные
+      // поломки и разные действия Мастера.
       const plain = /битый id|valid uuid|path failed validation/i.test(raw)
         ? "Notion не принял адрес записи: в нём оказался битый id — обычно это " +
           "опечатка в строке-маркере ответа."
-        : "Шаг прервался на записи в Notion.";
+        : e && e.narthex === "gateway"
+          ? "Шлюз Drive не ответил, ответ агента в журнал не записан. Проверьте, что " +
+            "развёртывание Apps Script открыто «любому, у кого есть ссылка», и что ссылка в ⚙ та же."
+          : e && e.narthex === "notion" || networkish(raw)
+            ? "Notion не ответил: сеть или блокировка запроса. Запись не сделана."
+            : "Шаг прервался на записи в Notion.";
       pause(
         `Цикл остановлен. ${plain} Ход не потерян: очередь и карточка на месте, ` +
           `после «Продолжить» скрипт перечитает ответ.\nТехнически: ${raw}`,
