@@ -33,7 +33,7 @@ function make({ store = new Map(), now = Date.parse('2026-10-24T16:12:51+03:00')
   const api = new Function(
     'GM_getValue', 'GM_setValue', 'K', 'Date', 'isReturned', 'missionRemarks', 'textHash',
     `${block}
-     return { firstLine, remarkItems, returnFingerprint, returnEpoch, dropStalePlan, returnBlock };`,
+     return { firstLine, remarkItems, returnFingerprint, returnEpoch, dropStalePlan, returnBlock, textHash };`,
   )(
     (k, d) => (store.has(k) ? store.get(k) : d),
     (k, v) => store.set(k, v),
@@ -48,7 +48,12 @@ function make({ store = new Map(), now = Date.parse('2026-10-24T16:12:51+03:00')
     },
     (page) => page?.properties?.['Состояние']?.select?.name === 'Возвращена',
     (page) => (page?.properties?.['Замечания']?.rich_text || []).map((x) => x.text?.content || '').join(''),
-    (text) => `h${String(text).length}`,
+    (text) => {
+      let h = 5381;
+      const value = String(text);
+      for (let i = 0; i < value.length; i += 1) h = ((h << 5) + h + value.charCodeAt(i)) | 0;
+      return String(h);
+    },
   );
   return { api, store };
 }
@@ -113,6 +118,22 @@ const stale = (at) => ({ kind: 'plan', at, sentAt: at, ref: 'mission-1', turnId:
 
   store.set('cfn-expect', { kind: 'plan', at: second.at + 2_000, sentAt: second.at + 2_000 });
   assert.equal(again.api.dropStalePlan(mission({ round: 2 }), store.get('cfn-expect'), second), false, 'план нового круга остаётся');
+}
+
+// 3c2. Возврат, уже объявленный 1.4.42 (метка без отпечатка), не объявляется
+// второй раз после обновления — но новый возврат объявляется заново.
+{
+  const store = new Map([['cfn-mission-return:mission-1', true]]);
+  const { api } = make({ store });
+  const m = mission();
+  const epoch = api.returnEpoch(m);
+  const seen = `cfn-mission-return:${m.id}:${api.textHash(epoch.fp)}`;
+  assert.equal(store.get(seen), true, 'строка о возврате не повторится после обновления');
+
+  const second = api.returnEpoch(mission({ round: 2 }));
+  const seenSecond = `cfn-mission-return:${m.id}:${api.textHash(second.fp)}`;
+  assert.notEqual(second.fp, epoch.fp, 'у нового возврата свой отпечаток');
+  assert.notEqual(store.get(seenSecond), true, 'новый возврат объявится своей строкой');
 }
 
 // 3d. Замечания — по пунктам, даже если Мастер записал их одним абзацем.

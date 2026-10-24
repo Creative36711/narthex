@@ -721,7 +721,8 @@
   Ожидание, начатое раньше, снимается, а новый план с замечаниями запрашивается
   в том же шаге. Пауза `done-with-remarks` остаётся только для ответа, данного
   уже после возврата, и снимает троттлинг плана.
-- **Откат:** `returnFingerprint`, `returnEpoch`, `dropStalePlan`, вызов в
+- **Откат:** `returnFingerprint`, `returnEpoch` (с переносом метки 1.4.42),
+  `dropStalePlan`, вызов в
   `coordinatorStep` до разбора маркера, сброс `cfn-plan-at` в
   `done-with-remarks`, разбор замечаний по пунктам (`remarkItems`) и ограничение
   строки журнала (`firstLine`), случаи в `narthex-return-epoch-smoke.mjs`.

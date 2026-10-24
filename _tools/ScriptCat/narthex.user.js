@@ -1436,6 +1436,14 @@
     if (saved && saved.fp === fp && Number(saved.at)) return saved;
     const fresh = { at: Date.now(), fp };
     GM_setValue(key, fresh);
+    // 1.4.42 объявляла возврат меткой без отпечатка. Если она есть, этот
+    // возврат уже был в журнале — переносим метку, чтобы обновление не дало
+    // вторую такую же строку. Дальше метка живёт с отпечатком, и новый
+    // возврат (другой круг или замечания) объявляется заново.
+    const legacy = `cfn-mission-return:${mission.id}`;
+    if (!saved && GM_getValue(legacy, false)) {
+      GM_setValue(`cfn-mission-return:${mission.id}:${textHash(fp)}`, true);
+    }
     return fresh;
   }
 
