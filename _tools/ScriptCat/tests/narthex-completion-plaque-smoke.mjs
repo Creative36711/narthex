@@ -102,7 +102,8 @@ assert.match(
   'мерж по маркеру принимается без клика по Create/Merge',
 );
 const claimBlock = src.slice(src.indexOf('  async function claimMerge('), src.indexOf('  /**\n   * PR закрыт.'));
-assert.match(claimBlock, /GM_setValue\(key, true\);\s*\n\s*log\(/, 'без бейджа мерж всё равно запоминается');
+assert.match(claimBlock, /GM_setValue\(key, true\);/, 'без бейджа мерж всё равно запоминается');
+assert.match(claimBlock, /проверить по GitHub не удалось/, 'и сказано, если проверка не удалась');
 assert.match(mergedBlock, /кнопки Create\/Merge не нажимаю/, 'сказано, почему клика не было');
 assert.doesNotMatch(
   mergedBlock.slice(0, claimAt),
@@ -129,4 +130,4 @@ assert.match(
   'если плашка осталась и поле не нашлось — это видно в причине',
 );
 
-console.log('OK: narthex 1.4.47 — плашка = агент свободен, её кнопки не PR-интерфейс, при merged: true кликов нет');
+console.log('OK: narthex 1.4.48 — плашка = агент свободен, её кнопки не PR-интерфейс, при merged: true кликов нет');

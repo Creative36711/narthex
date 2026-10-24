@@ -31,7 +31,7 @@ function make({ mergedAfter = 0, continueAfter = 0 } = {}) {
   let reads = 0;
   const fn = new Function(
     'K', 'C', 'GM_getValue', 'GM_setValue', 'log', 'waitFor', 'mergedFlag',
-    'continueButton', 'finishMerge', 'prLabelOf', 'patience',
+    'continueButton', 'finishMerge', 'prLabelOf', 'patience', 'verifyMergeClaim',
     `${claimBlock}; return claimMerge;`,
   );
   const claimMerge = fn(
@@ -62,6 +62,8 @@ function make({ mergedAfter = 0, continueAfter = 0 } = {}) {
       return !pr ? 'PR' : /^https?:/i.test(pr) ? pr : `PR #${pr.replace(/^#/, '')}`;
     },
     (ms) => ms,
+    // Заявка уже подтверждена GitHub — проба про Continue, а не про проверку.
+    async () => ({ status: 'merged', why: 'PR #35 слит' }),
   );
   return { claimMerge, logs, calls, store };
 }
@@ -110,4 +112,4 @@ assert.equal(
 assert.doesNotMatch(ensureBlock, /GM_setValue\(key, true\);\s*\n\s*return "claimed";/, 'немедленного выхода больше нет');
 assert.match(claimBlock, /mergedFlag\(\) \|\| continueButton\(\)/, 'ждём и бейдж, и Continue');
 
-console.log('OK: narthex 1.4.47 — при мерже по маркеру Continue ждётся и нажимается, а не теряется');
+console.log('OK: narthex 1.4.48 — при мерже по маркеру Continue ждётся и нажимается, а не теряется');

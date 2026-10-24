@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.47
+// @version      1.4.48
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -13,6 +13,7 @@
 // @connect      script.google.com
 // @connect      script.googleusercontent.com
 // @connect      ntfy.sh
+// @connect      api.github.com
 // ==/UserScript==
 
 /**
@@ -269,7 +270,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.47";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.48";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -3848,7 +3849,7 @@
   /**
    * «Closed» — не синоним ошибки. Так выглядит и PR, слитый через GitHub, и PR,
    * закрытый без мержа. Что именно произошло, решает маркер исполнителя
-   * (`merged: true`), а не бейдж: из ScriptCat нет доступа к API GitHub.
+   * (`merged: true`), а не бейдж. С 1.4.48 заявка проверяется по GitHub API.
    */
   const closedFlag = () => badgeVisible("Pull request closed");
 
@@ -3974,7 +3975,7 @@
       // «Create pull request» видна. 24.10 (14:48) именно этот клик отправил в
       // чат Build/Release реплику «Please open a pull request…», и агент вместо
       // работы начал отвечать на неё. Заявка — тот же сигнал, что и в ветке
-      // «PR-интерфейса нет вовсе»: из ScriptCat нет доступа к API GitHub.
+      // «PR-интерфейса нет вовсе»: заявка о мерже проверяется по GitHub API.
       if (hasMergedClaim(result)) {
         return claimMerge(
           task,
@@ -4063,11 +4064,30 @@
    * жал её руками. Ждём бейдж или Continue до mergeGraceMs.
    */
   async function claimMerge(task, result, key, note = "") {
+    // Маркеру верим не на слово: «merged: true» — это заявка, а не факт.
+    // 24.10 на экране Build/Release висела активная «Create PR» (Arena не
+    // знает о PR, слитом через `gh`), и отличить сделанную работу от
+    // выдуманной было нечем. Теперь состояние спрашиваем у GitHub.
+    const check = await verifyMergeClaim(result);
+    lastMergeCheck = check;
+    if (check.status === "open" || check.status === "closed" || check.status === "missing") {
+      log(
+        `Заявка «${prLabelOf(result)} слит» не подтвердилась: ${check.why}. ` +
+          "Карточка вернётся в Rework — работа в main не попала.",
+        true,
+        { tone: "warn", ntfy: "quiet", title: "Narthex: заявка о мерже не подтвердилась" },
+      );
+      return "claim-rejected";
+    }
     const seen = await waitFor(() => mergedFlag() || continueButton(), patience(C.mergeGraceMs), 1000);
     if (seen) return finishMerge(task, key);
     GM_setValue(key, true);
+    const proof =
+      check.status === "merged"
+        ? `, GitHub подтвердил (${check.why})`
+        : `; проверить по GitHub не удалось — ${check.why}`;
     log(
-      `${prLabelOf(result)} слит: принято по маркеру агента${note}. ` +
+      `${prLabelOf(result)} слит: принято по маркеру агента${note}${proof}. ` +
         `Бейджа Merged и Continue на странице нет и через ${Math.round(patience(C.mergeGraceMs) / 1000)} с: ` +
         "если Continue появится позже, нажмите её сами — на запись результата это уже не влияет.",
     );
@@ -4116,6 +4136,63 @@
     const pr = String((result && result.pr) ?? "").trim();
     return !pr ? "PR" : /^https?:/i.test(pr) ? pr : `PR #${pr.replace(/^#/, "")}`;
   };
+
+  /**
+   * Номер и репозиторий PR из маркера.
+   *
+   * Принимаем и число, и «#37», и полный адрес: агент может сослаться на PR
+   * словами. Адрес важнее номера — он называет репозиторий, а номер без
+   * репозитория проверяется в нашем.
+   */
+  function prRef(result) {
+    const raw = String((result && result.pr) ?? "").trim();
+    if (!raw) return null;
+    const url = raw.match(/github\.com\/([\w.-]+)\/([\w.-]+)\/pull\/(\d+)/i);
+    if (url) return { repo: `${url[1]}/${url[2]}`, number: Number(url[3]) };
+    const num = raw.replace(/^#/, "").match(/^(\d+)$/);
+    return num ? { repo: C.repo, number: Number(num[1]) } : null;
+  }
+
+  /**
+   * Состояние PR по GitHub API.
+   *
+   * Репозиторий публичный, поэтому токен не нужен: 60 запросов в час хватает
+   * с запасом — проверка идёт один раз за ход. Сам ScriptCat раньше «не имел
+   * доступа к API GitHub», и заявка агента принималась на веру.
+   */
+  async function githubPr(repo, number) {
+    const headers = { Accept: "application/vnd.github+json", "User-Agent": "narthex-scriptcat" };
+    return request("GET", `https://api.github.com/repos/${repo}/pulls/${number}`, headers);
+  }
+
+  /**
+   * Проверка «PR слит» из маркера.
+   *
+   * `status`: merged — GitHub подтвердил; open / closed / missing — заявка
+   * ложная, принимать её нельзя; unknown — проверить не удалось (сеть, лимит,
+   * нет номера), и тогда остаётся прежнее правило «верим маркеру, но говорим
+   * об этом в журнале».
+   */
+  async function verifyMergeClaim(result) {
+    const ref = prRef(result);
+    if (!ref) return { status: "unknown", why: "в маркере нет номера PR" };
+    try {
+      const pr = await githubPr(ref.repo, ref.number);
+      if (!pr || typeof pr !== "object") return { status: "unknown", why: "GitHub ответил пустым ответом" };
+      const merged = pr.merged === true || Boolean(pr.merged_at);
+      if (merged) return { status: "merged", why: `PR #${ref.number} слит ${pr.merged_at || ""}`.trim(), pr };
+      if (String(pr.state || "").toLowerCase() === "closed")
+        return { status: "closed", why: `PR #${ref.number} закрыт без мержа`, pr };
+      return { status: "open", why: `PR #${ref.number} ещё открыт`, pr };
+    } catch (e) {
+      const raw = String((e && e.message) || e);
+      if (/HTTP 404/.test(raw)) return { status: "missing", why: `PR #${ref.number} не найден в ${ref.repo}` };
+      return { status: "unknown", why: `GitHub не ответил: ${raw}` };
+    }
+  }
+
+  /** Последняя проверка заявки — причина для карточки Rework. */
+  let lastMergeCheck = null;
 
   /** Исполнитель утверждает, что слил PR сам. Единственный доступный сигнал. */
   const hasMergedClaim = (result) =>
@@ -4565,6 +4642,37 @@
         `PR не ждём: ${role.name} заявил работу без PR (pr: null) — принято по отчёту, ` +
           "кнопки Create/Merge не трогал.",
       );
+    }
+
+    // Заявка о мерже не подтвердилась по GitHub: агент написал «слит», а PR
+    // открыт, закрыт без мержа или его нет вовсе. Это не «PR закрыт» — это
+    // работа, которой в main нет, поэтому карточка идёт в Rework с причиной.
+    if (merged === "claim-rejected") {
+      const why = (lastMergeCheck && lastMergeCheck.why) || "состояние PR не подтвердилось";
+      const reason =
+        `Исполнитель заявил, что PR слит, но GitHub говорит другое: ${why}. ` +
+        "Работа в main не попала — нужна повторная выдача.";
+      try {
+        await gateway("append", logId, {
+          marker: `<!-- CF_DISPATCH ${result.dispatch_id}:${result.run_id}:claim-rejected -->`,
+          entry: `\n\n<!-- CF_DISPATCH ${result.dispatch_id}:${result.run_id}:claim-rejected -->\n## Заявка о мерже не подтвердилась\n\n${reason}\n`,
+        });
+      } catch (e) {
+        log(`Причина не записана в лог: ${e.message}`, true);
+      }
+      await patch(result.dispatch_id, {
+        "Dispatch State": { select: { name: "Rework" } },
+        "Ответ": { rich_text: [{ type: "text", text: { content: `${reason} Ответ ${hit.id} в логе ${logId}.` } }] },
+      });
+      GM_setValue(`cfn-done:${result.dispatch_id}:${result.run_id}`, true);
+      log(`«${taskTitle(page)}» → Rework: заявка о мерже не подтвердилась (${why}).`, true, {
+        tone: "warn",
+      });
+      const coord = (await roles()).find((r) => r.fn === "Coordinator");
+      if (!coord) throw new Error("Нет активного Coordinator.");
+      GM_setValue(K.expect, null);
+      await goTo(coord);
+      return true;
     }
 
     // PR закрыт. Так выглядит и ручной мерж через GitHub, и отказ от работы:

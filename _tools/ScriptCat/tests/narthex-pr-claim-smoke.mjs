@@ -32,7 +32,7 @@ function make({ ui = false, createOnly = false, store = new Map() } = {}) {
   const fn = new Function(
     'K', 'GM_getValue', 'GM_setValue', 'C', 'log', 'hasMergedClaim',
     'mergedFlag', 'closedFlag', 'continueButton', 'createPr', 'mergePr', 'finishMerge', 'finishClosed',
-    'hasPrUi', 'waitFor', 'prLabelOf', 'sleep',
+    'hasPrUi', 'waitFor', 'prLabelOf', 'sleep', 'verifyMergeClaim',
     // Проба идёт в видимой вкладке: ожидание не растягивается.
     `const patience = (ms) => ms;\n${block}\n${claimBlock}\nreturn ensureMerged;`,
   );
@@ -66,6 +66,8 @@ function make({ ui = false, createOnly = false, store = new Map() } = {}) {
     },
     // Пауза внутри ensureMerged короткая: проба не должна ждать секундами.
     () => new Promise((r) => setTimeout(r, 1)),
+    // GitHub подтверждает заявку: проба про поведение страницы, не про проверку.
+    async () => ({ status: 'merged', why: 'PR #35 слит' }),
   );
   return { ensureMerged, logs, calls, store };
 }
@@ -133,4 +135,4 @@ assert.match(
 );
 assert.match(src, /merged === "claimed" \? "слит \(по маркеру\)"/, 'в журнале видно, что мерж принят по маркеру');
 
-console.log('OK: narthex 1.4.47 — мерж принимается по маркеру там, где бейджа нет, и не подвешивает шаг на пять минут');
+console.log('OK: narthex 1.4.48 — мерж принимается по маркеру там, где бейджа нет, и не подвешивает шаг на пять минут');
