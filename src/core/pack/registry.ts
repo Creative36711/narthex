@@ -47,6 +47,61 @@ export interface PackRegistryFile {
   packs: string[]
 }
 
+export interface ProjectKindPack {
+  id: string
+  pack: string
+}
+
+export interface PackCatalogEntry {
+  id: string
+  title: string
+}
+
+export interface ProjectPackInput {
+  kind?: unknown
+}
+
+export interface PackMissingDiagnostic {
+  code: 'PACK_MISSING'
+  kind: string
+  packId: string
+  packTitle: string
+  installInstructions: string
+  message: string
+}
+
+export type ProjectPackResolution =
+  | { status: 'ready'; kind: string; packId: string; manifest: PackManifest }
+  | { status: 'missing'; diagnostic: PackMissingDiagnostic }
+
+/** Resolve a project's kind from data registries without naming any package in code. */
+export function resolveProjectPack(
+  project: ProjectPackInput,
+  kinds: readonly ProjectKindPack[],
+  knownPacks: readonly PackCatalogEntry[],
+  installedPacks: readonly PackManifest[],
+): ProjectPackResolution {
+  const kind = typeof project.kind === 'string' && project.kind.trim() ? project.kind.trim() : '(не указан)'
+  const kindDefinition = kinds.find((entry) => entry.id === kind)
+  const packId = kindDefinition?.pack ?? kind
+  const manifest = installedPacks.find((entry) => entry.id === packId)
+  if (manifest) return { status: 'ready', kind, packId, manifest }
+
+  const packTitle = knownPacks.find((entry) => entry.id === packId)?.title ?? packId
+  const installInstructions = `Установите каталог packs/${packId}/ с pack.json, добавьте «${packId}» в packs/registry.json и перезапустите студию.`
+  return {
+    status: 'missing',
+    diagnostic: {
+      code: 'PACK_MISSING',
+      kind,
+      packId,
+      packTitle,
+      installInstructions,
+      message: `Тип проекта «${kind}» не установлен: нужен пак «${packTitle}» (${packId}). ${installInstructions}`,
+    },
+  }
+}
+
 /** Resolve a data registry against discovered manifests without naming any package in source. */
 export function resolvePackRegistry(registryValue: unknown, manifestValues: readonly unknown[]): PackManifest[] {
   if (!registryValue || typeof registryValue !== 'object' || Array.isArray(registryValue)) {

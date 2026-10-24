@@ -32,6 +32,7 @@ import { PRNG } from '../../src/core/prng'
 import { newCharChoice } from '../../src/core/charcreate'
 import { ENGINE_VERSION } from '../../src/shared/versions'
 import { analyzeCampaign, formatGraphReport } from './analyze'
+import { resolveProjectPackForCheck } from './project-pack'
 
 const PLAYKIT_VERSION = '0.1.0'
 const DEFAULT_ORIGIN = 'http://cf-play.local/'
@@ -1039,7 +1040,21 @@ async function cmdCheck(
   seeds: [number, number],
   stepsLimit: number,
   routesDir: string | null,
+  packRegistryPath: string | null = null,
 ): Promise<{ result: AnyObj; text: string }> {
+  const packResolution = await resolveProjectPackForCheck(config.campaignDir, packRegistryPath)
+  if (packResolution?.status === 'missing') {
+    const diagnostic = packResolution.diagnostic
+    return {
+      result: {
+        campaign: { id: basename(config.campaignDir), title: basename(config.campaignDir) },
+        verdict: 'failed',
+        problems: [diagnostic.message],
+        error: diagnostic,
+      },
+      text: `${diagnostic.code}: ${diagnostic.message}`,
+    }
+  }
   const { campaign } = await loadEngine(config.campaignDir, config.seed, false, emptyInjection())
   const graph = analyzeCampaign(campaign)
   const errors = graph.findings.filter((finding) => finding.severity === 'error')
@@ -1397,7 +1412,7 @@ async function cmdVerify(dir: string, expectEngine: string | null, honestOnly: b
 const USAGE = [
   'команды: check | graph | dialogue | run | explore | sweep | verify',
   '',
-  '  node cf-play.mjs check    <папка кампании> [--seeds 1-5] [--steps 300] [--routes dir] [--out runs/check]',
+  '  node cf-play.mjs check    <папка кампании> [--seeds 1-5] [--steps 300] [--routes dir] [--pack-registry file] [--out runs/check]',
   '',
   '  node cf-play.mjs graph    <папка кампании> [--out dir] [--json]',
   '  node cf-play.mjs dialogue <папка кампании> <npcId|dialogues/x.ink> [--depth 3] [--max-nodes 40]',
@@ -1451,6 +1466,7 @@ async function main(): Promise<void> {
       [from!, to!],
       Number(flagText(flags, 'steps') ?? 300),
       flagText(flags, 'routes') ? resolve(String(flagText(flags, 'routes'))) : null,
+      flagText(flags, 'pack-registry') ? resolve(String(flagText(flags, 'pack-registry'))) : null,
     )
     if (asJson) console.log(JSON.stringify(result, null, 2))
     else console.log(text)

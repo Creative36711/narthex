@@ -1,0 +1,61 @@
+import { existsSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
+import { join, resolve } from 'node:path'
+import {
+  resolveProjectPack,
+  type PackManifest,
+  type PackRegistryFile,
+  type ProjectKindPack,
+  type PackCatalogEntry,
+  type ProjectPackInput,
+  type ProjectPackResolution,
+} from '../../src/core/pack/registry'
+
+interface CapabilityCatalog {
+  kinds: ProjectKindPack[]
+  packs: PackCatalogEntry[]
+}
+
+function sourceRoot(): string | null {
+  const candidates = [process.cwd(), resolve(import.meta.dirname, '../..')]
+  return candidates.find((candidate) => existsSync(join(candidate, 'packs/registry.json'))) ?? null
+}
+
+async function readJson<T>(path: string): Promise<T> {
+  return JSON.parse(await readFile(path, 'utf8')) as T
+}
+
+/**
+ * Preflight for cf-play check. A standalone bundled playkit without a source
+ * pack registry keeps its legacy behavior; repository checks use the installed
+ * manifests from packs/registry.json. An optional registry path is useful for
+ * validating projects against a particular installation set.
+ */
+export async function resolveProjectPackForCheck(
+  projectDir: string,
+  registryOverride?: string | null,
+): Promise<ProjectPackResolution | null> {
+  const projectPath = join(projectDir, 'project.json')
+  let project: ProjectPackInput = { kind: 'narrative' }
+  if (existsSync(projectPath)) project = await readJson<ProjectPackInput>(projectPath)
+
+  const root = sourceRoot()
+  if (!root && !registryOverride) return null
+  const contractsPath = join(root ?? process.cwd(), 'docs/contracts/caps.json')
+  const registryPath = registryOverride ? resolve(registryOverride) : join(root!, 'packs/registry.json')
+  const [contracts, registry] = await Promise.all([
+    readJson<CapabilityCatalog>(contractsPath),
+    readJson<PackRegistryFile>(registryPath),
+  ])
+  const installed: PackManifest[] = []
+  const packRoot = join(root ?? process.cwd(), 'packs')
+  for (const id of registry.packs) {
+    try {
+      const manifest = await readJson<PackManifest>(join(packRoot, id, 'pack.json'))
+      if (manifest.id === id) installed.push(manifest)
+    } catch {
+      // A registry entry without a readable manifest is not an installed pack.
+    }
+  }
+  return resolveProjectPack(project, contracts.kinds, contracts.packs, installed)
+}
