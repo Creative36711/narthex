@@ -159,10 +159,12 @@ const stopIsStaleFor = (nodes, endedFn) =>
     `${src.slice(staleFrom, staleTo)}; return stopIsStale;`,
   )({ querySelectorAll: (sel) => (sel === '[data-agent-transcript-message]' ? nodes : []) }, endedFn);
 
-const m1 = { id: 'm1' };
+const m1 = { id: 'm1', querySelector: () => null };
+const mTask = { id: 'm2', querySelector: () => ({ user: true }) };
 const outside = { closest: () => null };
 assert.equal(stopIsStaleFor([m1], () => true)(outside), true, 'последний ответ закончен — Stop не признак работы (сбой 14:20)');
 assert.equal(stopIsStaleFor([m1], () => false)(outside), false, 'ответ печатается — Stop настоящий');
+assert.equal(stopIsStaleFor([m1, mTask], () => true)(outside), false, 'последним стоит наше задание — ответа ещё нет, Stop настоящий');
 assert.equal(stopIsStaleFor([], () => false)(outside), false, 'чата ещё нет — верим кнопке');
 assert.equal(stopIsStaleFor([m1], () => true)({ closest: () => m1 }), true, 'Stop в законченном сообщении — призрак');
 assert.equal(stopIsStaleFor([m1], () => false)({ closest: () => m1 }), false, 'Stop в печатающемся сообщении — настоящий');

@@ -1545,7 +1545,13 @@
     // после перехода к Build/Release «Шаг» сказал «агент ещё отвечает», хотя
     // агент был спокоен, а ответ ещё не начинался). Ответа в чате ещё нет
     // вовсе (первый ход) — тогда верим кнопке.
-    if (!msg) return all.length > 0 && replyEnded(all.at(-1));
+    // Наша реплика — это вопрос, а не ответ: «закончился» к ней неприменимо.
+    // Если последним в чате стоит наше задание, значит ответа ещё нет и Stop
+    // настоящий.
+    const last = all.at(-1);
+    const answered =
+      Boolean(last) && !last.querySelector?.('[data-user-message-layout="true"]') && replyEnded(last);
+    if (!msg) return answered;
     if (replyEnded(msg)) return true;
     return all.length > 0 && all.at(-1) !== msg;
   };
