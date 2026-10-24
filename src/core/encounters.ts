@@ -1,6 +1,6 @@
 import type { EngineCtx } from './context'
 import type { EncounterEntry, EventTableDef, GenWeightedItem, NpcGeneratorDef, TravelConnection } from '../shared/types'
-import { featureOn } from '../shared/types'
+import { featureOn } from './caps'
 import { skillCheck, difficultyModifier, CHECK_RESULT_LABEL } from './brp'
 import { timeOfDay } from './time'
 import { effects } from './effects'

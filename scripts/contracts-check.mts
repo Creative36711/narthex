@@ -11,6 +11,7 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import Ajv2020 from 'ajv/dist/2020.js'
+import { CAPABILITY_REGISTRY, campaignCaps, featureOn } from '../src/core/caps'
 
 const root = resolve(import.meta.dirname, '..')
 const dir = join(root, 'docs', 'contracts')
@@ -65,6 +66,51 @@ for (const kind of registry.kinds) {
 
 const packById = new Map(registry.packs.map((p: Json) => [p.id, p]))
 const capById = new Map(registry.caps.map((c: Json) => [c.id, c]))
+
+const registryProjection = (caps: Array<Json>) =>
+  caps
+    .map(({ id, title, pack, status, since, enables, probe }) => ({ id, title, pack, status, since, enables, probe }))
+    .sort((a, b) => a.id.localeCompare(b.id))
+const registriesMatch = (contractCaps: Array<Json>, runtimeCaps: Array<Json>) =>
+  JSON.stringify(registryProjection(contractCaps)) === JSON.stringify(registryProjection(runtimeCaps))
+const runtimeCaps = [...CAPABILITY_REGISTRY] as Array<Json>
+const contractsRegistryMatches = registriesMatch(registry.caps, runtimeCaps)
+const deliberateMismatch = runtimeCaps.map((cap, index) => index === 0 ? { ...cap, probe: 'mismatch-probe' } : cap)
+const mismatchIsRejected = !registriesMatch(registry.caps, deliberateMismatch)
+const capsSource = await readFile(join(root, 'src', 'core', 'caps.ts'), 'utf8')
+const typesSource = await readFile(join(root, 'src', 'shared', 'types.ts'), 'utf8')
+const packageJson = JSON.parse(await readFile(join(root, 'package.json'), 'utf8')) as Json
+check(
+  'caps.json совпадает с runtime-реестром src/core/caps.ts',
+  contractsRegistryMatches,
+  contractsRegistryMatches ? undefined : 'id/title/pack/status/since/enables/probe различаются',
+)
+check('синтетическое расхождение реестров отклоняется', mismatchIsRejected)
+check(
+  'featureOn реализован в caps.ts, а не в types.ts',
+  /export function featureOn\s*\(/.test(capsSource) && !/export function featureOn\s*\(/.test(typesSource),
+)
+const missingCapMetadata = registry.caps.filter((cap: Json) =>
+  typeof cap.enables !== 'string' || cap.enables.trim() === '' ||
+  ((cap.status === 'stable' || cap.status === 'experimental')
+    ? typeof cap.probe !== 'string' || cap.probe.trim() === ''
+    : cap.probe !== null),
+)
+check('у каждой возможности есть назначение и проба по статусу', missingCapMetadata.length === 0,
+  missingCapMetadata.map((cap: Json) => cap.id).join(', '))
+const unknownProbes = registry.caps.filter((cap: Json) => cap.probe !== null && !packageJson.scripts?.[cap.probe])
+check('пробы возможностей существуют в npm scripts', unknownProbes.length === 0,
+  unknownProbes.map((cap: Json) => `${cap.id}: ${cap.probe}`).join(', '))
+
+const legacyMapCaps = campaignCaps({ features: { map: true } })
+check(
+  'legacy features map:true читается как caps:[map]',
+  legacyMapCaps.length === 1 && legacyMapCaps[0] === 'map' && featureOn({ features: { map: true } }, 'map'),
+)
+check('кампания без обоих полей сохраняет legacy-набор механик',
+  ['map', 'inventory', 'needs', 'skills', 'relationships', 'trade', 'combat', 'time'].every((id) => featureOn({}, id)))
+check('featureOn включается только для зарегистрированной возможности из caps',
+  featureOn({ caps: ['map'] }, 'map') && !featureOn({ caps: ['map'] }, 'combat'))
 
 const badRuntime = registry.caps.filter((c: Json) => !registry.runtimes.includes(capRuntime(c)))
 const badStatus = registry.caps.filter((c: Json) => !registry.statuses.includes(c.status))
