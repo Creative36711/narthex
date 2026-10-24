@@ -32,6 +32,7 @@ const prompt = generate(
   '0 Submitted, 0 Running, 0 Ready, 0 Rework',
   'turn-1',
   'Разбери Submitted — и в этом же ответе выставь следующую карточку Ready, если очередь опустеет.',
+  'Черновики (предложения — выдаёшь их ты): NAR-1.10 · Регрессия и отчёт (Build/Release, Sequence 100).',
 );
 
 assert.match(prompt, /Один ответ — законченный ход/, 'ход — законченный, а не «одно действие»');
@@ -41,6 +42,12 @@ assert.match(prompt, /Приёмка и выдача — не два хода/, 
 assert.match(prompt, /Пустая очередь после твоего ответа считается незаконченным ходом/, 'пустая очередь — незаконченный ход');
 assert.match(prompt, /а не Coordinator/, 'next должен называть исполнителя');
 assert.match(prompt, /CF_COORDINATOR_RESULT/, 'маркер на месте');
+assert.match(prompt, /NAR-1\.10 · Регрессия и отчёт/, 'черновики видны Координатору списком');
+assert.match(prompt, /Ты не только нарезаешь карточки, но и выдаёшь их/, 'выдача — работа Координатора');
+assert.match(prompt, /Draft — предложение, а не приказ/, 'черновик — предложение, но не запрет');
+assert.match(prompt, /Ready ставишь тоже ты/, 'Ready — право Координатора');
+assert.match(prompt, /переведи в Ready подходящий Draft/, 'черновик можно выдать, а не пересоздавать');
+assert.ok(!/перевести Draft в Ready[^.]*не вправе/.test(prompt), 'запрета на выдачу черновика нет');
 
 // ── 1a. Журнал ответа: ссылку получает Координатор, а не исполнитель ────────
 const lineFrom = src.indexOf('  /**\n   * Ссылка на журнал последнего ответа');
@@ -111,7 +118,8 @@ const roles = [
   const route = decisionRoute('Coordinator', { roles, readyRoles: [] });
   assert.equal(route.kind, 'ask', 'next:Coordinator — не пауза и не отправка');
   assert.match(route.note, /Ход вернулся Координатору/, 'в подсказке сказано, что ход у него');
-  assert.match(route.note, /создай следующую карточку/, 'подсказка просит выдать карточку');
+  assert.match(route.note, /выдай работу сам/, 'подсказка просит выдать карточку');
+  assert.match(route.note, /переведи в Ready подходящий Draft/, 'или выдать готовый черновик');
 }
 
 // 2.2. Роль есть, карточка готова — отправляем.
@@ -172,7 +180,12 @@ const rp = src.slice(rpFrom, rpTo);
 assert.match(rp, /const waitMs = force \? 5_000 : 60_000;/, 'для своего хода — пять секунд, не минута');
 assert.match(rp, /if \(manual\) log\(`Шаг не выполнен: план запрашивали/, 'в ручном режиме отказ объясняется');
 assert.match(rp, /const answerLine = answerLogLine\(queue\.submitted\);/, 'журнал последнего ответа передаётся Координатору');
-assert.match(rp, /coordinatorPrompt\(mission, role, summary, turnId, note, answerLine\)/, 'строка доходит до промпта');
+assert.match(
+  rp,
+  /coordinatorPrompt\(mission, role, summary, turnId, note, answerLine, drafts\)/,
+  'строка доходит до промпта вместе со списком черновиков',
+);
+assert.match(rp, /const drafts = draftLine\(queue\.draft \|\| \[\]\);/, 'черновики попадают в промпт списком');
 
 // ── 4. Скрипт больше не падает на пустом Ready ─────────────────────────────
 assert.doesNotMatch(
@@ -187,4 +200,4 @@ assert.match(
 );
 assert.match(src, /GM_setValue\("cfn-plan-miss", 0\);/, 'счётчик промахов сбрасывается на успехе');
 
-console.log('OK: narthex 1.4.30 — приёмка и выдача в одном ходе, next:Coordinator не ставит цикл на паузу');
+console.log('OK: narthex 1.4.31 — приёмка и выдача в одном ходе, next:Coordinator не ставит цикл на паузу');

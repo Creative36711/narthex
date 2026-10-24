@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.30
+// @version      1.4.31
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -58,6 +58,7 @@
     markerIdleMs: 20000, // ответ стабилен столько — считаем, что маркера не будет
     markerReminders: 2, // напоминаний до паузы: дальше решает Мастер
     minAnswerChars: 200, // маркер без отчёта — не ответ: короче — просим отчёт заново
+    draftLineMax: 6, // сколько черновиков Координатор видит списком в промпте
     pendingTtlMs: 600000, // отправка старше 10 минут не досылается: адресат её не получил
     replyWaitMs: 1800000, // 30 минут без единого сообщения — повод остановиться
     sendVerifyMs: 6000, // сколько ждём своё сообщение в чате после нажатия Send
@@ -3448,26 +3449,29 @@
     return `Журнал ответа ${who} (${id}): ${link} — прочитай, если нужны детали ответа.`;
   }
 
-  function coordinatorPrompt(mission, role, queueSummary, turnId, note = "", answerLine = "") {
+  function coordinatorPrompt(mission, role, queueSummary, turnId, note = "", answerLine = "", drafts = "") {
     return [
       technicalInfo(role),
       "",
       `Миссия: ${rt(mission.properties["Миссия"])}.`,
       `ТЗ: ${mission.properties["ТЗ URL"]?.url || "не задано"}`,
       `Очередь: ${queueSummary}`,
+      drafts,
       answerLine,
       note ? `Комментарий: ${note}` : "",
       "",
-      "Кому, Sequence, порядок и число Ready ставишь ты. Черновики ТЗ — предложение, а не приказ.",
-      "Dispatch State меняешь только на Accepted или Rework: Ready, Running и Submitted ставит движок.",
-      "Карточку, по которой уже есть ответ, обратно в Ready не возвращай — это повторная выдача той же работы.",
+      "Очередь — твоя. Ты не только нарезаешь карточки, но и выдаёшь их: черновик (Draft) → Ready, правка полей черновика и архив лишнего — такие же твои действия, как порядок и число Ready.",
+      "Мастер и Архитектор пишут только черновики: Draft — предложение, а не приказ. Работу исполнителю выдаёшь ты, не дожидаясь Мастера.",
+      "Движок ставит Running и Submitted. Accepted и Rework ставишь ты. Ready ставишь тоже ты — и новой карточке, и черновику, который решил выдать.",
+      "Карточку, по которой уже есть ответ (Submitted или Accepted), обратно в Ready не возвращай — это повторная выдача той же работы.",
       "Оракул и инварианты менять нельзя: только ADR proposed и пауза миссии.",
       "",
       "Твой ход. Один ответ — законченный ход:",
       "1) есть Submitted → проверь по Acceptance и поставь Accepted или Rework (причина в «Ответ»);",
-      "2) сразу после этого очередь не должна оставаться пустой: если в ней нет ни Running, ни Ready — создай следующую карточку в «Запросы» (Намерение, Инварианты, Acceptance с командой-оракулом, Свободно, Scope, Кому, Sequence, Миссия, Dispatch State = Ready) в этом же ответе;",
+      "2) сразу после этого очередь не должна оставаться пустой: если в ней нет ни Running, ни Ready — выдай работу в этом же ответе: создай следующую карточку в «Запросы» (Намерение, Инварианты, Acceptance с командой-оракулом, Свободно, Scope, Кому, Sequence, Миссия, Dispatch State = Ready) или переведи в Ready подходящий Draft;",
       "3) миссия выполнена → поставь «Состояние» = «Завершена» и направь ход done.",
       "",
+      "Черновики — твой задел: бери из них, правь под оракул миссии и выдавай. В архив — только если черновик дублирует уже выданное.",
       "Приёмка и выдача — не два хода. Принял Submitted — в этом же ответе выстави следующую карточку Ready и назови в next исполнителя, а не Coordinator.",
       "Пустая очередь после твоего ответа считается незаконченным ходом.",
       "",
@@ -3672,8 +3676,8 @@
       return {
         kind: "ask",
         note:
-          "Ход вернулся Координатору. Очередь пуста — в этом ходе создай следующую карточку " +
-          "Ready и назови в next исполнителя (или done, если миссия закончена).",
+          "Ход вернулся Координатору. Очередь пуста — в этом ходе выдай работу сам: создай карточку " +
+          "Ready или переведи в Ready подходящий Draft и назови в next исполнителя (или done, если миссия закончена).",
       };
     }
     if (readyRoles.some((r) => norm(r) === norm(target.name))) return { kind: "dispatch", roleName: target.name };
@@ -3682,32 +3686,61 @@
         kind: "pause",
         reason:
           `Координатор второй раз направил ход в «${target.name}», но карточки в Ready нет. ` +
-          "Дальше без человека это не решается: создайте карточку или поправьте решение.",
+          "Нажмите «Продолжить»: он получит подсказку и сможет создать карточку или выдать черновик. " +
+          "Если и это не поможет — проверьте, видит ли Координатор базу «Запросы».",
       };
     }
     return {
       kind: "ask",
       note:
         `Ты направил ход в «${target.name}», но в Ready нет карточки для этой роли. ` +
-        "Создай её и в этом же ответе повтори next; либо назови роль, чья карточка уже готова.",
+        "Создай её или переведи в Ready подходящий Draft — и в этом же ответе повтори next.",
     };
   }
 
   /** Свежие счётчики очереди: после решения Координатора старые уже неверны. */
   async function queueOf(mission) {
-    const [submitted, running, ready, rework] = await Promise.all([
+    const [submitted, running, ready, rework, draft] = await Promise.all([
       tasks("Submitted", mission),
       tasks("Running", mission),
       tasks("Ready", mission),
       tasks("Rework", mission),
+      tasks("Draft", mission),
     ]);
     return {
       submitted,
       running,
       ready,
       rework,
-      summary: `${submitted.length} Submitted, ${running.length} Running, ${ready.length} Ready, ${rework.length} Rework`,
+      draft,
+      summary:
+        `${submitted.length} Submitted, ${running.length} Running, ${ready.length} Ready, ` +
+        `${rework.length} Rework, ${draft.length} Draft`,
     };
+  }
+
+  /**
+   * Черновики миссии — списком, а не числом.
+   *
+   * Мастер (2026-10-24): Координатор ответил «перевести Draft в Ready я не
+   * вправе» и архивировал собственный черновик, чтобы создать точно такой же
+   * новый. Дело было не в правах: в промпте стояла строка «Ready ставит
+   * движок», а сами черновики в очереди не показывались вовсе. Теперь
+   * Координатор видит свой задел и распоряжается им сам.
+   */
+  function draftLine(cards) {
+    const rows = [...(cards || [])].sort((a, b) => {
+      const sa = Number(a.properties?.["Sequence"]?.number ?? 0);
+      const sb = Number(b.properties?.["Sequence"]?.number ?? 0);
+      return sa - sb;
+    });
+    if (!rows.length) return "Черновиков нет — следующий шаг миссии предложи сам.";
+    const shown = rows.slice(0, C.draftLineMax).map((card) => {
+      const seq = card.properties?.["Sequence"]?.number;
+      return `${taskTitle(card)} (${taskRole(card) || "роль не задана"}, Sequence ${seq ?? "—"})`;
+    });
+    const more = rows.length > shown.length ? `; и ещё ${rows.length - shown.length}` : "";
+    return `Черновики (предложения — выдаёшь их ты): ${shown.join("; ")}${more}.`;
   }
 
   async function coordinatorStep(role, expect, manual = false) {
@@ -3757,6 +3790,12 @@
             { kind: "done-with-open", ref: mission.id },
           );
           return true;
+        }
+        if (fresh.draft.length) {
+          log(
+            `Миссия завершена, в черновиках осталось ${fresh.draft.length} — это предложения на будущее, ` +
+              "а не обязательства: очередь закрыта.",
+          );
         }
         await patch(mission.id, {
           "Состояние": { select: { name: "Завершена" } },
@@ -3808,7 +3847,7 @@
       : rework.length
         ? "Есть Rework: посмотри «Ответ» — там причина (например, PR закрыт без мержа)."
         : "";
-    return requestPlan(mission, role, { submitted, running, ready, rework }, note, { manual });
+    return requestPlan(mission, role, await queueOf(mission), note, { manual });
   }
 
   /**
@@ -3827,13 +3866,15 @@
 
     const summary =
       queue.summary ||
-      `${queue.submitted.length} Submitted, ${queue.running.length} Running, ${queue.ready.length} Ready, ${queue.rework.length} Rework`;
+      `${queue.submitted.length} Submitted, ${queue.running.length} Running, ${queue.ready.length} Ready, ` +
+        `${queue.rework.length} Rework, ${(queue.draft || []).length} Draft`;
     const turnId = uid();
     // Ход Координатора начинается с разбора Submitted: даём ссылку на журнал
     // ответа, который он принимает, а не только счётчики очереди.
     const answerLine = answerLogLine(queue.submitted);
     log(`План Координатора запрошен (${summary}).`);
-    await sendToRole(role, coordinatorPrompt(mission, role, summary, turnId, note, answerLine), "plan", mission.id, {
+    const drafts = draftLine(queue.draft || []);
+    await sendToRole(role, coordinatorPrompt(mission, role, summary, turnId, note, answerLine, drafts), "plan", mission.id, {
       missionId: mission.id,
       turnId,
       title: "план Координатора",
