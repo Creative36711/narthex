@@ -40,7 +40,7 @@
 | 1.7 Эффекты, правила, слоты сцены | `src/core/effects.ts` (391), `src/core/scene-slots.ts` | #31 | `smoke:view-write` = 0, `smoke:patch` = 0, `smoke:engine-version` = 0 + все 50 смоуков (§5) |
 | 1.8 Крафт, торговля, встречи, мета | `src/core/economy.ts` (396), `src/core/encounters.ts`, `src/core/meta.ts`, `director.ts`, `combat.ts`-делегаты | #32 | `wc -l src/core/engine.ts` = **599** ≤ 600; все 50 смоуков, кроме §6; эталон §2 |
 | 1.9 Реестр `caps` | `src/core/caps.ts`, `docs/contracts/caps.json`, `check:contracts` | #33 | `npm run check:contracts` = 0 (39 проверок), `smoke:no-campaign` = 0 — **и это единственный красный след фазы, см. §6** |
-| 1.10 Регрессия и отчёт | этот файл | PR, в котором лежит `docs/reports/NAR-1.md` | §1–§5 этого отчёта |
+| 1.10 Регрессия и отчёт | `docs/reports/NAR-1.md` (этот файл) | #34 | §1–§5 этого отчёта |
 
 Номера PR — из `gh pr list --state all`; все девять смержены squash
 исполнителями в своих ходах (MERGED, не CLOSED).
