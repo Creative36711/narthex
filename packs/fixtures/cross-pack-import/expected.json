@@ -1,0 +1,8 @@
+{
+  "accept": false,
+  "diagnostic_contains": [
+    "imports another pack",
+    "grid-strategy",
+    "index.ts"
+  ]
+}

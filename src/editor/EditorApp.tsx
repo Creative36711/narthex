@@ -48,6 +48,7 @@ import { PlaytestDebugPanel } from './PlaytestDebugPanel'
 import type { CharChoice } from '../core/charcreate'
 import { EditorBookPanel } from './EditorBookPanel'
 import { DesignDocPanel } from './DesignDocPanel'
+import { PackCatalogPanel } from './PackCatalogPanel'
 
 /**
  * Narthex — Editor Mode (Фаза 4, ТЗ 5).
@@ -63,6 +64,7 @@ const MENUS: Array<{ id: string; label: string; items: SectionItem[] }> = [
     label: 'Проект',
     items: [
       { id: 'campaign', label: 'Кампания и реестры' },
+      { id: 'packs', label: 'Каталог паков' },
       { id: 'design', label: 'Дизайн-документ' },
     ],
   },
@@ -299,7 +301,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   // иначе «Кампаний пока нет» → «Создать» даёт React «Rendered more hooks…».
   useEffect(() => {
     if (!loaded || !base || error || testCampaign) return
-    if (['campaign', 'world', 'combat', 'design'].includes(section)) return
+    if (['campaign', 'world', 'combat', 'design', 'packs'].includes(section)) return
     if (selected) return
     let first: string | undefined
     try {
@@ -1046,7 +1048,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
     return true
   })
-  const hasList = !['campaign', 'world', 'combat', 'design'].includes(section)
+  const hasList = !['campaign', 'world', 'combat', 'design', 'packs'].includes(section)
   const sel = selected && items.some((i) => i.path === selected) ? selected : null
   // счётчики в заголовках групп — мастер сразу видит, сколько документов в «полочке»
   const groupCounts = new Map<string, number>()
@@ -1293,6 +1295,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
 
         <main className="editor-main">
           {section === 'campaign' && <CampaignEditor key={`c-${base}`} store={store} />}
+          {section === 'packs' && <PackCatalogPanel />}
           {section === 'design' && <DesignDocPanel key={`d-${base}`} store={store} onEditWithAi={() => openAiTask()} />}
           {section === 'combat' && <CombatRulesEditor key={`cb-${base}`} store={store} />}
           {section === 'world' && <WorldEditor key={`w-${base}`} store={store} />}
