@@ -1,5 +1,3 @@
-import type { CampaignMeta, CampaignFeatures } from '../shared/types'
-
 export type CapabilityStatus = 'stable' | 'experimental' | 'planned' | 'deprecated' | 'reserved'
 
 export interface CapabilityDefinition {
@@ -54,23 +52,77 @@ const capabilityById: ReadonlyMap<string, CapabilityDefinition> = new Map(
   CAPABILITY_REGISTRY.map((capability) => [capability.id, capability]),
 )
 
-// Old campaigns without either field kept every current mechanics toggle enabled.
+// Legacy object profiles kept omitted mechanics enabled; list profiles are explicit caps.
 const LEGACY_DEFAULT_CAPS = ['map', 'inventory', 'needs', 'skills', 'relationships', 'trade', 'combat', 'time'] as const
+const ENABLED_STATUSES = new Set<CapabilityStatus>(['stable', 'experimental'])
 
-/** Resolve the capability list, migrating an explicit legacy features object on read. */
-export function campaignCaps(meta: Pick<CampaignMeta, 'caps' | 'features'>): string[] {
-  if (meta.caps !== undefined) return [...meta.caps]
-  if (meta.features !== undefined) {
-    return (Object.entries(meta.features) as Array<[keyof CampaignFeatures, boolean | undefined]>)
-      .filter(([, enabled]) => enabled === true)
-      .map(([id]) => id)
+export interface CapabilityProfile {
+  caps?: unknown
+  features?: unknown
+}
+
+function assertEnableable(id: string, source: string): CapabilityDefinition {
+  const capability = capabilityById.get(id)
+  if (!capability) {
+    throw new TypeError(`Unknown capability "${id}" in campaign.meta.${source}; check the capability registry.`)
   }
-  return [...LEGACY_DEFAULT_CAPS]
+  if (!ENABLED_STATUSES.has(capability.status)) {
+    throw new TypeError(`Capability "${id}" cannot be enabled from campaign.meta.${source} (status: ${capability.status}).`)
+  }
+  return capability
+}
+
+function parseCapabilityList(value: unknown, source: string): string[] {
+  if (!Array.isArray(value)) {
+    const kind = value === null ? 'null' : typeof value
+    throw new TypeError(`Invalid campaign.meta.${source}: expected an array of capability ids, received ${kind}.`)
+  }
+  const result: string[] = []
+  const seen = new Set<string>()
+  for (const id of value) {
+    if (typeof id !== 'string' || id.trim() === '') {
+      throw new TypeError(`Invalid campaign.meta.${source}: every capability id must be a non-empty string.`)
+    }
+    assertEnableable(id, source)
+    if (!seen.has(id)) {
+      result.push(id)
+      seen.add(id)
+    }
+  }
+  return result
+}
+
+/** Resolve explicit caps, list profiles, or legacy boolean maps without silent fallback. */
+export function campaignCaps(meta: CapabilityProfile): string[] {
+  if (meta.caps !== undefined) return parseCapabilityList(meta.caps, 'caps')
+
+  const features = meta.features
+  if (features === undefined) return [...LEGACY_DEFAULT_CAPS]
+  if (Array.isArray(features)) return parseCapabilityList(features, 'features')
+  if (features === null || typeof features !== 'object') {
+    const kind = features === null ? 'null' : typeof features
+    throw new TypeError(`Unsupported campaign.meta.features format: expected string[] or a boolean map, received ${kind}.`)
+  }
+  const prototype = Object.getPrototypeOf(features)
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw new TypeError('Unsupported campaign.meta.features format: expected a plain boolean map.')
+  }
+
+  const enabled = new Set<string>(LEGACY_DEFAULT_CAPS)
+  for (const [id, value] of Object.entries(features)) {
+    if (typeof value !== 'boolean') {
+      throw new TypeError(`Invalid campaign.meta.features["${id}"]: expected a boolean, received ${value === null ? 'null' : typeof value}.`)
+    }
+    assertEnableable(id, 'features')
+    if (value) enabled.add(id)
+    else enabled.delete(id)
+  }
+  return [...enabled]
 }
 
 /** Registry-backed compatibility wrapper for current runtime capability checks. */
-export function featureOn(meta: Pick<CampaignMeta, 'caps' | 'features'>, id: string): boolean {
+export function featureOn(meta: CapabilityProfile, id: string): boolean {
   const capability = capabilityById.get(id)
-  if (!capability || !['stable', 'experimental'].includes(capability.status)) return false
-  return campaignCaps(meta).includes(id)
+  if (!capability) throw new TypeError(`Unknown runtime capability "${id}"; check the capability registry.`)
+  return ENABLED_STATUSES.has(capability.status) && campaignCaps(meta).includes(id)
 }
