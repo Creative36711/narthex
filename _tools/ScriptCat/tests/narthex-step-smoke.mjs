@@ -16,7 +16,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.60/, 'версия 1.4.60');
+assert.match(src, /@version\s+1\.4\.61/, 'версия 1.4.61');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
@@ -274,6 +274,7 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     "setStatus", "log", "pause", "releaseUndelivered", "sleep", "tick", "location", "document", "window",
     "getComputedStyle", "Date", "setTimeout", "HTMLTextAreaElement", "HTMLInputElement", "InputEvent",
     "busySettled", "busyLabel", "messages", "nodeId", "C", "dbg", "debugSendButton", "describe", "autoOn", "flat", "ui",
+    "appReady",
     `${sendBlock}\nreturn { consumePending, closeCompletionPlaque, ensureComposer };`,
   );
   const api = fn(
@@ -308,13 +309,15 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     (reason) => (reason ? `кнопка «${reason.label}»${reason.where || ""}` : ""),
     () => [],
     (n) => String(n.id || "").replace("chat-message-", ""),
-    { maxLog: 200, pendingTtlMs: 600000, replyWaitMs: 1800000, sendVerifyMs: 6000 },
+    { maxLog: 200, pendingTtlMs: 600000, replyWaitMs: 1800000, sendVerifyMs: 6000, sendReadyMs: 20000, clickReadyMs: 8000 },
     () => {},
     (ed) => ({ found: Boolean(ed), covered: sendCovered }),
     (el) => (el ? String(el.tagName || "?").toLowerCase() : "нет"),
     () => false,
     (x) => String(x || "").replace(/[\s\u00a0]+/g, " ").trim().toLowerCase(),
     { panel: "cfn-panel" },
+    // 1.4.61: шаг начинается с проверки, что страница отрисована.
+    () => ({ ok: true, why: "" }),
   );
   return { api, out };
 };
@@ -466,7 +469,7 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   await api.consumePending(true);
   assert.equal(out.rollback.calls.length, 1, 'неудачная отправка снимает статус карточки');
   assert.match(out.rollback.calls[0].why, /сообщение не ушло/, 'причина записана в журнал попытки');
-  // 1.4.60: ход не сбрасывается — текст остаётся в очереди с пометкой, и
+  // 1.4.61: ход не сбрасывается — текст остаётся в очереди с пометкой, и
   // «Продолжить» отправит его этой же карточке, без нового хода Координатора.
   assert.equal(out.sets.get("cfn-pending").undelivered, true, 'очередь сохранена и помечена');
   assert.equal(out.sets.get("cfn-expect").undelivered, true, 'ожидание сохранено: Run ID нужен для возврата в Running');

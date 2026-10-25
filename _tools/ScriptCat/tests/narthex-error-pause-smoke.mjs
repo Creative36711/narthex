@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и новый адрес ntfy.
-assert.match(src, /@version\s+1\.4\.60/, 'версия 1.4.60');
+assert.match(src, /@version\s+1\.4\.61/, 'версия 1.4.61');
 assert.match(src, /@connect\s+ntfy\.sh/, 'ntfy.sh разрешён в @connect');
 
 // 2. Журнал: ограничен, очищается, счётчик виден.
@@ -93,7 +93,7 @@ assert.match(src, /ui\.ntfy\), onclick|getElementById\(ui\.ntfy\)\.onclick/, 'е
 assert.match(src, /function ntfyDialog\(\)/, 'диалог ntfy с тестами');
 assert.match(src, /Тихий тест/, 'тихий тест доступен из панели');
 assert.match(src, /Громкий тест/, 'громкий тест доступен из панели');
-// 1.4.60: перезагрузка страницы появилась ровно в одном месте — адресат
+// 1.4.61: перезагрузка страницы появилась ровно в одном месте — адресат
 // открылся, но не отрисовался. Видимая ошибка на экране страницу не трогает.
 const reloadSites = src.split('\n').filter((line) => line.includes('location.reload()'));
 assert.equal(reloadSites.length, 1, 'перезагрузка страницы ровно одна');
@@ -106,4 +106,4 @@ assert.ok(
   'перезагружается только неотрисованная страница адресата, а не видимая ошибка',
 );
 
-console.log('OK: narthex 1.4.60 — журнал чистится, маркер напоминается, ошибка ставит паузу и ждёт Мастера');
+console.log('OK: narthex 1.4.61 — журнал чистится, маркер напоминается, ошибка ставит паузу и ждёт Мастера');

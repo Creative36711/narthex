@@ -1,4 +1,4 @@
-// Проба 1.4.60: следы прошлого ответа при возврате из Rework снимает транспорт.
+// Проба 1.4.61: следы прошлого ответа при возврате из Rework снимает транспорт.
 //
 // 25.10 Координатор не смог вернуть NAR-2.3 в Ready. По его словам, коннектор
 // Notion отвечал `validation_error` на очистку «Submitted At», «PR» и «Run ID»,
@@ -19,7 +19,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-assert.match(src, /@version\s+1\.4\.60/, 'версия 1.4.60');
+assert.match(src, /@version\s+1\.4\.61/, 'версия 1.4.61');
 
 const sliceBetween = (startMarker, endMarker) => {
   const from = src.indexOf(startMarker);
@@ -120,4 +120,4 @@ assert.match(
   'в промпте сказано, кто снимает следы',
 );
 
-console.log('OK: narthex 1.4.60 — вернувшаяся из Rework карточка чистится транспортом, а не коннектором');
+console.log('OK: narthex 1.4.61 — вернувшаяся из Rework карточка чистится транспортом, а не коннектором');

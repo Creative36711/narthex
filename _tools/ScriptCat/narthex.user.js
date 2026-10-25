@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.60
+// @version      1.4.61
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -73,6 +73,8 @@
     insertRetries: 3, // с какой попытки вставки в редактор звать Мастера (раньше — сами)
     composerGraceMs: 8000, // сколько ждём возврата поля ввода, если оно исчезло при перерисовке
     sendRetries: 3, // сколько тиков ждём дорисовку страницы, прежде чем звать Мастера
+    sendReadyMs: 20000, // столько ждём активную кнопку Send на дорисовывающейся странице
+    clickReadyMs: 8000, // столько ждём кнопку, прежде чем считать её недоступной
     pendingTtlMs: 600000, // отправка старше 10 минут не досылается: адресат её не получил
     undeliveredTtlMs: 7200000, // неотправленное задание ждёт Мастера два часа, а не десять минут
     replyWaitMs: 1800000, // 30 минут без единого сообщения — повод остановиться
@@ -291,7 +293,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.60";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.61";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -1873,6 +1875,39 @@
     // где видно поле ввода или плашку завершения, — там уже есть что читать.
     if (composer() || completionPlaque()) return { ok: true, why: "поле ввода на месте, транскрипт пуст" };
     return { ok: false, why: "ни реплик, ни поля ввода — страница не отрисовалась" };
+  }
+
+  /**
+   * Приложение Arena отрисовалось — только тогда на странице можно что-то делать.
+   *
+   * 25.10, 17:30:24–17:30:44. Скрипт перешёл на страницу Turn Runtime и через
+   * 20 секунд попытался отправить задание: поле ввода уже было, текст встал
+   * (9186 символов), кнопка Send была в разметке — но `disabled`, потому что
+   * транскрипт в этот момент монтировался (сообщений 0 → 18). Скрипт решил,
+   * что редактор «не принял текст», вернул карточку NAR-2.12 в Ready и встал
+   * на паузу. Работы по карточке не было — виновата спешка.
+   *
+   * Правило: пока документ не догружен, скрипт не делает ничего — ни вставки,
+   * ни кликов, ни закрытия панелей. Ожидание дешевле отката карточки.
+   */
+  function appReady() {
+    if (typeof document === "undefined") return { ok: false, why: "нет документа" };
+    const state = String(document.readyState || "");
+    if (state && state !== "complete" && state !== "interactive") {
+      return { ok: false, why: `документ грузится (${state})` };
+    }
+    // Оболочка приложения: без неё на странице нечего читать и некуда писать.
+    if (!document.querySelector('main, [data-agent-transcript-message], .editor-content, [role="textbox"]')) {
+      return { ok: false, why: "оболочка приложения не отрисована" };
+    }
+    return { ok: true, why: "" };
+  }
+
+  /** Кнопка действительно готова: в документе, видима и не заблокирована. */
+  async function clickReady(el, timeoutMs = C.clickReadyMs) {
+    if (pressable(el)) return true;
+    const found = await waitFor(() => (pressable(el) ? el : null), timeoutMs, 250);
+    return Boolean(found);
   }
 
   /** Наша реплика: в транскрипте Arena она помечена отдельным layout. */
@@ -3551,6 +3586,55 @@
   }
 
   /**
+   * Поле и кнопка отправки готовы принять клик.
+   *
+   * `sendButton()` уже отбрасывает `disabled`, поэтому «кнопки нет» и «кнопка
+   * есть, но заблокирована» здесь — одно состояние: страница ещё не готова.
+   */
+  function sendReady(editor) {
+    const live = editor && composerAlive(editor) ? editor : composer();
+    if (!live) return { ok: false, why: "поле ввода не найдено" };
+    const state = String(document.readyState || "");
+    if (state && state !== "complete" && state !== "interactive") {
+      return { ok: false, why: `страница грузится (${state})`, editor: live };
+    }
+    const btn = sendButton(live);
+    if (!btn) return { ok: false, why: "кнопка Send ещё неактивна", editor: live };
+    return { ok: true, btn, editor: live };
+  }
+
+  /**
+   * Ждём активную кнопку Send, не снимая задание.
+   *
+   * 17:30:24 (25.10): два фиксированных ожидания по 1,5 и 3 с закончились
+   * раньше, чем страница дорисовала транскрипт, и отказ ушёл в паузу с
+   * откатом карточки. Ждать надо столько, сколько рисуется страница, а текст
+   * в поле — возвращать, если его стёрла перерисовка.
+   */
+  async function waitSendReady(editor, text, timeoutMs = C.sendReadyMs) {
+    const started = Date.now();
+    // Пустая настройка не должна превращать ожидание в NaN: без числа
+    // deadline был бы NaN, и кнопка считалась бы недоступной мгновенно.
+    const deadline = started + (Number(timeoutMs) || 20000);
+    let lastPrompt = 0;
+    let told = false;
+    while (Date.now() < deadline) {
+      const probe = sendReady(editor);
+      if (probe.ok) return probe.btn;
+      if (probe.editor && Date.now() - lastPrompt > 1500) {
+        lastPrompt = Date.now();
+        writePrompt(probe.editor, text);
+      }
+      if (!told && Date.now() - started > 3000) {
+        told = true;
+        log("Страница дорисовывается: кнопка Send ещё неактивна — жду. Задание остаётся в очереди.");
+      }
+      await sleep(300);
+    }
+    return null;
+  }
+
+  /**
    * Отличительная строка задания: по ней видно, что в чат ушло именно это
    * сообщение, а не предыдущее. Первые строки промпта у всех заданий
    * одинаковые (технический блок), поэтому ключ берётся из строки с
@@ -3714,15 +3798,15 @@
         }
       }
 
-      let btn = await waitForSendReady(live, 1500);
+      // Ждём столько, сколько рисуется страница: кнопка Send появляется
+      // активной только после того, как редактор зарегистрировал ввод.
+      // Два коротких ожидания (1,5 и 3 с) кончались раньше, чем Arena
+      // успевала смонтировать транскрипт.
+      let btn = await waitSendReady(live, text);
       if (!btn) {
-        // Редактор не зарегистрировал ввод: повторяем его и ждём снова.
-        dbg("Send: кнопка неактивна — повторяю вставку текста", () => debugSendButton(live));
-        writePrompt(live, text);
-        btn = await waitForSendReady(live, 3000);
-      }
-      if (!btn) {
-        why.push(`активной кнопки Send нет (${composerDiagnostics()})`);
+        why.push(
+          `активной кнопки Send нет за ${Math.round((Number(C.sendReadyMs) || 20000) / 1000)} с (${composerDiagnostics()})`,
+        );
         break;
       }
 
@@ -3817,7 +3901,10 @@
       // Ни одного клика и поля ввода нет — это не отказ доставки, а
       // недорисованная страница. Задание осталось в очереди, ход не начат:
       // откат карточки и пауза тут дороже, чем ещё один тик ожидания.
-      retry: clicked === 0 && !now,
+      // Клика не было вовсе — сообщение никуда не ушло, и виновата не
+      // доставка, а недорисованная страница: поле есть, кнопка ещё `disabled`,
+      // транскрипт монтируется. Задание остаётся в очереди до `sendRetries`.
+      retry: clicked === 0,
       // Без единого клика причина другая: кнопка не нашлась, а не «нажали
       // и ничего не вышло». Смешивать их нельзя — по причине чинят.
       reason: clicked
@@ -3991,6 +4078,14 @@
         true,
       );
       return !act;
+    }
+
+    // Страница ещё не отрисована: вставлять текст некуда, а «не нашёл поле»
+    // на недогруженной странице — не повод откатывать карточку. Ждём тик.
+    const shell = appReady();
+    if (!shell.ok) {
+      pendingSay(pending, `Страница ещё грузится (${shell.why}) — задание подождёт.`);
+      return true;
     }
 
     if (!me || norm(me) !== norm(pending.roleId)) return false;
@@ -4318,11 +4413,21 @@
   const badgeVisible = (label) =>
     [...document.querySelectorAll(`[aria-label="${label}"]`)].some(visible);
 
+  // Кнопка PR считается доступной, только когда её можно нажать: пока
+  // страница дорисовывается, Arena держит их `disabled`, и клик по такой
+  // кнопке — это не «нажал», а «ничего не произошло» с записью в журнал.
+  const pressable = (b) =>
+    Boolean(b) &&
+    b.isConnected !== false &&
+    !b.disabled &&
+    b.getAttribute?.("aria-disabled") !== "true" &&
+    visible(b);
+
   const createPr = () =>
-    [...document.querySelectorAll('button[aria-label="Create pull request"]')].find(visible) || null;
+    [...document.querySelectorAll('button[aria-label="Create pull request"]')].find(pressable) || null;
 
   const mergePr = () =>
-    [...document.querySelectorAll('button[aria-label="Merge pull request"]')].find(visible) || null;
+    [...document.querySelectorAll('button[aria-label="Merge pull request"]')].find(pressable) || null;
 
   const mergedFlag = () => badgeVisible("Pull request merged");
 
@@ -6723,6 +6828,21 @@
       }
       GM_setValue("cfn-me", me.name);
       setStatus();
+
+      // Страница не догружена — шаг ничего не делает. Ни вставки, ни кликов,
+      // ни закрытия панелей: на недорисованной странице любое действие либо
+      // уходит в пустоту, либо бьёт по чужому элементу.
+      const shell = appReady();
+      if (!shell.ok) {
+        logThrottled(
+          "app-ready",
+          `Страница ещё грузится (${shell.why}) — ничего не делаю, жду.`,
+          false,
+          C.tickMs * 4,
+        );
+        return;
+      }
+
       const working = fromToggle ? await busySettled() : busyReason();
       if (working) {
         if (fromToggle) {
