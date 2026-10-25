@@ -63,9 +63,9 @@ assert.match(api.executorOrder({ id: 'd1' }, 'r1').join('\n'), /gh pr merge --sq
 //     24.10 агент открыл md-файл Мастеру в окне просмотра — это тормозит
 //     браузер и в автоматическом цикле не нужно.
 for (const who of [executor, coordinator, { name: 'Runtime Auditor', fn: 'Auditor' }]) {
-  const rules = api.workRules(who).join('\n');
+  const rules = api.workRules(who);
   assert.match(rules, /Файлы для показа не открывай/, `${who.name}: открывать файлы для демонстрации нельзя`);
-  assert.match(rules, /Путь к файлу назови в отчёте текстом/, `${who.name}: файл называется путём, а не открывается`);
+  assert.match(rules, /путь к файлу назови текстом в отчёте/, `${who.name}: файл называется путём, а не открывается`);
 }
 
 // ── 3. Задание: карточка достаточна, «не найден» больше нет ────────────────
@@ -130,4 +130,4 @@ const reminderTo = src.indexOf('  /**', reminderFrom + 10);
 const markerBlock = src.slice(reminderFrom, reminderTo);
 assert.doesNotMatch(markerBlock, FORBIDDEN, 'в напоминании о маркере нет кнопок');
 
-console.log('OK: narthex 1.4.56 — агенту не рассказывают про кнопки, файлы для показа не открываются, задание берётся из карточки, журнал попытки заполняется сразу');
+console.log('OK: narthex 1.4.57 — агенту не рассказывают про кнопки, файлы для показа не открываются, задание берётся из карточки, журнал попытки заполняется сразу');
