@@ -22,6 +22,7 @@
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 import { evalCondition } from '../src/core/conditions'
 import { EditorStore } from '../src/editor/store'
 import { exportMonolith, importMonolith, parseMonolith } from '../src/editor/monolith'

@@ -20,6 +20,7 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 import { repairState, type ReportCtx } from '../src/core/savemigrate'
 import { drainStory, type DialogueLine } from '../src/core/dialogue'
 import { EditorStore } from '../src/editor/store'

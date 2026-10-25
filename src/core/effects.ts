@@ -1,10 +1,10 @@
 import type { EngineCtx } from './context'
 import type { Effect, RuleDef } from '../shared/types'
-import { capabilityIsOff, featureOn } from './caps'
+import { featureOn } from './caps'
 import { evalCondition } from './conditions'
-import { quests } from './quests'
 import { skillCheck, CHECK_RESULT_LABEL, difficultyModifier } from './brp'
 import { playInteraction, stopSound } from '../shared/audio'
+import { packOperations } from './pack/host'
 
 /**
  * Глубина вложенных вызовов правил (эффект fire_rule). Больше двух — стоп:
@@ -47,7 +47,7 @@ function checkRules(this: EngineCtx): void {
       if (rule.trigger && rule.trigger !== 'always') continue
       this.tryFireRule(rule.id)
     }
-    quests.checkQuestTransitions(this)
+    packOperations.invoke(this, 'checkQuestTransitions')
   }
 
 function fireTrigger(this: EngineCtx, trigger: 'enter_scene' | 'leave_scene' | 'interact' | 'time_tick', _context?: { sceneId?: string; entityId?: string }): boolean {
@@ -84,6 +84,12 @@ function applyEffects(this: EngineCtx, effects: Effect[], depth = 0): void {
   }
 
 function applyEffect(this: EngineCtx, e: Effect, depth = 0): void {
+    const packOperation = `effect:${e.type}`
+    if (packOperations.has(packOperation)) {
+      packOperations.invoke(this, packOperation, e, depth)
+      this.checkAchievements()
+      return
+    }
     const s = this.state
     switch (e.type) {
       case 'fire_rule':
@@ -141,9 +147,6 @@ function applyEffect(this: EngineCtx, e: Effect, depth = 0): void {
         this.requestDurationAction(e.action, e.ticks ?? null)
         break
       }
-      case 'start_dialogue':
-        this.startDialogue(e.entity, e.dialogue_knot)
-        break
       case 'start_combat':
         this.startCombat(e)
         break
@@ -319,15 +322,6 @@ function applyEffect(this: EngineCtx, e: Effect, depth = 0): void {
       case 'change_disposition': this.changeDisposition(e.target, e.delta); break
       case 'start_quest': this.startQuest(e.quest); break
       case 'advance_quest': this.advanceQuestTo(e.quest, e.stage); break
-      case 'fail_quest': {
-        if (capabilityIsOff(this.campaign.meta, 'quests')) break
-        const qs = s.quests[e.quest]
-        if (qs && qs.status === 'active') {
-          qs.status = 'failed'
-          this.messages.push({ text: `Квест провален: «${this.campaign.quests[e.quest]?.label ?? e.quest}»` })
-        }
-        break
-      }
       case 'journal_update': this.journalUpdate(e.quest, e.text_key); break
       case 'give_reward':
         for (const it of e.items ?? []) this.addItem(it.item, it.quantity)

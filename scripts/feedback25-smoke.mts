@@ -1,3 +1,4 @@
+import '../packs/narrative/operations'
 /**
  * Смоук раунда фидбека 25 (баг-пасс ревью «до обновления», 12 пунктов).
  * Запуск: npx tsx scripts/feedback25-smoke.mts

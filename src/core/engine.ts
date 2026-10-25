@@ -1,88 +1,38 @@
 import type {
-  DifficultyPreset,
-  ArtDoc,
-  CameraDoc,
-  CampaignData,
-  SaveEnvelope,
-  CodexEntryDef,
-  CutsceneDef,
-  DiceRules,
-  DurationActionDef,
-  Effect,
-  GameState,
-  ItemDef,
-  ItemInteractOption,
-  LocationDef,
-  AchievementDef,
-  EventTableDef,
-  GenWeightedItem,
-  FeatDef,
-  MetaStoreState,
-  MetaUnlockDef,
-  NavigationZone,
-  NpcDef,
-  PlayerState,
-  RecipeDef,
-  RegionDef,
-  SceneDef,
-  SceneStateDef,
-  SlotDef,
-  SlotUseWith,
-  StatusDef,
-  TravelConnection,
-  SkillDifficulty,
-  WeaponData,
-  NeedDef,
-  ImageValue,
+  DifficultyPreset, ArtDoc, CameraDoc, CampaignData, SaveEnvelope, CodexEntryDef, CutsceneDef,
+  DiceRules, DurationActionDef, Effect, EntityDef, GameState, ItemDef, ItemInteractOption,
+  LocationDef, AchievementDef, EventTableDef, GenWeightedItem, FeatDef, MetaStoreState,
+  MetaUnlockDef, NavigationZone, NpcDef, PlayerState, RecipeDef, RegionDef, SceneDef,
+  SceneStateDef, SlotDef, SlotUseWith, StatusDef, TravelConnection, SkillDifficulty,
+  WeaponData, NeedDef, ImageValue,
 } from '../shared/types'
 import { SAVE_VERSION, startTick } from '../shared/types'
-import {
-  inspectSave,
-  loadState,
-  removeSave,
-  writeSave,
-  MAX_SAVE_SLOTS,
-} from './savemigrate'
+import { inspectSave, loadState, removeSave, writeSave, MAX_SAVE_SLOTS } from './savemigrate'
 import { PRNG } from './prng'
 import type { EngineCtx } from './context'
-import { world, type SlotOccupant } from './world'
 import { effects as effectSystem } from './effects'
-import { director } from './director'
 import { character } from './character'
 import { checks } from './checks'
 import { economy } from './economy'
-import { dialogueRuntime } from './dialogue-runtime'
-import { encounters } from './encounters'
 import { meta } from './meta'
-import { roguelike } from './roguelike'
-import { sceneSlots } from './scene-slots'
 import { needs } from './needs'
-import { quests } from './quests'
 import { party } from './party'
-import { social } from './social'
 import { inventory } from './inventory'
 import { equipment } from './equipment'
-export type { SlotOccupant } from './world'
 import { derivedHP, derivedMP, skillCheck, type SkillCheckOutcome } from './brp'
 import type { CharChoice } from './charcreate'
 import type { Story } from 'inkjs'
-import type { DialogueUI, DialogueHistoryEntry } from './dialogue'
 import { playUi, playInteraction, stopSound } from '../shared/audio'
 import { CombatController } from './combat'
-import { PackHost, type PackPause, type PackSimBinding } from './pack/host'
+import { PackHost, packOperations, type PackOperationRefusal, type PackPause, type PackSimBinding } from './pack/host'
 
-export interface EnginePackExecution {
-  readonly packId: string
-  readonly seam: string
-  readonly steps: number
-}
+export interface SlotOccupant { slot: SlotDef; entity: EntityDef | null }
+
+export interface EnginePackExecution { readonly packId: string; readonly seam: string; readonly steps: number }
 
 interface EnginePackRuntime {
-  host: PackHost<unknown, unknown, unknown>
-  state: unknown
-  readonly packId: string
-  readonly seam: string
-  steps: number
+  host: PackHost<unknown, unknown, unknown>; state: unknown
+  readonly packId: string; readonly seam: string; steps: number
 }
 
 function packError(code: string, pause: PackPause): Error {
@@ -103,9 +53,6 @@ export class GameEngine implements EngineCtx {
   private listeners = new Set<() => void>()
   private activeStory: Story | null = null
   private activeNpc: NpcDef | null = null
-  dialogue: DialogueUI | null = null
-  dialogueHistory: DialogueHistoryEntry[] = []
-  dialogueTimer: { seconds: number; knot?: string } | null = null
   private pendingDialogueTimer: { seconds: number; knot?: string } | null = null
   private pendingDialoguePresenting: { ok: string; fail: string; required?: string } | null = null
   combat: CombatController | null = null
@@ -166,6 +113,7 @@ export class GameEngine implements EngineCtx {
       this.rng = new PRNG()
       this.state = this.newState()
     }
+    this.runPackOperation('initializeRuntime')
   }
 
   /** Attach pack-owned code explicitly; there is no legacy fallback after this boundary. */
@@ -193,6 +141,18 @@ export class GameEngine implements EngineCtx {
   get packExecution(): EnginePackExecution | null {
     const runtime = this.packRuntime
     return runtime ? { packId: runtime.packId, seam: runtime.seam, steps: runtime.steps } : null
+  }
+
+  get packOperationPause(): PackOperationRefusal | null {
+    return packOperations.paused
+  }
+
+  hasPackOperation(operation: string): boolean {
+    return packOperations.has(operation)
+  }
+
+  runPackOperation<Result = any>(operation: string, ...args: unknown[]): Result {
+    return packOperations.invoke<Result>(this, operation, ...args)
   }
 
   /** Execute one pack event; a pause is an error, never permission to use core rules instead. */
@@ -260,7 +220,7 @@ export class GameEngine implements EngineCtx {
       removed_entities: [],
       spawned: [],
       player,
-      quests: {},
+      ...this.runPackOperation<object>('initialStateFields'),
       dispositions,
       party: [],
       blocked_paths: [],
@@ -268,12 +228,12 @@ export class GameEngine implements EngineCtx {
       known_npcs: [],
       log: [],
       game_over: null,
-      stats_run: { travels: 0, dialogues: 0, ticks_survived: 0, kills: 0, quests_completed: 0 },
-    }
+      stats_run: this.runPackOperation('initialRunStats'),
+    } as unknown as GameState
   }
-  shouldShowNarrativeIntro(scene: SceneDef): boolean { return director.shouldShowNarrativeIntro.call(this, scene) }
-  isSceneIntroActive(): boolean { return director.isSceneIntroActive.call(this) }
-  markNarrativeIntroSeen(sceneId: string): void { return director.markNarrativeIntroSeen.call(this, sceneId) }
+  shouldShowNarrativeIntro(scene: SceneDef): boolean { return this.runPackOperation('shouldShowNarrativeIntro', scene) }
+  isSceneIntroActive(): boolean { return this.runPackOperation('isSceneIntroActive') }
+  markNarrativeIntroSeen(sceneId: string): void { return this.runPackOperation('markNarrativeIntroSeen', sceneId) }
   setFlag(f: string, value: unknown = true): void {
     if (value === false || value === 0 || value === 'false') {
       delete this.state.flags[f]
@@ -305,35 +265,25 @@ export class GameEngine implements EngineCtx {
     this.notify()
   }
   applyCharCreation(choice: CharChoice): void { return character.applyCharCreation.call(this, choice) }
-  get cutscene(): CutsceneDef | null { return director.cutscene.call(this) }
-  get cutsceneKey(): number { return director.cutsceneKey.call(this) }
+  get cutscene(): CutsceneDef | null { return this.runPackOperation('cutscene') }
+  get cutsceneKey(): number { return this.runPackOperation('cutsceneKey') }
   banners: Array<{
-    serial: number
-    text: string
-    preset?: string
-    enter?: string
-    seconds?: number
-    position?: string
-    accent?: string
+    serial: number; text: string; preset?: string; enter?: string
+    seconds?: number; position?: string; accent?: string
   }> = []
   postcard: {
-    image?: string
-    art?: ArtDoc
-    text?: string
-    preset?: string
-    seconds?: number
-    camera?: CameraDoc
+    image?: string; art?: ArtDoc; text?: string; preset?: string; seconds?: number; camera?: CameraDoc
   } | null = null
   private postcardTimer: ReturnType<typeof setTimeout> | null = null
   private postcardPendingSeconds = 0
   private bannerSerial = 1
   private bannerPendingTimers: Array<{ serial: number; seconds: number }> = []
-  showBanner(e: { text: string; preset?: string; enter?: string; seconds?: number; position?: string; accent?: string }): void { void this.bannerSerial; void this.bannerPendingTimers; void this.postcardTimer; void this.postcardPendingSeconds; void this.cutsceneSerial; return director.showBanner.call(this, e) }
-  showPostcard(e: { image?: string; art?: ArtDoc; text?: string; preset?: string; seconds?: number; camera?: CameraDoc }): void { return director.showPostcard.call(this, e) }
-  hidePostcard(): void { return director.hidePostcard.call(this) }
-  private flushPendingBannersIfClear(): void { return director.flushPendingBannersIfClear.call(this) }
-  playCutscene(id: string): void { return director.playCutscene.call(this, id) }
-  endCutscene(): void { return director.endCutscene.call(this) }
+  showBanner(e: { text: string; preset?: string; enter?: string; seconds?: number; position?: string; accent?: string }): void { void this.bannerSerial; void this.bannerPendingTimers; void this.postcardTimer; void this.postcardPendingSeconds; void this.cutsceneSerial; return this.runPackOperation('showBanner', e) }
+  showPostcard(e: { image?: string; art?: ArtDoc; text?: string; preset?: string; seconds?: number; camera?: CameraDoc }): void { return this.runPackOperation('showPostcard', e) }
+  hidePostcard(): void { return this.runPackOperation('hidePostcard') }
+  private flushPendingBannersIfClear(): void { return this.runPackOperation('flushPendingBannersIfClear') }
+  playCutscene(id: string): void { return this.runPackOperation('playCutscene', id) }
+  endCutscene(): void { return this.runPackOperation('endCutscene') }
   advanceTicks(ticks: number): void { needs.advanceTicks(this, ticks, { tickPursuit: () => this.tickPursuit(), tickNpcMood: () => this.tickNpcMood(), tickEventTables: () => this.tickEventTables() }) }
   changeNeed(needId: string, delta: number): void { needs.changeNeed(this, needId, delta) }
   changeHp(delta: number): void { needs.changeHp(this, delta) }
@@ -372,20 +322,20 @@ export class GameEngine implements EngineCtx {
   encumbranceDebuffs(): ReturnType<typeof equipment.encumbranceDebuffs> { return equipment.encumbranceDebuffs(this) }
   isOverloaded(): boolean { return equipment.isOverloaded(this) }
   isTravelBlockedByOverload(): boolean { return equipment.isTravelBlockedByOverload(this) }
-  getDisposition(target: string): number { return social.getDisposition(this, target) }
-  heroPortraitStateKey(): string { return sceneSlots.heroPortraitStateKey.call(this) }
-  heroPortraitImages(): ImageValue[] { return sceneSlots.heroPortraitImages.call(this) }
+  getDisposition(target: string): number { return this.runPackOperation('getDisposition', target) }
+  heroPortraitStateKey(): string { return this.runPackOperation('heroPortraitStateKey') }
+  heroPortraitImages(): ImageValue[] { return this.runPackOperation('heroPortraitImages') }
   heroCombatFigure(): {
     figure?: ImageValue
     mode?: 'topdown' | 'side' | 'static'
     offset?: number
-  } { return sceneSlots.heroCombatFigure.call(this) }
-  npcMood(entityId: string): number { return social.npcMood(this, entityId) }
-  changeNpcMood(entityId: string, delta: number): void { social.changeNpcMood(this, entityId, delta) }
-  changeDisposition(target: string, delta: number): void { social.changeDisposition(this, target, delta) }
-  startQuest(questId: string): void { quests.startQuest(this, questId) }
-  advanceQuestTo(questId: string, stageId: string): void { quests.advanceQuestTo(this, questId, stageId) }
-  journalUpdate(questId: string, textKey: string): void { quests.journalUpdate(this, questId, textKey) }
+  } { return this.runPackOperation('heroCombatFigure') }
+  npcMood(entityId: string): number { return this.runPackOperation('npcMood', entityId) }
+  changeNpcMood(entityId: string, delta: number): void { this.runPackOperation('changeNpcMood', entityId, delta) }
+  changeDisposition(target: string, delta: number): void { this.runPackOperation('changeDisposition', target, delta) }
+  startQuest(questId: string): void { this.runPackOperation('startQuest', questId) }
+  advanceQuestTo(questId: string, stageId: string): void { this.runPackOperation('advanceQuestTo', questId, stageId) }
+  journalUpdate(questId: string, textKey: string): void { this.runPackOperation('journalUpdate', questId, textKey) }
   joinParty(entityId: string): void { party.joinParty(this, entityId) }
   companionNeed(entity: string, needId: string): number | null { return party.companionNeed(this, entity, needId) }
   changeCompanionNeed(entity: string, needId: string, delta: number): void { party.changeCompanionNeed(this, entity, needId, delta) }
@@ -407,21 +357,21 @@ export class GameEngine implements EngineCtx {
   sanityMax(): number { return character.sanityMax.call(this) }
   sanity(): number { return character.sanity.call(this) }
   changeSanity(delta: number): void { return character.changeSanity.call(this, delta) }
-  reputation(): number { return social.reputation(this) }
-  uiLabel(key: string, fallback: string): string { return social.uiLabel(this, key, fallback) }
-  reputationEnabled(): boolean { return social.reputationEnabled(this) }
-  reputationLabel(): string { return social.reputationLabel(this) }
-  changeReputation(delta: number): void { social.changeReputation(this, delta) }
-  wealthLevels(): string[] { return social.wealthLevels(this) }
-  wealthLevel(): number { return social.wealthLevel(this) }
-  wealthLevelLabel(): string { return social.wealthLevelLabel(this) }
-  changeWealth(levels: number): void { social.changeWealth(this, levels) }
-  passion(id: string): number { return social.passion(this, id) }
-  passionLabel(id: string): string { return social.passionLabel(this, id) }
-  changePassion(id: string, delta: number): void { social.changePassion(this, id, delta) }
-  allegiance(id: string): number { return social.allegiance(this, id) }
-  allegianceLabel(id: string): string { return social.allegianceLabel(this, id) }
-  changeAllegiance(id: string, points: number): void { social.changeAllegiance(this, id, points) }
+  reputation(): number { return this.runPackOperation('reputation') }
+  uiLabel(key: string, fallback: string): string { return this.runPackOperation('uiLabel', key, fallback) }
+  reputationEnabled(): boolean { return this.runPackOperation('reputationEnabled') }
+  reputationLabel(): string { return this.runPackOperation('reputationLabel') }
+  changeReputation(delta: number): void { this.runPackOperation('changeReputation', delta) }
+  wealthLevels(): string[] { return this.runPackOperation('wealthLevels') }
+  wealthLevel(): number { return this.runPackOperation('wealthLevel') }
+  wealthLevelLabel(): string { return this.runPackOperation('wealthLevelLabel') }
+  changeWealth(levels: number): void { this.runPackOperation('changeWealth', levels) }
+  passion(id: string): number { return this.runPackOperation('passion', id) }
+  passionLabel(id: string): string { return this.runPackOperation('passionLabel', id) }
+  changePassion(id: string, delta: number): void { this.runPackOperation('changePassion', id, delta) }
+  allegiance(id: string): number { return this.runPackOperation('allegiance', id) }
+  allegianceLabel(id: string): string { return this.runPackOperation('allegianceLabel', id) }
+  changeAllegiance(id: string, points: number): void { this.runPackOperation('changeAllegiance', id, points) }
   skillBaseChance(skillId: string): number { return character.skillBaseChance.call(this, skillId) }
   skillEffective(skillId: string): number { return character.skillEffective.call(this, skillId) }
   trainStat(stat: string, delta: number): void { return character.trainStat.call(this, stat, delta) }
@@ -438,15 +388,15 @@ export class GameEngine implements EngineCtx {
   takeFeat(id: string): boolean { return character.takeFeat.call(this, id) }
   grantFeat(id: string): void { return character.grantFeat.call(this, id) }
   playerMovement(): number { return character.playerMovement.call(this) }
-  applyFall(meters: number, skill?: string): void { social.applyFall(this, meters, skill) }
-  crimeLabel(id: string): string { return social.crimeLabel(this, id) }
-  commitCrime(id: string, bounty = 0): void { social.commitCrime(this, id, bounty) }
-  hasCrime(id?: string, minBounty = 0): boolean { return social.hasCrime(this, id, minBounty) }
-  bountyTotal(): number { return social.bountyTotal(this) }
-  priceEventsActive(): Array<{ id: string; label: string }> { return social.priceEventsActive(this) }
-  setPriceEvent(id: string, on: boolean): void { social.setPriceEvent(this, id, on) }
-  priceEventMultiplier(item: ItemDef): number { return social.priceEventMultiplier(this, item) }
-  campAvailable(): { ok: boolean; reason: string } { return social.campAvailable(this) }
+  applyFall(meters: number, skill?: string): void { this.runPackOperation('applyFall', meters, skill) }
+  crimeLabel(id: string): string { return this.runPackOperation('crimeLabel', id) }
+  commitCrime(id: string, bounty = 0): void { this.runPackOperation('commitCrime', id, bounty) }
+  hasCrime(id?: string, minBounty = 0): boolean { return this.runPackOperation('hasCrime', id, minBounty) }
+  bountyTotal(): number { return this.runPackOperation('bountyTotal') }
+  priceEventsActive(): Array<{ id: string; label: string }> { return this.runPackOperation('priceEventsActive') }
+  setPriceEvent(id: string, on: boolean): void { this.runPackOperation('setPriceEvent', id, on) }
+  priceEventMultiplier(item: ItemDef): number { return this.runPackOperation('priceEventMultiplier', item) }
+  campAvailable(): { ok: boolean; reason: string } { return this.runPackOperation('campAvailable') }
   durationRequest: { kind: 'camp' } | { kind: 'action'; action: DurationActionDef } | null = null
   durationRequestInfo(): {
     label: string
@@ -468,13 +418,13 @@ export class GameEngine implements EngineCtx {
   statCheck(stat: string, multiplier = 5, modifier = 0): SkillCheckOutcome { return checks.statCheck.call(this, stat, multiplier, modifier) }
   applyByCheck(outcome: SkillCheckOutcome, describe: string, retry: () => SkillCheckOutcome, onOk: () => void, onFail: () => void): boolean { return checks.applyByCheck.call(this, outcome, describe, retry, onOk, onFail) }
   opposedCheck(e: Extract<Effect, { type: 'opposed_check' }>): { success: boolean; player: SkillCheckOutcome; rival: SkillCheckOutcome } { return checks.opposedCheck.call(this, e) }
-  stealthEnabled(): boolean { return encounters.stealthEnabled.call(this) }
-  isSneaking(): boolean { return encounters.isSneaking.call(this) }
-  isDetected(): boolean { return encounters.isDetected.call(this) }
-  playerSkill(skill: string): number { return encounters.playerSkill.call(this, skill) }
-  toggleSneak(): void { return encounters.toggleSneak.call(this) }
-  detectCheck(context: string): boolean { return encounters.detectCheck.call(this, context) }
-  consumeSurpriseFromSneak(): boolean { return encounters.consumeSurpriseFromSneak.call(this) }
+  stealthEnabled(): boolean { return this.runPackOperation('stealthEnabled') }
+  isSneaking(): boolean { return this.runPackOperation('isSneaking') }
+  isDetected(): boolean { return this.runPackOperation('isDetected') }
+  playerSkill(skill: string): number { return this.runPackOperation('playerSkill', skill) }
+  toggleSneak(): void { return this.runPackOperation('toggleSneak') }
+  detectCheck(context: string): boolean { return this.runPackOperation('detectCheck', context) }
+  consumeSurpriseFromSneak(): boolean { return this.runPackOperation('consumeSurpriseFromSneak') }
   markSkill(skill: string): void { return character.markSkill.call(this, skill) }
   playerSkillCheck(skill: string, difficulty: SkillDifficulty = 50): ReturnType<typeof skillCheck> { return character.playerSkillCheck.call(this, skill, difficulty) }
   skillLabel(id: string): string { return character.skillLabel.call(this, id) }
@@ -483,10 +433,9 @@ export class GameEngine implements EngineCtx {
   closeTrade(): void { return economy.closeTrade.call(this) }
   openCraft(recipeId?: string, sourceEntity?: ItemDef): void { return economy.openCraft.call(this, recipeId, sourceEntity) }
   closeCraft(): void { return economy.closeCraft.call(this) }
-  setDialogueTimer(seconds: number, knot?: string): void { return dialogueRuntime.setDialogueTimer.call(this, seconds, knot) }
-  dialogueTimeout(): void { return dialogueRuntime.dialogueTimeout.call(this) }
-  promptPresentItem(okKnot: string, failKnot: string, required?: string): void { return dialogueRuntime.promptPresentItem.call(this, okKnot, failKnot, required) }
-  submitPresentedItem(itemId: string | null): void { return dialogueRuntime.submitPresentedItem.call(this, itemId) }
+  setDialogueTimer(seconds: number, knot?: string): void { return this.runPackOperation('setDialogueTimer', seconds, knot) }
+  promptPresentItem(okKnot: string, failKnot: string, required?: string): void { return this.runPackOperation('promptPresentItem', okKnot, failKnot, required) }
+  submitPresentedItem(itemId: string | null): void { return this.runPackOperation('submitPresentedItem', itemId) }
   priceModifier(npc: NpcDef): number { return economy.priceModifier.call(this, npc) }
   get mainCurrency(): string { return economy.mainCurrency.call(this) }
   currencyItemId(currencyId = this.mainCurrency): string { return economy.currencyItemId.call(this, currencyId) }
@@ -502,71 +451,71 @@ export class GameEngine implements EngineCtx {
   workbenchLabel(req?: boolean | string): string { return economy.workbenchLabel.call(this, req) }
   recipeMissing(r: RecipeDef): string[] { return economy.recipeMissing.call(this, r) }
   craft(recipeId: string): boolean { return economy.craft.call(this, recipeId) }
-  private rollEncounter(conn: TravelConnection): void { return encounters.rollEncounter.call(this, conn) }
-  allRegions(): RegionDef[] { return world.allRegions(this) }
-  findRegion(id: string): RegionDef | undefined { return world.findRegion(this, id) }
-  findLocation(id: string): { region: RegionDef; location: LocationDef } | undefined { return world.findLocation(this, id) }
-  currentScene(): SceneDef { return world.currentScene(this) }
-  arrivalSceneOf(location: LocationDef): string | undefined { return world.arrivalSceneOf(this, location) }
+  private rollEncounter(conn: TravelConnection): void { return this.runPackOperation('rollEncounter', conn) }
+  allRegions(): RegionDef[] { return this.runPackOperation('allRegions') }
+  findRegion(id: string): RegionDef | undefined { return this.runPackOperation('findRegion', id) }
+  findLocation(id: string): { region: RegionDef; location: LocationDef } | undefined { return this.runPackOperation('findLocation', id) }
+  currentScene(): SceneDef { return this.runPackOperation('currentScene') }
+  arrivalSceneOf(location: LocationDef): string | undefined { return this.runPackOperation('arrivalSceneOf', location) }
   get diceRules(): DiceRules { return checks.diceRules.call(this) }
-  // Selection in world.activeSceneState: st.condition && evalSceneCondition(st.condition, this).
-  activeSceneState(scene: SceneDef): SceneStateDef { return world.activeSceneState(this, scene) }
-  changeSceneState(sceneIdOrState: string, maybeState?: string): void { world.changeSceneState(this, sceneIdOrState, maybeState) }
-  goToSceneFromDialogue(sceneId: string, closeDialogue = true): void { world.goToSceneFromDialogue(this, sceneId, closeDialogue) }
-  startCombatFromDialogue(arenaId: string): void { world.startCombatFromDialogue(this, arenaId) }
-  slotOccupants(scene: SceneDef): SlotOccupant[] { return world.slotOccupants(this, scene) }
-  goToScene(sceneId: string, costTicks = 0): void { world.goToScene(this, sceneId, costTicks) }
-  navigate(nav: NavigationZone): boolean { return world.navigate(this, nav) }
-  travelTo(locationId: string): void { world.travelTo(this, locationId, (conn) => this.rollEncounter(conn)) }
-  visibleLocations(region: RegionDef): LocationDef[] { return world.visibleLocations(this, region) }
-  travelCost(toLocation: string): number | null { return world.travelCost(this, toLocation) }
-  travelBaseCost(toLocation: string): number | null { return world.travelBaseCost(this, toLocation) }
+  // Connected selection contract: st.condition && evalSceneCondition(st.condition, this).
+  activeSceneState(scene: SceneDef): SceneStateDef { return this.runPackOperation('activeSceneState', scene) }
+  changeSceneState(sceneIdOrState: string, maybeState?: string): void { this.runPackOperation('changeSceneState', sceneIdOrState, maybeState) }
+  goToSceneFromDialogue(sceneId: string, closeDialogue = true): void { this.runPackOperation('goToSceneFromDialogue', sceneId, closeDialogue) }
+  startCombatFromDialogue(arenaId: string): void { this.runPackOperation('startCombatFromDialogue', arenaId) }
+  slotOccupants(scene: SceneDef): SlotOccupant[] { return this.runPackOperation('slotOccupants', scene) }
+  goToScene(sceneId: string, costTicks = 0): void { this.runPackOperation('goToScene', sceneId, costTicks) }
+  navigate(nav: NavigationZone): boolean { return this.runPackOperation('navigate', nav) }
+  travelTo(locationId: string): void { this.runPackOperation('travelTo', locationId, (conn: TravelConnection) => this.rollEncounter(conn)) }
+  visibleLocations(region: RegionDef): LocationDef[] { return this.runPackOperation('visibleLocations', region) }
+  travelCost(toLocation: string): number | null { return this.runPackOperation('travelCost', toLocation) }
+  travelBaseCost(toLocation: string): number | null { return this.runPackOperation('travelBaseCost', toLocation) }
   private runLocationRules(locationId: string): void { return effectSystem.runLocationRules.call(this, locationId) }
   checkRules(): void { return effectSystem.checkRules.call(this) }
   fireTrigger(trigger: 'enter_scene' | 'leave_scene' | 'interact' | 'time_tick', _context?: { sceneId?: string; entityId?: string }): boolean { return effectSystem.fireTrigger.call(this, trigger, _context) }
   tryFireRule(ruleId: string, depth = 0): boolean { return effectSystem.tryFireRule.call(this, ruleId, depth) }
-  isNpcNameKnown(entityId: string): boolean { return sceneSlots.isNpcNameKnown.call(this, entityId) }
-  npcLabel(entity: string | NpcDef): string { return sceneSlots.npcLabel.call(this, entity) }
-  learnNpcName(npcId: string, silent = false): void { return sceneSlots.learnNpcName.call(this, npcId, silent) }
-  descOf(entityId: string): string { return sceneSlots.descOf.call(this, entityId) }
-  private tickNpcMood(): void { social.tickNpcMood(this) }
-  private tickPursuit(): void { return encounters.tickPursuit.call(this) }
+  isNpcNameKnown(entityId: string): boolean { return this.runPackOperation('isNpcNameKnown', entityId) }
+  npcLabel(entity: string | NpcDef): string { return this.runPackOperation('npcLabel', entity) }
+  learnNpcName(npcId: string, silent = false): void { return this.runPackOperation('learnNpcName', npcId, silent) }
+  descOf(entityId: string): string { return this.runPackOperation('descOf', entityId) }
+  private tickNpcMood(): void { this.runPackOperation('tickNpcMood') }
+  private tickPursuit(): void { return this.runPackOperation('tickPursuit') }
   togglePreparedAbility(id: string): boolean { return character.togglePreparedAbility.call(this, id) }
-  setEntityDescription(entityId: string, text: string): void { return sceneSlots.setEntityDescription.call(this, entityId, text) }
+  setEntityDescription(entityId: string, text: string): void { return this.runPackOperation('setEntityDescription', entityId, text) }
   applyEffects(effects: Effect[], depth = 0): void { return effectSystem.applyEffects.call(this, effects, depth) }
   applyEffect(e: Effect, depth = 0): void { return effectSystem.applyEffect.call(this, e, depth) }
-  slotUseOptions(slot: SlotDef): Array<{ itemId: string; label: string; use: SlotUseWith }> { return sceneSlots.slotUseOptions.call(this, slot) }
-  useItemOnSlot(slotId: string, itemId: string): boolean { return sceneSlots.useItemOnSlot.call(this, slotId, itemId) }
+  slotUseOptions(slot: SlotDef): Array<{ itemId: string; label: string; use: SlotUseWith }> { return this.runPackOperation('slotUseOptions', slot) }
+  useItemOnSlot(slotId: string, itemId: string): boolean { return this.runPackOperation('useItemOnSlot', slotId, itemId) }
   unlockRecipe(recipeId: string): void { return economy.unlockRecipe.call(this, recipeId) }
   recipeKnown(id: string): boolean { return economy.recipeKnown.call(this, id) }
   knownRecipes(): RecipeDef[] { return economy.knownRecipes.call(this) }
-  entityState(id: string): string | undefined { return sceneSlots.entityState.call(this, id) }
-  unlockCodex(entryId: string): void { return sceneSlots.unlockCodex.call(this, entryId) }
-  unlockedCodexEntries(): CodexEntryDef[] { return sceneSlots.unlockedCodexEntries.call(this) }
-  codexCategories(): Array<{ id: string; label: string }> { return sceneSlots.codexCategories.call(this) }
-  fmt(text: string): string { return sceneSlots.fmt.call(this, text) }
-  itemInteractable(item: ItemDef): boolean { return sceneSlots.itemInteractable.call(this, item) }
-  itemInteractOptions(item: ItemDef): ItemInteractOption[] { return sceneSlots.itemInteractOptions.call(this, item) }
-  runItemInteract(item: ItemDef, option: ItemInteractOption): void { return sceneSlots.runItemInteract.call(this, item, option) }
-  interactWithSlot(occ: SlotOccupant): boolean { return sceneSlots.interactWithSlot.call(this, occ) }
+  entityState(id: string): string | undefined { return this.runPackOperation('entityState', id) }
+  unlockCodex(entryId: string): void { return this.runPackOperation('unlockCodex', entryId) }
+  unlockedCodexEntries(): CodexEntryDef[] { return this.runPackOperation('unlockedCodexEntries') }
+  codexCategories(): Array<{ id: string; label: string }> { return this.runPackOperation('codexCategories') }
+  fmt(text: string): string { return this.runPackOperation('fmt', text) }
+  itemInteractable(item: ItemDef): boolean { return this.runPackOperation('itemInteractable', item) }
+  itemInteractOptions(item: ItemDef): ItemInteractOption[] { return this.runPackOperation('itemInteractOptions', item) }
+  runItemInteract(item: ItemDef, option: ItemInteractOption): void { return this.runPackOperation('runItemInteract', item, option) }
+  interactWithSlot(occ: SlotOccupant): boolean { return this.runPackOperation('interactWithSlot', occ) }
   private postCombatEffects: Effect[] = []
-  onCombatResolve(effects: Effect[]): void { void this.postCombatEffects; return director.onCombatResolve.call(this, effects) }
-  startCombat(def: Extract<Effect, { type: 'start_combat' }>): void { return director.startCombat.call(this, def) }
-  endCombat(): void { return director.endCombat.call(this) }
+  onCombatResolve(effects: Effect[]): void { void this.postCombatEffects; return this.runPackOperation('onCombatResolve', effects) }
+  startCombat(def: Extract<Effect, { type: 'start_combat' }>): void { return this.runPackOperation('startCombat', def) }
+  endCombat(): void { return this.runPackOperation('endCombat') }
   fireRule(ruleId: string): void { return effectSystem.fireRule.call(this, ruleId) }
-  resolveDialogueSource(ref: string): { key: string; source: string } | null { return dialogueRuntime.resolveDialogueSource.call(this, ref) }
-  startDialogue(entityId: string, knot?: string): void { void this.activeStory; void this.activeNpc; void this.pendingDialogueTimer; void this.pendingDialoguePresenting; return dialogueRuntime.startDialogue.call(this, entityId, knot) }
-  chooseDialogueOption(index: number): void { return dialogueRuntime.chooseDialogueOption.call(this, index) }
-  endDialogue(): void { return dialogueRuntime.endDialogue.call(this) }
+  resolveDialogueSource(ref: string): { key: string; source: string } | null { return this.runPackOperation('resolveDialogueSource', ref) }
+  startDialogue(entityId: string, knot?: string): void { void this.activeStory; void this.activeNpc; void this.pendingDialogueTimer; void this.pendingDialoguePresenting; return this.runPackOperation('startDialogue', entityId, knot) }
+  chooseDialogueOption(index: number): void { return this.runPackOperation('chooseDialogueOption', index) }
+  endDialogue(): void { return this.runPackOperation('endDialogue') }
   dismissMessage(): void {
     this.messages.shift()
     this.flushPendingBannersIfClear()
     this.notify()
   }
-  gameOver(type: 'death' | 'victory', reason: string, force = false): void { return roguelike.gameOver.call(this, type, reason, force) }
-  restart(): GameEngine { return roguelike.restart.call(this, GameEngine) as GameEngine }
-  newGamePlusAvailable(): boolean { return roguelike.newGamePlusAvailable.call(this) }
-  newGamePlus(): GameEngine | null { return roguelike.newGamePlus.call(this, GameEngine) as GameEngine | null }
+  gameOver(type: 'death' | 'victory', reason: string, force = false): void { return this.runPackOperation('gameOver', type, reason, force) }
+  restart(): GameEngine { return this.runPackOperation('restart', GameEngine) as GameEngine }
+  newGamePlusAvailable(): boolean { return this.runPackOperation('newGamePlusAvailable') }
+  newGamePlus(): GameEngine | null { return this.runPackOperation('newGamePlus', GameEngine) as GameEngine | null }
   metaProgressEnabled(): boolean { return meta.metaProgressEnabled.call(this) }
   private metaState: MetaStoreState | null = null
   metaStore(): MetaStoreState { void this.metaState; return meta.metaStore.call(this) }
@@ -582,12 +531,12 @@ export class GameEngine implements EngineCtx {
   metaUnlockOwned(id: string): boolean { return meta.metaUnlockOwned.call(this, id) }
   metaUnlockAffordable(u: MetaUnlockDef): boolean { return meta.metaUnlockAffordable.call(this, u) }
   buyMetaUnlock(id: string): boolean { return meta.buyMetaUnlock.call(this, id) }
-  generatorsEnabled(): boolean { return encounters.generatorsEnabled.call(this) }
-  eventTableDef(id: string): EventTableDef | undefined { return encounters.eventTableDef.call(this, id) }
-  rollEventTable(tableId: string, opts: { forced?: boolean; ignoreFilters?: boolean } = {}): string | null { return encounters.rollEventTable.call(this, tableId, opts) }
-  private tickEventTables(): void { return encounters.tickEventTables.call(this) }
-  genPickWeighted(items: GenWeightedItem[], rand: () => number): string | null { return encounters.genPickWeighted.call(this, items, rand) }
-  genValue(generatorId: string, key: string, seed?: string): string { return encounters.genValue.call(this, generatorId, key, seed) }
+  generatorsEnabled(): boolean { return this.runPackOperation('generatorsEnabled') }
+  eventTableDef(id: string): EventTableDef | undefined { return this.runPackOperation('eventTableDef', id) }
+  rollEventTable(tableId: string, opts: { forced?: boolean; ignoreFilters?: boolean } = {}): string | null { return this.runPackOperation('rollEventTable', tableId, opts) }
+  private tickEventTables(): void { return this.runPackOperation('tickEventTables') }
+  genPickWeighted(items: GenWeightedItem[], rand: () => number): string | null { return this.runPackOperation('genPickWeighted', items, rand) }
+  genValue(generatorId: string, key: string, seed?: string): string { return this.runPackOperation('genValue', generatorId, key, seed) }
 
   difficultyDef(): DifficultyPreset | null {
     const list = this.campaign.meta.difficulties
@@ -625,23 +574,9 @@ export class GameEngine implements EngineCtx {
 }
 
 export {
-  saveKey,
-  backupKey,
-  preserveSave,
-  openSave,
-  inspectSave,
-  peekSave,
-  loadState,
-  writeSave,
-  exportSaveText,
-  importSaveText,
-  checkSaveVersion,
-  SAVE_MIGRATIONS,
-  OLDEST_SAVE_VERSION,
-  slotKey,
-  listSaveSlots,
-  removeSave as removeSaveSlot,
-  MAX_SAVE_SLOTS,
+  saveKey, backupKey, preserveSave, openSave, inspectSave, peekSave, loadState, writeSave,
+  exportSaveText, importSaveText, checkSaveVersion, SAVE_MIGRATIONS, OLDEST_SAVE_VERSION,
+  slotKey, listSaveSlots, removeSave as removeSaveSlot, MAX_SAVE_SLOTS,
 } from './savemigrate'
 export type { SaveSlot, SaveSlotInfo } from './savemigrate'
 export type { OpenedSave, SaveVerdict, SaveMigration } from './savemigrate'

@@ -13,6 +13,7 @@
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 import { skillCheck } from '../src/core/brp'
 import { PRNG } from '../src/core/prng'
 import { migrateNeedCondition } from '../src/shared/migrate'

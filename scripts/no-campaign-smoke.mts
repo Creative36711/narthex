@@ -1,3 +1,4 @@
+import '../packs/narrative/operations'
 /**
  * Смоук пустого реестра и политики идентичности кампаний.
  * Требует dev-сервер на :5173. Запуск: npm run smoke:no-campaign

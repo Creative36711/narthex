@@ -76,6 +76,7 @@
     "check:packs": "tsx scripts/check-packs.mts",
     "probe:pack-host": "tsx scripts/pack-host-probe.mts",
     "probe:pack-execution": "tsx scripts/pack-execution-probe.mts",
+    "probe:pack-operations": "tsx scripts/pack-operations-probe.mts",
     "probe:narrative-pack": "tsx packs/narrative/probes/campaign.mts",
     "probe:fmv": "tsx scripts/fmv-probe.mts",
     "probe:fmv-passport": "tsx scripts/fmv-passport-probe.mts",

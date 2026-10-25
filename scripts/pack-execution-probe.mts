@@ -4,6 +4,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 import { loadCampaign } from '../src/core/loader'
 import {
   createNarrativePackBinding,

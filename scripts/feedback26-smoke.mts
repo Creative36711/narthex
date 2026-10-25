@@ -18,6 +18,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { parseRuleFile } from '../src/shared/ruleFiles'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 import { EditorStore } from '../src/editor/store'
 import { readFileSync } from 'node:fs'
 

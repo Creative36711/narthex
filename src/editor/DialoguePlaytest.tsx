@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import '../../packs/narrative/operations'
 import { GameEngine } from '../core/engine'
 import { clearDialogueCache } from '../core/dialogue'
 import type { CampaignData, DlgDoc, NpcDef } from '../shared/types'

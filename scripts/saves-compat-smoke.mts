@@ -13,6 +13,7 @@
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine, openSave, peekSave, hasSave, deleteSave, saveKey, backupKey, exportSaveText, importSaveText, checkSaveVersion, preserveSave } from '../src/core/engine'
+import '../packs/narrative/operations'
 import { SAVE_MIGRATIONS, repairState, type ReportCtx } from '../src/core/savemigrate'
 import { ENGINE_VERSION, OLDEST_PACKAGE_FORMAT, PACKAGE_FORMAT, checkEngine, checkPackage, compareVersions, bumpVersion, parseVersion, stableVersion } from '../src/shared/versions'
 import { SAVE_VERSION, SAVE_ENVELOPE_VERSION, type CampaignData, type SaveNote } from '../src/shared/types'

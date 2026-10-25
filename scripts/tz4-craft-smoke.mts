@@ -13,6 +13,7 @@
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 import { EditorStore } from '../src/editor/store'
 import { exportMonolith, importMonolith, parseMonolith } from '../src/editor/monolith'
 import type { CampaignData, RecipeDef } from '../src/shared/types'
