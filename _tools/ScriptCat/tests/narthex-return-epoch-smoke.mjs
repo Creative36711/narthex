@@ -21,7 +21,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // ── 1. Версия ──────────────────────────────────────────────────────────────
-assert.match(src, /@version\s+1\.4\.56/, 'версия 1.4.56');
+assert.match(src, /@version\s+1\.4\.57/, 'версия 1.4.57');
 
 // ── 2. Функции возврата ────────────────────────────────────────────────────
 const from = src.indexOf('  const firstLine = (text, max = 220) => {');
@@ -204,4 +204,4 @@ assert.match(done, /done-with-remarks/, 'пауза сохранила свой 
 assert.match(src, /const items = remarkItems\(remarks\)\.map/, 'returnBlock использует разбор замечаний по пунктам');
 assert.match(src, /cfn-mission-return-at:/, 'отсчёт возврата хранится по миссии');
 
-console.log('OK: narthex 1.4.56 — возврат миссии снимает прошлый ход, старый done не считается ответом на замечания');
+console.log('OK: narthex 1.4.57 — возврат миссии снимает прошлый ход, старый done не считается ответом на замечания');

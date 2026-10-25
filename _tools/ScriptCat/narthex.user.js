@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.56
+// @version      1.4.57
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -49,6 +49,14 @@
     roles: "ed076bfe-99dd-447d-9cac-55ca14661e99",
     missions: "c84a3f11-2dcf-414d-b4bf-35beaa7b2c0c",
     requests: "11b41fcc-7c84-406d-bc3b-5bf76ace79bb",
+    // База «Вопросы»: вопросы агентов к Мастеру, которые не останавливают цикл.
+    questions: "54ac1a79-fef2-4384-ac2c-c0f53379d3ab",
+    questionsUrl: "https://app.notion.com/p/e00d99c8b526461ea7e900b9e988e149",
+    questionHours: 24, // срок молчания по умолчанию: дальше действует вариант агента
+    questionLineMax: 3, // сколько вопросов и ответов видно в одном промпте
+    questionTextMax: 180,
+    questionDefaultMax: 200,
+    questionCheckMs: 600000, // как часто проверять сроки вопросов (10 минут)
     pageUrl: "https://app.notion.com/p/Narthex-4016f0cf570581f7a1f7c3661c608ffd",
     repo: "Creative36711/narthex", // для ссылки на PR из номера
     tickMs: 15000,
@@ -110,6 +118,7 @@
     reset: "cfn-reset",
     ntfy: "cfn-ntfy",
     gh: "cfn-gh",
+    questions: "cfn-questions",
     count: "cfn-log-count",
     debug: "cfn-debug-toggle",
   };
@@ -872,6 +881,7 @@
         <button id="${ui.step}" title="Один шаг цикла" style="${btnStyle()}">Шаг</button>
         <button id="${ui.toggle}" style="${btnStyle()}">▶ Включить</button>
         <button id="${ui.ntfy}" title="Уведомления ntfy: тихие вехи и громкие тревоги" style="${btnStyle()}">🔔</button>
+        <button id="${ui.questions}" title="Вопросы агентов к Мастеру — база «Вопросы» в Notion" style="${btnStyle()}">❓</button>
         <button id="${ui.gh}" title="GitHub: токен для приватного репозитория и возврат карточки после ложного отказа" style="${btnStyle()}">🐙</button>
         <button id="${ui.debug}" title="Отладка в консоли браузера (F12)" style="${btnStyle()}">🐞</button>
         <button id="${ui.reset}" title="Сбросить очередь и ожидание прошлых попыток (журнал и настройки останутся)" style="${btnStyle()}">↺</button>
@@ -897,6 +907,7 @@
       );
       paintDebugButton();
     };
+    document.getElementById(ui.questions).onclick = () => window.open(C.questionsUrl, "_blank", "noopener");
     document.getElementById(ui.ntfy).onclick = () => ntfyDialog();
     document.getElementById(ui.gh).onclick = () => githubDialog();
     document.getElementById(ui.stop).onclick = () => {
@@ -4997,19 +5008,12 @@
       ].join(" ");
     }
     if (role.fn === "Coordinator") {
-      return [
-        "Ты принимаешь решения в Notion; код, ветки и PR — не твоя зона.",
-        "Нарезка, порядок, Кому, Sequence и число Ready — твои.",
-        "Черновики карточек из ТЗ — предложение, а не приказ: перекраивай.",
-        "Оракул и инварианты не твои: ослабить можно только ADR proposed с паузой.",
-      ].join(" ");
+      return "Ты принимаешь решения в Notion; код, ветки и PR — не твоя зона. Нарезка, порядок, Кому, Sequence и число Ready — твои.";
     }
     return [
       "Не меняй чужие зоны: чужая правка — не твоя работа, даже если она кажется мелкой.",
-      "Мерж PR делаешь сам командой `gh pr merge --squash`.",
-      "ТЗ — направление, а не инструкция: где оно молчит, решай сам, выбирай обратимый",
-      "вариант и пиши три строки (неясно / решил / откат) в docs/decisions/<миссия>.md.",
-      "Смоуки, эталон, контракты и существующие типы — оракул: ослаблять нельзя.",
+      "Мерж PR делаешь сам: `gh pr merge --squash`.",
+      "Оракул — смоуки, эталон, контракты, существующие типы — ослаблять нельзя.",
     ].join(" ");
   }
 
@@ -5025,25 +5029,28 @@
   }
 
   /**
-   * Дисциплина хода: зоны, вопросы, решения.
+   * Дисциплина хода: зоны, решения, вопросы.
    *
-   * 24.10 Kernel на середине NAR-1.12 остановился и выставил опрос «May I
-   * expand the write zone for this task?». Формально он был прав: в
-   * техническом блоке стояла зона `src/core/`, а Scope карточки разрешал ещё
-   * пробу, `package.json` и запись решения. Два правила это снимают: зона —
-   * рамка по умолчанию, Scope карточки её расширяет на этот ход; вопросов не
-   * задаём вовсе.
+   * 24.10 Kernel на середине NAR-1.12 выставил опрос «May I expand the write
+   * zone?»: в техблоке стояла зона `src/core/`, а Scope карточки разрешал ещё
+   * пробу и `package.json`. Тогда это вылечили запретом вопросов вовсе — и
+   * получили обратную беду: важный вопрос стало некуда задать, он уходил
+   * строкой в отчёт и терялся. 25.10 (фаза 2) так потерялись оба.
+   *
+   * Теперь вопрос — поле маркера с обязательным вариантом по умолчанию:
+   * транспорт пишет его в базу «Вопросы», работа идёт дальше, ответ приходит
+   * на следующем ходе. Вопрос перестал быть остановкой и перестал теряться.
    */
   function workRules(role) {
     return [
       "КАК РЕШАТЬ",
-      `Зона записи${role && role.zone ? ` (${role.zone})` : ""} — рамка по умолчанию. Scope карточки расширяет её на этот ход: если в Scope назван файл, каталог или артефакт, писать туда можно. Противоречия здесь нет — на этот ход карточка главнее общей рамки.`,
-      "Файлы для показа не открывай: ни отчёт, ни карточку, ни картинку. Путь к файлу назови в отчёте текстом — Мастер откроет сам, если нужно.",
-      "Не задавай вопросов, не создавай опросов и не проси разрешений. Опрос останавливает ход: работа не сдаётся, карточка висит в Running, а цикл ждёт ответа, которого никто не даст.",
-      "Неоднозначность решаешь сам: минимальное изменение, допущение — одной строкой в отчёт «Допущение: …»; если это меняет контракт, то в docs/decisions.",
-      "Если решение правда не твоё — допиши в отчёт строку «Нужно решение Мастера: …» и сдай ход. Поднимет его Координатор или Мастер, а не опрос.",
-      "Незаконченный ход — это отчёт без маркера, а не вопрос с вариантами.",
-    ];
+      `Зона записи${role && role.zone ? ` (${role.zone})` : ""} — рамка по умолчанию; Scope карточки расширяет её на этот ход. На этот ход карточка главнее общей рамки.`,
+      "Неоднозначность решаешь сам: минимальное изменение, «Допущение: …» строкой в отчёт; меняет контракт — запись в docs/decisions.",
+      'Вопрос Мастеру задаётся только полем question в маркере: {"text":"…","options":["A","B"],"default":"A","hours":24}. Вариант по умолчанию обязателен — по нему ты работаешь сразу, не дожидаясь ответа; ответ придёт строкой в следующем промпте. Больше одного вопроса за ход не задавай.',
+      "Вопрос уместен, только если ответ меняет то, что будет построено, и ни ТЗ, ни карточка его не дают. Порядок, формулировки, оформление — решай сам.",
+      "Опрос в чате, «May I…», просьба разрешения — не вопрос, а остановка хода: работа не сдаётся, карточка висит в Running. Не делай так.",
+      "Файлы для показа не открывай: путь к файлу назови текстом в отчёте — Мастер откроет сам, если нужно.",
+    ].join("\n");
   }
 
   /** Порядок работы для того, кто пишет код: коммит, пуш, PR, мерж. */
@@ -5060,6 +5067,7 @@
       "   пустой PR ради галочки не нужен — в маркере поставь \"pr\": null.",
       "5. Проверка: команда, код возврата, путь к отчёту. Если задание молчит в чём-то,",
       "   реши сам и запиши решение в docs/decisions/<миссия>.md — останавливаться не нужно.",
+      "   Вопрос Мастеру — полем question в маркере (формат в «КАК РЕШАТЬ»); работа от него не встаёт.",
       "6. Последней строкой ответа — ровно один маркер:",
       `CF_AGENT_RESULT {"dispatch_id":"${task.id}","run_id":"${runId}","status":"submitted","check":0,"report":"<путь>","pr":<номер PR>,"merged":true}`,
       "`pr` и `merged: true` обязательны, если PR слит: без них «слит» не отличить от",
@@ -5186,7 +5194,19 @@
     return `Журнал ответа ${who} (${id}): ${link} — прочитай, если нужны детали ответа.`;
   }
 
-  function coordinatorPrompt(mission, role, queueSummary, turnId, note = "", answerLine = "", drafts = "", ready = "", rework = "") {
+  function coordinatorPrompt(
+    mission,
+    role,
+    queueSummary,
+    turnId,
+    note = "",
+    answerLine = "",
+    drafts = "",
+    ready = "",
+    rework = "",
+    openQuestions = "",
+    answers = "",
+  ) {
     return [
       technicalInfo(role),
       "",
@@ -5198,35 +5218,35 @@
       rework,
       drafts,
       answerLine,
+      openQuestions,
+      answers,
       note ? `Комментарий: ${note}` : "",
       "",
-      "Очередь — твоя. Ты не только нарезаешь карточки, но и выдаёшь их: черновик (Draft) → Ready, правка полей черновика и архив лишнего — такие же твои действия, как порядок и число Ready.",
-      "Мастер и Архитектор пишут только черновики: Draft — предложение, а не приказ. Работу исполнителю выдаёшь ты, не дожидаясь Мастера.",
-      "Движок ставит Running и Submitted. Accepted и Rework ставишь ты. Ready ставишь тоже ты — и новой карточке, и черновику, который решил выдать.",
-      "next называй ролью той карточки, которую выдаёшь: у готовой она написана в списке «Готовы к выдаче», у новой — та, что ты поставил в «Кому». Назвать чужую роль — значит остановить ход подсказкой вместо выдачи.",
-      "Rework — не выдача: карточка с этим статусом исполнителю не уходит. Хочешь переделать — верни её в Ready: следы прошлого ответа («Submitted At», «PR», «Run ID») снимет транспорт на выдаче, чистить их коннектором не надо.",
-      "Карточку, которую ты уже принял (Accepted), обратно в Ready не возвращай — это повторная выдача той же работы.",
+      "ОЧЕРЕДЬ — ТВОЯ",
+      "Движок ставит Running и Submitted; Accepted, Rework и Ready ставишь ты. Нарезка, порядок, Кому, Sequence, число Ready, выдача черновика (Draft → Ready), правка его полей и архив лишнего — твои действия. Код, ветки и PR — не твоя зона.",
+      "Мастер и Архитектор пишут только черновики: это твой задел, а не приказ — правь под оракул миссии и выдавай сам, не дожидаясь Мастера. В архив — только если черновик дублирует уже выданное.",
+      "Rework — не выдача: карточка с этим статусом исполнителю не уходит. Хочешь переделать — верни её в Ready: следы прошлого ответа («Submitted At», «PR», «Run ID») снимет транспорт на выдаче, чистить их коннектором не надо. Принятую (Accepted) обратно в Ready не возвращай.",
+      "Scope карточки обязан покрывать артефакты её Оракула: пробу, npm-скрипт и запись решения перечисляй в Scope прямо — иначе исполнитель встанет на границе зоны.",
+      "Если роль не может получить работу («Ждёт», пустой Agent URL, нет в «Ролях») — назначь в «Кому» активную роль или оставь Draft и назови, кого он ждёт. Статус роли и Agent URL — зона Мастера, не меняй их.",
       "Оракул и инварианты менять нельзя: только ADR proposed и пауза миссии.",
       "",
-      "Твой ход. Один ответ — законченный ход:",
-      "1) есть Submitted → проверь по Acceptance и поставь Accepted или Rework (причина в «Ответ»);",
-      "2) сразу после этого очередь не должна оставаться пустой: если в ней нет ни Running, ни Ready — выдай работу в этом же ответе: создай следующую карточку в «Запросы» (Намерение, Инварианты, Acceptance с командой-оракулом, Свободно, Scope, Кому, Sequence, Миссия, Dispatch State = Ready) или переведи в Ready подходящий Draft;",
-      "3) миссия выполнена → поставь «Состояние» = «Завершена» и направь ход done.",
+      "ХОД — один ответ:",
+      "1) Submitted → проверь по Acceptance, поставь Accepted или Rework (причина в «Ответ»).",
+      "2) В этом же ответе выдай работу: новая карточка (Намерение, Инварианты, Acceptance с командой-оракулом, Свободно, Scope, Кому, Sequence, Миссия, Dispatch State = Ready) или Draft → Ready. Пустая очередь после хода — незаконченный ход.",
+      '3) Миссия выполнена → «Состояние» = «Завершена» и next = "done".',
       "",
-      "Черновики — твой задел: бери из них, правь под оракул миссии и выдавай. В архив — только если черновик дублирует уже выданное.",
-      "Если у черновика помечено, что роль не может получить работу («Статус «Ждёт»», «нет Agent URL», «нет в «Ролях»») — выдать его некому: назначь в «Кому» активную роль (правка черновика — твоё право) или оставь в Draft и напиши, кого он ждёт.",
-      "Статус роли и Agent URL — зона Мастера: агента в Arena создаёт он, а не ты. Ты их не меняешь — только называешь в отчёте, какую роль нужно включить.",
-      "Scope карточки должен покрывать все артефакты её Оракула: если команда-оракул запускает пробу, а пробы нет в Scope — карточка неполная. Пробу, npm-скрипт и запись решения перечисляй в Scope прямо: иначе исполнитель остановится на границе зоны вместо работы.",
-      "Если для хода нет роли (её нет в «Ролях», она «Ждёт» или у неё пустой Agent URL) и заменить её некем — останови цикл сам: в маркере next = \"blocked\" и need = \"<роль>\". Других поводов останавливать цикл у тебя нет: всё остальное решай сам и продолжай.",
-      "Приёмка и выдача — не два хода. Принял Submitted — в этом же ответе выстави следующую карточку Ready и назови в next исполнителя, а не Coordinator.",
-      "Пустая очередь после твоего ответа считается незаконченным ходом.",
+      "next — имя роли той карточки, которую выдаёшь. Своё имя значит «ход снова мне»: это не ошибка, но работу надо выдать в этом же ответе.",
+      'Остановить цикл можно только одним способом: next = "blocked" и need = "<роль>" — когда роли нет и заменить её некем. Других поводов нет.',
+      "Вопрос Мастеру задаётся полем question в маркере (формат — в «КАК РЕШАТЬ»): цикл при этом не останавливается.",
       "",
       "Последней строкой ответа:",
       `CF_COORDINATOR_RESULT {"mission_id":"${mission.id}","turn_id":"${turnId}","status":"completed","next":"<роль|done>"}`,
+      'Поле question необязательное и идёт в тот же JSON: {... "next":"Turn Runtime", "question":{"text":"…","options":["A","B"],"default":"A","hours":24}}',
       "",
       roleContext(role),
     ].filter(Boolean).join("\n");
   }
+
 
   // ───────────────────────────── ход исполнителя ─────────────────────────────
   async function submitExecutor(role, expect, manual = false) {
@@ -5265,6 +5285,22 @@
     if (GM_getValue(`cfn-done:${result.dispatch_id}:${result.run_id}`, false)) return false;
 
     const page = await notion("GET", `pages/${result.dispatch_id}`);
+    if (result.question !== undefined) {
+      const asked = parseQuestion(result.question);
+      if (asked) {
+        await askQuestion(asked, {
+          roleName: role.name,
+          card: taskTitle(page),
+          mission: rt(page.properties["Миссия"]),
+          key: `${result.dispatch_id}:${result.run_id}`,
+        });
+      } else {
+        log(
+          "Вопрос исполнителя без варианта по умолчанию — не принят: работа идёт по его собственному решению.",
+          true,
+        );
+      }
+    }
     if (taskState(page) !== "Running") {
       // Карточку уже оформили — прошлой попыткой скрипта или руками после
       // паузы. Ждать больше нечего: ожидание снимается, иначе страница
@@ -5548,6 +5584,203 @@
     };
   }
 
+  // ───────────────────────────── вопросы к Мастеру ─────────────────────────────
+  /**
+   * Вопрос — не остановка.
+   *
+   * 25.10 фаза 2 дала два вопроса к Мастеру, и оба «потерялись»: один жил
+   * строкой в поле «Ответ» карточки, второй — предложением выбрать между двумя
+   * вариантами в конце хода. Регламент (`freedom.md`) запрещал вопросы вообще, а
+   * единственной законной остановкой была «нет роли». Итог: либо вопрос терялся,
+   * либо стоил всего цикла — третьего не было.
+   *
+   * Теперь у вопроса есть место и цена. Агент пишет его полем `question` в
+   * маркере и обязан назвать вариант по умолчанию: транспорт записывает строку в
+   * базу «Вопросы», цикл идёт дальше по этому варианту, ответ Мастера приходит
+   * на следующем ходе. Без варианта по умолчанию вопрос не принимается — иначе
+   * это не вопрос, а остановка.
+   */
+  const Q = { wait: "Ждёт", done: "Решено", byDefault: "Принят дефолт", cancelled: "Отменён" };
+
+  /** Одна строка без переводов и лишних пробелов — Notion не любит простыни. */
+  const oneLine = (value, max) =>
+    String(value == null ? "" : value).replace(/\s+/g, " ").trim().slice(0, max);
+
+  /**
+   * Разбор поля `question` из маркера. `null` — вопроса нет.
+   *
+   * Жёстко только необходимое: текст и вариант по умолчанию. Остальное —
+   * подробности для Мастера, их отсутствие вопрос не отменяет.
+   */
+  function parseQuestion(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    const text = oneLine(raw.text, C.questionTextMax);
+    const fallback = oneLine(raw.default, C.questionDefaultMax);
+    if (!text || !fallback) return null;
+    const options = Array.isArray(raw.options)
+      ? raw.options.map((option) => oneLine(option, 80)).filter(Boolean).slice(0, 4)
+      : [];
+    const hours = Number(raw.hours);
+    return {
+      text,
+      fallback,
+      options,
+      blocks: oneLine(raw.blocks, 200),
+      hours: Number.isFinite(hours) && hours >= 1 ? Math.min(hours, 168) : C.questionHours,
+    };
+  }
+
+  /** Срок: когда молчание Мастера превращается в вариант по умолчанию. */
+  const questionDeadline = (hours, now = Date.now()) => new Date(now + hours * 3_600_000).toISOString();
+
+  /** Открытые вопросы, у которых срок уже вышел. */
+  function expiredQuestions(rows, now = Date.now()) {
+    return (rows || []).filter((row) => {
+      if (sel(row.properties?.["Статус"]) !== Q.wait) return false;
+      const due = row.properties?.["Срок"]?.date?.start || "";
+      return Boolean(due) && Date.parse(due) < now;
+    });
+  }
+
+  /** Строка об открытых вопросах: чтобы Координатор не задавал их снова. */
+  function openQuestionsLine(rows) {
+    const all = rows || [];
+    if (!all.length) return "";
+    const shown = all
+      .slice(0, C.questionLineMax)
+      .map((row) => `«${rt(row.properties["Вопрос"])}» (по умолчанию: ${rt(row.properties["По умолчанию"])})`);
+    const more = all.length > shown.length ? `; и ещё ${all.length - shown.length}` : "";
+    return (
+      `Вопросы к Мастеру без ответа: ${shown.join("; ")}${more}. ` +
+      "Ответ придёт на следующем ходе — не задавай их снова и не останавливайся."
+    );
+  }
+
+  /** Строка с ответами Мастера, которые агенту ещё не показывали. */
+  function answersLine(rows) {
+    const all = rows || [];
+    if (!all.length) return "";
+    const shown = all.slice(0, C.questionLineMax).map((row) => {
+      const byDefault = sel(row.properties["Статус"]) === Q.byDefault;
+      const answer = rt(row.properties["Ответ"]);
+      return `«${rt(row.properties["Вопрос"])}» → ${answer}${byDefault ? " (срок истёк, принят вариант по умолчанию)" : ""}`;
+    });
+    const more = all.length > shown.length ? `; и ещё ${all.length - shown.length}` : "";
+    return `Ответы Мастера на вопросы — учти их в этом ходе: ${shown.join("; ")}${more}.`;
+  }
+
+  /** Свойства строки базы «Вопросы». */
+  function questionProps(q, ctx = {}) {
+    const text = (value) => ({ rich_text: [{ type: "text", text: { content: value } }] });
+    const props = {
+      "Вопрос": { title: [{ type: "text", text: { content: q.text } }] },
+      "Статус": { select: { name: Q.wait } },
+      "По умолчанию": text(q.fallback),
+      "Срок": { date: { start: questionDeadline(q.hours) } },
+      "Роль": text(ctx.roleName || ""),
+      "Карточка": text(ctx.card || "—"),
+      "Миссия": text(ctx.mission || ""),
+    };
+    if (q.blocks) props["Что блокирует"] = text(q.blocks);
+    if (q.options.length) props["Варианты"] = text(q.options.join(" · "));
+    return props;
+  }
+
+  /**
+   * Записать вопрос в базу. Ошибка Notion ход не срывает: агент уже идёт по
+   * варианту по умолчанию, а строка нужна Мастеру, а не циклу.
+   */
+  async function askQuestion(q, ctx = {}) {
+    const key = `cfn-asked:${ctx.key || q.text}`;
+    if (GM_getValue(key, false)) return null;
+    try {
+      const row = await notion("POST", "pages", {
+        parent: { type: "data_source_id", data_source_id: C.questions },
+        properties: questionProps(q, ctx),
+      });
+      GM_setValue(key, Date.now());
+      log(`Вопрос к Мастеру записан: «${q.text}». По умолчанию: ${q.fallback} — работа идёт дальше.`, false, {
+        ntfy: "quiet",
+        title: "Narthex: вопрос к Мастеру",
+      });
+      return row;
+    } catch (e) {
+      log(
+        `Вопрос к Мастеру в базу не записался (${e.message}). Агент идёт по варианту по умолчанию: ${q.fallback}.`,
+        true,
+      );
+      return null;
+    }
+  }
+
+  /** Отметить ответы доставленными — только после того, как промпт ушёл. */
+  async function markDelivered(rows, now = Date.now()) {
+    for (const row of rows || []) {
+      try {
+        await patch(row.id, { "Доставлено": { date: { start: new Date(now).toISOString() } } });
+      } catch (e) {
+        log(`Отметка о доставке ответа не записалась: ${e.message}`, true);
+      }
+    }
+  }
+
+  /** Срок вышел — закрываем вопрос вариантом по умолчанию, но не молча. */
+  async function closeExpired(rows) {
+    let closed = 0;
+    for (const row of rows || []) {
+      const fallback = rt(row.properties["По умолчанию"]);
+      if (!fallback) continue;
+      try {
+        await patch(row.id, {
+          "Статус": { select: { name: Q.byDefault } },
+          "Ответ": { rich_text: [{ type: "text", text: { content: fallback } }] },
+        });
+        closed += 1;
+        log(
+          `Вопрос «${rt(row.properties["Вопрос"])}» ждал дольше срока — принят вариант по умолчанию: ${fallback}.`,
+          false,
+          { ntfy: "quiet", title: "Narthex: вопрос закрыт по умолчанию" },
+        );
+      } catch (e) {
+        log(`Вопрос «${rt(row.properties["Вопрос"])}» не закрылся по сроку: ${e.message}`, true);
+      }
+    }
+    return closed;
+  }
+
+  /** Строки базы «Вопросы» с нужным статусом, в пределах миссии. */
+  async function questionRows(statuses, mission) {
+    const rows = await query(C.questions, {
+      or: statuses.map((name) => ({ property: "Статус", select: { equals: name } })),
+    });
+    const wanted = mission ? norm(rt(mission.properties["Миссия"])) : "";
+    if (!wanted) return rows;
+    return rows.filter((row) => {
+      const value = norm(rt(row.properties["Миссия"]));
+      return !value || value === wanted || value.includes(wanted) || wanted.includes(value);
+    });
+  }
+
+  /**
+   * Что показать агенту про вопросы и что Мастер уже ответил.
+   *
+   * Ошибка чтения не должна ломать ход: без этой строки цикл работает, просто
+   * не знает про вопросы. Поэтому `catch` здесь, а не в вызывающем коде.
+   */
+  async function questionBriefing(mission) {
+    try {
+      const [open, answered] = await Promise.all([
+        questionRows([Q.wait], mission),
+        questionRows([Q.done, Q.byDefault], mission),
+      ]);
+      const fresh = answered.filter((row) => !row.properties?.["Доставлено"]?.date?.start);
+      return { fresh, openLine: openQuestionsLine(open), answersLine: answersLine(fresh) };
+    } catch (e) {
+      log(`База «Вопросы» не читается: ${e.message}`, true);
+      return { fresh: [], openLine: "", answersLine: "" };
+    }
+  }
+
   /** Свежие счётчики очереди: после решения Координатора старые уже неверны. */
   async function queueOf(mission) {
     const [submitted, running, ready, rework, draft] = await Promise.all([
@@ -5776,6 +6009,24 @@
         return true;
       }
       log(`Маркер Координатора найден: дальше «${decision.next}» (turn ${decision.turn_id || expect.turnId}).`);
+      // Вопрос не останавливает цикл: он живёт строкой в базе «Вопросы», а
+      // работа идёт по варианту, который агент назвал сам.
+      if (decision.question !== undefined) {
+        const asked = parseQuestion(decision.question);
+        if (asked) {
+          await askQuestion(asked, {
+            roleName: role.name,
+            card: "",
+            mission: rt(mission.properties["Миссия"]),
+            key: `${mission.id}:${decision.turn_id || expect.turnId}`,
+          });
+        } else {
+          log(
+            "Вопрос в маркере без варианта по умолчанию — не принят: это не вопрос, а просьба остановиться. Ход идёт дальше.",
+            true,
+          );
+        }
+      }
       if (norm(decision.next) === "blocked") {
         // Право Координатора остановить цикл. Повод ровно один: нужной роли
         // нет, и заменить её некем — агента в Arena создаёт Мастер. Всё
@@ -5912,11 +6163,29 @@
     // статуса, Agent URL или самой роли.
     const directory = await roleRows().catch(() => []);
     const drafts = draftLine(queue.draft || [], directory);
-    await sendToRole(role, coordinatorPrompt(mission, role, summary, turnId, note, answerLine, drafts, readyLine(queue.ready), reworkLine(queue.rework)), "plan", mission.id, {
-      missionId: mission.id,
-      turnId,
-      title: "план Координатора",
-    });
+    // Вопросы к Мастеру и его ответы: ответы доставляются ровно один раз —
+    // отметка ставится после того, как промпт действительно ушёл.
+    const briefing = await questionBriefing(mission);
+    const sent = await sendToRole(
+      role,
+      coordinatorPrompt(
+        mission,
+        role,
+        summary,
+        turnId,
+        note,
+        answerLine,
+        drafts,
+        readyLine(queue.ready),
+        reworkLine(queue.rework),
+        briefing.openLine,
+        briefing.answersLine,
+      ),
+      "plan",
+      mission.id,
+      { missionId: mission.id, turnId, title: "план Координатора" },
+    );
+    if (sent) await markDelivered(briefing.fresh);
     return true;
   }
 
@@ -6198,6 +6467,17 @@
       if (!(await clearStaleMissionPause())) {
         if (fromToggle) log(`Шаг не выполнен: цикл на паузе (${GM_getValue(K.paused, "")}).`, true);
         return;
+      }
+    }
+    // Сроки вопросов к Мастеру проверяются редко: каждый тик — лишний запрос
+    // в Notion, а вопрос, закрытый на десять минут позже, ничего не меняет.
+    if (Date.now() - (Number(GM_getValue("cfn-q-check-at", 0)) || 0) > C.questionCheckMs) {
+      GM_setValue("cfn-q-check-at", Date.now());
+      try {
+        const active = await activeMission();
+        if (active) await closeExpired(expiredQuestions(await questionRows([Q.wait], active)));
+      } catch (e) {
+        dbg("вопросы: срок не проверен", e.message);
       }
     }
     busy = true;

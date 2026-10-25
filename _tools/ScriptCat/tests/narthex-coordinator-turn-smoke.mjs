@@ -37,18 +37,18 @@ const prompt = generate(
   'Черновики (предложения — выдаёшь их ты): NAR-1.10 · Регрессия и отчёт (Build/Release, Sequence 100).',
 );
 
-assert.match(prompt, /Один ответ — законченный ход/, 'ход — законченный, а не «одно действие»');
+assert.match(prompt, /ХОД — один ответ/, 'ход — законченный, а не «одно действие»');
 assert.doesNotMatch(prompt, /Ровно одно действие/, 'старая формулировка убрана');
 assert.match(prompt, /в этом же ответе/, 'приёмка и выдача — один ответ');
-assert.match(prompt, /Приёмка и выдача — не два хода/, 'сказано прямо');
-assert.match(prompt, /Пустая очередь после твоего ответа считается незаконченным ходом/, 'пустая очередь — незаконченный ход');
-assert.match(prompt, /а не Coordinator/, 'next должен называть исполнителя');
+assert.match(prompt, /В этом же ответе выдай работу/, 'приёмка и выдача — один ответ, сказано прямо');
+assert.match(prompt, /Пустая очередь после хода — незаконченный ход/, 'пустая очередь — незаконченный ход');
+assert.match(prompt, /next — имя роли той карточки, которую выдаёшь/, 'next должен называть исполнителя');
 assert.match(prompt, /CF_COORDINATOR_RESULT/, 'маркер на месте');
 assert.match(prompt, /NAR-1\.10 · Регрессия и отчёт/, 'черновики видны Координатору списком');
-assert.match(prompt, /Ты не только нарезаешь карточки, но и выдаёшь их/, 'выдача — работа Координатора');
-assert.match(prompt, /Draft — предложение, а не приказ/, 'черновик — предложение, но не запрет');
-assert.match(prompt, /Ready ставишь тоже ты/, 'Ready — право Координатора');
-assert.match(prompt, /переведи в Ready подходящий Draft/, 'черновик можно выдать, а не пересоздавать');
+assert.match(prompt, /Нарезка, порядок, Кому, Sequence, число Ready/, 'выдача — работа Координатора');
+assert.match(prompt, /это твой задел, а не приказ/, 'черновик — предложение, но не запрет');
+assert.match(prompt, /Rework и Ready ставишь ты/, 'Ready — право Координатора');
+assert.match(prompt, /или Draft → Ready/, 'черновик можно выдать, а не пересоздавать');
 assert.ok(!/перевести Draft в Ready[^.]*не вправе/.test(prompt), 'запрета на выдачу черновика нет');
 
 // ── 1a. Журнал ответа: ссылку получает Координатор, а не исполнитель ────────
@@ -206,8 +206,8 @@ assert.match(rp, /if \(manual\) log\(`Шаг не выполнен: план з�
 assert.match(rp, /const answerLine = answerLogLine\(queue\.submitted\);/, 'журнал последнего ответа передаётся Координатору');
 assert.match(
   rp,
-  /coordinatorPrompt\(mission, role, summary, turnId, note, answerLine, drafts, readyLine\(queue\.ready\), reworkLine\(queue\.rework\)\)/,
-  'строка доходит до промпта вместе со списком черновиков',
+  /readyLine\(queue\.ready\),\s*reworkLine\(queue\.rework\),\s*briefing\.openLine,\s*briefing\.answersLine,?/,
+  'строка доходит до промпта вместе со списком черновиков и вопросами',
 );
 assert.match(rp, /const drafts = draftLine\(queue\.draft \|\| \[\], directory\);/, 'черновики попадают в промпт списком');
 
@@ -224,4 +224,4 @@ assert.match(
 );
 assert.match(src, /GM_setValue\("cfn-plan-miss", 0\);/, 'счётчик промахов сбрасывается на успехе');
 
-console.log('OK: narthex 1.4.56 — приёмка и выдача в одном ходе, next:Coordinator не ставит цикл на паузу');
+console.log('OK: narthex 1.4.57 — приёмка и выдача в одном ходе, next:Coordinator не ставит цикл на паузу');

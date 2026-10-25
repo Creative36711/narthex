@@ -1,4 +1,4 @@
-// Проба 1.4.56: у Rework есть путь назад.
+// Проба 1.4.57: у Rework есть путь назад.
 //
 // 25.10 Координатор поставил NAR-2.5 в Rework за форму ответа: код уже лежал в
 // main, а в отчёте не хватало цитат. Транспорт выдаёт только Ready, поэтому из
@@ -18,7 +18,7 @@ import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
-assert.match(src, /@version\s+1\.4\.56/, 'версия 1.4.56');
+assert.match(src, /@version\s+1\.4\.57/, 'версия 1.4.57');
 
 const sliceBetween = (startMarker, endMarker) => {
   const from = src.indexOf(startMarker);
@@ -107,12 +107,12 @@ assert.match(
   'путь назад в промпте: Ready ставит Координатор, следы снимает транспорт',
 );
 assert.doesNotMatch(src, /чисти «Submitted At», «PR», «Run ID», иначе выдача откажет/, 'прежняя просьба чистить коннектором убрана');
-assert.match(src, /которую ты уже принял \(Accepted\), обратно в Ready не возвращай/, 'запрет остался только для принятых');
+assert.match(src, /Принятую \(Accepted\) обратно в Ready не возвращай/, 'запрет остался только для принятых');
 assert.doesNotMatch(src, /по которой уже есть ответ \(Submitted или Accepted\)/, 'старая двусмысленная строка убрана');
 
 // ── 7. Строка Rework доходит до Координатора ───────────────────────────────
 assert.match(src, /reworkLine\(queue\.rework\)/, 'reworkLine вызывается при запросе плана');
-assert.match(src, /function coordinatorPrompt\([^)]*ready = "", rework = ""\)/, 'промпт принимает строку Rework');
+assert.match(src, /function coordinatorPrompt\([\s\S]*?ready = "",\n\s*rework = "",/, 'промпт принимает строку Rework');
 assert.match(src, /^\s+ready,\n\s+rework,/m, 'и ставит её сразу после Ready');
 
-console.log('OK: narthex 1.4.56 — Rework не запирает карточку: причина в промпте, путь назад назван, следы снимает транспорт');
+console.log('OK: narthex 1.4.57 — Rework не запирает карточку: причина в промпте, путь назад назван, следы снимает транспорт');

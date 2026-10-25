@@ -152,7 +152,7 @@ assert.match(
 // новый. Теперь граница названа точно: движок — Running и Submitted.
 assert.match(
   src,
-  /Движок ставит Running и Submitted\. Accepted и Rework ставишь ты\. Ready ставишь тоже ты/,
+  /Движок ставит Running и Submitted; Accepted, Rework и Ready ставишь ты/,
   'Координатор знает границу: Ready и приёмка — его, Running и Submitted — движка',
 );
 assert.doesNotMatch(

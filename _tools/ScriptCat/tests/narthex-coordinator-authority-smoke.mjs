@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const V = '1.4.56';
+const V = '1.4.57';
 
 assert.match(src, new RegExp(`@version\\s+${V.replace(/\./g, '\\.')}`), `версия ${V}`);
 
@@ -44,16 +44,16 @@ const prompt = new Function(
 
 assert.match(prompt, /1 Submitted, 0 Running, 1 Ready, 0 Rework, 2 Draft/, 'черновики есть в счётчике очереди');
 assert.match(prompt, /Черновики \(предложения — выдаёшь их ты\)/, 'черновики перечислены списком');
-assert.match(prompt, /черновик \(Draft\) → Ready, правка полей черновика и архив лишнего — такие же твои действия/, 'выдача черновика — право Координатора');
+assert.match(prompt, /выдача черновика \(Draft → Ready\), правка его полей и архив лишнего — твои действия/, 'выдача черновика — право Координатора');
 assert.match(prompt, /Мастер и Архитектор пишут только черновики/, 'кто пишет черновики');
-assert.match(prompt, /Работу исполнителю выдаёшь ты, не дожидаясь Мастера/, 'ждать Мастера не нужно');
+assert.match(prompt, /выдавай сам, не дожидаясь Мастера/, 'ждать Мастера не нужно');
 assert.match(prompt, /Движок ставит Running и Submitted/, 'граница движка названа точно');
-assert.match(prompt, /Ready ставишь тоже ты/, 'Ready — не движок, а Координатор');
-assert.match(prompt, /или переведи в Ready подходящий Draft/, 'черновик можно выдать в том же ходе');
-assert.match(prompt, /Черновики — твой задел/, 'сказано, зачем черновики');
+assert.match(prompt, /Rework и Ready ставишь ты/, 'Ready — не движок, а Координатор');
+assert.match(prompt, /или Draft → Ready/, 'черновик можно выдать в том же ходе');
+assert.match(prompt, /это твой задел/, 'сказано, зачем черновики');
 assert.match(prompt, /Готовы к выдаче: NAR-1\.10 · Регрессия и отчёт \(Build\/Release, Sequence 100\)/, 'Ready перечислен с ролью');
-assert.match(prompt, /next называй ролью той карточки, которую выдаёшь/, 'адресат берётся из карточки');
-assert.match(prompt, /Если у черновика помечено, что роль не может получить работу/, 'видно, что роль не может получить работу');
+assert.match(prompt, /next — имя роли той карточки, которую выдаёшь/, 'адресат берётся из карточки');
+assert.match(prompt, /Если роль не может получить работу/, 'видно, что роль не может получить работу');
 assert.match(prompt, /Статус роли и Agent URL — зона Мастера/, 'статус роли — не зона Координатора');
 assert.doesNotMatch(prompt, /ставит движок\./, 'прежней фразы «Ready … ставит движок» больше нет');
 assert.doesNotMatch(prompt, /не вправе|нельзя переводить Draft/i, 'запрета на выдачу черновика нет');
@@ -182,7 +182,7 @@ assert.match(readyLine([card('Без роли', '', 10)]), /роль не зад
 // ── 3. queueOf считает Draft ───────────────────────────────────────────────
 const qFrom = src.indexOf('  async function queueOf(mission) {');
 const qTo = src.indexOf('  function draftLine(cards, known = []) {');
-// 1.4.56: очередь запоминает карточки в Rework — по этой памяти транспорт
+// 1.4.57: очередь запоминает карточки в Rework — по этой памяти транспорт
 // снимает следы прошлого ответа при повторной выдаче.
 const remembered = [];
 const queueOf = new Function(
@@ -210,7 +210,7 @@ queueOf({ id: 'm1' }).then((queue) => {
   assert.match(plan, /const directory = await roleRows\(\)/, 'и сверяется со всей базой «Роли», а не только с активными');
   assert.match(
     plan,
-    /coordinatorPrompt\(mission, role, summary, turnId, note, answerLine, drafts, readyLine\(queue\.ready\), reworkLine\(queue\.rework\)\)/,
+    /coordinatorPrompt\(\s*mission,\s*role,\s*summary,\s*turnId,\s*note,\s*answerLine,\s*drafts,\s*readyLine\(queue\.ready\),\s*reworkLine\(queue\.rework\),\s*briefing\.openLine,\s*briefing\.answersLine,?\s*\)/s,
     'и уходит в промпт',
   );
   assert.match(plan, /\$\{\(queue\.draft \|\| \[\]\)\.length\} Draft/, 'запасной счётчик тоже знает про Draft');
