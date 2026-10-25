@@ -1,4 +1,4 @@
-// Проба 1.4.57: вопрос к Мастеру — поле в базе «Вопросы», а не остановка.
+// Проба 1.4.58: вопрос к Мастеру — поле в базе «Вопросы», а не остановка.
 //
 // 25.10 фаза 2 дала два вопроса, и оба потерялись: один остался строкой в поле
 // «Ответ» карточки, второй — предложением выбрать вариант в конце хода.
@@ -17,7 +17,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-assert.match(src, /@version\s+1\.4\.57/, 'версия 1.4.57');
+assert.match(src, /@version\s+1\.4\.58/, 'версия 1.4.58');
 
 const sliceBetween = (startMarker, endMarker) => {
   const from = src.indexOf(startMarker);
@@ -209,7 +209,7 @@ const run = async () => {
     'полный запрет вопросов убран: он и приводил к потерянным вопросам',
   );
 
-  console.log('OK: narthex 1.4.57 — вопрос к Мастеру живёт в базе «Вопросы», а цикл идёт по варианту по умолчанию');
+  console.log('OK: narthex 1.4.58 — вопрос к Мастеру живёт в базе «Вопросы», а цикл идёт по варианту по умолчанию');
 };
 
 run().catch((error) => {

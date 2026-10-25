@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.57
+// @version      1.4.58
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -5241,6 +5241,7 @@
       "",
       "Последней строкой ответа:",
       `CF_COORDINATOR_RESULT {"mission_id":"${mission.id}","turn_id":"${turnId}","status":"completed","next":"<роль|done>"}`,
+      "Строку копируй целиком, подставляя только next: mission_id и turn_id — из этого промпта. Id прошлого хода выдумывать не надо — транспорт всё равно возьмёт свой.",
       'Поле question необязательное и идёт в тот же JSON: {... "next":"Turn Runtime", "question":{"text":"…","options":["A","B"],"default":"A","hours":24}}',
       "",
       roleContext(role),
@@ -5996,17 +5997,42 @@
         .at(-1);
       if (!decision) return markerMissing(role, expect, "CF_COORDINATOR_RESULT", manual);
 
-      // Маркер должен относиться к этому ходу: иначе легко принять решение
-      // прошлой итерации за новое и выдать не ту карточку.
+      // Миссия в маркере — проверка по существу: решение чужой миссии
+      // применять нельзя, тут пауза оправдана.
+      //
+      // turn_id — другое дело. 25.10 (ход 41) Coordinator ответил на свежий
+      // вопрос, но вписал id прошлого хода (f214b8e0 вместо 8453c8ac) и
+      // потерял mission_id: транспорт встал на паузу, хотя ответ был именно
+      // на наш вопрос и вёл в «Runtime Auditor» — карточка уже лежала в Ready.
+      // Поле, которое транспорт знает сам, — не повод останавливать цикл:
+      // берём свой turn_id, решение применяем. Ошибку агента видно в журнале,
+      // а от чужой выдачи защищает `decisionRoute` ниже (роль, статус, Ready).
       const sameMission = !decision.mission_id || norm(decision.mission_id) === norm(mission.id);
-      const sameTurn = !expect.turnId || !decision.turn_id || norm(decision.turn_id) === norm(expect.turnId);
+      const gotTurn = String(decision.turn_id || "").trim();
+      const sameTurn = !expect.turnId || !gotTurn || norm(gotTurn) === norm(expect.turnId);
       GM_setValue(K.expect, null);
-      if (!sameMission || !sameTurn) {
+      if (!sameMission) {
         pause(
-          `Маркер Координатора не совпал с ожидающим ходом${expect.turnId ? ` ${expect.turnId}` : ""}: ничего не запускаю.`,
+          `Маркер Координатора относится к другой миссии (${decision.mission_id}), а ждём ${mission.id}: ничего не запускаю.`,
           { kind: "marker-mismatch", ref: mission.id, turnId: expect.turnId },
         );
         return true;
+      }
+      if (!String(decision.next || "").trim()) {
+        pause(
+          "В маркере Координатора нет next: кому передавать ход — непонятно. Ответ без next решением не считается.",
+          { kind: "marker-mismatch", ref: mission.id, turnId: expect.turnId },
+        );
+        return true;
+      }
+      if (!sameTurn) {
+        log(
+          `В маркере Координатора чужой turn_id «${gotTurn}» вместо «${expect.turnId}» — беру свой из выдачи, ` +
+            `решение «${decision.next}» применяю: миссия та же, а id хода транспорт знает сам.`,
+          true,
+          { ntfy: "quiet", title: "Narthex: чужой turn_id в маркере" },
+        );
+        decision.turn_id = expect.turnId;
       }
       log(`Маркер Координатора найден: дальше «${decision.next}» (turn ${decision.turn_id || expect.turnId}).`);
       // Вопрос не останавливает цикл: он живёт строкой в базе «Вопросы», а
