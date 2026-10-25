@@ -49,6 +49,7 @@ import type { CharChoice } from '../core/charcreate'
 import { EditorBookPanel } from './EditorBookPanel'
 import { DesignDocPanel } from './DesignDocPanel'
 import { PackCatalogPanel } from './PackCatalogPanel'
+import { PackPanelWorkbench } from './PackPanelWorkbench'
 import { PackMissingNotice } from './PackMissingNotice'
 import { resolveProjectModesForStudio, resolveProjectPackForStudio } from './packCatalog'
 
@@ -67,6 +68,7 @@ const MENUS: Array<{ id: string; label: string; items: SectionItem[] }> = [
     items: [
       { id: 'campaign', label: 'Кампания и реестры' },
       { id: 'packs', label: 'Каталог паков' },
+      { id: 'panels', label: 'Панели пака' },
       { id: 'design', label: 'Дизайн-документ' },
     ],
   },
@@ -1058,7 +1060,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
     return true
   })
-  const hasList = !['campaign', 'world', 'combat', 'design', 'packs'].includes(section)
+  const hasList = !['campaign', 'world', 'combat', 'design', 'packs', 'panels'].includes(section)
   const questsOff = store.capabilityModes?.status === 'ready' && store.capabilityModes.modes.quests === 'off'
   const sel = selected && items.some((i) => i.path === selected) ? selected : null
   // счётчики в заголовках групп — мастер сразу видит, сколько документов в «полочке»
@@ -1307,6 +1309,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         <main className="editor-main">
           {section === 'campaign' && <CampaignEditor key={`c-${base}`} store={store} />}
           {section === 'packs' && <PackCatalogPanel store={store} />}
+          {section === 'panels' && <PackPanelWorkbench key={`pp-${base}`} store={store} />}
           {section === 'design' && <DesignDocPanel key={`d-${base}`} store={store} onEditWithAi={() => openAiTask()} />}
           {section === 'combat' && <CombatRulesEditor key={`cb-${base}`} store={store} />}
           {section === 'world' && <WorldEditor key={`w-${base}`} store={store} />}
