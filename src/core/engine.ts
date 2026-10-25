@@ -69,6 +69,26 @@ import type { Story } from 'inkjs'
 import type { DialogueUI, DialogueHistoryEntry } from './dialogue'
 import { playUi, playInteraction, stopSound } from '../shared/audio'
 import { CombatController } from './combat'
+import { PackHost, type PackPause, type PackSimBinding } from './pack/host'
+
+export interface EnginePackExecution {
+  readonly packId: string
+  readonly seam: string
+  readonly steps: number
+}
+
+interface EnginePackRuntime {
+  host: PackHost<unknown, unknown, unknown>
+  state: unknown
+  readonly packId: string
+  readonly seam: string
+  steps: number
+}
+
+function packError(code: string, pause: PackPause): Error {
+  return new Error(`${code}: ${pause.packId}/${pause.hook}: ${pause.reason}`)
+}
+
 /**
  * Game State Machine — ядро рантайма (ТЗ 2, 4).
  * Мутирует GameState; UI подписывается через onChange.
@@ -129,6 +149,7 @@ export class GameEngine implements EngineCtx {
   private cutsceneSerial = 0
   freshRun: boolean
   envelope: SaveEnvelope | null = null
+  private packRuntime: EnginePackRuntime | null = null
 
   constructor(campaign: CampaignData, state?: GameState) {
     this.campaign = campaign
@@ -146,6 +167,45 @@ export class GameEngine implements EngineCtx {
       this.state = this.newState()
     }
   }
+
+  /** Attach pack-owned code explicitly; there is no legacy fallback after this boundary. */
+  attachPackSim<State, Event, Frame>(binding: PackSimBinding<State, Event, Frame>): PackHost<State, Event, Frame> {
+    const seam = binding.manifest.provides.seams?.find((candidate) => candidate.kind === 'sim')?.id
+    if (typeof seam !== 'string' || !seam || typeof binding.hooks.sim !== 'function') {
+      throw new Error(`PACK_SIM_MISSING: ${binding.manifest.id || '(unknown)'} has no declared sim hook`)
+    }
+    const host = new PackHost<State, Event, Frame>([binding.manifest])
+    if (!host.register(binding.manifest.id, binding.hooks)) {
+      const pause = host.paused
+      if (pause) throw packError('PACK_REGISTER_FAILED', pause)
+      throw new Error(`PACK_REGISTER_FAILED: ${binding.manifest.id}/register`)
+    }
+    this.packRuntime = {
+      host: host as unknown as PackHost<unknown, unknown, unknown>,
+      state: binding.state,
+      packId: binding.manifest.id,
+      seam,
+      steps: 0,
+    }
+    return host
+  }
+
+  get packExecution(): EnginePackExecution | null {
+    const runtime = this.packRuntime
+    return runtime ? { packId: runtime.packId, seam: runtime.seam, steps: runtime.steps } : null
+  }
+
+  /** Execute one pack event; a pause is an error, never permission to use core rules instead. */
+  runPackSim<Event>(event: Event, seed = 0): unknown {
+    const runtime = this.packRuntime
+    if (!runtime) throw new Error('PACK_RUNTIME_MISSING: attachPackSim is required before runPackSim')
+    const result = runtime.host.runSim({ state: runtime.state, event, seed })
+    if (result.paused) throw packError('PACK_SIM_FAILED', result.paused)
+    runtime.state = result.state
+    runtime.steps += 1
+    return result.state
+  }
+
   subscribe(fn: () => void): () => void {
     this.listeners.add(fn)
     return () => this.listeners.delete(fn)
