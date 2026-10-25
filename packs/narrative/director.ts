@@ -1,9 +1,9 @@
-import type { EngineCtx } from './context'
-import type { ArtDoc, CameraDoc, CutsceneDef, Effect, SceneDef } from '../shared/types'
-import { featureOn } from './caps'
-import { stopVoiceAudio } from '../shared/voiceAudio'
-import { playUi } from '../shared/audio'
-import { CombatController } from './combat'
+import type { EngineCtx } from '../../src/core/context'
+import type { ArtDoc, CameraDoc, CutsceneDef, Effect, SceneDef } from '../../src/shared/types'
+import { featureOn } from '../../src/core/caps'
+import { stopVoiceAudio } from '../../src/shared/voiceAudio'
+import { playUi } from '../../src/shared/audio'
+import { CombatController } from '../../src/core/combat'
 
 /** Нужно ли показывать вводное повествование сцены (narrative_intro) */
 function shouldShowNarrativeIntro(this: EngineCtx, scene: SceneDef): boolean {

@@ -10,13 +10,13 @@ import type {
   SceneStateDef,
   SlotDef,
   TravelConnection,
-} from '../shared/types'
-import { DEFAULT_DICE_RULES } from '../shared/types'
-import { evalCondition, evalSceneCondition } from './conditions'
-import type { EngineCtx } from './context'
-import { hourOfDay, inTimeRange } from './time'
-import { playInteraction, playUi } from '../shared/audio'
-import { stopVoiceAudio } from '../shared/voiceAudio'
+} from '../../src/shared/types'
+import { DEFAULT_DICE_RULES } from '../../src/shared/types'
+import { evalCondition, evalSceneCondition } from '../../src/core/conditions'
+import type { EngineCtx } from '../../src/core/context'
+import { hourOfDay, inTimeRange } from '../../src/core/time'
+import { playInteraction, playUi } from '../../src/shared/audio'
+import { stopVoiceAudio } from '../../src/shared/voiceAudio'
 
 export interface SlotOccupant {
   slot: SlotDef

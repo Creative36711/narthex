@@ -10,7 +10,7 @@
  */
 import { readFileSync, existsSync } from 'node:fs'
 import { Compiler } from 'inkjs/full'
-import { createStory, drainStory, parseLineTags } from '../src/core/dialogue'
+import { createStory, drainStory, parseLineTags } from '../packs/narrative/index'
 import { generateInk, newDlgDoc, type DlgDoc } from '../src/editor/dialogueDoc'
 import { DEFAULT_SETTINGS } from '../src/shared/settings'
 import type { MonolithDialogue } from '../src/shared/types'

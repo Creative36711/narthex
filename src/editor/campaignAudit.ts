@@ -269,7 +269,7 @@ async function inspectAlphaRoles(store: EditorStore): Promise<AuditFinding[]> {
 }
 
 /**
- * Внешние функции, которые движок отдаёт в ink (`src/core/dialogue.ts`).
+ * Внешние функции, которые движок отдаёт в ink (`packs/narrative/dialogue.ts`).
  * Если ink зовёт такую функцию без `EXTERNAL`, inkjs не компилирует файл:
  * проверяем отдельно, потому что симптом — «диалог просто не открылся».
  */

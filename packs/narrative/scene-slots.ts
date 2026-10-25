@@ -1,9 +1,9 @@
-import type { EngineCtx } from './context'
-import type { CodexEntryDef, ImageValue, ItemDef, ItemInteractOption, NpcDef, SlotDef, SlotUseWith } from '../shared/types'
-import { BUILTIN_CODEX_CATEGORIES } from '../shared/types'
-import { evalCondition } from './conditions'
-import { playInteraction } from '../shared/audio'
-import type { SoundHook } from '../shared/types'
+import type { EngineCtx } from '../../src/core/context'
+import type { CodexEntryDef, ImageValue, ItemDef, ItemInteractOption, NpcDef, SlotDef, SlotUseWith } from '../../src/shared/types'
+import { BUILTIN_CODEX_CATEGORIES } from '../../src/shared/types'
+import { evalCondition } from '../../src/core/conditions'
+import { playInteraction } from '../../src/shared/audio'
+import type { SoundHook } from '../../src/shared/types'
 import type { SlotOccupant } from './world'
 
 function heroPortraitStateKey(this: EngineCtx): string {

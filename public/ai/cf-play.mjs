@@ -14240,7 +14240,7 @@ var ue = class {
   }
 };
 
-// src/core/dialogue.ts
+// packs/narrative/dialogue.ts
 init_audio();
 function parseLineTags(tags) {
   let emotion = "neutral";
@@ -14690,7 +14690,7 @@ function drainStory(story) {
   return { lines, choices, finished: choices.length === 0 && !story.canContinue };
 }
 
-// src/core/dialogue-runtime.ts
+// packs/narrative/dialogue-runtime.ts
 init_audio();
 
 // src/shared/speech.ts
@@ -14927,7 +14927,7 @@ function stopVoiceAudio() {
   stopSpeaking();
 }
 
-// src/core/dialogue-runtime.ts
+// packs/narrative/dialogue-runtime.ts
 function dlgSpeakerLabel(line, npc) {
   if (!line.speaker) return npc.label;
   const ent = this.campaign.entities[line.speaker];
@@ -15228,7 +15228,7 @@ var dialogueRuntime = {
   endDialogue
 };
 
-// src/core/director.ts
+// packs/narrative/director.ts
 init_caps();
 init_audio();
 
@@ -16785,7 +16785,7 @@ function labelResult(r2) {
   }
 }
 
-// src/core/director.ts
+// packs/narrative/director.ts
 function shouldShowNarrativeIntro(scene) {
   if (!scene.narrative_intro || scene.narrative_intro.length === 0) return false;
   const once = scene.narrative_intro_once ?? true;
@@ -16980,7 +16980,7 @@ var director = {
   endCombat
 };
 
-// src/core/encounters.ts
+// packs/narrative/encounters.ts
 init_caps();
 init_brp();
 init_time();
@@ -17257,7 +17257,7 @@ var encounters = {
   expandGenTemplate
 };
 
-// src/core/quests.ts
+// packs/narrative/quests.ts
 init_caps();
 init_conditions();
 init_audio();
@@ -17324,7 +17324,7 @@ var quests = {
   }
 };
 
-// src/core/roguelike.ts
+// packs/narrative/roguelike.ts
 init_conditions();
 init_savemigrate();
 init_meta();
@@ -17401,7 +17401,7 @@ var roguelike = {
   newGamePlus
 };
 
-// src/core/scene-slots.ts
+// packs/narrative/scene-slots.ts
 init_types();
 init_conditions();
 init_audio();
@@ -17703,7 +17703,7 @@ var sceneSlots = {
   interactWithSlot
 };
 
-// src/core/social.ts
+// packs/narrative/social.ts
 init_brp();
 init_dice();
 var social = {
@@ -17966,7 +17966,7 @@ var social = {
   }
 };
 
-// src/core/world.ts
+// packs/narrative/world.ts
 init_types();
 init_conditions();
 init_time();
@@ -18501,6 +18501,7 @@ addThisOperations(roguelike);
 addThisOperations(sceneSlots);
 addContextOperations(social);
 addContextOperations(world);
+operations.cleanDialogueLine = (_context, raw) => cleanDialogueLine(raw);
 operations["effect:start_dialogue"] = (context, effect) => {
   context.startDialogue(effect.entity, effect.dialogue_knot);
 };

@@ -179,7 +179,7 @@ const f = (p: string) => readFileSync(p, 'utf8')
 
 // ── 11. диалоговые плейсхолдеры ──
 {
-  const dlg = f('src/core/dialogue.ts')
+  const dlg = f('packs/narrative/dialogue.ts')
   check('11 externals: имя, здоровье макс, мана, удача, день, уровень, опыт, валюта',
     /bind\('get_player_name'/.test(dlg) && /bind\('get_hp_max'/.test(dlg) && /bind\('get_mp'/.test(dlg)
       && /bind\('get_luck'/.test(dlg) && /bind\('get_run_day'/.test(dlg) && /bind\('get_level'/.test(dlg)

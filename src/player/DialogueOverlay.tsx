@@ -1,7 +1,7 @@
 import { Ico } from '../shared/icons'
 import { useEffect, useRef, useState } from 'react'
 import type { GameEngine } from '../core/engine'
-import type { DialogueLine } from '../core/dialogue'
+import type { DialogueLine } from '../../packs/narrative/index'
 import type { NpcDef } from '../shared/types'
 import { assetUrl, assetUrlOrNull } from '../core/loader'
 import { tipSeen, markTip } from './tips'
