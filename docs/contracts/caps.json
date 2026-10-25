@@ -8,6 +8,7 @@
   "capability_versions": "integer >= 1: версия поведения возможности, которую фиксирует проект",
   "kinds": [
     { "id": "narrative", "title": "Сюжет и ветвление", "pack": "narrative", "requires": ["narrative"] },
+    { "id": "adventure", "title": "Point-and-click приключение", "pack": "adventure", "requires": ["adventure"] },
     { "id": "state-ui", "title": "Автоматы, карты, интерфейсы", "pack": "state-ui", "requires": ["state-machine"] },
     { "id": "grid-strategy", "title": "Сетки, тактика, менеджмент", "pack": "grid-strategy", "requires": ["grid", "pathfinding"] },
     { "id": "endless-2d", "title": "Аркады и физика 2D", "pack": "endless-2d", "requires": ["realtime-loop", "physics2d"] },
@@ -15,6 +16,7 @@
   ],
   "packs": [
     { "id": "narrative", "title": "Narrative & Branching", "runtime": "turn", "status": "stable" },
+    { "id": "adventure", "title": "Adventure & Point-and-Click", "runtime": "turn", "status": "experimental" },
     { "id": "state-ui", "title": "State-Machine & UI", "runtime": "turn", "status": "planned" },
     { "id": "grid-strategy", "title": "Grid & Strategy", "runtime": "turn", "status": "planned" },
     { "id": "endless-2d", "title": "Endless & Physics 2D", "runtime": "realtime", "status": "planned" },
@@ -36,6 +38,7 @@
     { "id": "codex", "title": "Кодекс и бестиарий", "pack": "narrative", "status": "stable", "since": 2, "enables": "codex entries and categories", "probe": "smoke:p2" },
     { "id": "crafting", "title": "Крафт и рецепты", "pack": "narrative", "status": "stable", "since": 2, "enables": "recipes and crafting actions", "probe": "smoke:craft-fail-time" },
     { "id": "time", "title": "Игровое время и календарь", "pack": "narrative", "status": "stable", "since": 2, "enables": "clock, calendar, and elapsed time", "probe": "smoke:time-semantics" },
+    { "id": "adventure", "title": "Point-and-click приключение", "pack": "adventure", "status": "experimental", "since": 2, "enables": "point-and-click adventure scenes and interactions", "probe": "probe:adventure" },
     { "id": "state-machine", "title": "Пошаговый автомат состояний", "pack": "state-ui", "status": "planned", "since": 3, "enables": "generic state-machine runtime", "probe": null },
     { "id": "cards", "title": "Карты, колоды, эффекты", "pack": "state-ui", "status": "planned", "since": 3, "enables": "card collections and effects", "probe": null },
     { "id": "auto-battle", "title": "Автобатлер и симуляция партии", "pack": "state-ui", "status": "planned", "since": 3, "enables": "automated battle simulation", "probe": null },
