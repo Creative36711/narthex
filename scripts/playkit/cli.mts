@@ -25,6 +25,7 @@ import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, resolve, sep } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import seedrandom from 'seedrandom'
 import { loadCampaign } from '../../src/core/loader'
 import { GameEngine } from '../../src/core/engine'
@@ -34,6 +35,7 @@ import { PackHost } from '../../src/core/pack/host'
 import { newCharChoice } from '../../src/core/charcreate'
 import { ENGINE_VERSION } from '../../src/shared/versions'
 import { analyzeCampaign, formatGraphReport } from './analyze'
+import { findNarrativeCode, NARRATIVE_CODE_LIST } from './narrative-codes'
 import { readInstalledPackCatalogue, resolveProjectCapabilityModesForCheck, resolveProjectPackForCheck } from './project-pack'
 import {
   createNarrativePackBinding,
@@ -44,6 +46,7 @@ import {
 import type { NarrativeState } from '../../packs/narrative/types'
 
 const PLAYKIT_VERSION = '0.1.0'
+const CLI_DIR = dirname(fileURLToPath(import.meta.url))
 const DEFAULT_ORIGIN = 'http://cf-play.local/'
 const MAX_FIGHT_STEPS = 200
 
@@ -1458,12 +1461,77 @@ async function cmdExplainCatalogue(): Promise<number> {
   return 0
 }
 
+function printKnownNarrativeCodes(): void {
+  console.error(`Известные коды narrative (${NARRATIVE_CODE_LIST.length}):`)
+  for (const entry of [...NARRATIVE_CODE_LIST].sort((a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0))) {
+    console.error(`  ${entry.code}`)
+  }
+}
+
+function cmdExplainCode(code: string | null): number {
+  if (!code) {
+    console.error('cf-play explain: укажите код диагностической находки')
+    printKnownNarrativeCodes()
+    return 2
+  }
+  const explanation = findNarrativeCode(code)
+  if (!explanation) {
+    console.error(`cf-play explain: неизвестный код «${code}»`)
+    printKnownNarrativeCodes()
+    return 2
+  }
+  console.log(`${explanation.code} — ${explanation.title}`)
+  console.log(`Почему: ${explanation.why}`)
+  console.log(`Где искать: ${explanation.where}`)
+  console.log(`Минимальный фикс: ${explanation.fix}`)
+  return 0
+}
+
+async function cmdExample(): Promise<number> {
+  const candidates = [
+    join(CLI_DIR, 'examples', 'narrative'),
+    join(CLI_DIR, 'examples', 'ash-of-caerden'),
+    resolve(process.cwd(), 'public/campaigns/ash-of-caerden'),
+    resolve(process.cwd(), 'packs/narrative/data/ash-of-caerden'),
+    resolve(CLI_DIR, '../../public/campaigns/ash-of-caerden'),
+    resolve(CLI_DIR, '../../packs/narrative/data/ash-of-caerden'),
+  ]
+  const campaignDir = candidates.find((candidate) => existsSync(join(candidate, 'campaign.json')))
+  if (!campaignDir) {
+    die('example: эталон narrative не найден; используйте кит с examples/narrative или запустите из клона Narthex')
+  }
+  const config: RunConfig = {
+    campaignDir,
+    seed: '1',
+    outDir: null,
+    debug: false,
+    quiet: false,
+    injection: emptyInjection(),
+    record: null,
+  }
+  const { result, text } = await cmdCheck(config, [1, 5], 300, null)
+  process.stdout.write(text)
+  const counts = (result.graph?.counts ?? {}) as AnyObj
+  const deaths = (result.sweep?.deaths ?? {}) as Record<string, number>
+  const deathTotal = Object.values(deaths).reduce((sum, count) => sum + Number(count), 0)
+  const errors = Array.isArray(result.graph?.errors) ? result.graph.errors.length : 0
+  const warnings = Array.isArray(result.graph?.warnings) ? result.graph.warnings.length : 0
+  const coverage = (result.coverage ?? {}) as AnyObj
+  console.log(
+    `Эталон: ${counts.scenes} сцен · ${counts.locations} локаций · ${counts.dialogues} диалогов · ` +
+      `${counts.inkKnots} ink · ошибок ${errors} · предупреждений ${warnings} · смертей ${deathTotal} · ` +
+      `покрытие ${coverage.visited} из ${coverage.total}`,
+  )
+  return result.verdict === 'ok' ? 0 : 1
+}
+
 // ──────────────────────────────── main ──────────────────────────────────────
 
 const USAGE = [
-  'команды: check | graph | dialogue | run | explore | sweep | verify | explain',
+  'команды: check | graph | dialogue | run | explore | sweep | verify | explain | example',
   '',
-  '  node cf-play.mjs explain  --catalogue',
+  '  node cf-play.mjs example [narrative]',
+  '  node cf-play.mjs explain <код> | --catalogue',
   '  node cf-play.mjs check    <папка кампании> [--seeds 1-5] [--steps 300] [--routes dir] [--pack-registry file] [--out runs/check]',
   '',
   '  node cf-play.mjs graph    <папка кампании> [--out dir] [--json]',
@@ -1489,8 +1557,16 @@ async function main(): Promise<void> {
   const asJson = !!flags.json
 
   if (command === 'explain') {
-    if (!flags.catalogue) die('explain: укажите --catalogue')
-    process.exit(await cmdExplainCatalogue())
+    if (flags.catalogue) process.exit(await cmdExplainCatalogue())
+    process.exit(cmdExplainCode(positional[0] ?? null))
+  }
+
+  if (command === 'example') {
+    const requested = positional[0]
+    if (requested && requested !== 'narrative' && requested !== 'ash-of-caerden') {
+      die(`example: неизвестный пример «${requested}» (доступен narrative)`)
+    }
+    process.exit(await cmdExample())
   }
 
   if (command === 'verify') {

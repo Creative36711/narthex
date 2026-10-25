@@ -7,6 +7,8 @@
  * детерминированно и без ложных «прошёл/не прошёл».
  */
 
+import { NARRATIVE_CODES } from './narrative-codes'
+
 type AnyObj = Record<string, any>
 
 // Имена узлов и целей бывают кириллицей — берём любой не-пробельный токен.
@@ -279,7 +281,7 @@ export function analyzeCampaign(campaign: AnyObj): GraphReport {
     const problems: Finding[] = []
     for (const target of parsed.missingTargets) {
       problems.push({
-        code: 'ink_missing_knot',
+        code: NARRATIVE_CODES.inkMissingKnot.code,
         severity: 'error',
         message: `переход на несуществующий узел «${target}»`,
         where: path,
@@ -287,23 +289,23 @@ export function analyzeCampaign(campaign: AnyObj): GraphReport {
       })
     }
     if (!parsed.knots.length) {
-      problems.push({ code: 'ink_no_knots', severity: 'error', message: 'в диалоге нет ни одного узла', where: path })
+      problems.push({ code: NARRATIVE_CODES.inkNoKnots.code, severity: 'error', message: 'в диалоге нет ни одного узла', where: path })
     }
     for (const sceneId of parsed.sceneJumps) {
       if (sceneId && !campaign.scenes?.[sceneId]) {
-        problems.push({ code: 'ink_scene_missing', severity: 'error', message: `go_to_scene → несуществующая сцена «${sceneId}»`, where: path })
+        problems.push({ code: NARRATIVE_CODES.inkSceneMissing.code, severity: 'error', message: `go_to_scene → несуществующая сцена «${sceneId}»`, where: path })
       }
     }
     for (const arenaId of parsed.combats) {
       if (arenaId && !campaign.arenas?.[arenaId]) {
-        problems.push({ code: 'ink_arena_missing', severity: 'error', message: `start_combat → несуществующая арена «${arenaId}»`, where: path })
+        problems.push({ code: NARRATIVE_CODES.inkArenaMissing.code, severity: 'error', message: `start_combat → несуществующая арена «${arenaId}»`, where: path })
       }
     }
     for (const [questId, stageId] of parsed.questAdvances) {
       const quest = campaign.quests?.[questId]
-      if (!quest) problems.push({ code: 'ink_quest_missing', severity: 'error', message: `advance_quest → несуществующий квест «${questId}»`, where: path })
+      if (!quest) problems.push({ code: NARRATIVE_CODES.inkQuestMissing.code, severity: 'error', message: `advance_quest → несуществующий квест «${questId}»`, where: path })
       else if (!(quest.stages ?? []).some((s: AnyObj) => s.id === stageId))
-        problems.push({ code: 'ink_quest_stage_missing', severity: 'error', message: `advance_quest «${questId}» → несуществующая стадия «${stageId}»`, where: path })
+        problems.push({ code: NARRATIVE_CODES.inkQuestStageMissing.code, severity: 'error', message: `advance_quest «${questId}» → несуществующая стадия «${stageId}»`, where: path })
     }
     findings.push(...problems)
     dialogues.push({ path, knots: parsed.knots, problems })
@@ -315,7 +317,7 @@ export function analyzeCampaign(campaign: AnyObj): GraphReport {
       for (const conn of (location.travel_connections ?? []) as AnyObj[]) {
         if (conn.to && !(campaign.world?.regions ?? []).some((r: AnyObj) => (r.locations ?? []).some((l: AnyObj) => l.id === conn.to))) {
           findings.push({
-            code: 'travel_target_missing',
+            code: NARRATIVE_CODES.travelTargetMissing.code,
             severity: 'error',
             message: `дорога из «${location.id}» ведёт в несуществующую локацию «${conn.to}»`,
             where: 'world.json',
@@ -326,7 +328,7 @@ export function analyzeCampaign(campaign: AnyObj): GraphReport {
       for (const sceneId of listed) {
         if (!campaign.scenes?.[sceneId]) {
           findings.push({
-            code: 'location_scene_missing',
+            code: NARRATIVE_CODES.locationSceneMissing.code,
             severity: 'error',
             message: `локация «${location.id}» ссылается на несуществующую сцену «${sceneId}»`,
             where: 'world.json',
@@ -344,7 +346,7 @@ export function analyzeCampaign(campaign: AnyObj): GraphReport {
       const locationHasRoads = (graph.locationEdges.get(locationId)?.size ?? 0) > 0
       if (!locationHasRoads) {
         findings.push({
-          code: 'scene_dead_end',
+          code: NARRATIVE_CODES.sceneDeadEnd.code,
           severity: 'warning',
           message: `сцена «${scene.label ?? scene.id}» без навигации, и из локации «${locationId}» нет дорог`,
           where: `scenes/${scene.id}`,
@@ -354,7 +356,7 @@ export function analyzeCampaign(campaign: AnyObj): GraphReport {
     }
     if (scene.location && !(campaign.world?.regions ?? []).some((r: AnyObj) => (r.locations ?? []).some((l: AnyObj) => l.id === scene.location))) {
       findings.push({
-        code: 'scene_location_missing',
+        code: NARRATIVE_CODES.sceneLocationMissing.code,
         severity: 'error',
         message: `сцена «${scene.label ?? scene.id}» привязана к несуществующей локации «${scene.location}»`,
         where: `scenes/${scene.id}`,
@@ -363,7 +365,7 @@ export function analyzeCampaign(campaign: AnyObj): GraphReport {
     for (const zone of (scene.navigation ?? []) as AnyObj[]) {
       if (zone.go_to_scene && !campaign.scenes?.[zone.go_to_scene]) {
         findings.push({
-          code: 'nav_scene_missing',
+          code: NARRATIVE_CODES.navSceneMissing.code,
           severity: 'error',
           message: `переход «${zone.label ?? zone.id ?? '?'}» ведёт в несуществующую сцену «${zone.go_to_scene}»`,
           where: `scenes/${scene.id}`,
@@ -371,7 +373,7 @@ export function analyzeCampaign(campaign: AnyObj): GraphReport {
       }
       if (zone.intercept_dialogue && !campaign.entities?.[zone.intercept_dialogue]) {
         findings.push({
-          code: 'nav_intercept_missing',
+          code: NARRATIVE_CODES.navInterceptMissing.code,
           severity: 'error',
           message: `перехват перехода ссылается на несуществующую сущность «${zone.intercept_dialogue}»`,
           where: `scenes/${scene.id}`,
@@ -379,7 +381,7 @@ export function analyzeCampaign(campaign: AnyObj): GraphReport {
       }
       if (zone.intercept_rule && !campaign.rules?.[zone.intercept_rule]) {
         findings.push({
-          code: 'nav_rule_missing',
+          code: NARRATIVE_CODES.navRuleMissing.code,
           severity: 'error',
           message: `перехват перехода ссылается на несуществующее правило «${zone.intercept_rule}»`,
           where: `scenes/${scene.id}`,
@@ -389,7 +391,7 @@ export function analyzeCampaign(campaign: AnyObj): GraphReport {
     for (const slot of (scene.slots ?? []) as AnyObj[]) {
       if (slot.default_entity && !campaign.entities?.[slot.default_entity]) {
         findings.push({
-          code: 'slot_entity_missing',
+          code: NARRATIVE_CODES.slotEntityMissing.code,
           severity: 'error',
           message: `слот «${slot.label ?? slot.id}» назначает несуществующую сущность «${slot.default_entity}»`,
           where: `scenes/${scene.id}`,
@@ -402,7 +404,7 @@ export function analyzeCampaign(campaign: AnyObj): GraphReport {
         )
         if (!usedBySchedule) {
           findings.push({
-            code: 'slot_person_empty',
+            code: NARRATIVE_CODES.slotPersonEmpty.code,
             severity: 'info',
             message: `слот «${slot.label ?? slot.id}» для персонажа всегда пуст: нет default_entity и никто не приходит по расписанию`,
             where: `scenes/${scene.id}`,
@@ -414,7 +416,7 @@ export function analyzeCampaign(campaign: AnyObj): GraphReport {
 
   for (const sceneId of reachability.scenes.unreachable) {
     findings.push({
-      code: 'scene_unreachable',
+      code: NARRATIVE_CODES.sceneUnreachable.code,
       severity: 'warning',
       message: `сцена «${campaign.scenes?.[sceneId]?.label ?? sceneId}» недостижима ни навигацией, ни эффектом`,
       where: `scenes/${sceneId}`,
@@ -423,7 +425,7 @@ export function analyzeCampaign(campaign: AnyObj): GraphReport {
   }
   for (const locationId of reachability.locations.unreachable) {
     findings.push({
-      code: 'location_unreachable',
+      code: NARRATIVE_CODES.locationUnreachable.code,
       severity: 'warning',
       message: `локация «${locationId}» недостижима по дорогам и телепортам`,
       where: `world.json`,
@@ -435,17 +437,17 @@ export function analyzeCampaign(campaign: AnyObj): GraphReport {
   for (const effect of effects) {
     if (effect.type === 'teleport_player') {
       if (effect.location && !campaign.world?.regions?.some?.((r: AnyObj) => (r.locations ?? []).some((l: AnyObj) => l.id === effect.location)) && !reachability.locations.total) {
-        findings.push({ code: 'teleport_location_missing', severity: 'error', message: `teleport_player → несуществующая локация «${effect.location}»` })
+        findings.push({ code: NARRATIVE_CODES.teleportLocationMissing.code, severity: 'error', message: `teleport_player → несуществующая локация «${effect.location}»` })
       }
       if (effect.scene && !campaign.scenes?.[effect.scene]) {
-        findings.push({ code: 'teleport_scene_missing', severity: 'error', message: `teleport_player → несуществующая сцена «${effect.scene}»` })
+        findings.push({ code: NARRATIVE_CODES.teleportSceneMissing.code, severity: 'error', message: `teleport_player → несуществующая сцена «${effect.scene}»` })
       }
     }
     if (effect.type === 'start_combat' && effect.arena && !campaign.arenas?.[effect.arena]) {
-      findings.push({ code: 'combat_arena_missing', severity: 'error', message: `start_combat → несуществующая арена «${effect.arena}»` })
+      findings.push({ code: NARRATIVE_CODES.combatArenaMissing.code, severity: 'error', message: `start_combat → несуществующая арена «${effect.arena}»` })
     }
     if (effect.type === 'start_dialogue' && effect.entity && !campaign.entities?.[effect.entity]) {
-      findings.push({ code: 'dialogue_entity_missing', severity: 'error', message: `start_dialogue → несуществующая сущность «${effect.entity}»` })
+      findings.push({ code: NARRATIVE_CODES.dialogueEntityMissing.code, severity: 'error', message: `start_dialogue → несуществующая сущность «${effect.entity}»` })
     }
   }
 
@@ -463,7 +465,7 @@ export function analyzeCampaign(campaign: AnyObj): GraphReport {
   for (const flag of flagReads) {
     if (!flagWrites.has(flag)) {
       findings.push({
-        code: 'flag_read_never_written',
+        code: NARRATIVE_CODES.flagReadNeverWritten.code,
         severity: 'error',
         message: `флаг «${flag}» читается, но нигде не выставляется — ветка мертва`,
         hint: 'Опечатка в имени флага или забыт set_flag',
@@ -473,7 +475,7 @@ export function analyzeCampaign(campaign: AnyObj): GraphReport {
   for (const flag of flagWrites) {
     if (!flagReads.has(flag)) {
       findings.push({
-        code: 'flag_written_never_read',
+        code: NARRATIVE_CODES.flagWrittenNeverRead.code,
         severity: 'warning',
         message: `флаг «${flag}» выставляется, но нигде не читается`,
         hint: 'Мёртвый флаг: либо забыт потребитель, либо лишний эффект',
@@ -489,7 +491,7 @@ export function analyzeCampaign(campaign: AnyObj): GraphReport {
       if (effect.type !== 'advance_quest' || effect.quest !== quest.id) continue
       if (effect.stage && !stageIds.has(String(effect.stage))) {
         findings.push({
-          code: 'quest_stage_missing',
+          code: NARRATIVE_CODES.questStageMissing.code,
           severity: 'error',
           message: `квест «${quest.label ?? quest.id}»: эффект ведёт в несуществующую стадию «${effect.stage}»`,
           where: `quests/${quest.id}`,
@@ -503,7 +505,7 @@ export function analyzeCampaign(campaign: AnyObj): GraphReport {
         referenced.add(stageId)
         if (!stageIds.has(stageId)) {
           findings.push({
-            code: 'quest_stage_missing',
+            code: NARRATIVE_CODES.questStageMissing.code,
             severity: 'error',
             message: `квест «${quest.label ?? quest.id}»: ink ведёт в несуществующую стадию «${stageId}»`,
           })
@@ -521,7 +523,7 @@ export function analyzeCampaign(campaign: AnyObj): GraphReport {
       if (String(stage.id) === String(first)) continue
       if (!referenced.has(String(stage.id)) && !(stage.auto !== undefined)) {
         findings.push({
-          code: 'quest_stage_unreferenced',
+          code: NARRATIVE_CODES.questStageUnreferenced.code,
           severity: 'info',
           message: `квест «${quest.label ?? quest.id}»: стадия «${stage.label ?? stage.id}» нигде не включается эффектом`,
           where: `quests/${quest.id}`,
@@ -548,7 +550,7 @@ export function analyzeCampaign(campaign: AnyObj): GraphReport {
     const normalized = ref.startsWith('dialogues/') ? ref : `dialogues/${ref.replace(/\.ink$/, '')}.ink`
     if (!inkPaths.has(normalized) && !inkPaths.has(ref)) {
       findings.push({
-        code: 'dialogue_file_missing',
+        code: NARRATIVE_CODES.dialogueFileMissing.code,
         severity: 'error',
         message: `NPC ссылается на отсутствующий диалог «${ref}»`,
       })
@@ -557,7 +559,7 @@ export function analyzeCampaign(campaign: AnyObj): GraphReport {
   for (const path of inkPaths) {
     if (![...referencedDialogues].some((ref) => ref === path || path.endsWith(ref) || ref.endsWith(path.replace(/^dialogues\//, '')))) {
       findings.push({
-        code: 'dialogue_orphan',
+        code: NARRATIVE_CODES.dialogueOrphan.code,
         severity: 'info',
         message: `диалог «${path}» никем не используется`,
         hint: 'Либо забыт NPC, либо файл остался от удалённого персонажа',
@@ -572,7 +574,7 @@ export function analyzeCampaign(campaign: AnyObj): GraphReport {
       const flag = condition.flag as string | undefined
       if ((condition.type === 'flag_set' || condition.type === 'flag_not_set') && flag && !flagWrites.has(flag)) {
         findings.push({
-          code: 'ending_condition_dead',
+          code: NARRATIVE_CODES.endingConditionDead.code,
           severity: 'warning',
           message: `концовка «${ending.label ?? ending.id}» зависит от флага «${flag}», который нигде не выставляется`,
           where: `campaign.json → endings`,

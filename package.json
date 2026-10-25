@@ -85,6 +85,8 @@
     "probe:adventure": "tsx scripts/adventure-probe.mts",
     "probe:adventure-mechanics": "tsx scripts/adventure-mechanics-probe.mts",
     "check:playkit-bundle": "tsx scripts/check-playkit-bundle.mts",
+    "check:narrative-codes": "tsx scripts/check-narrative-codes.mts",
+    "check:guide": "tsx scripts/check-guide.mts",
     "check:campaigns": "tsx scripts/campaign-copies.mts",
     "publish:campaigns": "tsx scripts/campaign-copies.mts --write",
     "check:contracts": "tsx scripts/contracts-check.mts && npm run check:packs",
