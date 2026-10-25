@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.63
+// @version      1.4.64
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -293,7 +293,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.63";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.64";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -1779,6 +1779,44 @@
   const taskState = (p) => sel(p.properties["Dispatch State"]);
   const taskRole = (p) => sel(p.properties["Кому"]);
 
+  /**
+   * Слова названия миссии — без знаков и связок.
+   *
+   * 25.10 (фаза 2) Координатор создал NAR-2.14 и NAR-2.15 с «Миссией»
+   * «NAR-2 · Шов движок и пак», а миссия называется «NAR-2 · Шов «движок /
+   * пак»». Сравнение строк в лоб (`includes`) не совпало, обе карточки
+   * выпали из очереди, и транспорт дважды просил план с «0 Ready, 0 Draft»,
+   * хотя карточки лежали в базе, — а потом встал на паузу «в Ready нет
+   * карточки». Поэтому имена сравниваются по словам: кавычки, «·», «/» и
+   * связки «и» на смысл не влияют.
+   */
+  const MISSION_STOPWORDS = new Set(["и", "миссия", "миссии", "фаза", "этап"]);
+  const missionWords = (text) =>
+    String(text || "")
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, " ")
+      .split(" ")
+      .filter((w) => w && !MISSION_STOPWORDS.has(w));
+
+  /**
+   * Одна ли это миссия. Точное совпадение слов — да; перестановка слов и
+   * лишнее слово — тоже да, если короткое название содержит не меньше трёх
+   * слов (иначе «NAR-2» цепляло бы карточки соседних миссий). Пустое поле
+   * «Миссия» в карточке — не чужая миссия: такие карточки считаются всегда.
+   */
+  function missionSame(a, b) {
+    const left = missionWords(a);
+    const right = missionWords(b);
+    if (!left.length || !right.length) return false;
+    const key = (list) => [...list].sort().join(" ");
+    if (key(left) === key(right)) return true;
+    const [small, big] = left.length <= right.length ? [left, right] : [right, left];
+    return small.length >= 3 && small.every((w) => big.includes(w));
+  }
+
+  /** Сказать про «потерянные» карточки — один раз на набор, а не на каждый план. */
+  const missionSkipSeen = new Set();
+
   async function tasks(state, mission) {
     const rows = await query(
       C.requests,
@@ -1786,13 +1824,32 @@
       [{ property: "Sequence", direction: "ascending" }],
     );
     if (!mission) return rows;
-    const wanted = [mission.id, rt(mission.properties["Миссия"])]
-      .filter(Boolean)
-      .map((x) => x.trim().toLowerCase());
-    return rows.filter((row) => {
-      const value = rt(row.properties["Миссия"]).trim().toLowerCase();
-      return !value || wanted.some((w) => value === w || value.includes(w) || w.includes(value));
+    const wanted = rt(mission.properties["Миссия"]).trim();
+    const skipped = [];
+    const kept = rows.filter((row) => {
+      const value = rt(row.properties["Миссия"]).trim();
+      if (!value) return true;
+      if (norm(value) === norm(mission.id)) return true;
+      if (missionSame(value, wanted)) return true;
+      skipped.push({ row, value });
+      return false;
     });
+    if (skipped.length) {
+      const key = `${state}|${skipped.map((s) => s.row.id).join(",")}`;
+      if (!missionSkipSeen.has(key)) {
+        missionSkipSeen.add(key);
+        const list = skipped
+          .map((s) => `«${firstLine(taskTitle(s.row), 40)}» — «${firstLine(s.value, 60)}»`)
+          .join("; ");
+        log(
+          `В «${state}» есть карточки другой миссии, они не в очереди: ${list}. ` +
+            `Очередь миссии «${firstLine(wanted, 60)}».`,
+          false,
+          { tone: "warn", ntfy: "quiet", title: "Narthex: карточка вне миссии" },
+        );
+      }
+    }
+    return kept;
   }
 
   // ───────────────────────────── сообщения чата ─────────────────────────────
@@ -5478,7 +5535,7 @@
       "",
       "ХОД — один ответ:",
       "1) Submitted → проверь по Acceptance, поставь Accepted или Rework (причина в «Ответ»).",
-      "2) В этом же ответе выдай работу: новая карточка (Намерение, Инварианты, Acceptance с командой-оракулом, Свободно, Scope, Кому, Sequence, Миссия, Dispatch State = Ready) или Draft → Ready. Пустая очередь после хода — незаконченный ход.",
+      "2) В этом же ответе выдай работу: новая карточка (Намерение, Инварианты, Acceptance с командой-оракулом, Свободно, Scope, Кому, Sequence, Миссия, Dispatch State = Ready) или Draft → Ready. Пустая очередь после хода — незаконченный ход. В «Миссию» карточки копируй строку «Миссия: …» из этого промпта как есть: по этому полю транспорт отличает очередь миссии от чужой.",
       '3) Миссия выполнена → «Состояние» = «Завершена» и next = "done".',
       "",
       "next — имя роли той карточки, которую выдаёшь. Своё имя значит «ход снова мне»: это не ошибка, но работу надо выдать в этом же ответе.",
@@ -6062,11 +6119,11 @@
     const rows = await query(C.questions, {
       or: statuses.map((name) => ({ property: "Статус", select: { equals: name } })),
     });
-    const wanted = mission ? norm(rt(mission.properties["Миссия"])) : "";
+    const wanted = mission ? rt(mission.properties["Миссия"]).trim() : "";
     if (!wanted) return rows;
     return rows.filter((row) => {
-      const value = norm(rt(row.properties["Миссия"]));
-      return !value || value === wanted || value.includes(wanted) || wanted.includes(value);
+      const value = rt(row.properties["Миссия"]).trim();
+      return !value || missionSame(value, wanted);
     });
   }
 
