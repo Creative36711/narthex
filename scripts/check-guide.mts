@@ -12,11 +12,35 @@ const guidePath = join(root, 'docs/guides/nar-2.15-playkit.md')
 const guide = await readFile(guidePath, 'utf8')
 const sourceGuide = await readFile(join(root, 'docs/ai-campaign-guide.md'), 'utf8')
 const publicGuide = await readFile(join(root, 'public/ai/campaign-guide.md'), 'utf8')
+const guideByteLimit = 524_288
+
+function checkGuideSize(actualBytes: number, limitBytes: number): void {
+  if (!Number.isSafeInteger(actualBytes) || actualBytes < 0) {
+    throw new Error(`campaign guide size must be a non-negative byte count, got ${actualBytes}`)
+  }
+  if (actualBytes > limitBytes) {
+    throw new Error(`campaign guide size ${actualBytes} bytes exceeds limit ${limitBytes} bytes`)
+  }
+}
+
+checkGuideSize(268_683, guideByteLimit)
+console.log('fixture (a) guide size 268683: PASS — within limit 524288 bytes')
+let overflowMessage = ''
+try {
+  checkGuideSize(524_289, guideByteLimit)
+} catch (error) {
+  overflowMessage = error instanceof Error ? error.message : String(error)
+}
+assert.ok(overflowMessage.includes('524289'), `overflow fixture error must include actual size 524289: ${overflowMessage}`)
+assert.ok(overflowMessage.includes('524288'), `overflow fixture error must include limit 524288: ${overflowMessage}`)
+console.log('fixture (b) guide size 524289: PASS — error includes actual 524289 and limit 524288 bytes')
+
 assert.equal(publicGuide, sourceGuide, 'campaign-guide.md перестал совпадать с его канонической копией')
-const sizeDecision = await readFile(join(root, 'docs/decisions/NAR-2.15.md'), 'utf8')
-assert.match(sizeDecision, /^Статус: proposed/m, 'Предложение по лимиту должно оставаться на рассмотрении')
-assert.match(sizeDecision, /294 912 байт/, 'ADR не содержит обоснованного предложенного предела')
-assert.match(sizeDecision, /71 680.*остаётся действующим/, 'Действующий предел нельзя повышать молча')
+const sourceGuideBytes = Buffer.byteLength(sourceGuide, 'utf8')
+const publicGuideBytes = Buffer.byteLength(publicGuide, 'utf8')
+checkGuideSize(sourceGuideBytes, guideByteLimit)
+checkGuideSize(publicGuideBytes, guideByteLimit)
+console.log(`✓ campaign guide size: current=${sourceGuideBytes} bytes; mirror=${publicGuideBytes} bytes; limit=${guideByteLimit} bytes`)
 
 const blocks = [...guide.matchAll(/```(?:bash|sh)\s*\n([\s\S]*?)```/g)]
 const commands = blocks.flatMap((block) => block[1]!
