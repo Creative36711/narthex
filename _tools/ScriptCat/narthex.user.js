@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.61
+// @version      1.4.62
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -293,7 +293,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.61";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.62";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -1856,7 +1856,7 @@
    * «Пусто на странице» и «агент молчит» — разные вещи. Пока транскрипт не
    * отрисован, о молчании не судим вовсе: это либо загрузка, либо сеть.
    */
-  function pageReady() {
+  function pageReady(expect) {
     const state = String((typeof document !== "undefined" && document.readyState) || "");
     if (state && state !== "interactive" && state !== "complete") {
       return { ok: false, why: `страница ещё грузится (${state})` };
@@ -1870,6 +1870,15 @@
     if (broken) return { ok: false, why: "страница не догрузилась: нет связи" };
     const nodes = messages();
     if (nodes.length) return { ok: true, why: `сообщений ${nodes.length}` };
+    // Задание отправлено и подтверждено — значит в этом чате есть как минимум
+    // наша реплика. Пустой транскрипт при этом значит одно: список сообщений
+    // ещё не смонтирован. 25.10 в 17:47 поле ввода уже было, сообщений 0 —
+    // и скрипт по нажатому «Шагу» написал «маркера этой выдачи в чате нет»,
+    // хотя маркер лежал в чате.
+    if (userMessages().length) return { ok: true, why: "свои реплики видны, транскрипт отрисован" };
+    if (expect && Number(expect.sentAt)) {
+      return { ok: false, why: "транскрипт ещё не отрисован: своих реплик не видно" };
+    }
     // Пустой транскрипт ещё не значит «ответа нет»: у только что открытой
     // страницы поле ввода рисуется раньше истории. Готовой считаем страницу,
     // где видно поле ввода или плашку завершения, — там уже есть что читать.
@@ -2435,6 +2444,20 @@
       if (manual) log(`${role.name} ещё отвечает (${busyLabel(busyReason())}) — подождите, потом нажмите «Шаг».`);
       return false;
     }
+    // Страница ещё не отрисована — «маркера нет» говорить нельзя: его просто
+    // не видно. То же правило, что в сторожe тишины, распространено на ручной
+    // «Шаг»: пустая страница — не пустой чат.
+    const page = pageReady(expect);
+    if (!page.ok) {
+      if (manual) {
+        log(
+          `Страница «${role.name}» ещё не отрисовалась (${page.why}) — подождите: ` +
+            "читаю ответ из чата, а не из пустой страницы.",
+        );
+      }
+      return false;
+    }
+
     const replies = messagesAfter(expect.watermark || "");
     const last = replies.at(-1);
     if (!last) {
@@ -6952,7 +6975,7 @@
 
         // Пока транскрипт не отрисован, о молчании агента не судим: пустая
         // страница — это загрузка или сеть, а не «задание не дошло».
-        const page = pageReady();
+        const page = pageReady(expect);
         if (page.ok && !Number(expect.readyAt)) {
           // Дальше короткая выдержка: сразу после отрисовки ответ может ещё
           // доезжать, и «пусто» в этот момент ничего не доказывает.

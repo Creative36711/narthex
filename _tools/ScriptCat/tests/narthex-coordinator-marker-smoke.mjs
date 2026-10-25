@@ -1,4 +1,4 @@
-// Проба 1.4.61: чужой turn_id в маркере Координатора не останавливает цикл.
+// Проба 1.4.62: чужой turn_id в маркере Координатора не останавливает цикл.
 //
 // 25.10, ход 41. Transport запросил план и положил в промпт готовую строку с
 // turn_id 8453c8ac. Coordinator ответил на этот самый вопрос, но вписал id
@@ -18,7 +18,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-assert.match(src, /@version\s+1\.4\.61/, 'версия 1.4.61');
+assert.match(src, /@version\s+1\.4\.62/, 'версия 1.4.62');
 
 const from = src.indexOf('      const sameMission = !decision.mission_id');
 const to = src.indexOf('      log(`Маркер Координатора найден', from);
@@ -73,4 +73,4 @@ assert.match(
 );
 assert.match(src, /if \(route\.kind === "pause"\) \{/, 'роли и статусы проверяются до выдачи');
 
-console.log('OK: narthex 1.4.61 — чужой turn_id в маркере Координатора не останавливает цикл, а виден в журнале');
+console.log('OK: narthex 1.4.62 — чужой turn_id в маркере Координатора не останавливает цикл, а виден в журнале');

@@ -1,4 +1,4 @@
-// Проба 1.4.61: «страница не открылась» — это не «агент молчит 77 минут».
+// Проба 1.4.62: «страница не открылась» — это не «агент молчит 77 минут».
 //
 // Журнал Мастера 25.10:
 //   15:39:29 задание NAR-2.11 отправлено в «Turn Runtime»;
@@ -37,12 +37,13 @@ assert.match(src, /replyWaitMs: 1800000/, 'предел молчания не т
 
 // ── 2. `pageReady()` отличает загрузку от готовой страницы ──────────────────
 const pageReadySrc = cut(
-  '  function pageReady() {',
+  '  function pageReady(expect) {',
   '  /** Наша реплика: в транскрипте Arena она помечена отдельным layout. */',
 );
 const makePageReady = ({
   state = 'complete',
   nodes = [],
+  mine = [],
   editor = null,
   plaque = null,
   alert = null,
@@ -58,6 +59,7 @@ const makePageReady = ({
     'messages',
     'composer',
     'completionPlaque',
+    'userMessages',
     `${pageReadySrc}\nreturn pageReady;`,
   );
   return fn(
@@ -67,6 +69,7 @@ const makePageReady = ({
     () => nodes,
     () => editor,
     () => plaque,
+    () => mine,
   );
 };
 
@@ -83,6 +86,29 @@ assert.equal(
   'ошибка связи на странице — не готова',
 );
 assert.match(makePageReady({ alert: { textContent: 'Connection lost' } })().why, /нет связи/);
+
+// 1.4.62: задание отправлено, а транскрипт пуст — это не «агент молчит».
+// 25.10 в 17:47 поле ввода уже было, сообщений 0, и скрипт по нажатому «Шагу»
+// написал «маркера этой выдачи в чате нет», хотя маркер лежал в чате.
+assert.equal(
+  makePageReady({ nodes: [] })({ sentAt: Date.now() }).ok,
+  false,
+  'своих реплик не видно — страница ещё не отрисована, судить нельзя',
+);
+assert.match(
+  makePageReady({ nodes: [] })({ sentAt: Date.now() }).why,
+  /своих реплик не видно/,
+);
+assert.equal(
+  makePageReady({ nodes: [], mine: [{}] })({ sentAt: Date.now() }).ok,
+  true,
+  'своя реплика видна — чат отрисован, можно судить об ответе',
+);
+assert.match(
+  src,
+  /const page = pageReady\(expect\);\s+if \(!page\.ok\) \{/,
+  'перед выводом «маркера нет» проверяется, что страница отрисована',
+);
 
 // ── 3. Пока страница не готова, ожидание и карточка не трогаются ────────────
 const guard = cut('        if (!page.ok) {', '        const observed = Number(expect.readyAt)');
@@ -180,7 +206,7 @@ assert.match(
   /if \(waited > C\.replyWaitMs && observed > C\.observeGraceMs && !fresh && !working\) \{/,
   'молчание считается потерей, только если страница уже отрисована',
 );
-assert.match(src, /const page = pageReady\(\);/, 'готовность страницы проверяется до сторожа');
+assert.match(src, /const page = pageReady\(expect\);/, 'готовность страницы проверяется до сторожа');
 assert.match(src, /const observed = Number\(expect\.readyAt\)/, 'выдержка считается от отрисовки');
 assert.match(src, /expect\.seenPath !== path/, 'новый переход — новое наблюдение');
 assert.match(
@@ -190,5 +216,5 @@ assert.match(
 );
 
 console.log(
-  'OK: narthex 1.4.61 — недогруженная страница адресата не считается молчанием агента: ожидание и карточка на месте',
+  'OK: narthex 1.4.62 — недогруженная страница адресата не считается молчанием агента: ожидание и карточка на месте',
 );
