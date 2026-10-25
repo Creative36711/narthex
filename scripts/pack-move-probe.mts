@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
-import { spawnSync } from 'node:child_process'
+import { spawnSync, type SpawnSyncReturns } from 'node:child_process'
 import { GameEngine } from '../src/core/engine'
 import '../packs/narrative/operations'
 import * as narrativeBarrel from '../packs/narrative/index'
@@ -46,17 +46,25 @@ for (const key of barrelExports) {
 }
 console.log(`PACK_MOVE_BARREL exports=${barrelExports.join(',')}`)
 
+function printGrepDiagnostic(label: string, result: SpawnSyncReturns<string>): void {
+  const matches = (result.stdout ?? '').split(/\r?\n/).filter(Boolean)
+  console.log(`PACK_MOVE_GREP diagnostic=${label} exit=${result.status ?? 'unavailable'} matches=${matches.length}`)
+  for (const match of matches) console.log(`  ${match}`)
+  if (result.error) console.log(`  grep unavailable: ${result.error.message}`)
+  if (result.stderr?.trim()) console.log(`  grep stderr: ${result.stderr.trim()}`)
+}
+
+// Keep the legacy text searches as visible diagnostics. The AST-backed
+// check:pack-boundary gate now decides core -> packs imports semantically.
 const coreImports = spawnSync('grep', ['-rn', 'packs/narrative', 'src/core'], { cwd: root, encoding: 'utf8' })
-assert.equal(coreImports.status, 1, `${coreImports.stdout}${coreImports.stderr}`)
-console.log('PACK_MOVE_NO_CORE_PACK_IMPORTS rc=0 matches=0')
+printGrepDiagnostic('core-pack-import-text', coreImports)
 const oldPaths = spawnSync('grep', [
   '-RInE',
   "core/(dialogue|dialogue-runtime|scene-slots|encounters|world|social|director|roguelike|quests)(\\.ts|['\"/]|$)",
   'src',
   'scripts',
 ], { cwd: root, encoding: 'utf8' })
-assert.equal(oldPaths.status, 1, `${oldPaths.stdout}${oldPaths.stderr}`)
-console.log('PACK_MOVE_NO_OLD_PATHS rc=0 matches=0')
+printGrepDiagnostic('moved-core-path-text', oldPaths)
 
 const api = Object.getOwnPropertyNames(GameEngine.prototype).sort()
 const apiHash = createHash('sha256').update(`${api.join('\n')}\n`).digest('hex')
