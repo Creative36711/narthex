@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.64
+// @version      1.4.65
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -293,7 +293,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.64";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.65";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -6248,6 +6248,95 @@
   }
 
   /**
+   * Почему Координатор встал и что именно сделать Мастеру.
+   *
+   * 25.10 (пауза 19:43) он вернул `next:"blocked"` без `need`, и транспорт
+   * написал «нужна роль, которой нет в «Ролях»» — при том что роль Tools в
+   * базе есть, просто «Статус» = «Ждёт» и «Agent URL» пуст. Мастер по такой
+   * строке пошёл бы создавать нового агента вместо того, чтобы дозаполнить
+   * существующую роль. Поэтому текст паузы собирается по фактам: имя роли,
+   * её настоящий статус, очередь и уже открытый вопрос.
+   */
+  function blockedReason({ need = "", directory = [], queue = null, open = [] } = {}) {
+    const rows = directory || [];
+    const find = (name) => rows.find((r) => norm(r.name) === norm(name));
+    const lacks = (row) => {
+      if (!row) return "";
+      const bits = [];
+      if ((row.status || "") !== "Активна") bits.push(`«Статус» = «${row.status || "пуст"}»`);
+      if (!row.url) bits.push("«Agent URL» пуст");
+      return bits.join(", ");
+    };
+    const parts = [];
+    const name = String(need || "").trim();
+    if (name) {
+      const row = find(name);
+      const gap = lacks(row);
+      parts.push(`Координатор остановил цикл: нужна роль «${name}».`);
+      if (!row) {
+        parts.push(
+          `Роли «${name}» в базе «Роли» нет — создайте агента в Arena, заполните «Agent URL» и поставьте «Статус» = «Активна».`,
+        );
+      } else if (!gap) {
+        parts.push(
+          `Роль «${name}» активна и «Agent URL» заполнен — значит, Координатор её не увидел: проверьте «Функцию» и «Зону записи».`,
+        );
+      } else {
+        parts.push(
+          `Роль «${name}» в «Ролях» есть, но ${gap} — создавать агента не нужно: заполните «Agent URL» и поставьте «Статус» = «Активна».`,
+        );
+      }
+    } else {
+      // Роль не названа — показываем очередь: по ней видно, чья это работа.
+      parts.push("Координатор остановил цикл, но роль не назвал.");
+      const waiting = ((queue && queue.draft) || [])
+        .map((card) => ({ card, role: taskRole(card) }))
+        .filter(({ role }) => role && !find(role)?.url)
+        .map(
+          ({ card, role }) =>
+            `черновик «${taskTitle(card)}» ждёт роль ${role} — ${lacks(find(role)) || "роли нет в «Ролях»"}`,
+        );
+      if (waiting.length) {
+        parts.push(`По очереди видно: ${waiting.join("; ")}. Новый агент нужен только если роли правда нет.`);
+      } else if (queue) {
+        parts.push(
+          (queue.rework || []).length
+            ? "Черновиков, которым не хватает роли, нет — значит, причина другая: смотрите «Ответ» карточек в Rework."
+            : "Черновиков, которым не хватает роли, нет, и Rework пуст — по очереди причину не видно.",
+        );
+      }
+    }
+    if (queue && queue.summary) parts.push(`Очередь: ${queue.summary}.`);
+    if (queue && (queue.rework || []).length) {
+      parts.push(
+        "Rework — это не «нет роли»: Координатор разбирает причину из «Ответа» карточки и сам решает, выдавать снова или править карточку.",
+      );
+    }
+    const first = (open || [])[0];
+    if (first) {
+      const due = first.properties?.["Срок"]?.date?.start || "";
+      const when = due
+        ? `, срок ${new Date(due).toLocaleString("ru-RU", {
+            timeZone: "Europe/Moscow",
+            day: "2-digit",
+            month: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}`
+        : "";
+      parts.push(
+        `Вопрос об этом уже задан: «${rt(first.properties?.["Вопрос"])}» (по умолчанию: ${rt(
+          first.properties?.["По умолчанию"],
+        )}${when}) — он ждёт ответа в базе «Вопросы».`,
+      );
+    }
+    parts.push(
+      "Право на остановку у Координатора одно — роль, которая не может взять работу; пустую очередь, Rework и спорный Scope он разбирает сам.",
+    );
+    return parts.join(" ");
+  }
+
+  /**
    * Rework — статус, а не очередь.
    *
    * 25.10 Координатор поставил NAR-2.5 в Rework за форму ответа: код уже был в
@@ -6413,7 +6502,8 @@
           });
         } else {
           log(
-            "Вопрос в маркере без варианта по умолчанию — не принят: это не вопрос, а просьба остановиться. Ход идёт дальше.",
+            "Вопрос в маркере без варианта по умолчанию — не принят: это просьба остановиться, а не вопрос. " +
+              "Дальше — по next: без варианта по умолчанию работать не по чему.",
             true,
           );
         }
@@ -6423,13 +6513,23 @@
         // нет, и заменить её некем — агента в Arena создаёт Мастер. Всё
         // остальное (пустая очередь, спорный Scope, неясное ТЗ) Координатор
         // решает сам, иначе «остановлю, когда мне неудобно» съедает цикл.
+        //
+        // 25.10 в 19:43 он вернул next:"blocked" без need, и пауза сказала
+        // «нужна роль, которой нет в «Ролях»» — при том что Tools в базе была,
+        // просто «Ждёт». Поэтому текст собирается по фактам (blockedReason), а
+        // не по шаблону: Мастер должен видеть, что дозаполнить, а что создать.
         const need = String(decision.need || "").trim();
-        pause(
-          `Координатор остановил цикл: ${need ? `нужна роль «${need}»` : "нужна роль, которой нет в «Ролях»"}. ` +
-            "Создайте агента в Arena, заполните «Agent URL», поставьте «Статус» = «Активна» и нажмите «Продолжить». " +
-            "Других поводов останавливать цикл у Координатора нет.",
-          { kind: "blocked-role", ref: mission.id, need, notifyTitle: "Narthex: нужна роль" },
-        );
+        const [directory, fresh, open] = await Promise.all([
+          roleRows().catch(() => []),
+          queueOf(mission).catch(() => null),
+          questionRows([Q.wait], mission).catch(() => []),
+        ]);
+        pause(blockedReason({ need, directory, queue: fresh, open }), {
+          kind: "blocked-role",
+          ref: mission.id,
+          need,
+          notifyTitle: "Narthex: нужна роль",
+        });
         return true;
       }
       if (decision.next === "done") {

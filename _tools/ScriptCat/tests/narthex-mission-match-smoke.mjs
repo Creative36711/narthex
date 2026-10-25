@@ -1,4 +1,4 @@
-// Проба 1.4.64: чужая миссия — не своя, а своя — не теряется.
+// Проба 1.4.65: чужая миссия — не своя, а своя — не теряется.
 //
 // 25.10 (фаза 2) Координатор создал NAR-2.14 и NAR-2.15 с полем «Миссия»
 // «NAR-2 · Шов движок и пак», а миссия называется «NAR-2 · Шов «движок /
@@ -20,7 +20,7 @@ import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
-assert.match(src, /@version\s+1\.4\.64/, 'версия 1.4.64');
+assert.match(src, /@version\s+1\.4\.65/, 'версия 1.4.65');
 
 const sliceBetween = (startMarker, endMarker) => {
   const from = src.indexOf(startMarker);
