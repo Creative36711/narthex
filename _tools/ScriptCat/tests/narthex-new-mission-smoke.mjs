@@ -1,4 +1,4 @@
-// Проба 1.4.62: новая миссия начинается с чистого хода.
+// Проба 1.4.63: новая миссия начинается с чистого хода.
 //
 // После приёмки NAR-1 Мастер создаёт новую миссию в «Миссиях» и жмёт «Шаг».
 // Но ожидание ответа, очередь отправки и пауза остались от прошлой миссии —
@@ -17,7 +17,7 @@ import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
-assert.match(src, /@version\s+1\.4\.62/, 'версия 1.4.62');
+assert.match(src, /@version\s+1\.4\.63/, 'версия 1.4.63');
 
 const sliceBetween = (startMarker, endMarker) => {
   const from = src.indexOf(startMarker);
@@ -153,4 +153,4 @@ assert.match(src, /Состояние = «Активна»/, 'названо с�
 assert.match(src, /await syncMissionState\(\)/, 'сверка миссии вызывается из тика');
 assert.match(src, /await clearStaleMissionPause\(\)/, 'стража паузы спрашивают до выхода');
 
-console.log('OK: narthex 1.4.62 — новая миссия начинается с чистого хода: остатки прошлой снимаются, пауза прошлой миссии не держит новую');
+console.log('OK: narthex 1.4.63 — новая миссия начинается с чистого хода: остатки прошлой снимаются, пауза прошлой миссии не держит новую');

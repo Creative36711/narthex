@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.62
+// @version      1.4.63
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -293,7 +293,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.62";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.63";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -1387,6 +1387,7 @@
     const headers = { "Content-Type": "text/plain;charset=utf-8" };
 
     let gmError = "";
+    let refused = "";
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
         const data = await request("POST", url, headers, payload);
@@ -1398,7 +1399,12 @@
         // прервалась), не мог завершиться никогда: повтор упирался в
         // собственный маркер и падал на нём же.
         if (action === "append" && /duplicate/i.test(why)) return { ok: true, duplicate: true };
-        throw new Error(why);
+        // Шлюз ответил и отказал — это не молчание. Повтор и второй путь дадут
+        // тот же ответ (а у append есть побочный эффект), поэтому сразу наверх:
+        // Мастеру важно видеть «отказал, потому что…», а не «не ответил».
+        refused = why;
+        gmError = why;
+        break;
       } catch (e) {
         gmError = String((e && e.message) || e);
         if (!networkish(gmError)) break;
@@ -1407,18 +1413,27 @@
     }
 
     let fetchError = "";
-    try {
-      const res = await fetch(url, { method: "POST", headers, body: payload });
-      const data = await res.json();
-      if (data && data.ok === true) return data;
-      if (action === "append" && /duplicate/i.test(String((data && data.error) || ""))) return { ok: true, duplicate: true };
-      fetchError = String((data && data.error) || `HTTP ${res.status}`);
-    } catch (e) {
-      fetchError = String((e && e.message) || e);
+    if (!refused) {
+      try {
+        const res = await fetch(url, { method: "POST", headers, body: payload });
+        const data = await res.json();
+        if (data && data.ok === true) return data;
+        if (action === "append" && /duplicate/i.test(String((data && data.error) || ""))) return { ok: true, duplicate: true };
+        refused = String((data && data.error) || "");
+        fetchError = refused || `HTTP ${res.status}`;
+      } catch (e) {
+        fetchError = String((e && e.message) || e);
+      }
     }
 
-    const err = new Error(`шлюз Drive не ответил: GM: ${gmError}; fetch: ${fetchError}`);
+    const err = new Error(
+      refused
+        ? `шлюз Drive отказал: ${refused}`
+        : `шлюз Drive не ответил: GM: ${gmError}; fetch: ${fetchError}`,
+    );
     err.narthex = "gateway";
+    err.refused = Boolean(refused);
+    err.reason = refused;
     throw err;
   }
 
@@ -5146,6 +5161,22 @@
     "Коммит в такой ветке в main не попадёт, а PR покажет удаление чужих файлов.",
   ].join("\n");
 
+  /**
+   * Поля карточки, которые ставит скрипт.
+   *
+   * На NAR-2.13 Runtime Auditor вписал в `Output Drive File ID` id своего отчёта
+   * из Arena/reports. Поле — единственная ссылка на журнал попытки, поэтому
+   * запись ответа упёрлась в отказ шлюза («только Arena/logs»), а цикл встал на
+   * паузе. Правило ставится и исполнителю, и аудитору: карточка — не блокнот.
+   */
+  const CARD_FIELDS_RULE = [
+    "КАРТОЧКА: твой выход — ответ в чате и последняя строка-маркер. Поля `Dispatch State`,",
+    "`Run ID`, `Output Drive File ID`, `Recipient Agent ID`, `Started At`, `Submitted At`,",
+    "`PR`, `Check` ставит скрипт; вписанное руками значение ломает запись ответа в журнал",
+    "(NAR-2.13: в `Output Drive File ID` попал отчёт, шлюз отказал). Ссылку на отчёт даёт",
+    "поле `report` в маркере, а не поле карточки.",
+  ].join("\n");
+
   const EXECUTOR_TECH = [
     SNAPSHOT_FACT,
     "",
@@ -5160,6 +5191,8 @@
     "ЗАПРЕЩЕНО: работать на снимке; коммитить в ветку без общей истории с main;",
     "трогать пути вне своего Scope; мержить в main в обход PR.",
     "РАЗРЕШЕНО: только своя зона из карточки, PR в main через `gh`, squash-мерж.",
+    "",
+    CARD_FIELDS_RULE,
   ].join("\n");
 
   const AUDITOR_TECH = [
@@ -5174,6 +5207,8 @@
     "  gh pr view <номер> --json state,mergeCommit",
     "  gh pr diff <номер>",
     "Свою ветку как эталон не используй: она может быть снимком без части файлов.",
+    "",
+    CARD_FIELDS_RULE,
   ].join("\n");
 
   const COORDINATOR_TECH = [
@@ -5461,6 +5496,63 @@
 
 
   // ───────────────────────────── ход исполнителя ─────────────────────────────
+  /**
+   * Запись ответа в журнал хода — с возвратом ссылки, если поле в карточке
+   * переписали.
+   *
+   * `Output Drive File ID` — единственная ссылка на журнал попытки, и её может
+   * переписать любой, у кого есть доступ к карточке. На NAR-2.13 (25.10,
+   * 15:59Z) Runtime Auditor создал `Arena/reports`, положил туда отчёт и вписал
+   * его id в это поле вместо журнала. Шлюз отказал по делу — «Запись разрешена
+   * только в текстовые файлы Arena/logs», — а скрипт назвал это «шлюз Drive не
+   * ответил» и встал на паузу: Мастер пошёл проверять развёртывание, хотя шлюз
+   * был жив и прав.
+   *
+   * Порядок: обычная запись → отказ про папку → журнал этой выдачи
+   * (`createLog` идемпотентен по паре Dispatch/Run) → запись в него → ссылка
+   * возвращается в карточку. Отчёт агента не трогается: он не журнал.
+   */
+  async function appendToJournal(dispatchId, runId, declaredLogId, marker, entry) {
+    const refusedBecauseOfFolder = (e) =>
+      Boolean(e && e.refused) &&
+      /текстовые файлы/i.test(String(e.reason || (e && e.message) || e));
+    try {
+      const wrote = await gateway("append", declaredLogId, { marker, entry });
+      return { wrote, logId: declaredLogId };
+    } catch (e) {
+      if (!refusedBecauseOfFolder(e)) throw e;
+      log(
+        `Поле «Output Drive File ID» указывает не на журнал (${declaredLogId}): ` +
+          "шлюз пишет только в Arena/logs. Беру журнал этой выдачи и возвращаю ссылку в карточку.",
+        true,
+        { ntfy: false },
+      );
+      let journalId = "";
+      try {
+        const created = await gateway("createLog", "", { dispatchId, runId });
+        journalId = String(
+          (created && (created.fileId || (created.result && created.result.fileId))) || "",
+        );
+      } catch (createdError) {
+        log(`Журнал этой выдачи не открылся: ${createdError.message}`, true, { ntfy: false });
+        throw e;
+      }
+      if (!journalId) throw e;
+      if (journalId !== declaredLogId) {
+        try {
+          await patch(dispatchId, {
+            "Output Drive File ID": { rich_text: [{ type: "text", text: { content: journalId } }] },
+          });
+          log(`Ссылка на журнал возвращена в карточку: ${journalId}.`);
+        } catch (patchError) {
+          log(`Ссылка на журнал не вернулась в карточку: ${patchError.message}`, true, { ntfy: false });
+        }
+      }
+      const wrote = await gateway("append", journalId, { marker, entry });
+      return { wrote, logId: journalId };
+    }
+  }
+
   async function submitExecutor(role, expect, manual = false) {
     const candidates = messagesAfter(expect.watermark)
       .map((m) => ({ ...m, result: parseMarker(m.raw, "CF_AGENT_RESULT") }))
@@ -5534,14 +5626,19 @@
       log(`В ответе ${role.name} только маркер, отчёта нет — в журнал не пишу.`, true);
       return markerMissing(role, expect, "CF_AGENT_RESULT", manual, "thin");
     }
-    const logId = rt(page.properties["Output Drive File ID"]);
-    if (!logId) throw new Error("В карточке нет Output Drive File ID.");
+    const declaredLog = rt(page.properties["Output Drive File ID"]);
+    if (!declaredLog) throw new Error("В карточке нет Output Drive File ID.");
     const marker = `<!-- CF_DISPATCH ${result.dispatch_id}:${result.run_id} -->`;
     const partsNote = answer.parts > 1 ? `_Ответ собран из ${answer.parts} сообщений хода._\n\n` : "";
-    const wrote = await gateway("append", logId, {
+    // Ссылку на журнал мог переписать агент: пишем в журнал выдачи, а не в то,
+    // что окажется в поле (NAR-2.13, D-071).
+    const { wrote, logId } = await appendToJournal(
+      result.dispatch_id,
+      result.run_id,
+      declaredLog,
       marker,
-      entry: `\n\n${marker}\n## Ответ ${role.name}\n\n${partsNote}${answer.text}\n`,
-    });
+      `\n\n${marker}\n## Ответ ${role.name}\n\n${partsNote}${answer.text}\n`,
+    );
     if (wrote && wrote.duplicate) {
       log("Ответ уже был в журнале Drive (маркер этой же выдачи) — второй раз не пишу, оформляю карточку.");
     }
@@ -7077,8 +7174,12 @@
         ? "Notion не принял адрес записи: в нём оказался битый id — обычно это " +
           "опечатка в строке-маркере ответа."
         : e && e.narthex === "gateway"
-          ? "Шлюз Drive не ответил, ответ агента в журнал не записан. Проверьте, что " +
-            "развёртывание Apps Script открыто «любому, у кого есть ссылка», и что ссылка в ⚙ та же."
+          ? e.refused
+            ? `Шлюз Drive ответил отказом: ${e.reason} Запись не сделана, в Диске ничего не менялось. ` +
+              "Если отказ про папку — в карточке указан не журнал: «Output Drive File ID» должен " +
+              "указывать на файл из Arena/logs; скрипт вернёт его сам после обновления."
+            : "Шлюз Drive не ответил, ответ агента в журнал не записан. Проверьте, что " +
+              "развёртывание Apps Script открыто «любому, у кого есть ссылка», и что ссылка в ⚙ та же."
           : e && e.narthex === "notion" || networkish(raw)
             ? "Notion не ответил: сеть или блокировка запроса. Запись не сделана."
             : "Шаг прервался на записи в Notion.";

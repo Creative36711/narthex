@@ -249,5 +249,5 @@ assert.match(closeSrc, /if \(captcha && \(panel === captcha \|\| panel\.contains
 assert.match(src, /captcha: \(\) => Boolean\(captchaDialog\(\)\)/, '__narthex.captcha()');
 
 console.log(
-  'OK: narthex 1.4.62 — капча останавливает отправку, откатывает отметку «отправлено» и ждёт человека с громким пушем',
+  'OK: narthex 1.4.63 — капча останавливает отправку, откатывает отметку «отправлено» и ждёт человека с громким пушем',
 );

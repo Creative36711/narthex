@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const V = '1.4.62';
+const V = '1.4.63';
 
 assert.match(src, new RegExp(`@version\\s+${V.replace(/\./g, '\\.')}`), `версия ${V}`);
 
@@ -182,7 +182,7 @@ assert.match(readyLine([card('Без роли', '', 10)]), /роль не зад
 // ── 3. queueOf считает Draft ───────────────────────────────────────────────
 const qFrom = src.indexOf('  async function queueOf(mission) {');
 const qTo = src.indexOf('  function draftLine(cards, known = []) {');
-// 1.4.62: очередь запоминает карточки в Rework — по этой памяти транспорт
+// 1.4.63: очередь запоминает карточки в Rework — по этой памяти транспорт
 // снимает следы прошлого ответа при повторной выдаче.
 const remembered = [];
 const queueOf = new Function(

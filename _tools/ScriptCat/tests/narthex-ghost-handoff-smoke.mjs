@@ -22,7 +22,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // ── 1. Версия ──────────────────────────────────────────────────────────────
-assert.match(src, /@version\s+1\.4\.62/, 'версия 1.4.62');
+assert.match(src, /@version\s+1\.4\.63/, 'версия 1.4.63');
 
 // ── 2. Помощник dropGhostHandoff ───────────────────────────────────────────
 const from = src.indexOf('  async function dropGhostHandoff(why, { ignoreQueue = false } = {}) {');
@@ -161,4 +161,4 @@ assert.ok(
   'первый шаг возвращает карточку в Ready',
 );
 
-console.log('OK: narthex 1.4.62 — упавшая отправка возвращает карточку в Ready с любой страницы');
+console.log('OK: narthex 1.4.63 — упавшая отправка возвращает карточку в Ready с любой страницы');

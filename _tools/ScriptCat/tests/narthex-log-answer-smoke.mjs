@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const V = '1.4.62';
+const V = '1.4.63';
 
 assert.match(src, new RegExp(`@version\\s+${V.replace(/\./g, '\\.')}`), `версия ${V}`);
 
@@ -113,8 +113,13 @@ assert.match(
 );
 assert.match(
   submitBlock,
-  /entry: `\\n\\n\$\{marker\}\\n## Ответ \$\{role\.name\}\\n\\n\$\{partsNote\}\$\{answer\.text\}\\n`/,
+  /`\\n\\n\$\{marker\}\\n## Ответ \$\{role\.name\}\\n\\n\$\{partsNote\}\$\{answer\.text\}\\n`/,
   'в журнал пишется собранный ответ',
+);
+assert.match(
+  submitBlock,
+  /await appendToJournal\(/,
+  'запись идёт в журнал выдачи (1.4.63), а не в id из карточки',
 );
 assert.ok(!/## Ответ \$\{role\.name\}\\n\\n\$\{hit\.text\}/.test(src), 'запись одного `hit.text` больше не используется');
 

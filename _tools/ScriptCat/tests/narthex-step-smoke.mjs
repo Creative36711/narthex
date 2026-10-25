@@ -16,7 +16,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.62/, 'версия 1.4.62');
+assert.match(src, /@version\s+1\.4\.63/, 'версия 1.4.63');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
@@ -316,7 +316,7 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     () => false,
     (x) => String(x || "").replace(/[\s\u00a0]+/g, " ").trim().toLowerCase(),
     { panel: "cfn-panel" },
-    // 1.4.62: шаг начинается с проверки, что страница отрисована.
+    // 1.4.63: шаг начинается с проверки, что страница отрисована.
     () => ({ ok: true, why: "" }),
   );
   return { api, out };
@@ -469,7 +469,7 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   await api.consumePending(true);
   assert.equal(out.rollback.calls.length, 1, 'неудачная отправка снимает статус карточки');
   assert.match(out.rollback.calls[0].why, /сообщение не ушло/, 'причина записана в журнал попытки');
-  // 1.4.62: ход не сбрасывается — текст остаётся в очереди с пометкой, и
+  // 1.4.63: ход не сбрасывается — текст остаётся в очереди с пометкой, и
   // «Продолжить» отправит его этой же карточке, без нового хода Координатора.
   assert.equal(out.sets.get("cfn-pending").undelivered, true, 'очередь сохранена и помечена');
   assert.equal(out.sets.get("cfn-expect").undelivered, true, 'ожидание сохранено: Run ID нужен для возврата в Running');

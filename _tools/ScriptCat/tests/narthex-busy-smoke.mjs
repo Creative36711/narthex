@@ -196,4 +196,4 @@ assert.match(src, /const composerSlot = \(el\) => Boolean\(el\?\.closest\?\.\('\
 assert.match(src, /if \(!composerSlot\(b\) && stopIsStale\(b\)\) return false;/, 'протухание — только для панели действий сообщения');
 assert.match(src, /Проверю ещё раз через/, 'Мастер видит, что шаг проверится сам');
 
-console.log('OK: narthex 1.4.62 — Stop в слоте отправки настоящий, скрытый и протухший не блокируют шаг, заставка не считается');
+console.log('OK: narthex 1.4.63 — Stop в слоте отправки настоящий, скрытый и протухший не блокируют шаг, заставка не считается');
