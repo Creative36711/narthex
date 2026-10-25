@@ -5,6 +5,7 @@ import { inkToDlgDoc } from '../src/editor/inkImport'
 import { createStory, clearDialogueCache, sanitizeInkSource } from '../src/core/dialogue'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 import { skipIfMissingFixture } from './fixture-guard.mts'
 
 skipIfMissingFixture(

@@ -1,4 +1,5 @@
 import registrySource from '../../packs/registry.json?raw'
+import '../../packs/narrative/operations'
 import capabilitySource from '../../docs/contracts/caps.json?raw'
 import { CAPABILITY_REGISTRY } from '../core/caps'
 import { resolveProjectCapabilityModes, type CapabilityModesResolution } from '../core/pack/capability-modes'

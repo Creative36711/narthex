@@ -11,6 +11,7 @@
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 import type { CampaignData, NpcDef } from '../src/shared/types'
 
 const mem = new Map<string, string>()

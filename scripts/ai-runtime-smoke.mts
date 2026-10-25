@@ -26,6 +26,7 @@ import {
   firstInkKnot,
 } from '../src/core/dialogue'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 import { assetUrl, assetUrlOrNull, loadCampaign } from '../src/core/loader'
 import type { CampaignData, DlgDoc, NpcDef, SceneDef } from '../src/shared/types'
 import { DEFAULT_DICE_RULES } from '../src/shared/types'

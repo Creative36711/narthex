@@ -1,3 +1,4 @@
+import type { EngineCtx } from '../context'
 import type { PackManifest } from './registry'
 
 export type DeepReadonly<T> = T extends (...args: never[]) => unknown
@@ -253,6 +254,108 @@ export class PackHost<State, Event, Frame> {
     return false
   }
 }
+
+export type PackOperationRefusalCode =
+  | 'PACK_OPERATION_REGISTER_FAILED'
+  | 'PACK_OPERATION_MISSING'
+  | 'PACK_OPERATION_FAILED'
+  | 'PACK_OPERATION_PAUSED'
+
+export interface PackOperationRefusal {
+  readonly code: PackOperationRefusalCode
+  readonly packId: string
+  readonly operation: string
+  readonly reason: string
+}
+
+export type PackOperation<Context> = (context: Context, ...args: any[]) => unknown
+export type PackOperationResult<Result> =
+  | { readonly ok: true; readonly value: Result }
+  | { readonly ok: false; readonly refusal: PackOperationRefusal }
+
+export class PackOperationError extends Error {
+  readonly code: PackOperationRefusalCode
+  readonly refusal: PackOperationRefusal
+
+  constructor(refusal: PackOperationRefusal) {
+    super(`${refusal.code}: ${refusal.packId}/${refusal.operation}: ${refusal.reason}`)
+    this.name = 'PackOperationError'
+    this.code = refusal.code
+    this.refusal = refusal
+  }
+}
+
+/** Synchronous pack operations are located by operation id, never by a pack-id branch. */
+export class PackOperationHost<Context = EngineCtx> {
+  private readonly operations = new Map<string, { packId: string; run: PackOperation<Context> }>()
+  private readonly packIds = new Set<string>()
+  private pauseState: PackOperationRefusal | null = null
+
+  get paused(): PackOperationRefusal | null {
+    return this.pauseState ? { ...this.pauseState } : null
+  }
+
+  hasPack(packId: string): boolean {
+    return this.packIds.has(packId)
+  }
+
+  has(operation: string): boolean {
+    return this.operations.has(operation)
+  }
+
+  list(): Array<{ readonly packId: string; readonly operation: string }> {
+    return [...this.operations].map(([operation, entry]) => ({ packId: entry.packId, operation }))
+      .sort((a, b) => a.operation.localeCompare(b.operation) || a.packId.localeCompare(b.packId))
+  }
+
+  register(packId: string, operations: Readonly<Record<string, PackOperation<Context>>>): PackOperationRefusal | null {
+    if (this.pauseState) return this.refuse('PACK_OPERATION_PAUSED', packId, '(register)', 'host is already paused')
+    const entries = Object.entries(operations)
+    const invalid = !packId || this.packIds.has(packId) || !entries.length ||
+      entries.some(([operation, run]) => !operation || typeof run !== 'function' || this.operations.has(operation))
+    if (invalid) return this.fail('PACK_OPERATION_REGISTER_FAILED', packId || '(unknown)', '(register)', 'invalid, empty, or duplicate operation registration')
+    for (const [operation, run] of entries) this.operations.set(operation, { packId, run })
+    this.packIds.add(packId)
+    return null
+  }
+
+  call<Result>(context: Context, operation: string, ...args: unknown[]): PackOperationResult<Result> {
+    if (this.pauseState) {
+      return { ok: false, refusal: this.refuse('PACK_OPERATION_PAUSED', this.pauseState.packId, operation, this.pauseState.reason) }
+    }
+    const entry = this.operations.get(operation)
+    if (!entry) return { ok: false, refusal: this.fail('PACK_OPERATION_MISSING', '(host)', operation, 'operation is not registered') }
+    try {
+      const value = entry.run(context, ...args)
+      if (isPromiseLike(value)) {
+        void Promise.resolve(value).catch(() => undefined)
+        throw new TypeError('pack operations must be synchronous')
+      }
+      return { ok: true, value: value as Result }
+    } catch (error) {
+      return { ok: false, refusal: this.fail('PACK_OPERATION_FAILED', entry.packId, operation, errorMessage(error)) }
+    }
+  }
+
+  invoke<Result>(context: Context, operation: string, ...args: unknown[]): Result {
+    const result = this.call<Result>(context, operation, ...args)
+    if (!result.ok) throw new PackOperationError(result.refusal)
+    return result.value
+  }
+
+  private fail(code: PackOperationRefusalCode, packId: string, operation: string, reason: string): PackOperationRefusal {
+    const refusal = { code, packId, operation, reason } as const
+    this.pauseState ??= refusal
+    return refusal
+  }
+
+  private refuse(code: PackOperationRefusalCode, packId: string, operation: string, reason: string): PackOperationRefusal {
+    return { code, packId, operation, reason }
+  }
+}
+
+/** Connected by composition roots; core never imports an operation implementation. */
+export const packOperations = new PackOperationHost<EngineCtx>()
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)

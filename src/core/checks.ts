@@ -2,7 +2,7 @@ import type { EngineCtx } from './context'
 import type { Condition, DiceRules, DurationActionDef, Effect, NpcDef } from '../shared/types'
 import { evalCondition } from './conditions'
 import { skillCheck, CHECK_RESULT_LABEL, type SkillCheckOutcome } from './brp'
-import { world } from './world'
+import { packOperations } from './pack/host'
 
 /** Типы эффектов, разрешённых в почасовом per_tick (белый список dz.20). */
 const DURATION_TICK_EFFECTS = new Set([
@@ -348,7 +348,7 @@ function opposedCheck(this: EngineCtx, e: Extract<Effect, { type: 'opposed_check
   }
 
 /** Правила бросков d100 этой кампании (итерация 8, А7). */
-function diceRules(this: EngineCtx): DiceRules { return world.diceRules(this) }
+function diceRules(this: EngineCtx): DiceRules { return packOperations.invoke(this, 'diceRules') }
 
 export const checks = {
   luckMax,

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import '../packs/narrative/operations'
 import { loadCampaign } from '../src/core/loader'
 import { effects } from '../src/core/effects'
 import type { EngineCtx } from '../src/core/context'

@@ -11,6 +11,7 @@
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 import { tickToDate, formatDate } from '../src/core/time'
 import type { CampaignData, RuleDef } from '../src/shared/types'
 

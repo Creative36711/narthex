@@ -10,6 +10,7 @@
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine, loadSave } from '../src/core/engine'
+import '../packs/narrative/operations'
 import { migrateEntity } from '../src/shared/migrate'
 import { equipmentSlots, type CampaignData, type ItemDef } from '../src/shared/types'
 

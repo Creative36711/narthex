@@ -10,6 +10,7 @@
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 import { EditorStore } from '../src/editor/store'
 import { exportMonolith } from '../src/editor/monolith'
 import type { CampaignData, SlotDef } from '../src/shared/types'

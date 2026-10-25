@@ -28,6 +28,7 @@ import { basename, dirname, extname, join, relative, resolve, sep } from 'node:p
 import seedrandom from 'seedrandom'
 import { loadCampaign } from '../../src/core/loader'
 import { GameEngine } from '../../src/core/engine'
+import '../../packs/narrative/operations'
 import { PRNG } from '../../src/core/prng'
 import { PackHost } from '../../src/core/pack/host'
 import { newCharChoice } from '../../src/core/charcreate'

@@ -5,6 +5,7 @@
  */
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 
 // stub localStorage для node
 const mem = new Map<string, string>()

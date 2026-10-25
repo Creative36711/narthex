@@ -1,5 +1,6 @@
 import assert from 'node:assert'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 import { createStory, bindExternals } from '../src/core/dialogue'
 import type { CampaignData, SceneDef } from '../src/shared/types'
 
