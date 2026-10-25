@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.58
+// @version      1.4.59
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -71,6 +71,8 @@
     draftLineMax: 6, // сколько черновиков Координатор видит списком в промпте
     readyLineMax: 6, // сколько карточек Ready Координатор видит списком в промпте
     insertRetries: 3, // с какой попытки вставки в редактор звать Мастера (раньше — сами)
+    composerGraceMs: 8000, // сколько ждём возврата поля ввода, если оно исчезло при перерисовке
+    sendRetries: 3, // сколько тиков ждём дорисовку страницы, прежде чем звать Мастера
     pendingTtlMs: 600000, // отправка старше 10 минут не досылается: адресат её не получил
     undeliveredTtlMs: 7200000, // неотправленное задание ждёт Мастера два часа, а не десять минут
     replyWaitMs: 1800000, // 30 минут без единого сообщения — повод остановиться
@@ -286,7 +288,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.55";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.59";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -3438,11 +3440,18 @@
     // поле ввода» не отличить от «нашёл, но исключил своим же фильтром».
     let droppedSidebar = 0;
     let droppedHidden = 0;
+    let droppedOwn = 0;
+    let droppedService = 0;
+    // `textarea` в перечне не было, а зря: 25.10 в 14:57 диагностика
+    // показывала «contenteditable 0, textarea 1», и по ней нельзя было
+    // понять, чьё это поле — сайдбара, капчи или нашей же панели.
     for (const el of document.querySelectorAll(
-      "[contenteditable]:not([contenteditable='false']), .ProseMirror, [role='textbox']",
+      "textarea:not([readonly]), [contenteditable]:not([contenteditable='false']), .ProseMirror, [role='textbox']",
     )) {
       if (el.tagName === "INPUT") continue;
-      if (inSidebar(el)) droppedSidebar += 1;
+      if (isServiceField(el)) droppedService += 1;
+      else if (inOwnPanel(el)) droppedOwn += 1;
+      else if (inSidebar(el)) droppedSidebar += 1;
       else if (!visible(el)) droppedHidden += 1;
     }
     const parts = [
@@ -3451,6 +3460,8 @@
       `textbox ${count("[role='textbox']")}`,
       droppedSidebar ? `в сайдбаре ${droppedSidebar}` : "",
       droppedHidden ? `скрытых ${droppedHidden}` : "",
+      droppedOwn ? `в своей панели ${droppedOwn}` : "",
+      droppedService ? `служебных ${droppedService}` : "",
       `панель ${completionPanels().length}`,
       `skip ${count('[data-agent-transcript-message="true"] button') && skipCardButton() ? "да" : "нет"}`,
       `путь ${location?.pathname || "/"}`
@@ -3640,14 +3651,24 @@
         live = composer();
         if (!live) {
           // Плашка «задача выполнена» закрывает поле ввода и могла всплыть
-          // между вставкой и кликом (24.10, 20:15). Раньше здесь сразу
-          // снимался ход; теперь убираем панели и перечитываем поле.
+          // между вставкой и кликом (24.10, 20:15). Убираем панели — но ждём
+          // поле ВСЕГДА, даже если панелей не нашлось.
+          //
+          // 25.10 в 14:57 было иначе: панель на месте, кнопки закрытия в ней
+          // нет, `closeCompletionPanels()` вернул 0 — и ожидание пропускалось.
+          // Скрипт сдался через три секунды после вставки, хотя страница ещё
+          // дорисовывала транскрипт (сообщений 0 → 15, contenteditable 0),
+          // вернул карточку в Ready и встал на паузу. Работы по карточке не
+          // было — виновата не отправка, а нетерпение.
           const panels = await closeCompletionPanels();
           if (panels) {
             log(`Поле ввода пропало посреди отправки: убрал панелей ${panels}.`);
             why.push(`поле ввода пропало — убрал панелей ${panels}`);
-            live = await waitFor(composer, 4000, 300);
-            if (live) writePrompt(live, text);
+          }
+          live = await waitFor(composer, C.composerGraceMs, 300);
+          if (live) {
+            dbg("Send: поле вернулось после перерисовки", { attempt, panels });
+            writePrompt(live, text);
           }
         }
         dbg("Send: редактор перечитан", { found: Boolean(live), attempt });
@@ -3757,6 +3778,10 @@
     console.warn("[Narthex] снимок разметки при отказе отправки:", report);
     return {
       ok: false,
+      // Ни одного клика и поля ввода нет — это не отказ доставки, а
+      // недорисованная страница. Задание осталось в очереди, ход не начат:
+      // откат карточки и пауза тут дороже, чем ещё один тик ожидания.
+      retry: clicked === 0 && !now,
       // Без единого клика причина другая: кнопка не нашлась, а не «нажали
       // и ничего не вышло». Смешивать их нельзя — по причине чинят.
       reason: clicked
@@ -4081,6 +4106,28 @@
       captchaPause();
       return true;
     }
+    // Поле ввода не нашлось ни на одной попытке — страница ещё дорисовывается
+    // (25.10, 14:57: шестнадцать секунд после перехода, транскрипт 0 → 15
+    // сообщений, `contenteditable` в документе ноль). Клика не было, значит
+    // работы по карточке нет: держим очередь, карточку не трогаем и повторяем
+    // отправку следующим тиком. Пауза и откат в Ready — только когда ожидание
+    // исчерпано, иначе Мастеру достаётся остановка из-за чужой перерисовки.
+    if (delivery.retry) {
+      const tries = Number(pending.sendTries || 0) + 1;
+      if (tries <= C.sendRetries) {
+        GM_setValue(K.pending, { ...pending, sendTries: tries, at: Date.now() });
+        log(
+          `Страница адресата ещё дорисовывается — повторю отправку через ${Math.round(C.tickMs / 1000)} с ` +
+            `(попытка ${tries} из ${C.sendRetries}). Задание в очереди, карточка не тронута.`,
+          false,
+          { ntfy: false },
+        );
+        setTimeout(() => tick(false), C.tickMs);
+        return true;
+      }
+      log(`Поле ввода не вернулось за ${C.sendRetries} попыток — останавливаюсь и жду Мастера.`, true);
+    }
+
     if (!delivery.ok) {
       // Сообщение в чат не попало — работы по карточке нет, и в Running ей
       // делать нечего. Очередь снимается вместе со статусом: иначе ответ по
@@ -4096,7 +4143,7 @@
         // отправит его этой же карточке. Карточка возвращена в Ready только
         // затем, чтобы не висеть в Running 45 минут; перед отправкой она
         // снова станет Running с тем же Run ID.
-        GM_setValue(K.pending, { ...pending, undelivered: true, at: Date.now() });
+        GM_setValue(K.pending, { ...pending, undelivered: true, sendTries: 0, at: Date.now() });
         if (failed) {
           GM_setValue(K.expect, {
             ...failed,

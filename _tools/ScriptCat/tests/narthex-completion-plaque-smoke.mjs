@@ -130,7 +130,7 @@ assert.match(
   'если плашка осталась и поле не нашлось — это видно в причине',
 );
 
-// ── 6. 1.4.58: «закрыл, а она открылась снова» — панелей больше одной ─────
+// ── 6. 1.4.59: «закрыл, а она открылась снова» — панелей больше одной ─────
 // 24.10 в 20:15 шаг встал на «поле ввода пропало»: плашка закрылась и тут же
 // появилась. Причина — не клик, а вторая панель: закрытие верхней показывает
 // нижнюю. Теперь закрываются все видимые, и делается это до того, как ход
@@ -157,8 +157,12 @@ const deliverFrom = src.indexOf('async function deliver(editor, text) {');
 const deliverBlock = src.slice(deliverFrom, src.indexOf('async function send(', deliverFrom));
 assert.match(deliverBlock, /await closeCompletionPanels\(\)/, 'deliver убирает панели, а не сдаётся сразу');
 assert.match(deliverBlock, /поле ввода пропало — убрал панелей/, 'в причине видно, что панель была');
-assert.match(deliverBlock, /waitFor\(composer, 4000, 300\)/, 'поле перечитывается после закрытия');
+assert.match(
+  deliverBlock,
+  /waitFor\(composer, C\.composerGraceMs, 300\)/,
+  'поле перечитывается после закрытия — и ждём его ВСЕГДА, даже если панель не закрылась (1.4.59)',
+);
 assert.match(deliverBlock, /writePrompt\(live, text\)/, 'текст вставляется в новое поле заново');
 assert.match(deliverBlock, /панелей \$\{completionPanels\(\)\.length\}/, 'в отчёте об отказе — число панелей');
 
-console.log('OK: narthex 1.4.58 — плашка = агент свободен, закрываются все панели, поле возвращается');
+console.log('OK: narthex 1.4.59 — плашка = агент свободен, закрываются все панели, поле возвращается');
