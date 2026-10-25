@@ -35,6 +35,7 @@
     { "id": "combat", "title": "Пошаговый бой", "pack": "narrative", "status": "stable", "since": 2, "enables": "turn-based combat", "probe": "smoke:core" },
     { "id": "quests", "title": "Квесты и стадии", "pack": "narrative", "status": "stable", "since": 2, "enables": "quest stages and journal", "probe": "smoke:quest-journal-runtime" },
     { "id": "cutscenes", "title": "Катсцены", "pack": "narrative", "status": "stable", "since": 2, "enables": "queued campaign cutscenes", "probe": "smoke:cutscene-queue" },
+    { "id": "fmv", "title": "Ветвящееся видео (FMV)", "pack": "narrative", "status": "experimental", "since": 2, "enables": "branching video with preload and subtitles", "probe": "probe:fmv" },
     { "id": "codex", "title": "Кодекс и бестиарий", "pack": "narrative", "status": "stable", "since": 2, "enables": "codex entries and categories", "probe": "smoke:p2" },
     { "id": "crafting", "title": "Крафт и рецепты", "pack": "narrative", "status": "stable", "since": 2, "enables": "recipes and crafting actions", "probe": "smoke:craft-fail-time" },
     { "id": "time", "title": "Игровое время и календарь", "pack": "narrative", "status": "stable", "since": 2, "enables": "clock, calendar, and elapsed time", "probe": "smoke:time-semantics" },

@@ -75,6 +75,8 @@
     "check:packs": "tsx scripts/check-packs.mts",
     "probe:pack-host": "tsx scripts/pack-host-probe.mts",
     "probe:narrative-pack": "tsx packs/narrative/probes/campaign.mts",
+    "probe:fmv": "tsx scripts/fmv-passport-probe.mts",
+    "probe:fmv-passport": "tsx scripts/fmv-passport-probe.mts",
     "probe:adventure": "tsx scripts/adventure-probe.mts",
     "probe:adventure-mechanics": "tsx scripts/adventure-mechanics-probe.mts",
     "check:playkit-bundle": "tsx scripts/check-playkit-bundle.mts",
