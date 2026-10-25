@@ -789,8 +789,31 @@
   function resume(reason = "проверено Мастером") {
     const before = GM_getValue(K.paused, "");
     if (!before) return;
+    const paused = GM_getValue(K.pause, null);
     GM_setValue(K.paused, "");
     GM_setValue(K.pause, null);
+    // Пауза из-за «Something went wrong»: сообщение не приняли, и ожидание
+    // ответа — фикция. «Продолжить» — это и есть просьба отправить заново,
+    // поэтому окно свежести ошибки (`arenaRetryMs`) считается от нажатия, а не
+    // от неудачной отправки, и повторы начинаются с чистого счёта. Иначе старое
+    // сообщение с ошибкой так и осталось бы «уже показанным» (−1.4.73).
+    if (paused && paused.kind === "arena-error") {
+      GM_setValue(K.errSeen, "");
+      const waiting = GM_getValue(K.expect, null);
+      if (waiting) {
+        GM_setValue(K.expect, {
+          ...waiting,
+          sentAt: Date.now(),
+          verified: false,
+          arenaResend: 0,
+        });
+        log(
+          "Пауза была из-за ошибки Arena: сообщение не приняли — повторю задание короткой версией.",
+          false,
+          { ntfy: "quiet" },
+        );
+      }
+    }
     // Новый бюджет напоминаний: Мастер уже посмотрел, почему агент молчал.
     const expect = GM_getValue(K.expect, null);
     if (expect) {
