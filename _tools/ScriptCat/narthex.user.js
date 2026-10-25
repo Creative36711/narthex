@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.72
+// @version      1.4.73
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -62,6 +62,9 @@
     repo: "Creative36711/narthex", // для ссылки на PR из номера
     tickMs: 15000,
     mergeGraceMs: 90000, // сколько ждём мерж, прежде чем нажать кнопки за агента
+    promptMax: 6200, // длиннее — техблок уходит в коротком виде (25.10: Arena дважды не приняла 7 586 символов)
+    arenaResendMax: 2, // сколько коротких повторов после ошибки Arena в нашем же задании
+    arenaRetryMs: 180000, // ошибка старше трёх минут уже не про нашу отправку
     continueWaitMs: 20000, // после Merged ждём Continue: без неё агент не получит новую ветку
     prCardWaitMs: 8000, // карточка PR может отрисоваться позже ответа
     prWaitMs: 300000, // общий предел ожидания мержа
@@ -299,7 +302,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.72";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.73";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -791,9 +794,17 @@
     // Новый бюджет напоминаний: Мастер уже посмотрел, почему агент молчал.
     const expect = GM_getValue(K.expect, null);
     if (expect) {
-      // `autoResend` — право на одну автоматическую переотправку после
-      // «Продолжить»: Мастер уже увидел ошибку и ждёт, что задание уйдёт само.
-      GM_setValue(K.expect, { ...expect, tries: 0, autoResend: 0, lastReplySig: "", lastReplyAt: 0 });
+      // «Продолжить» возвращает право и на автоматический повтор после ошибки
+      // Arena (`arenaResend`), и на напоминания: Мастер уже увидел ошибку и ждёт,
+      // что задание уйдёт само.
+      GM_setValue(K.expect, {
+        ...expect,
+        tries: 0,
+        autoResend: 0,
+        arenaResend: 0,
+        lastReplySig: "",
+        lastReplyAt: 0,
+      });
     }
     log(`Пауза снята Мастером (${reason}). Продолжаю.`, false, { ntfy: "quiet" });
     if (GM_getValue(K.pending, null)) {
@@ -2532,41 +2543,81 @@
       .trim().length;
 
   /**
-   * Задание, которое Arena съела ошибкой, возвращается в очередь.
+   * Короткая версия задания — для повтора, когда Arena отклонила полную.
    *
-   * 25.10 (21:24) «Задание отправлено» сменилось через секунду на «Something
-   * went wrong. Please try again.»: сообщение в транскрипте есть, ход у агента
-   * не начался. Скрипт считал доставку состоявшейся и ждал ответа, которого не
-   * будет; «Продолжить» не переотправлял, и Мастеру пришлось вручную сбрасывать
-   * цикл. Отметка доставки здесь врёт, поэтому текст задания возвращается в
-   * очередь, а id «мёртвого» сообщения запоминается: `lastUserSays` больше не
-   * примет старую копию за новую отправку.
+   * 25.10 дважды подряд (21:24 и 22:55) задание NAR-2.16 не принялось ошибкой
+   * «Something went wrong. Please try again.»: сообщение в чате есть, ход у
+   * агента не начался. Оба раза это был Architect и полный промпт примерно на
+   * пять тысяч символов. Повторять его целиком бессмысленно — с большой
+   * вероятностью та же ошибка. Поэтому второй заход короче: что делать, где
+   * границы и маркер. Техблок и правила хода остаются в первом сообщении — оно
+   * видно в чате выше, а при его отсутствии агент читает журнал попытки.
    */
-  function requeueUndelivered(expect, alert, why) {
-    if (!expect || !expect.text) return false;
+  function compactPrompt(expect, level = 0) {
+    const head =
+      level <= 0
+        ? [
+            `Задача ${expect.title || expect.ref || ""} (dispatch ${expect.ref || ""}, run ${expect.runId || ""}).`,
+            "Предыдущее сообщение Arena отклонила ошибкой, но оно видно в чате выше — это то же задание.",
+            "Выполни его: только своя зона из карточки, один PR, мерж сам (`gh pr merge --squash`),",
+            "оракул карточки не ослабляй, спорное — строкой «Допущение: …» в отчёт.",
+          ]
+        : [
+            "Задание выше не принялось ошибкой Arena. Выполни его как есть.",
+            `Карточка ${expect.ref || ""}, run ${expect.runId || ""}.`,
+          ];
+    const tail = [
+      "Последней строкой ответа — ровно один маркер:",
+      `CF_AGENT_RESULT {"dispatch_id":"${expect.ref || ""}","run_id":"${expect.runId || ""}","status":"submitted","check":0,"report":"<путь>","pr":<номер PR>,"merged":true}`,
+      "Работа без PR — `\"pr\": null`.",
+    ];
+    return [...head, ...tail].join("\n");
+  }
+
+  /**
+   * Задание, которое Arena съела ошибкой, возвращается в очередь коротким текстом.
+   *
+   * «Задание отправлено» в этом случае врёт: сообщение в транскрипте есть, ход у
+   * агента не начался. Отметка доставки снимается, id «мёртвого» сообщения
+   * запоминается (иначе `lastUserSays` примет старую копию за новую отправку),
+   * а вместо полного промпта в очередь кладётся `compactPrompt`.
+   *
+   * Повторяется не бесконечно: `arenaResendMax` подряд, дальше — честная пауза.
+   */
+  function retryRejectedHandoff(expect, alert, why) {
+    if (!expect || !expect.roleId) return false;
+    if (!expect.sentAt) return false;
+    if (Date.now() - Number(expect.sentAt || 0) > C.arenaRetryMs) return false;
+    const done = Number(expect.arenaResend) || 0;
+    if (done >= C.arenaResendMax) return false;
+    const text = compactPrompt(expect, done);
     GM_setValue(K.deadSend, (alert && alert.messageId) || "");
     GM_setValue(K.pending, {
       roleId: expect.roleId,
       roleName: expect.roleName,
       roleUrl: expect.roleUrl,
-      text: expect.text,
+      text,
       at: Date.now(),
-      undelivered: true,
       sendTries: 0,
     });
     GM_setValue(K.expect, {
       ...expect,
+      text,
       sentAt: null,
       verified: false,
       undelivered: true,
       cardRolled: false,
-      autoResend: (Number(expect.autoResend) || 0) + 1,
+      arenaResend: done + 1,
+      tries: 0,
+      lastReplySig: "",
+      lastReplyAt: 0,
     });
     log(
-      `${why}: задание до «${expect.roleName || "агента"}» не дошло — отправляю его ещё раз, ` +
-        "новый ход Координатора не нужен.",
+      `${why}: задание до «${expect.roleName || "агента"}» не принялось — повторяю короткой версией ` +
+        `(${done + 1} из ${C.arenaResendMax}): ${text.length} символов вместо ${String(expect.text || "").length}. ` +
+        "Новый ход Координатора не нужен.",
       true,
-      { ntfy: "quiet", title: "Narthex: повторяю отправку" },
+      { ntfy: "quiet", title: "Narthex: повторяю задание" },
     );
     return true;
   }
@@ -2607,8 +2658,7 @@
       // нажал «Продолжить»); вторая подряд — пауза с честной причиной.
       const eaten = latestUserMessageAlert();
       if (eaten && expect.sentAt) {
-        if ((Number(expect.autoResend) || 0) < 1) {
-          requeueUndelivered(expect, eaten, `Arena ответила «${eaten.text}»`);
+        if (retryRejectedHandoff(expect, eaten, `Arena ответила «${eaten.text}»`)) {
           // Отправляем прямо здесь, а не «следующим тиком»: шаг уже выполняется,
           // и отложенный тик был бы молча проглочен сторожем блокировки.
           const again = await consumePending(true);
@@ -2620,8 +2670,9 @@
           return true;
         }
         pause(
-          `Arena снова не доставила задание: «${eaten.text}». Задание осталось в очереди — ` +
-            "нажмите «Продолжить», оно уйдёт этой же карточке, без нового хода Координатора.",
+          `Arena снова не приняла задание: «${eaten.text}» (коротких повторов подряд: ${C.arenaResendMax}). ` +
+            "Задание осталось в очереди — нажмите «Продолжить», оно уйдёт этой же карточке, " +
+            "без нового хода Координатора.",
           { kind: "arena-error", ref: eaten.messageId },
         );
         return true;
@@ -2757,6 +2808,14 @@
       const key = `alert:${alert.messageId}`;
       if (alreadyReported(key)) return false;
       markReported(key);
+      // Ошибка поверх нашего же задания — это не «агент сломался», а «сообщение
+      // не приняли». Ход не снимаем и Мастера не зовём: в очередь кладётся
+      // короткая версия, её отправит ближайший тик. Пауза — только когда
+      // короткие повторы уже исчерпаны.
+      const expect = GM_getValue(K.expect, null);
+      if (retryRejectedHandoff(expect, alert, `Arena ответила «${alert.text || "ошибка без текста"}»`)) {
+        return true;
+      }
       pause(`Видимая ошибка Arena в последнем сообщении: ${alert.text || "текст ошибки пуст"}.`, {
         kind: "arena-error",
         ref: alert.messageId,
@@ -4115,10 +4174,20 @@
     return String(h);
   }
 
-  async function sendToRole(role, text, kind, ref, extra = {}) {
+  async function sendToRole(role, rawText, kind, ref, extra = {}) {
     const force = extra.force === true;
     const payload = { ...extra };
     delete payload.force;
+    // Длинный промпт сокращается только в части техблока: задание не меняется.
+    const text = fitPrompt(rawText, role);
+    if (text !== rawText) {
+      log(
+        `Задание длинное (${rawText.length} символов) — техблок сокращён до ${text.length}: ` +
+          "длинные сообщения Arena иногда не принимает.",
+        false,
+        { ntfy: false },
+      );
+    }
 
     // Двойная обработка одного ответа (нажали «Шаг» дважды, сработал
     // автоцикл) отправляла агенту второй такой же текст. Агент отвечал на
@@ -4498,7 +4567,9 @@
     GM_setValue(K.pending, null);
     GM_setValue(K.deadSend, "");
     pendingNoticeAt = 0;
-    log("Задание отправлено.");
+    // Длина — в журнал: по ней видно, какое сообщение Arena не приняла, и
+    // сравнить его с коротким повтором (25.10: дважды на задании 2.16).
+    log(`Задание отправлено (${String(pending.text || "").length} символов).`);
     return true;
   }
 
@@ -5292,8 +5363,11 @@
    *   Coordinator — git не нужен вообще, инструменты Notion и Drive.
    */
 
-  const TECH_OPEN = "<!-- CF_TECH v1 -->";
-  const TECH_CLOSE = "<!-- /CF_TECH -->";
+  // Разметка блока — обычный текст, а не HTML-комментарии: `<!-- -->`
+  // вырезают чистильщики разметки, и своё же задание перестаёт опознаваться
+  // в транскрипте (25.10: дважды подряд ошибка Arena на задании 2.16).
+  const TECH_OPEN = "=== CF_TECH v1 ===";
+  const TECH_CLOSE = "=== /CF_TECH ===";
   const TECH_TITLE = "ТЕХНИЧЕСКАЯ ИНФОРМАЦИЯ";
 
   const stampUtc = () => `${new Date().toISOString().replace("T", " ").slice(0, 16)} UTC`;
@@ -5399,6 +5473,42 @@
   function technicalInfo(role) {
     const body = TECH_BY_FN[role.fn] || EXECUTOR_TECH;
     return [techHeader(role), "", body, "", TECH_CLOSE].join("\n");
+  }
+
+  /**
+   * Тот же блок, но сжатый — для длинных заданий.
+   *
+   * 25.10 задание NAR-2.16 вышло на 7 586 символов (1 594 из них — техблок), и
+   * Arena дважды ответила «Something went wrong. Please try again.»; то же
+   * задание, пересказанное коротко, проходило. Факты о среде терять нельзя,
+   * поэтому в длинном промпте они остаются, но без повторов и объяснений.
+   */
+  function technicalInfoCompact(role) {
+    return [
+      techHeader(role),
+      "",
+      `Репозиторий ${C.repo}; единственная ветка для мержа — main.`,
+      "Arena может посадить сессию на ветку-СНИМОК без общей истории с main: коммит в main не попадёт,",
+      "а PR покажет удаление чужих файлов. СТАРТ: git fetch origin main; git merge-base HEAD origin/main;",
+      "git reset --hard origin/main; git switch -c nar/<номер> origin/main; git diff --stat main — пусто.",
+      "ЗАПРЕЩЕНО: работать на снимке, трогать чужую зону, мержить в обход PR.",
+      "Поля карточки (Dispatch State, Run ID, PR, Check, даты) ставит скрипт — руками не вписывать.",
+      "",
+      TECH_CLOSE,
+    ].join("\n");
+  }
+
+  /**
+   * Промпт не длиннее `C.promptMax`: длинный блок заменяется сжатым, задание
+   * остаётся как есть. Длина — единственное, что здесь меняется.
+   */
+  function fitPrompt(text, role) {
+    const raw = String(text || "");
+    if (raw.length <= C.promptMax) return raw;
+    const start = raw.indexOf(TECH_OPEN);
+    const end = raw.indexOf(TECH_CLOSE);
+    if (start < 0 || end < start) return raw;
+    return raw.slice(0, start) + technicalInfoCompact(role) + raw.slice(end + TECH_CLOSE.length);
   }
 
   // ───────────────────────────── промпты ─────────────────────────────

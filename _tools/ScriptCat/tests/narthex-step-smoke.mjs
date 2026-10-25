@@ -16,7 +16,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.72/, 'версия 1.4.72');
+assert.match(src, /@version\s+1\.4\.73/, 'версия 1.4.73');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
@@ -105,7 +105,7 @@ for (const text of [
   'Агент ещё отвечает: задание из очереди подождёт',
   'Не нашёл поле ввода на странице адресата',
   'Не удалось вставить задание в редактор',
-  'Задание отправлено.',
+  'символов).`);',
 ]) {
   assert.ok(cpBody.includes(text), `журнал объясняет: ${text}`);
 }
@@ -345,7 +345,10 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   assert.equal(await api.consumePending(true), true, 'pending обработан');
   assert.deepEqual(out.clicks, ["send"], 'нажата именно Send');
   assert.equal(out.sets.get("cfn-pending"), null, 'очередь очищена');
-  assert.ok(out.logs.some((l) => l.text === "Задание отправлено."), 'в журнале есть отправка');
+  assert.ok(
+    out.logs.some((l) => /^Задание отправлено \(\d+ символов\)\.$/.test(l.text)),
+    'в журнале есть отправка и её длина',
+  );
 }
 
 // 6.1b. Отправка ставит отметку sentAt — по ней отличают доставленное от фантома.

@@ -1,4 +1,4 @@
-// Проба 1.4.72: предложения агентов видны Мастеру, а не лежат файлом в репозитории.
+// Проба 1.4.73: предложения агентов видны Мастеру, а не лежат файлом в репозитории.
 //
 // Случай Мастера (25.10, вечер). Вопрос: «предложено — это кто предложил?»
 // Разбор показал: механизм предложения (ADR со статусом `proposed`) описан в
@@ -18,9 +18,9 @@ import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const V = '1.4.72';
+const V = '1.4.73';
 
-assert.match(src, /@version\s+1\.4\.72/, `версия ${V}`);
+assert.match(src, /@version\s+1\.4\.73/, `версия ${V}`);
 
 // ── 1. Панель: отдельная кнопка решений ────────────────────────────────────
 const has = (needle) => assert.ok(src.includes(needle), `в скрипте нет: ${needle}`);
