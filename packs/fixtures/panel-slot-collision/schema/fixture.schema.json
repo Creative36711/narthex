@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://narthex.local/fixtures/panel-slot-collision.schema.json",
+  "title": "Fixture panel data",
+  "type": "object",
+  "additionalProperties": true
+}

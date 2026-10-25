@@ -82,6 +82,7 @@ export type EditorSection =
   | 'recipes'
   | 'codex'
   | 'packs'
+  | 'panels'
 
 type ProjectPackResolver = (project: ProjectPackInput) => ProjectPackResolution
 type ProjectCapabilityResolver = (project: ProjectPackInput) => CapabilityModesResolution
