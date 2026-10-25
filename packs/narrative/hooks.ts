@@ -1,6 +1,6 @@
 import type { PackHooks } from '../../src/core/pack/host'
 import { createNarrativeSim } from './sim'
-import { narrativeView } from './view'
+import { createNarrativeView } from './view'
 import type { NarrativeContent, NarrativeEvent, NarrativeFrame, NarrativeState } from './types'
 
 export function createNarrativeHooks(
@@ -8,6 +8,6 @@ export function createNarrativeHooks(
 ): PackHooks<NarrativeState, NarrativeEvent, NarrativeFrame> {
   return {
     sim: createNarrativeSim(content),
-    view: narrativeView,
+    view: createNarrativeView(content),
   }
 }

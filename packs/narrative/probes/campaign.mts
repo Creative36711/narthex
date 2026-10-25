@@ -101,8 +101,15 @@ assert.equal(Object.keys(content.dialogues).length, 6)
 assert.equal(Object.keys(content.quests).length, 4)
 const project = await readJson<{ kind: string; caps: string[] }>(join(dataRoot, 'project.json'))
 assert.equal(project.kind, manifest.id)
-assert.deepEqual([...project.caps].sort(), [...(manifest.caps ?? [])].sort())
+// Pack-provided capabilities are not auto-enabled in existing project data.
+// Keep the previous 15-cap oracle exact; the FMV project probes its own opt-in.
+assert.deepEqual(
+  [...project.caps].sort(),
+  [...(manifest.caps ?? [])].filter((capability) => capability !== 'fmv').sort(),
+)
+assert.ok(!project.caps.includes('fmv'))
 console.log('✓ манифест и локальные схемы: 10 сцен, 8 локаций, 6 диалогов, 4 квеста')
+console.log('✓ эталон не включает experimental fmv автоматически: прежние 15 caps сохранены')
 
 const registry = await readJson<PackRegistryFile>(join(root, 'packs/registry.json'))
 const discovered = await Promise.all(registry.packs.map((id) =>

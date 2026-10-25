@@ -1,3 +1,5 @@
+import type { FmvDocument, FmvEvent, FmvState } from './fmv'
+
 export interface NarrativeCondition {
   type: string
   flag?: string
@@ -54,7 +56,8 @@ export interface NarrativeDialogueDoc {
 export interface NarrativeScene {
   id: string
   location: string
-  navigation?: Array<{ go_to_scene?: string }>
+  fmv?: string
+  navigation?: Array<{ go_to_scene?: string; open_map?: boolean }>
 }
 
 export interface NarrativeLocation {
@@ -87,6 +90,7 @@ export interface NarrativeContent {
   locations: Record<string, NarrativeLocation>
   dialogues: Record<string, NarrativeDialogueDoc>
   quests: Record<string, NarrativeQuest>
+  fmv?: Record<string, FmvDocument>
 }
 
 export interface NarrativeQuestState {
@@ -111,6 +115,8 @@ export interface NarrativeState {
   usedChoices: string[]
   visitedScenes: string[]
   journal: string[]
+  /** Optional so pre-FMV saves and adventure projections keep their exact shape. */
+  fmv?: FmvState
 }
 
 export type NarrativeEvent =
@@ -122,7 +128,9 @@ export type NarrativeEvent =
   | { type: 'start_quest'; quest: string }
   | { type: 'set_flag'; flag: string; value?: boolean }
   | { type: 'add_item'; item: string; quantity?: number }
+  | FmvEvent
 
 export interface NarrativeFrame {
   frame: number
+  position_ms?: number
 }

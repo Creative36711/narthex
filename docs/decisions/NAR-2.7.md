@@ -1536,3 +1536,1722 @@ $ git diff --check
 rc=0
 
 ```
+
+---
+
+# NAR-2.7-Б · FMV: ветвление по готовности
+
+## Решения и обратимые допущения
+
+### Готовность и отсутствие таймера
+
+- **неясно:** что считать `ready(next)` у чистого turn-sim, который не может выполнять I/O.
+- **решил:** асинхронный `FmvPreloader` находится вне sim и считает ресурс готовым после полного чтения буфера; в sim поступает только `fmv_ready`. Окончание текущего видео — отдельное событие `fmv_ended`, а переход по выбору требует `runtime.ready.includes(choice.next)`. Кадры и `position_ms` не меняют состояние.
+- **откат:** заменить adapter загрузчика на `canplay`/буфер браузера без изменения событийной границы sim; удалить `fmv-loader.ts` и события готовности.
+
+### Тот же narrative-выбор
+
+- **неясно:** как не создать параллельную семантику записи FMV-выбора.
+- **решил:** FMV принимает обычный `choose_dialogue`; общий `applyNarrativeChoice` применяет conditions, sections, once и `usedChoices`. Ранний выбор остаётся в `buffering` на poster текущего фрагмента и применяется один раз после готовности цели.
+- **откат:** удалить FMV-ветку из `choose_dialogue` и общий callback; прежний путь обычных диалогов сохранён и проверен отдельным эталоном.
+
+### Данные, схема и публикация
+
+- **неясно:** сколько фрагментов и нужна ли панель уже в 2.7-Б.
+- **решил:** добавлен проект `fmv-crossing` с тремя реальными WebM и poster PNG: `fragment_a` предлагает два пути, выбранный в пробе путь ведёт в `fragment_b`, альтернатива — в `fragment_c`. Панель `fmv` ссылается на локальную схему, поэтому `check:packs` компилирует её; отдельная схема фрагмента проверяется пробой. Публикация выполнена только через `npm run publish:campaigns`.
+- **откат:** удалить запись `fmv-crossing` из `packs/publications.json`, опубликованную копию, данные проекта и панель; capability `fmv` при этом остаётся действующей.
+
+### Старый проект и pack-provided caps
+
+- **неясно:** должен ли существующий `ash-of-caerden` автоматически включить experimental capability после её появления в манифесте пака.
+- **решил:** нет. `probe:narrative-pack` сохраняет прежний точный список из 15 project caps и отдельно запрещает автоматическое включение `fmv`; новый FMV-проект включает capability явно. Проверки маршрута, состояния и §2.1 не ослаблены.
+- **откат:** вернуть одно утверждение полного равенства project/manifest только вместе с осознанной миграцией project data; в этой карточке такая миграция запрещена.
+
+### SHA-256 playkit-приёмки
+
+- **неясно:** как получить отличающийся sha256, если поведение находится во внешнем паке, а `scripts/playkit/**` и `src/**` не изменились.
+- **решил:** выполнить обязательную штатную пересборку и использовать побайтовый freshness-оракул как проверку свежести. Детерминированная сборка действительно дала прежний sha256 `3d6152036d547c6c83ef53df0ac15d0935640b016d553823f1986e9ae2942281`; бандл не изменился. Попытка provenance-footer откачена, поскольку независимый checker повторяет исходные флаги esbuild. Искусственные правки `src`, checker, версии или playkit ради смены хэша не вносились.
+- **откат:** если требуется именно отличающийся хэш, а не свежая побайтовая проверка, нужен отдельный Scope на bundled source или синхронный version bump; текущий Scope такого изменения не допускает.
+
+## Отчёт приёмки NAR-2.7-Б
+
+Ниже — объединённые stdout/stderr и коды возврата. Все поведенческие пробы, контракты, кампании и 53 smoke-команды завершились с rc=0. Отличие буквального требования «новый sha256» зафиксировано выше, а не скрыто.
+
+### `npm run probe:fmv`
+
+```text
+
+> narthex@0.9.0 probe:fmv
+> tsx scripts/fmv-probe.mts
+
+✓ FMV schema: document PASS · fragments 3/3 PASS · choices resolve
+  фрагмент fragment_a: duration_ms=4000 · src=assets/video/fragment_a.webm
+  фрагмент fragment_b: duration_ms=5000 · src=assets/video/fragment_b.webm
+  фрагмент fragment_c: duration_ms=4000 · src=assets/video/fragment_c.webm
+✓ предзагрузка: start:fragment_a bytes=1673 · after fragment_a ready, before choice:fragment_b bytes=1960 · after fragment_a ready, before choice:fragment_c bytes=1671
+✓ fragment_a → choose_dialogue[0]=follow_lantern → fragment_b; ready(next)=true · usedChoices=fmv_crossing:fragment_a:0 · flag=chose_lantern:true
+✓ условие перехода: runtime.ready.includes(choice.next) === true; кадры/position_ms не вызывают переход и не меняют state
+✓ нет пустого кадра: empty_frames=0 · next_frame_in_draw_queue=1 · fragment=fragment_b · presentation=2
+✓ детерминизм: 20/20 одинаковых прогонов · view on/off · state sha256=b9fc4ad08a0d74ab47eaa259d7c2a80bede40e276f8cccdb041477850cc939d8
+✓ субтитры: 2 реплики (fragment_a + fragment_b) · journal=0 · audio/speech дублирования в лог=0
+✓ ранний выбор: fragment_a/buffering → ready(fragment_b) → fragment_b; повторное применение=0
+✓ эталон обычного narrative: event=choose_dialogue(0) в обоих случаях · flags/inventory/journal/usedChoices совпали · key=fmv_crossing:fragment_a:0
+✓ view write rejected: view state for narrative is read-only; state writes are forbidden · sha256 before=after=b9fc4ad08a0d74ab47eaa259d7c2a80bede40e276f8cccdb041477850cc939d8
+✓ оффлайн: code=FMV_OFFLINE · text=Загрузчик отключён: видео недоступно офлайн; проект сохранён, повторите позже. · host_paused=false · project_state=intact · poster=true
+FMV_PROBE passed
+
+```
+rc=0
+
+### `npm run probe:fmv-passport`
+
+```text
+
+> narthex@0.9.0 probe:fmv-passport
+> tsx scripts/fmv-passport-probe.mts
+
+✓ возможность fmv: pack=narrative · status=experimental · probe=probe:fmv · registry=runtime
+✓ packs/narrative/pack.json: fmv declared · caps 15 → 16
+✓ docs/contracts/examples/pack.narrative.json: schema PASS · semantics PASS · caps=16
+✓ пробы narrative: 16/16 возможностей имеют npm probe · fmv=probe:fmv
+FMV_PASSPORT_PROBE passed
+
+```
+rc=0
+
+### `node public/ai/cf-play.mjs explain --catalogue`
+
+```text
+narrative — Сюжет и ветвление · v1.1.0 · runtime turn
+  capabilities: narrative, scenes, dialogue, map, inventory, needs, skills, relationships, trade, combat, quests, cutscenes, fmv, codex, crafting, time
+  panels: scenes, dialogue, flow, map, quests, fmv
+  validators: dangling-goto, unreachable-scene, dangling-ink-knot, dangling-quest-stage
+  probes: reachability, dialogue-coverage, route-smoke, quest-transitions
+  seams: narrative.sim (sim), narrative.view (view)
+grid-strategy — Сетки, тактика, менеджмент · v0.1.0 · runtime turn
+  capabilities: grid, pathfinding, units, economy, ai-director
+  panels: grid-map, units, economy
+  validators: grid-connectivity, unit-overflow, negative-income
+  probes: path-exists, ai-turn
+adventure — Point-and-click приключение · v0.1.0 · runtime turn
+  capabilities: adventure
+  panels: adventure-stage, adventure-combinations, adventure-riddle
+  validators: walk-target, hotspot-action, combination-recipe, riddle-solution
+  probes: adventure-mechanics
+  seams: adventure.sim (sim), adventure.view (view)
+
+```
+rc=0
+
+### `npm run check:contracts`
+
+```text
+
+> narthex@0.9.0 check:contracts
+> tsx scripts/contracts-check.mts && npm run check:packs
+
+  ✓ caps.json совпадает с runtime-реестром src/core/caps.ts
+  ✓ синтетическое расхождение реестров отклоняется
+  ✓ featureOn реализован в caps.ts, а не в types.ts
+  ✓ у каждой возможности есть назначение и проба по статусу
+  ✓ пробы возможностей существуют в npm scripts
+
+профили возможностей (compatibility report)
+features: ["combat"] -> caps: ["combat"]; combat=true
+features: {"map":true} -> caps: ["map","inventory","needs","skills","relationships","trade","combat","time"]; combat=true; map=true
+caps: ["map"] -> caps: ["map"]; combat=false; map=true
+features: "combat" -> rejected: Unsupported campaign.meta.features format: expected string[] or a boolean map, received string.
+  ✓ features list maps to exactly its registered capabilities
+  ✓ legacy features map preserves omitted=true semantics
+  ✓ explicit caps list takes precedence and remains exact
+  ✓ unrecognized profile format fails loudly instead of returning an empty caps list
+  ✓ campaign without either profile keeps the pre-registry default
+
+реестр возможностей
+  ✓ ids возможностей уникальны
+  ✓ ids паков уникальны
+  ✓ ids типов проектов уникальны
+  ✓ у каждой возможности валидный статус
+  ✓ у каждой возможности известный рантайм
+  ✓ kind ссылается на существующий пак
+  ✓ kind требует только свои возможности
+  ✓ зарезервированная возможность не принадлежит паку
+  ✓ каждый пак владеет хотя бы одной возможностью
+  ✓ реестр задаёт режимы возможностей
+
+пример пака narrative
+  ✓ проходит схему
+  ✓ проходит семантику
+
+пример пака grid-strategy
+  ✓ проходит схему
+  ✓ проходит семантику
+
+пример проекта narrative
+  ✓ проходит схему
+  ✓ проходит семантику
+
+пример проекта с кодом в швах
+  ✓ проходит схему
+  ✓ проходит семантику
+
+пример локали
+  ✓ схема локали = 1
+  ✓ язык файла совпадает с именем
+  ✓ ключи строк — стабильные ID по структуре
+  ✓ у каждой строки есть хэш источника
+  ✓ у каждого источника есть строка
+
+негативные примеры обязаны падать
+  ✓ project.cap-off-required.json: отклонён (семантика)
+  ✓ project.code-missing.json: отклонён (семантика)
+  ✓ project.default-language.json: отклонён (семантика)
+  ✓ project.mixed-runtime.json: отклонён (семантика)
+  ✓ project.unknown-cap.json: отклонён (семантика)
+  ✓ семантика ловит то, что схема пропускает
+
+полнота контрактов
+  ✓ у каждого стабильного kind есть пример проекта
+  ✓ у каждого стабильного пака есть манифест-пример
+
+контракты согласованы: 41 проверок
+
+> narthex@0.9.0 check:packs
+> tsx scripts/check-packs.mts
+
+pack adventure: schema, registry, caps, local schemas, and import boundaries OK
+pack grid-strategy: schema, registry, caps, local schemas, and import boundaries OK
+pack narrative: schema, registry, caps, local schemas, and import boundaries OK
+pack schema copy: in sync
+registry: 3 pack manifests in manifest order
+fixture cross-pack-import: PASS — rejected (checker exit 1): packs/fixtures/cross-pack-import/pack.json: caps is missing registered capabilities: fmv
+packs/fixtures/cross-pack-import/src/index.ts: imports another pack "grid-strategy" via "../../../grid-strategy/pack.json"
+fixture full: PASS — accepted (checker exit 0)
+fixture missing-probes: PASS — rejected (checker exit 1): packs/fixtures/missing-probes/pack.json: /provides must have required property 'probes'
+packs/fixtures/missing-probes/pack.json: caps is missing registered capabilities: fmv
+fixture unknown-capability: PASS — rejected (checker exit 1): packs/fixtures/unknown-capability/pack.json: caps contains unknown capability "not-registered-capability"
+packs/fixtures/unknown-capability/pack.json: caps is missing registered capabilities: fmv
+
+check:packs passed
+
+```
+rc=0
+
+### `npm run check:packs`
+
+```text
+
+> narthex@0.9.0 check:packs
+> tsx scripts/check-packs.mts
+
+pack adventure: schema, registry, caps, local schemas, and import boundaries OK
+pack grid-strategy: schema, registry, caps, local schemas, and import boundaries OK
+pack narrative: schema, registry, caps, local schemas, and import boundaries OK
+pack schema copy: in sync
+registry: 3 pack manifests in manifest order
+fixture cross-pack-import: PASS — rejected (checker exit 1): packs/fixtures/cross-pack-import/pack.json: caps is missing registered capabilities: fmv
+packs/fixtures/cross-pack-import/src/index.ts: imports another pack "grid-strategy" via "../../../grid-strategy/pack.json"
+fixture full: PASS — accepted (checker exit 0)
+fixture missing-probes: PASS — rejected (checker exit 1): packs/fixtures/missing-probes/pack.json: /provides must have required property 'probes'
+packs/fixtures/missing-probes/pack.json: caps is missing registered capabilities: fmv
+fixture unknown-capability: PASS — rejected (checker exit 1): packs/fixtures/unknown-capability/pack.json: caps contains unknown capability "not-registered-capability"
+packs/fixtures/unknown-capability/pack.json: caps is missing registered capabilities: fmv
+
+check:packs passed
+
+```
+rc=0
+
+### `node public/ai/cf-play.mjs check public/campaigns/fmv-crossing`
+
+```text
+# Проверка кампании · Перекрёсток огней — FMV
+
+✓ проверка пройдена
+
+## Статика
+1 сцен · 1 локаций · 0 диалогов · 0 узлов ink
+ошибок 0 · предупреждений 0
+
+## Маршруты
+маршрутов нет (/home/user/narthex/public/campaigns/fmv-crossing/routes) — прогон только по seed'ам
+
+## Матрица seed'ов
+seed'ов 5 · исходы {"death":5}
+смерти: {"death: Смерть от истощения: жажда на нуле.":5}
+
+## Покрытие
+посещено 1 из 1 достижимых сцен
+
+
+```
+rc=0
+
+### `npm run build:playkit-bundle`
+
+```text
+
+> narthex@0.9.0 build:playkit-bundle
+> esbuild scripts/playkit/cli.mts --bundle --platform=node --format=esm --target=node20 --legal-comments=none --define:__CF_ENGINE_VERSION__=\"$npm_package_version\" --outfile=public/ai/cf-play.mjs
+
+
+  public/ai/cf-play.mjs  936.9kb
+
+⚡ Done in 77ms
+
+```
+rc=0
+
+### `npm run check:playkit-bundle`
+
+```text
+
+> narthex@0.9.0 check:playkit-bundle
+> tsx scripts/check-playkit-bundle.mts
+
+✓ public/ai/cf-play.mjs совпадает со сборкой из src (0.9.0, sha256 3d6152036d547c6c83ef53df0ac15d0935640b016d553823f1986e9ae2942281)
+
+```
+rc=0
+
+### `npm run publish:campaigns`
+
+```text
+
+> narthex@0.9.0 publish:campaigns
+> tsx scripts/campaign-copies.mts --write
+
+✓ adventure/ash-of-caerden-adventure: 100 файлов копии совпадают с паком
+✓ narrative/ash-of-caerden: 99 файлов копии совпадают с паком
+✓ narrative/fmv-crossing: 12 файлов копии совпадают с паком
+✓ публичные копии кампаний — артефакты паков: 3 из 3 сверены
+
+```
+rc=0
+
+### `npm run check:campaigns`
+
+```text
+
+> narthex@0.9.0 check:campaigns
+> tsx scripts/campaign-copies.mts
+
+✓ adventure/ash-of-caerden-adventure: 100 файлов копии совпадают с паком
+✓ narrative/ash-of-caerden: 99 файлов копии совпадают с паком
+✓ narrative/fmv-crossing: 12 файлов копии совпадают с паком
+✓ публичные копии кампаний — артефакты паков: 3 из 3 сверены
+
+```
+rc=0
+
+### `node public/ai/cf-play.mjs check public/campaigns/ash-of-caerden`
+
+```text
+# Проверка кампании · Пепел Каэрдена
+
+✓ проверка пройдена
+
+## Статика
+10 сцен · 8 локаций · 6 диалогов · 21 узлов ink
+ошибок 0 · предупреждений 8
+- flag_written_never_read: флаг «guard_ration_taken» выставляется, но нигде не читается
+- flag_written_never_read: флаг «herbs_gathered» выставляется, но нигде не читается
+- flag_written_never_read: флаг «market_raid_repelled» выставляется, но нигде не читается
+- flag_written_never_read: флаг «medallion_taken» выставляется, но нигде не читается
+- flag_written_never_read: флаг «raid_rumors» выставляется, но нигде не читается
+- flag_written_never_read: флаг «skeleton_looted» выставляется, но нигде не читается
+- flag_written_never_read: флаг «tavern_chest_opened» выставляется, но нигде не читается
+- flag_written_never_read: флаг «wrench_taken» выставляется, но нигде не читается
+
+## Маршруты
+маршрутов нет (/home/user/narthex/public/campaigns/ash-of-caerden/routes) — прогон только по seed'ам
+
+## Матрица seed'ов
+seed'ов 5 · исходы {"death":5}
+смерти: {"death: Смерть от истощения: жажда на нуле.":1,"death: Вы пали в бою.":4}
+
+## Покрытие
+посещено 6 из 10 достижимых сцен
+не покрыто: scene_gates_guardroom, scene_mine_deep, scene_mine_entrance, scene_ravine_camp
+
+
+```
+rc=0
+
+### `node public/ai/cf-play.mjs check public/campaigns/ash-of-caerden-adventure`
+
+```text
+# Проверка кампании · Пепел Каэрдена
+
+✓ проверка пройдена
+
+## Статика
+10 сцен · 8 локаций · 6 диалогов · 21 узлов ink
+ошибок 0 · предупреждений 8
+- flag_written_never_read: флаг «guard_ration_taken» выставляется, но нигде не читается
+- flag_written_never_read: флаг «herbs_gathered» выставляется, но нигде не читается
+- flag_written_never_read: флаг «market_raid_repelled» выставляется, но нигде не читается
+- flag_written_never_read: флаг «medallion_taken» выставляется, но нигде не читается
+- flag_written_never_read: флаг «raid_rumors» выставляется, но нигде не читается
+- flag_written_never_read: флаг «skeleton_looted» выставляется, но нигде не читается
+- flag_written_never_read: флаг «tavern_chest_opened» выставляется, но нигде не читается
+- flag_written_never_read: флаг «wrench_taken» выставляется, но нигде не читается
+
+## Маршруты
+маршрутов нет (/home/user/narthex/public/campaigns/ash-of-caerden-adventure/routes) — прогон только по seed'ам
+
+## Матрица seed'ов
+seed'ов 5 · исходы {"death":5}
+смерти: {"death: Смерть от истощения: жажда на нуле.":1,"death: Вы пали в бою.":4}
+
+## Покрытие
+посещено 6 из 10 достижимых сцен
+не покрыто: scene_gates_guardroom, scene_mine_deep, scene_mine_entrance, scene_ravine_camp
+
+
+```
+rc=0
+
+### `npm run probe:narrative-pack`
+
+```text
+
+> narthex@0.9.0 probe:narrative-pack
+> tsx packs/narrative/probes/campaign.mts
+
+✓ манифест и локальные схемы: 10 сцен, 8 локаций, 6 диалогов, 4 квеста
+✓ эталон не включает experimental fmv автоматически: прежние 15 caps сохранены
+✓ catalogue из packs/registry.json и pack.json:
+  narrative: narrative, scenes, dialogue, map, inventory, needs, skills, relationships, trade, combat, quests, cutscenes, fmv, codex, crafting, time
+  grid-strategy: grid, pathfinding, units, economy, ai-director
+  adventure: adventure
+✓ host + реальный маршрут: 20/20 детерминированы; view on/off sha256=4f42b2296e647c55ca3d54ae04e5af9e513f063ad046bf3c5c100749ca67b4fe
+✓ сцены, 6 диалогов и 4 квеста прошли через sim; view использовал только draw-порт
+✓ headless не вызывает view; исходное состояние не мутируется
+# Проверка кампании · Пепел Каэрдена
+
+✓ проверка пройдена
+
+## Статика
+10 сцен · 8 локаций · 6 диалогов · 21 узлов ink
+ошибок 0 · предупреждений 8
+- flag_written_never_read: флаг «guard_ration_taken» выставляется, но нигде не читается
+- flag_written_never_read: флаг «herbs_gathered» выставляется, но нигде не читается
+- flag_written_never_read: флаг «market_raid_repelled» выставляется, но нигде не читается
+- flag_written_never_read: флаг «medallion_taken» выставляется, но нигде не читается
+- flag_written_never_read: флаг «raid_rumors» выставляется, но нигде не читается
+- flag_written_never_read: флаг «skeleton_looted» выставляется, но нигде не читается
+- flag_written_never_read: флаг «tavern_chest_opened» выставляется, но нигде не читается
+- flag_written_never_read: флаг «wrench_taken» выставляется, но нигде не читается
+
+## Маршруты
+маршрутов нет (/home/user/narthex/packs/narrative/data/ash-of-caerden/routes) — прогон только по seed'ам
+
+## Матрица seed'ов
+seed'ов 5 · исходы {"death":5}
+смерти: {"death: Смерть от истощения: жажда на нуле.":1,"death: Вы пали в бою.":4}
+
+## Покрытие
+посещено 6 из 10 достижимых сцен
+не покрыто: scene_gates_guardroom, scene_mine_deep, scene_mine_entrance, scene_ravine_camp
+
+✓ эталон §2.1 на данных пака совпал: 0 errors / 8 warnings, 5 смертей, покрытие 6/10
+NARRATIVE_PACK_PROBE passed
+
+```
+rc=0
+
+### `npx tsc -b`
+
+```text
+
+```
+rc=0
+
+### `npx tsc … scripts/fmv-probe.mts (standalone strict)`
+
+```text
+
+```
+rc=0
+
+### `npx oxlint … FMV и narrative файлы`
+
+```text
+Found 0 warnings and 0 errors.
+Finished in 27ms on 7 files with 116 rules using 2 threads.
+
+```
+rc=0
+
+### `npm run check:core-graph`
+
+```text
+
+> narthex@0.9.0 check:core-graph
+> tsx scripts/core-graph.mts
+
+Core graph OK (34 modules; acyclic; no core imports of engine.ts).
+
+```
+rc=0
+
+### `npm run check:brand`
+
+```text
+
+> narthex@0.9.0 check:brand
+> tsx scripts/brand-guard.mts
+
+✓ старое имя не встречается (проверено файлов: 1043)
+
+```
+rc=0
+
+### `npm run check:version`
+
+```text
+
+> narthex@0.9.0 check:version
+> tsx scripts/version.mts check
+
+✓ версия 0.9.0 согласована: package.json, lock, Cargo.toml, Tauri (../package.json), гайд, CHANGELOG
+
+```
+rc=0
+
+### `декодирование всех WebM ffmpeg -f null`
+
+```text
+packs/narrative/data/fmv-crossing/assets/video/fragment_a.webm: decode rc=0
+packs/narrative/data/fmv-crossing/assets/video/fragment_b.webm: decode rc=0
+packs/narrative/data/fmv-crossing/assets/video/fragment_c.webm: decode rc=0
+
+```
+rc=0
+
+### `wc -l packs/narrative/**/*.ts`
+
+```text
+   13 packs/narrative/hooks.ts
+   35 packs/narrative/view.ts
+   83 packs/narrative/fmv-loader.ts
+  136 packs/narrative/types.ts
+  249 packs/narrative/probes/campaign.mts
+  284 packs/narrative/fmv.ts
+  347 packs/narrative/sim.ts
+ 1147 total
+
+```
+rc=0
+
+### `все 53 зарегистрированных smoke:*` (каждый через `npm run <имя>`)
+
+```text
+
+### 1/53 · npm run smoke:currency
+
+
+> narthex@0.9.0 smoke:currency
+> tsx scripts/currency-smoke.mts
+
+✓ Валюта: начальный баланс, траты и поступления синхронизированы с предметами в инвентаре
+
+rc=0
+
+### 2/53 · npm run smoke:ink-import
+
+
+> narthex@0.9.0 smoke:ink-import
+> tsx scripts/ink-import-smoke.mts
+
+✓ папка диалогов полигона на месте — 6 файлов
+✓ aldric.ink: импорт без потерь — 3 узлов
+✓ aldric.ink: тексты ответов сохранены (7)
+✓ aldric.ink: пороги условий сохранены (1)
+✓ aldric.ink: эффекты сохранены (5)
+✓ aldric.ink: нет мусорных скобок в репликах
+✓ bran.ink: импорт без потерь — 1 узлов
+✓ bran.ink: тексты ответов сохранены (4)
+✓ bran.ink: пороги условий сохранены (0)
+✓ bran.ink: эффекты сохранены (5)
+✓ bran.ink: нет мусорных скобок в репликах
+✓ corvin.ink: импорт без потерь — 1 узлов
+✓ corvin.ink: тексты ответов сохранены (5)
+✓ corvin.ink: пороги условий сохранены (1)
+✓ corvin.ink: эффекты сохранены (5)
+✓ corvin.ink: нет мусорных скобок в репликах
+✓ lena.ink: импорт без потерь — 1 узлов
+✓ lena.ink: тексты ответов сохранены (3)
+✓ lena.ink: пороги условий сохранены (1)
+✓ lena.ink: эффекты сохранены (2)
+✓ lena.ink: нет мусорных скобок в репликах
+✓ maeva.ink: импорт без потерь — 3 узлов
+✓ maeva.ink: тексты ответов сохранены (11)
+✓ maeva.ink: пороги условий сохранены (3)
+✓ maeva.ink: эффекты сохранены (13)
+✓ maeva.ink: нет мусорных скобок в репликах
+✓ yorek.ink: импорт без потерь — 3 узлов
+✓ yorek.ink: тексты ответов сохранены (4)
+✓ yorek.ink: пороги условий сохранены (1)
+✓ yorek.ink: эффекты сохранены (6)
+✓ yorek.ink: нет мусорных скобок в репликах
+✓ повторный импорт пересборки стабилен (aldric)
+✓ aldric.ink: round-trip посимвольный
+✓ bran.ink: round-trip посимвольный
+✓ corvin.ink: round-trip посимвольный
+✓ lena.ink: round-trip посимвольный
+✓ maeva.ink: round-trip посимвольный
+✓ yorek.ink: round-trip посимвольный
+✓ corvin: порог лечения hp ≥ 12 разобран — {"type":"hp_ge","value":12}
+✓ aldric.dlg.json: визуальный исходник на месте
+✓ aldric.dlg.json: название диалога по-русски — Алдрик, стражник ворот
+✓ aldric.dlg.json: названия узлов по-русски
+✓ bran.dlg.json: визуальный исходник на месте
+✓ bran.dlg.json: название диалога по-русски — Бран, торговец с рынка
+✓ bran.dlg.json: названия узлов по-русски
+✓ corvin.dlg.json: визуальный исходник на месте
+✓ corvin.dlg.json: название диалога по-русски — Отец Корвин, священник храма
+✓ corvin.dlg.json: названия узлов по-русски
+✓ lena.dlg.json: визуальный исходник на месте
+✓ lena.dlg.json: название диалога по-русски — Лена, ночная осведомительница
+✓ lena.dlg.json: названия узлов по-русски
+✓ maeva.dlg.json: визуальный исходник на месте
+✓ maeva.dlg.json: название диалога по-русски — Маэва, хозяйка «Дубового щита»
+✓ maeva.dlg.json: названия узлов по-русски
+✓ yorek.dlg.json: визуальный исходник на месте
+✓ yorek.dlg.json: название диалога по-русски — Йорек, вожак банды
+✓ yorek.dlg.json: названия узлов по-русски
+
+все проверки зелёные
+
+rc=0
+
+### 3/53 · npm run smoke:fingerprint
+
+
+> narthex@0.9.0 smoke:fingerprint
+> tsx scripts/fingerprint-smoke.mts
+
+✓ канонический JSON не зависит от порядка ключей
+✓ отпечаток стабилен при перемешивании ключей
+✓ смена полей публикации (author/attribution/series) отпечаток НЕ меняет — вор не «заначит» чужую кампанию сменой титула
+✓ смена контента отпечаток меняет
+✓ отпечаток считается без author/attribution вообще
+
+все проверки зелёные
+
+rc=0
+
+### 4/53 · npm run smoke:book-md
+
+
+> narthex@0.9.0 smoke:book-md
+> tsx scripts/book-md-smoke.mts
+
+✓ пункты оглавления не разваливаются (6 — один li)
+✓ продолжение пункта («версии») внутри того же li
+✓ маркированные пункты «О книге» без осиротевших строк
+✓ файлы книги на месте — 10
+✓ 01-quick-start.md: в параграфах нет <br/>
+✓ 01-quick-start.md: за списками не болтаются обрывки
+✓ 02-editor.md: в параграфах нет <br/>
+✓ 02-editor.md: за списками не болтаются обрывки
+✓ 03-content.md: в параграфах нет <br/>
+✓ 03-content.md: за списками не болтаются обрывки
+✓ 04-visual.md: в параграфах нет <br/>
+✓ 04-visual.md: за списками не болтаются обрывки
+✓ 05-mechanics.md: в параграфах нет <br/>
+✓ 05-mechanics.md: за списками не болтаются обрывки
+✓ 06-technical.md: в параграфах нет <br/>
+✓ 06-technical.md: за списками не болтаются обрывки
+✓ 07-ai.md: в параграфах нет <br/>
+✓ 07-ai.md: за списками не болтаются обрывки
+✓ 08-limits.md: в параграфах нет <br/>
+✓ 08-limits.md: за списками не болтаются обрывки
+✓ 09-license.md: в параграфах нет <br/>
+✓ 09-license.md: за списками не болтаются обрывки
+✓ README.md: в параграфах нет <br/>
+✓ README.md: за списками не болтаются обрывки
+✓ дизайн-документ отображает заголовки и inline Markdown
+✓ дизайн-документ отображает списки, цитату, таблицу и fenced code
+✓ форма задания ИИ ограничена высотой окна и имеет внутреннюю прокрутку
+✓ чипы задания ИИ используют одну контрастную палитру во всех темах редактора
+
+все проверки зелёные
+
+rc=0
+
+### 5/53 · npm run smoke:campaign-index
+
+
+> narthex@0.9.0 smoke:campaign-index
+> tsx scripts/campaign-index-smoke.mts
+
+✓ реестр кампаний отдаётся dev-сервером
+✓ реестр — массив
+✓ полигон смоуков не внесён в реестр
+✓ в реестре нет битых записей (у каждой есть каталог)
+✓ пустой реестр переживает гидратацию
+✓ название берётся из campaign.json, а не из реестра — Пепел Каэрдена
+✓ описание берётся из campaign.json (а не «захардкоженное»)
+✓ в списке нет устаревшего текста про банду Серого Йорека
+✓ id сохраняется
+✓ несуществующая кампания отфильтровывается
+✓ новая кампания кладёт описание в реестр
+✓ есть функция долива строки реестра
+✓ описание новой кампании не пустое
+✓ редактор сохраняет кампанию под неизменным ID из папки
+✓ импорт .narthex обновляет подпись, сохраняя ID текущей папки
+✓ в выпадающем списке редактора живое название открытой папки
+✓ меню дописывает текущую кампанию в список из файла
+✓ в приложении нет захардкоженной кампании по умолчанию
+✓ выбор кампании идёт через реестр (pickCampaign)
+
+все проверки зелёные
+
+rc=0
+
+### 6/53 · npm run smoke:guide
+
+
+> narthex@0.9.0 smoke:guide
+> tsx scripts/guide-schema-guard.mts
+
+✓ пример версии движка в гайде синхронизирован с ENGINE_VERSION
+    ожидается 0.9.0; не путать с version кампании
+✓ а) все JSON-литералы эффектов/условий в гайде валидны по схеме
+✓ б) каждый тип из схемы (129) упомянут в гайде
+    не упомянуты:
+✓ в) поля в сниппетах «тип { … }» существуют у этого типа
+✓ г) в бэктиках гайда нет несуществующих механик
+    не нашли в схеме, в лексике полигона и в ENGINE_VOCABULARY:
+
+гайд и схема согласованы
+
+rc=0
+
+### 7/53 · npm run smoke:design-doc
+
+
+> narthex@0.9.0 smoke:design-doc
+> tsx scripts/design-doc-guard.mts
+
+✓ бланк: все обязательные разделы на месте и по порядку
+✓ бланк: сначала план, затем полный результат в том же ответе
+✓ бланк: в теле нет технических идентификаторов вне приложения (§R7)
+✓ инструкция: сначала дизайн-документ, затем полный результат в том же ответе
+✓ инструкция: документ обновляется на каждой итерации
+✓ инструкция: задача выполняется целиком без ожидания «ок» и вопросов
+✓ бланк: дизайн-документ не используется как этап подтверждения
+✓ инструкция: полный результат — .narthex, JSON оставлен для правок без медиа
+✓ §0 гайда синхронизирован с docs/ai-start-instruction.md
+✓ заголовок §0 — «С чего начать», без упоминания стартового txt
+✓ манифест справочных файлов совпадает с public/ai
+✓ задание ИИ собирает контекст кампании, бриф, руководство и отчёт проверки
+✓ campaign.schema.json: design_doc есть в CampaignMeta и необязателен
+    type=string
+
+дизайн-документ согласован
+
+rc=0
+
+### 8/53 · npm run smoke:quest-journal
+
+
+> narthex@0.9.0 smoke:quest-journal
+> tsx scripts/quest-journal-smoke.mts
+
+✓ j_search resolves to Russian text and its publishing stage — Начало — Отец Корвин просит вернуть медальон Вечного Света: вор, укравший реликвию, сгинул в забро…
+✓ j_found resolves to Russian text and its publishing stage — Реликвия найдена — Медальон у меня. Осталось вернуть его отцу Корвину в храм.
+✓ j_completed resolves to Russian text and its publishing stage — Завершение — Реликвия вернулась в храм. Корвин благословил меня — рука теперь твёрже уходит от ударов,…
+✓ new journal keys use their own namespace, not stage ids
+✓ new journal keys avoid collisions
+✓ unmapped record still gets a human-readable fallback
+ALL GREEN
+
+rc=0
+
+### 9/53 · npm run smoke:quest-journal-runtime
+
+
+> narthex@0.9.0 smoke:quest-journal-runtime
+> tsx scripts/quest-journal-runtime-smoke.mts
+
+✓ starting stage publishes its independent j_search key
+✓ found stage publishes its independent j_found key
+✓ final stage publishes its independent j_completed key
+✓ player journal contains prose, not internal keys
+ALL GREEN
+
+rc=0
+
+### 10/53 · npm run smoke:p2
+
+
+> narthex@0.9.0 smoke:p2
+> tsx scripts/p2-mechanics-smoke.mts
+
+✓ 1 до правила состояние облика не задано
+✓ 1 правило задало состояние облика
+✓ 1 пустая строка снимает состояние
+✓ 1 сцена спрашивает движок о состоянии облика
+✓ 1 состояние движка сильнее свойства слота
+✓ 1 портрет в диалоге берёт состояние движка
+✓ 2 цепочка дошла до третьего звена
+✓ 2 четвёртое звено отброшено ограничением глубины
+✓ 2 в журнале сказано про глубину цепочки — е»
+Кодекс пополнен: Долина Каэрден.
+Правило не вызвано: превышена глубина цепочки вызовов.
+✓ 2 условие once вызываемого правила соблюдено
+✓ 3 закрытый рецепт не виден игроку — recipe_open_bread
+✓ 3 открытый рецепт виден сразу
+✓ 3 unlock_recipe открыл рецепт
+✓ 3 внешняя команда Ink unlock_recipe есть
+✓ 3 редактор умеет «Открыть по ходу игры»
+✓ 4 первый забег: runs = 1 — 1
+✓ 4 endings_seen = 0 до концовки
+✓ 4 счётчик забега читается как есть — 3
+✓ 4 концовка записана в хронику — ["ending_test"]
+✓ 4 endings_seen = 1
+✓ 4 victories = 1
+✓ 4 мета-счётчик сложился с прошлым забегом — 3
+✓ 4 runs = 2 после второго забега — 2
+✓ 4 без metaprogress хроника на диск не пишется — narthex:meta:p2-smoke-chronicle, narthex:save:p2-smoke-chronicle
+✓ 4 условие meta_counter исполняется
+✓ 4 условие meta_counter умеет быть ложным
+✓ 5 петля правил найдена с цепочкой — Кампания: не заполнена версия (нужна для обновлений и совместимости сохранений)
+✓ 5 в отчёте сказано про глубину 2
+✓ 5 несуществующее правило в fire_rule найдено — Кампания: не заполнена версия (нужна для обновлений и совместимости сохранений) | Правило «Вызов несуществующего правила»: эффект вызывает несуществующее правило «rule_no_such» | Правило «Открытие несуществующего рецепта»: открывается несуществующий рецепт «recipe_no_such» | Правило «Состояние облика не тому персонажу»: состояние облика назначается несуществующему персонажу «npc_no_such» | Правило «Состояние облика, которого нет»: состояние облика назначается несуществующему персонажу «npc_no_such» | Правило «Состояние облика, которого нет»: у персонажа «npc_maeva» нет состояния облика «withered» (есть: , neutral) | Кампания: стартовая локация «undefined» не найдена | Кампания: персонаж игрока «undefined» не найден
+✓ 5 несуществующий рецепт в unlock_recipe найден
+✓ 5 несуществующий персонаж в set_entity_state найден
+✓ 5 несуществующее состояние облика найдено — Кампания: не заполнена версия (нужна для обновлений и совместимости сохранений) | Правило «Вызов несуществующего правила»: эффект вызывает несуществующее правило «rule_no_such» | Правило «Открытие несуществующего рецепта»: открывается несуществующий рецепт «recipe_no_such» | Правило «Состояние облика не тому персонажу»: состояние облика назначается несуществующему персонажу «npc_no_such» | Правило «Состояние облика, которого нет»: состояние облика назначается несуществующему персонажу «npc_no_such» | Правило «Состояние облика, которого нет»: у персонажа «npc_maeva» нет состояния облика «withered» (есть: , neutral) | Кампания: стартовая локация «undefined» не найдена | Кампания: персонаж игрока «undefined» не найден
+✓ 5 прямое самовызов правила найдено — Кампания: не заполнена версия (нужна для обновлений и совместимости сохранений) | Правила вызывают друг друга по кругу: «Сам в себя» → «Сам в себя». Разорвите цепочку: вложенных вызовов правил может быть не больше 2, а правило не должно возвращаться в себя. | Кампания: стартовая локация «undefined» не найдена | Кампания: персонаж игрока «undefined» не найден
+✓ 5 корректная ссылка unlock_recipe не ругается — Кампания: не заполнена версия (нужна для обновлений и совместимости сохранений) | Кампания: стартовая локация «undefined» не найдена | Кампания: персонаж игрока «undefined» не найден
+✓ 6 неизвестный рецепт создан закрытым — false
+✓ 6 неизвестное состояние облика добавлено пустым
+✓ 6 несуществующее правило вызова стало заглушкой — Правило «rule_ghost2» не найдено — создана заглушка
+✓ 6 починка не падает
+✓ 6 оба объекта с «одинаковым» именем файла сохранены — scene_old_map.json, scene_old_map_2.json
+✓ 6 о совпадении имён сказано в отчёте — Сцена «scene_old_map»: имя файла scene_old_map.json уже занято другим объектом — записан как scene_old_map_2.json
+✓ 6 id обоих объектов целы — scene_old-map, scene_old_map
+✓ 7 28 повторов схлопнуты в одну строку — Сущность «item_шелка_1» не найдена — создана заглушка (таких 28: item_шелка_1, item_шелка_2, item_шелка_3, …)
+✓ 7 в строке есть счётчик и имена — Сущность «item_шелка_1» не найдена — создана заглушка (таких 28: item_шелка_1, item_шелка_2, item_шелка_3, …)
+✓ 7 подпись для мастера непустая
+✓ 7 две одинаковые строки не схлопываются — 4
+✓ 7 без повторов подпись пустая
+✓ 7 чужие строки не слипаются — Сущность «item_шелка_1» не найдена — создана заглушка (таких 28: item_шелка_1, item_шелка_2, item_шелка_3, …) | Совсем другая проблема
+✓ 7 окно отчёта схлопывает повторы
+
+все проверки пройдены
+
+rc=0
+
+### 11/53 · npm run smoke:ai-runtime
+
+
+> narthex@0.9.0 smoke:ai-runtime
+> tsx scripts/ai-runtime-smoke.mts
+
+✓ 1 empty schedule[] → default_entity виден — got npc_term
+✓ 1 непустой schedule → default НЕ дублируется — got undefined
+✓ 2 EXTERNAL unlock_recipe
+✓ 2 EXTERNAL unlock_codex
+✓ 2 EXTERNAL apply_status
+✓ 2 EXTERNAL set_weather
+✓ 2 ink с unlock_* компилируется
+✓ 3 firstInkKnot n_start
+✓ 3 firstInkKnot main
+✓ 3 диалог без main открывается через n_start
+✓ 3 реплика из n_start — Привет из n_start.
+✓ 3 флаг talked после входа
+✓ 3 resolveDialogueSource по голому id
+✓ 4 ошибка компиляции содержит id — Ink «dlg_broken»: ERROR: line 2: Expected closing ')' for function call but saw
+✓ 5 assetUrlOrNull(null) → null
+✓ 5 assetUrlOrNull("") → null
+✓ 5 assetUrlOrNull("  ") → null
+✓ 5 assetUrlOrNull(path) → url
+✓ 5 пустая строка truthy в JS, но не URL
+✓ 5 "" не годится как src
+✓ 6 ash загрузился — ash-of-caerden
+✓ 6 bran.ink (main) открывается
+✓ 6 bran.schedule непустой (полигон-канон)
+✓ 6 bran.dlg → ink компилируется
+✓ 6 regen bran ink валиден
+✓ 7 EXTERNAL get_player_name
+✓ 7 ink с {имя} компилируется
+✓ 8 personal на id NPC
+✓ 8 faction отдельно
+✓ 8 getDisposition = personal+faction+base — 15
+✓ 9 без флага — не на sc
+✓ 9 флаг → presence на sc — npc_p
+✓ 11 tick_elapsed после advanceTicks
+✓ 10 диалог открыт
+✓ 10 game_over victory
+✓ 10 ending по флагу — ending_flag
+✓ 10 dialogue закрыт после game_over
+
+all ok
+
+rc=0
+
+### 12/53 · npm run smoke:ai-task
+
+
+> narthex@0.9.0 smoke:ai-task
+> tsx scripts/ai-task-smoke.mts
+
+✓ медиа-аудит видит локальные ссылки, не только assets/
+✓ полный пакет редактирования получает расширение .narthex — 71859689-4f59-4f6d-9399-9e42bbbff2e3-full-task.narthex
+✓ AI-пакет сохраняет структуру Campaign Package
+✓ AI-пакет содержит единый brief и отчёт по категориям
+✓ AI-пакет несёт руководство, схему и бланк
+✓ плейтест/медиа/структура присутствуют в отчёте
+✓ AI-пакет передаёт агенту существующий ID
+✓ новая кампания получает пакет инструкций без фиктивного исходного проекта
+✓ служебная папка AI не попадает в установленную кампанию
+✓ повтор того же AI-пакета распознаётся как тот же пакет — {"id":"71859689-4f59-4f6d-9399-9e42bbbff2e3","title":"AI Task Smoke","author":"","description":"Новая кампания. Опишите её в разделе «Кампания».","alreadyInstalled":true}
+✓ AI-task smoke-test восстановил исходный реестр
+ALL GREEN
+
+rc=0
+
+### 13/53 · npm run smoke:char-templates
+
+
+> narthex@0.9.0 smoke:char-templates
+> tsx scripts/char-template-smoke.mts
+
+✓ аудит находит все 3 неверных происхождения и все 9 сочетаний призваний — найдено 12
+✓ аудит показывает перерасход характеристик на 22 очка
+✓ аудит учитывает бесплатные бонусы профессии для навыков
+✓ стартовый шаблон автоматически тратит ровно оба бюджета
+✓ стартовый шаблон после нормализации можно запустить
+✓ все 9 сочетаний происхождения и призвания соответствуют точным бюджетам — 9 сочетаний
+✓ бесплатный бонус происхождения к запрещённому навыку не считается покупкой
+INFO  _backlog/campaign.json нет — образец «Тишины Орфея» пропущен
+✓ по умолчанию бриф не навязывает жанр, масштаб, акценты или боёвку
+✓ соотношение добавляется в задачу только после явного выбора
+✓ системная инструкция явно оставляет пропущенные настройки необязательными
+✓ задание требует точного расхода бюджета для каждой пары шаблонов
+ALL GREEN
+
+rc=0
+
+### 14/53 · npm run smoke:no-campaign
+
+
+> narthex@0.9.0 smoke:no-campaign
+> tsx scripts/no-campaign-smoke.mts
+
+✓ поставка начинается с пустого реестра
+✓ демо-полигон не доступен игроку
+✓ полигон смоуков на месте и помечен
+✓ полигон не содержит тяжёлых файлов
+✓ в полигоне нет экспортируемых изображений
+✓ данные полигона сохраняют ссылки на изображения
+✓ нет захардкоженной кампании по умолчанию
+✓ выбор кампании идёт из реестра
+✓ пустой реестр не грузит несуществующий путь
+✓ движок показывает экран без кампаний
+✓ экран пустого реестра предлагает создать и загрузить кампанию
+✓ движок и редактор целы
+✓ создание выдаёт UUID, а не slug названия
+✓ JSON-импорт пустого редактора выдаёт приложением новый ID
+✓ JSON-импорт существующей кампании сохраняет ID папки
+✓ Save не переносит папку при попытке изменить ID
+✓ редактор доступен без кампании
+✓ из пустого редактора можно создать и импортировать кампанию
+✓ ID инициализируется при пустом JSON-импорте
+✓ импорт .narthex спрашивает об обновлении/копии при конфликте
+✓ пустой локальный реестр доступен — []
+✓ отсутствующий каталог не считается кампанией
+✓ атомарная резервация даёт ровно одному процессу владение ID
+✓ ID, уже занятый папкой, не резервируется повторно
+✓ новая кампания получает UUID независимо от названия — 3069104e-c54e-4412-855e-acfb0b361044 / 0e20a672-2684-46bd-a69d-0f28f7974c1e
+✓ смена названия не связана с ID
+✓ свободный .narthex сохраняет исходный стабильный ID
+✓ повторный идентичный импорт распознаётся и не дублируется
+✓ отсутствующий в архиве файл считается конфликтом содержимого
+✓ без обработчика конфликта импорт безопасно отменяется
+✓ обновление сохраняет исходный ID и просит явный выбор
+✓ обновление заменило метаданные в существующей папке
+✓ отдельная копия получает новый UUID
+✓ копирование не перезаписывает исходную кампанию
+✓ отмена конфликта не пишет пакет
+✓ пакет без ID получает новый UUID, не slug из названия
+✓ после теста реестр очищен
+
+ALL GREEN
+
+rc=0
+
+### 15/53 · npm run smoke:chronicle-manifest
+
+
+> narthex@0.9.0 smoke:chronicle-manifest
+> tsx scripts/chronicle-manifest-smoke.mts
+
+chronicle-manifest-smoke: ALL GREEN
+
+rc=0
+
+### 16/53 · npm run smoke:dialogues-r31
+
+
+> narthex@0.9.0 smoke:dialogues-r31
+> tsx scripts/dialogues-round31-smoke.mts
+
+
+ПРОПУСК: нет фикстуры _ai-temp/campaing/campaign/dialogues
+  не проверено: импорт шести ink-диалогов кампании сценариста без предупреждений
+  почему: одноразовая кампания удалена из репозитория (_ai-temp).
+  как вернуть: положить кампанию по этому пути или переписать смоук на фикстуру в tests/fixtures.
+
+
+rc=0
+
+### 17/53 · npm run smoke:dialogues-r32
+
+
+> narthex@0.9.0 smoke:dialogues-r32
+> tsx scripts/dialogues-round32-smoke.mts
+
+
+ПРОПУСК: нет фикстуры _ai-temp/campaing
+  не проверено: экипировка, диалоги, условия и починка сохранений на кампании сценариста
+  почему: одноразовая кампания удалена из репозитория (_ai-temp).
+  как вернуть: положить кампанию по этому пути или переписать смоук на фикстуру в tests/fixtures.
+
+
+rc=0
+
+### 18/53 · npm run smoke:breathe-toggle
+
+
+> narthex@0.9.0 smoke:breathe-toggle
+> tsx scripts/breathe-toggle-smoke.mts
+
+--- Смоук-тест: Управление эффектом живого дыхания сущностей ---
+✓ 1. Поле breathe добавлено в типы сущностей
+✓ 2. Логика shouldBreathe корректна: NPC по умолчанию дышит, робот с breathe:false нет, предметы по умолчанию нет
+✓ 3. Класс cf-breathe применяется к спрайту
+✓ 4. Анимация cf-breathe объявлена в index.css с transform-origin: bottom center
+✓ 5. В редакторе NPC есть переключатель дыхания (с возможностью отключить для роботов)
+✓ 6. В редакторе предметов есть переключатель дыхания для живых артефактов
+✓ 7. В руководстве ИИ зафиксировано требование отключать breathe для роботов и механизмов
+breathe-toggle-smoke: ALL GREEN
+
+rc=0
+
+### 19/53 · npm run smoke:scene-subtitles
+
+
+> narthex@0.9.0 smoke:scene-subtitles
+> tsx scripts/scene-subtitles-and-state-smoke.mts
+
+--- Смоук-тест: Лайтбокс, приоритет состояний сцены и чистые подзаголовки ---
+✓ 1. Лайтбокс картинок смонтирован через createPortal в document.body
+✓ 2. Лайтбокс имеет zIndex 999999 и перекрывает сцену
+✓ 3. Лайтбокс закрывается по Escape
+✓ 4. В редакторе сцен по умолчанию открывается базовое состояние без условий
+✓ 5. В движке состояния с условиями проверяются с приоритетом, а базовое служит фоллбэком
+✓ 6. В руководстве ИИ зафиксирован регламент порядка состояний сцены
+✓ 7. Реализована функция formatSceneSubtitle
+✓ 8. Убрана конкатенация с техническими «Всегда» и «Днём»
+scene-subtitles-and-state-smoke: ALL GREEN
+
+rc=0
+
+### 20/53 · npm run smoke:scene-editor
+
+
+> narthex@0.9.0 smoke:scene-editor
+> tsx scripts/scene-editor-tabs-smoke.mts
+
+--- Смоук-тест: Вкладки инспектора сцены и ручной ввод координат ---
+✓ 1. Тип SceneTab объявлен с вкладками object / scene / states
+✓ 2. Начальное состояние вкладки — object
+✓ 3. Вкладки инспектора используют класс scene-inspector-tabs
+✓ 4. Вкладки имеют понятные русские названия
+✓ 5. Клик по объекту на холсте или создание переключает на вкладку object
+✓ 6. Выбранный объект имеет верхнюю панель быстрого управления
+✓ 7. Доступен быстрый возврат ко всем объектам и удаление
+✓ 8. Когда объект не выбран, отображается удобный каталог объектов
+✓ 9. Компонент RectCoordsEditor реализован
+✓ 10. RectCoordsEditor подключен к слотам и переходам
+✓ 11. Панель scene-props зафиксирована sticky для комфортной работы
+✓ 12. Стили вкладок добавлены в editor.css
+✓ 13. Элементы каталога объектов сцены оформлены
+scene-editor-tabs-smoke: ALL GREEN
+
+rc=0
+
+### 21/53 · npm run smoke:editor-hotspot
+
+
+> narthex@0.9.0 smoke:editor-hotspot
+> tsx scripts/editor-and-hotspot-smoke.mts
+
+--- Смоук-тест: Хотспоты окружения, превью в редакторе сущностей и спрайты в сценах ---
+✓ Все проверки хотспотов окружения, спрайтов, превью редактора, синхронной камеры, ручных координат и локализации пройдены успешно!
+
+rc=0
+
+### 22/53 · npm run smoke:voice-dedup
+
+
+> narthex@0.9.0 smoke:voice-dedup
+> tsx scripts/voice-dedup-smoke.mts
+
+--- Смоук-тест: Voice Coordinator и защита от задваивания озвучки ---
+✓ Все проверки Voice Coordinator и защиты от задваивания прошли успешно!
+
+rc=0
+
+### 23/53 · npm run smoke:narrative-intro
+
+
+> narthex@0.9.0 smoke:narrative-intro
+> tsx scripts/narrative-intro-and-ai-features-smoke.mts
+
+--- Смоук-тест: narrative_intro, сброс флагов и Ink binding ---
+✓ Все проверки narrative_intro, сброса флагов и Ink binding прошли успешно!
+
+rc=0
+
+### 24/53 · npm run smoke:encounters-loader
+
+
+> narthex@0.9.0 smoke:encounters-loader
+> tsx scripts/encounters-loader-smoke.mts
+
+
+ПРОПУСК: нет фикстуры _ai-temp/campaing/campaign
+  не проверено: загрузка кампании с таблицами встреч (encounters/ и rules/)
+  почему: одноразовая кампания удалена из репозитория (_ai-temp).
+  как вернуть: положить кампанию по этому пути или переписать смоук на фикстуру в tests/fixtures.
+
+
+rc=0
+
+### 25/53 · npm run smoke:manifest-order
+
+
+> narthex@0.9.0 smoke:manifest-order
+> tsx scripts/manifest-order-smoke.mts
+
+✓ manifest-order smoke: rules, encounters, and rule traversal follow manifest order under reversed fetch completion
+
+rc=0
+
+### 26/53 · npm run smoke:engine-version
+
+
+> narthex@0.9.0 smoke:engine-version
+> tsx scripts/engine-version-smoke.mts
+
+engine-version-smoke: ALL GREEN (engine 0.9.0)
+
+rc=0
+
+### 27/53 · npm run smoke:hero-appearance
+
+
+> narthex@0.9.0 smoke:hero-appearance
+> tsx scripts/hero-appearance-smoke.mts
+
+✓ создание заранее выбирает по первому варианту каждого сегмента
+✓ постоянный внешний вид сохраняется в состоянии игрока
+✓ базовый портрет строится по слоям в заданном порядке
+✓ черта внешности задаёт постоянную фигурку боя
+✓ надетый предмет появляется поверх портрета героя
+✓ смена экипировки не меняет боевую фигурку
+✓ снятие слоя экипировки убирает его с портрета
+ALL GREEN
+
+rc=0
+
+### 28/53 · npm run smoke:theme-contrast
+
+
+> narthex@0.9.0 smoke:theme-contrast
+> tsx scripts/theme-contrast-smoke.mts
+
+OK: контраст поверхностей, модальные окна и границы редактирования UI
+
+rc=0
+
+### 29/53 · npm run smoke:dialogue-transitions
+
+
+> narthex@0.9.0 smoke:dialogue-transitions
+> tsx scripts/smoke-dialogue-transitions.mts
+
+Testing Dialogue Transitions (Scene, Combat, State, Endings)...
+1. Проверка смены состояния сцены прямо из диалога...
+✓ change_scene_state работает штатно!
+2. Проверка перехода в другую сцену из диалога...
+✓ go_to_scene работает штатно!
+3. Проверка запуска боя из диалога...
+✓ start_combat работает штатно!
+4. Проверка завершения игры (Bad End) из диалога...
+✓ game_over_death работает штатно!
+✓ Все 4 вида диалоговых переходов успешно верифицированы!
+
+rc=0
+
+### 30/53 · npm run smoke:dialogue-skip
+
+
+> narthex@0.9.0 smoke:dialogue-skip
+> tsx scripts/smoke-dialogue-skip-and-item-modal.mts
+
+--- Запуск smoke-dialogue-skip-and-item-modal ---
+✓ smoke-dialogue-skip-and-item-modal: ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ!
+
+rc=0
+
+### 31/53 · npm run smoke:travel-transition
+
+
+> narthex@0.9.0 smoke:travel-transition
+> tsx scripts/smoke-location-travel-transition.mts
+
+--- Смоук-тест: Кинематографичный переход между локациями и открытка карты ---
+✓ 1. MapScreen содержит стилизованную открытку-превью локации (travel-postcard, travel-postcard-img)
+✓ 2. Открытка содержит бейдж назначения и кнопку закрытия карточки
+✓ 3. Реализовано форматирование времени в пути со склонениями (час, часа, часов)
+✓ 4. Реализован кинематографичный оверлей пути между локациями (travel-journey-overlay, travel-journey-card)
+✓ 5. Оверлей пути содержит анимированный компас и полосу прогресса маршрута
+✓ 6. Поддерживается пропуск пути кликом/клавишей и подсветка выбранного маркера на карте
+✓ 7. Карточка подтверждения пути центрирована (translate: -50% 0) и ограничена по ширине min(440px)
+✓ 8. Открытка локации зафиксирована по высоте (140px) с overflow: hidden для предотвращения расползания
+✓ 9. Изображение открытки масштабируется пропорционально (object-fit: cover)
+✓ 10. Оверлей пути оформлен атмосферным радиальным градиентом и размытием
+✓ 11. Присутствуют ключевые кадры анимации полосы пути и стрелки компаса
+✓ 12. Выбранный маркер локации выделяется золотым сиянием (.map-pin.is-selected)
+
+smoke-location-travel-transition: ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ!
+
+rc=0
+
+### 32/53 · npm run smoke:stranger
+
+
+> narthex@0.9.0 smoke:stranger
+> tsx scripts/smoke-stranger-and-triggers.mts
+
+Testing Stranger Mechanics and Event Triggers...
+1. Проверка механики «Незнакомец»...
+✓ Механика «Незнакомец» работает безошибочно!
+2. Проверка условий перехода и блокировки...
+✓ Блокировка и условия перехода работают корректно!
+3. Проверка событийного триггера enter_scene...
+✓ Событийный триггер enter_scene сработал штатно!
+4. Проверка оклика-диалога перед выходом...
+✓ Перехват перехода диалогом (оклик стража) работает корректно!
+✓ Все тесты механики «Незнакомец» и событийных триггеров успешно пройдены!
+
+rc=0
+
+### 33/53 · npm run smoke:encumbrance
+
+
+> narthex@0.9.0 smoke:encumbrance
+> tsx scripts/encumbrance-smoke.mts
+
+--- Запуск encumbrance-smoke ---
+✓ encumbrance-smoke: ВСЕ ТЕСТЫ ПРОЙДЕНЫ УСПЕШНО!
+
+rc=0
+
+### 34/53 · npm run smoke:cutscene-queue
+
+
+> narthex@0.9.0 smoke:cutscene-queue
+> tsx scripts/smoke-cutscene-postcard-queue.mts
+
+--- Запуск smoke:cutscene-postcard-queue ---
+Проверяем, что во время катсцены открытка сохраняется и не исчезает...
+✓ smoke:cutscene-postcard-queue: ВСЕ ПРОВЕРКИ ОЧЕРЕДИ КАТСЦЕН И ОТКРЫТОК ПРОЙДЕНЫ!
+
+rc=0
+
+### 35/53 · npm run smoke:spoil
+
+
+> narthex@0.9.0 smoke:spoil
+> tsx scripts/spoil-smoke.mts
+
+--- Запуск spoil-smoke ---
+✓ spoil-smoke: ВСЕ ТЕСТЫ ПОРЧИ ПРЕДМЕТОВ ПРОЙДЕНЫ УСПЕШНО!
+
+rc=0
+
+### 36/53 · npm run smoke:time-semantics
+
+
+> narthex@0.9.0 smoke:time-semantics
+> tsx scripts/time-semantics-smoke.mts
+
+--- time-semantics-smoke ---
+✓ time-semantics-smoke: все группы проверок зелёные
+
+rc=0
+
+### 37/53 · npm run smoke:ai-diff
+
+
+> narthex@0.9.0 smoke:ai-diff
+> tsx scripts/ai-diff-smoke.mts
+
+--- ai-diff-smoke ---
+✓ ai-diff-smoke: все проверки зелёные
+
+rc=0
+
+### 38/53 · npm run smoke:view-write
+
+
+> narthex@0.9.0 smoke:view-write
+> tsx scripts/view-write-smoke.mts
+
+✓ статика: все вызовы .touch( в src/editor объяснены действием мастера (43 сайтов)
+✓ динамика: загрузка эталонной кампании (95 файлов) не порождает ни одного ряда в diff
+✓ двойная сериализация 89 JSON-документов стабильна
+
+инвариант зелёный
+
+rc=0
+
+### 39/53 · npm run smoke:core
+
+
+> narthex@0.9.0 smoke:core
+> tsx scripts/core-semantics-smoke.mts
+
+✓ startTick читает starting_tick
+✓ tick_elapsed сравнивает с абсолютным тиком (граница)
+✓ elapsed_ge считает «прошло с начала забега» (tick − startTick)
+✓ set_flag ставит флаг; flag_set/flag_not_set читают его
+✓ clear_flag снимает флаг
+✓ changeNeed клэмпит сверху к max
+✓ changeNeed клэмпит снизу к 0 (смерть/правило нуля отдельно)
+✓ рост потребности делится с напарником
+✓ убыль потребности напарнику не передаётся
+✓ без feature «needs» changeNeed — no-op
+✓ changeHp клэмпит к max_hp
+✓ HP ≤ 0 → game_over
+✓ после game_over лечение забега не воскрешает
+✓ цепочка A→B срабатывает, третий уровень (C) обрезан потолком вложенности
+
+все якоря зелёные
+
+rc=0
+
+### 40/53 · npm run smoke:pack-missing
+
+
+> narthex@0.9.0 smoke:pack-missing
+> tsx --tsconfig tsconfig.app.json scripts/smoke/pack-missing-smoke.mts
+
+✓ cf-play check отказал кодом PACK_MISSING, без исключения; диагностический текст совпал со Studio
+  PACK_MISSING: Тип проекта «narrative» не установлен: нужен пак «Narrative & Branching» (narrative). Установите каталог packs/narrative/ с pack.json, добавьте «narrative» в packs/registry.json и перезапустите студию.
+✓ тот же проект с установленным паком: cf-play check rc=0, эталон §2.1 совпал
+✓ Studio открыла проект в отказном экране с названием пака и инструкцией; сейв SHA-256 не изменился
+✓ Studio открыла тот же проект обычным путём при установленном паке
+PACK_MISSING_SMOKE passed · PACK_MISSING · save sha256=10c16c31885a133303544335a80870936fcd2969e5ecdd890a3763837084fc2f
+
+rc=0
+
+### 41/53 · npm run smoke:capability-modes
+
+
+> narthex@0.9.0 smoke:capability-modes
+> tsx scripts/smoke/capability-modes-smoke.mts
+
+CAPABILITY_MODES_SMOKE passed
+
+rc=0
+
+### 42/53 · npm run smoke:dlg-script
+
+
+> narthex@0.9.0 smoke:dlg-script
+> tsx scripts/dlg-script-smoke.mts
+
+✓ 1 пример разбирается без ошибок
+✓ 1 узлы и название прочитаны
+✓ 1 ремарка отделена от речи
+✓ 1 условие с веткой «иначе» собрано
+✓ 1 эффект «выдать» понят названием предмета
+✓ 1 варианты и переходы на месте
+✓ 1 флаг из реестра не пересоздан
+✓ 2 повторная запись не теряет структуру
+✓ 2 текст сценария стабилен
+✓ 2 в тексте нет id и служебных слов ink
+✓ 3 условия разобраны без ошибок
+✓ 3 навык с порогом
+✓ 3 отношение к NPC
+✓ 3 предметов не меньше двух
+✓ 3 счётчик хроники
+✓ 3 два условия через «и»
+✓ 3 «нет» — отрицание флага
+✓ 4 проверка навыка собрана
+✓ 4 ветки успеха и провала раздельны
+✓ 4 новый флаг зарегистрирован сам
+✓ 4 ветки переживают круг
+✓ 5 опечатка в предмете — ошибка с подсказкой
+✓ 5 «[иначе]» без условия — ошибка
+✓ 5 вариант без текста — ошибка
+✓ 5 переход в неизвестный узел — предупреждение
+✓ 5 неизвестная команда — ошибка со списком команд
+✓ 6 ремарка помечена
+✓ 6 облик одной реплики
+✓ 6 озвучка
+✓ 6 пометки переживают круг
+✓ 7 документ конструктора пишется словами
+✓ 7 круг «формы → сценарий → формы» не теряет условия и таймер
+✓ 8 ink собирается из сценария
+✓ 8 ink читается обратно без замечаний
+✓ 8 узлы после круга через ink те же
+
+мастерский сценарий: все проверки зелёные
+
+rc=0
+
+### 43/53 · npm run smoke:dlg-ui
+
+
+> narthex@0.9.0 smoke:dlg-ui
+> tsx --tsconfig tsconfig.app.json scripts/dlg-ui-smoke.mts
+
+✓ U демо-кампания открыта в редакторе — Пепел Каэрдена
+✓ U в кампании есть флаг и предмет для условий — Алдрик отказал в пайке / Бочка с водой
+✓ U сценарий разобран без ошибок
+✓ U ink собран из сценария
+✓ U открывается вкладка «Сценарий»
+✓ U текст сценария виден мастеру
+✓ U есть кнопка проверки разговора
+✓ U служебные команды ink в текст не попали
+✓ U ошибка мастера видна строкой с номером
+✓ U движок проверки открывает разговор
+✓ U собеседник — владелец разговора — npc_guard_aldric
+✓ U реплики пришли из сценария — Собеседник поднимает глаза от бумаг. / Приветствую. / Мы не знакомы.
+✓ U ремарка отдана курсивом (action)
+✓ U варианты на месте — ["Кто вы?","Уйти."]
+✓ U условный вариант скрыт без флага
+✓ U с флагом ветка открывается
+✓ U ветка «иначе» сменилась на «если»
+✓ U эффект из сценария выдан
+✓ U разговор без владельца играет временный собеседник
+✓ П оверлей проверки открывается
+✓ П есть кнопки пересборки и панель проверки
+✓ ИИ импорт: текст разобран в формы — 1
+✓ ИИ импорт: ink собран из текста
+✓ ИИ импорт: предупреждений о разговоре нет
+✓ ИИ импорт: ошибка текста названа строкой — Диалог «maeva»: строка 2 — не понимаю команду «полетать: высоко». Команды: запомнить, забыть, выдать, забрать, сцена, бой, состояние сцены, гибель, победа, правило, отряд, торговля, изготовление, квес
+✓ пакет: ink собран из текста разговора
+✓ U сценарий переписывается теми же названиями
+
+текстовый сценарий и проверка разговора: всё зелёное
+
+rc=0
+
+### 44/53 · npm run smoke:folder-import
+
+
+> narthex@0.9.0 smoke:folder-import
+> tsx scripts/smoke-round35-folder-import.mts
+
+--- Smoke test: Folder import & AI Repo Kit ---
+✓ Все 15 служебных файлов Git, tools и скриптов успешно отфильтрованы
+✓ Все 19 канонических файлов кампании успешно разрешены
+✓ Префикс GitHub репозитория автоматически распознан и удален
+✓ Симуляция 2828 файлов репозитория: успешно обработана, отфильтровано 2824 служебных файлов, сохранено файлов кампании: 5
+✓ Легковесный чемодан ИИ собран успешно (размер: 292.0 КБ)
+--- Все проверки импорта папок и легковесного чемодана пройдены успешно! ---
+
+rc=0
+
+### 45/53 · npm run smoke:narrative-builder
+
+
+> narthex@0.9.0 smoke:narrative-builder
+> tsx scripts/smoke-narrative-builder-and-docs.mts
+
+--- Smoke test: Narrative Builder, Camera & AI Guide ---
+✓ Расширенные поля NarrativeIntroEntry типизированы корректно
+✓ JSON-схема содержит спецификацию полей image, camera, duration
+✓ Руководство ИИ содержит исчерпывающие инструкции по анимациям, камере и нарративу
+--- Все проверки успешно пройдены! ---
+
+rc=0
+
+### 46/53 · npm run smoke:patch
+
+
+> narthex@0.9.0 smoke:patch
+> tsx scripts/smoke-patch-export-and-import.mts
+
+--- Smoke test: Patch Chronicle Export & Import ---
+✓ Базовый снимок успешно зафиксирован, список изменений пуст
+✓ Изменения и добавления точно отслежены: added: Предмет: Лечебное зелье, modified: Предмет: Меч мастера, modified: Манифест структуры
+✓ Текстовая сводка для буфера сгенерирована корректно
+✓ Пакет изменений содержит ТОЛЬКО изменённые файлы и исключает неизменённый контент
+✓ Патч успешно применён поверх целевой кампании без потери нетронутых файлов
+--- Все проверки пакета изменений (Diff Patch) успешно пройдены! ---
+
+rc=0
+
+### 47/53 · npm run smoke:cutout
+
+
+> narthex@0.9.0 smoke:cutout
+> tsx scripts/smoke-chromakey-guide.mts
+
+✓ утилита существует: public/ai/cutout-chromakey.py
+✓ утилита существует: scripts/cutout-chromakey.py
+✓ обе копии утилиты идентичны
+… SKIP функциональных тестов: у интерпретатора [python3] нет Pillow (установите python3-pil или задайте CHROMA_SMOKE_PYTHON)
+✓ гайд ИИ: якоря хромакей, cutout-chromakey.py, #00FF00, шахматк, --heal, бирюз
+✓ гайд чемодана: якоря хромакей, cutout-chromakey.py, #00FF00, --heal, бирюз
+✓ книга мастера: якоря cutout-chromakey.py, Visual Continuity, #00FF00
+✓ campaignAudit.ts советует cutout-chromakey.py при непрозрачных углах
+✓ campaignAudit.ts проверяет рамку и атмосферные спрайты
+
+хромакей: все проверки зелёные
+
+rc=0
+
+### 48/53 · npm run smoke:duration-actions
+
+
+> narthex@0.9.0 smoke:duration-actions
+> tsx scripts/smoke-duration-actions.mts
+
+✓ campAvailable: даёт отдохнуть
+✓ окно выбора открылось для лагеря
+✓ границы окна = min_ticks..max_ticks
+✓ ночлег 6 часов: tick +6
+✓ лечение отдыха применилось (1d1 = +1 HP)
+✓ запрос закрыт после подтверждения
+✓ per_tick × N + restore разово
+✓ окно выбора кастомного действия
+✓ tick +6 (step=2 выровнял 5→6)
+✓ per_tick 6×+4 = +24
+✓ on_finish применён (флаг поставлен)
+✓ прерывание после 1-го тика (Δtick=1)
+✓ прожитый тик дал свою долю (+2)
+✓ interrupt_rule сработал
+✓ on_finish НЕ применён при прерывании
+✓ break_when оборвал после 1 тика
+✓ правило прерывания из break_when сработало
+✓ on_finish не применён
+✓ запрещённый эффект пропущен (переменная не появилась)
+✓ разрешённый эффект пошёл 2×+1 HP
+✓ в журнале есть предупреждение о белом списке
+✓ эффект с ticks идёт сразу, +3
+✓ длина клапится к max=4
+✓ без ticks открывается окно выбора
+✓ отмена окна работает
+✓ available_when=false: действие не запустилось
+✓ неизвестный id: запись в журнал
+
+Все проверки длительных действий зелёные.
+
+rc=0
+
+### 49/53 · npm run smoke:craft-fail-time
+
+
+> narthex@0.9.0 smoke:craft-fail-time
+> tsx scripts/smoke-craft-fail-time.mts
+
+✓ промах возвращает false
+✓ промах без поля не тратит время
+✓ материалы целы после промаха
+✓ промах возвращает false
+✓ промах тратит fail_time_ticks=2
+✓ материалы целы при платном промахе
+✓ сообщение сообщает цену промаха
+✓ успех возвращает true
+✓ успех тратит time_ticks=4
+✓ успех списал материалы и выдал результат
+✓ аудит подсвечивает бесплатный промах
+✓ аудит молчит при заданном fail_time_ticks
+
+Все проверки времени промаха крафта зелёные.
+
+rc=0
+
+### 50/53 · npm run smoke:dialogue-speaker
+
+
+> narthex@0.9.0 smoke:dialogue-speaker
+> tsx scripts/smoke-dialogue-speaker.mts
+
+[парсер тегов движка]
+  ✓ speaker извлекается
+  ✓ эмоция рядом не страдает
+  ✓ без тега спикера нет
+[круговой обход документа]
+  ✓ тег # speaker в ink
+  ✓ ремарка лишена тега speaker (криминалистика)
+  ✓ спикер пережил круговой обход
+  ✓ у ремарки спикер не появился
+[аудит]
+  ✓ неведомый спикер — ошибка
+  ✓ спикер у ремарки — ошибка
+  ✓ без гейта присутствия — предупреждение
+  ✓ с гейтом in_party предупреждения нет
+  ✓ permadeath + слоты по умолчанию — предупреждение
+  ✓ permadeath + save_slots: 0 — предупреждения нет
+[якоря в коде и доке]
+  ✓ призрачная кнопка лагеря (disabled по campAvailable)
+  ✓ подсказка-причина на серой кнопке
+  ✓ оверлей рисует спикера
+  ✓ гайд: раздел про # speaker
+  ✓ гайд: призрачная кнопка лагеря
+  ✓ гайд: железный рогалик = save_slots 0
+  ✓ тип DlgLine.speaker с аннотацией
+
+Все проверки дз.22 (спикер, рогалик-слоты, призрачный лагерь) зелёные.
+
+rc=0
+
+### 51/53 · npm run smoke:narthex-closed
+
+
+> narthex@0.9.0 smoke:narthex-closed
+> node _tools/ScriptCat/tests/narthex-closed-state-smoke.mjs
+
+OK: narthex 1.4.57 — Merged / Closed / Timeout, Closed без мержа → Rework, шлюз 1.5
+
+rc=0
+
+### 52/53 · npm run smoke:narthex-tech
+
+
+> narthex@0.9.0 smoke:narthex-tech
+> node _tools/ScriptCat/tests/narthex-tech-info-smoke.mjs
+
+OK: техблок 1.4.57 — Executor получает ритуал main, Auditor только читает main, Coordinator без git
+
+rc=0
+
+### 53/53 · npm run smoke:drive-gateway
+
+
+> narthex@0.9.0 smoke:drive-gateway
+> node _tools/ScriptCat/tests/drive-gateway-arena-smoke.mjs
+
+OK: шлюз 1.5 — корень Диска не трогает, пишет только в Arena/{logs,payloads}
+
+rc=0
+
+SMOKES total=53 passed=53 failed=0
+```
+rc=0 (у каждой из 53 команд; прежние ПРОПУСКи dialogues-r31/r32 сохранены как дефект набора)
+
+### Scope и diff перед коммитом
+
+```text
+$ git diff --cached --stat
+ docs/decisions/NAR-2.7.md                          | 1618 ++++++++++++++++++++
+ package.json                                       |    2 +-
+ .../data/fmv-crossing/assets/video/fragment_a.png  |  Bin 0 -> 630 bytes
+ .../data/fmv-crossing/assets/video/fragment_a.webm |  Bin 0 -> 1673 bytes
+ .../data/fmv-crossing/assets/video/fragment_b.png  |  Bin 0 -> 629 bytes
+ .../data/fmv-crossing/assets/video/fragment_b.webm |  Bin 0 -> 1960 bytes
+ .../data/fmv-crossing/assets/video/fragment_c.png  |  Bin 0 -> 629 bytes
+ .../data/fmv-crossing/assets/video/fragment_c.webm |  Bin 0 -> 1671 bytes
+ packs/narrative/data/fmv-crossing/campaign.json    |  153 ++
+ .../fmv-crossing/entities/player_mercenary.json    |   60 +
+ .../data/fmv-crossing/fmv/fmv_crossing.json        |   80 +
+ packs/narrative/data/fmv-crossing/manifest.json    |   13 +
+ packs/narrative/data/fmv-crossing/project.json     |   30 +
+ .../fmv-crossing/scenes/scene_fmv_crossing.json    |   21 +
+ packs/narrative/data/fmv-crossing/world.json       |   19 +
+ packs/narrative/fmv-loader.ts                      |   83 +
+ packs/narrative/fmv.ts                             |  284 ++++
+ packs/narrative/hooks.ts                           |    4 +-
+ packs/narrative/pack.json                          |   10 +
+ packs/narrative/probes/campaign.mts                |    9 +-
+ packs/narrative/schema/fmv-fragment.schema.json    |   47 +
+ packs/narrative/schema/fmv.schema.json             |   63 +
+ packs/narrative/schema/scene.schema.json           |    1 +
+ packs/narrative/sim.ts                             |   69 +-
+ packs/narrative/types.ts                           |   10 +-
+ packs/narrative/view.ts                            |   48 +-
+ packs/publications.json                            |    5 +
+ .../fmv-crossing/assets/video/fragment_a.png       |  Bin 0 -> 630 bytes
+ .../fmv-crossing/assets/video/fragment_a.webm      |  Bin 0 -> 1673 bytes
+ .../fmv-crossing/assets/video/fragment_b.png       |  Bin 0 -> 629 bytes
+ .../fmv-crossing/assets/video/fragment_b.webm      |  Bin 0 -> 1960 bytes
+ .../fmv-crossing/assets/video/fragment_c.png       |  Bin 0 -> 629 bytes
+ .../fmv-crossing/assets/video/fragment_c.webm      |  Bin 0 -> 1671 bytes
+ public/campaigns/fmv-crossing/campaign.json        |  153 ++
+ .../fmv-crossing/entities/player_mercenary.json    |   60 +
+ .../campaigns/fmv-crossing/fmv/fmv_crossing.json   |   80 +
+ public/campaigns/fmv-crossing/manifest.json        |   13 +
+ .../fmv-crossing/scenes/scene_fmv_crossing.json    |   21 +
+ public/campaigns/fmv-crossing/world.json           |   19 +
+ scripts/fmv-probe.mts                              |  350 +++++
+ 40 files changed, 3290 insertions(+), 35 deletions(-)
+rc=0
+$ git diff --cached --name-only
+docs/decisions/NAR-2.7.md
+package.json
+packs/narrative/data/fmv-crossing/assets/video/fragment_a.png
+packs/narrative/data/fmv-crossing/assets/video/fragment_a.webm
+packs/narrative/data/fmv-crossing/assets/video/fragment_b.png
+packs/narrative/data/fmv-crossing/assets/video/fragment_b.webm
+packs/narrative/data/fmv-crossing/assets/video/fragment_c.png
+packs/narrative/data/fmv-crossing/assets/video/fragment_c.webm
+packs/narrative/data/fmv-crossing/campaign.json
+packs/narrative/data/fmv-crossing/entities/player_mercenary.json
+packs/narrative/data/fmv-crossing/fmv/fmv_crossing.json
+packs/narrative/data/fmv-crossing/manifest.json
+packs/narrative/data/fmv-crossing/project.json
+packs/narrative/data/fmv-crossing/scenes/scene_fmv_crossing.json
+packs/narrative/data/fmv-crossing/world.json
+packs/narrative/fmv-loader.ts
+packs/narrative/fmv.ts
+packs/narrative/hooks.ts
+packs/narrative/pack.json
+packs/narrative/probes/campaign.mts
+packs/narrative/schema/fmv-fragment.schema.json
+packs/narrative/schema/fmv.schema.json
+packs/narrative/schema/scene.schema.json
+packs/narrative/sim.ts
+packs/narrative/types.ts
+packs/narrative/view.ts
+packs/publications.json
+public/campaigns/fmv-crossing/assets/video/fragment_a.png
+public/campaigns/fmv-crossing/assets/video/fragment_a.webm
+public/campaigns/fmv-crossing/assets/video/fragment_b.png
+public/campaigns/fmv-crossing/assets/video/fragment_b.webm
+public/campaigns/fmv-crossing/assets/video/fragment_c.png
+public/campaigns/fmv-crossing/assets/video/fragment_c.webm
+public/campaigns/fmv-crossing/campaign.json
+public/campaigns/fmv-crossing/entities/player_mercenary.json
+public/campaigns/fmv-crossing/fmv/fmv_crossing.json
+public/campaigns/fmv-crossing/manifest.json
+public/campaigns/fmv-crossing/scenes/scene_fmv_crossing.json
+public/campaigns/fmv-crossing/world.json
+scripts/fmv-probe.mts
+rc=0
+$ git diff --cached --stat origin/main -- src
+rc=0
+$ git diff --cached origin/main -- src
+rc=0
+$ git diff --cached --stat origin/main -- packs/adventure public/campaigns/ash-of-caerden public/campaigns/ash-of-caerden-adventure src/core/engine.ts
+rc=0
+$ git diff --cached --numstat origin/main -- public/ai/cf-play.mjs
+rc=0 (пусто: bundled source не изменился, см. решение о sha256)
+$ git diff --cached --check
+rc=0
+
+```

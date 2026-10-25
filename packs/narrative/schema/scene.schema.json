@@ -6,6 +6,7 @@
   "properties": {
     "id": { "type": "string", "minLength": 1 },
     "location": { "type": "string", "minLength": 1 },
+    "fmv": { "type": "string", "minLength": 1 },
     "navigation": {
       "type": "array",
       "items": {

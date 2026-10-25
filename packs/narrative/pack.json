@@ -55,6 +55,16 @@
           "quests"
         ],
         "order": 50
+      },
+      {
+        "id": "fmv",
+        "title": "FMV-фрагменты",
+        "slot": "center",
+        "schema": "schema/fmv.schema.json",
+        "caps": [
+          "fmv"
+        ],
+        "order": 60
       }
     ],
     "validators": [
