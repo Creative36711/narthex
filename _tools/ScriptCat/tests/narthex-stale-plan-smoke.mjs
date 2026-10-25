@@ -242,6 +242,8 @@ assert.ok((await decidedAdrNames()).has('nar-2.14'), 'решение 2.14 опо
 assert.ok(!(await decidedAdrNames()).has('nar-2.16'), 'решение без ответа не считается принятым');
 
 has('const settled = rows.filter((row) => answered.has(String(row.file).replace(/\\.md$/i, "").toLowerCase()));', 'решения с ответом отделяются');
+has('if (answered === null) {', 'сбой чтения ответов не возвращает решённое в счётчик');
+has('paintDecisions(cache.rows);', 'при сбое показывается прежний счётчик');
 has('announceDecisions(pending);', 'пуш только про то, что правда ждёт Мастера');
 has('в счётчик «⚖» не входит', 'в журнале сказано, что это работа агентов');
 has('Решение уже принято, ждёт записи в репозиторий (это работа агентов)', 'подсказка кнопки «⚖»');

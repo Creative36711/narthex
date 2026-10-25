@@ -6602,7 +6602,10 @@
         }
       }
     } catch (e) {
+      // `null` — «не знаю», а не «решений нет»: иначе сбой чтения вернул бы в
+      // счётчик уже принятые решения и разбудил Мастера зря.
       dbg("решения: ответы Мастера не прочитаны", e.message);
+      return null;
     }
     return names;
   }
@@ -6705,6 +6708,12 @@
       }
       GM_setValue("cfn-adr-text", texts);
       const answered = await decidedAdrNames();
+      if (answered === null) {
+        // Список ответов не прочитан — показываем прежний счётчик и молчим:
+        // лучше не обновить цифру, чем позвать Мастера к решённому.
+        paintDecisions(cache.rows);
+        return cache.rows;
+      }
       const settled = rows.filter((row) => answered.has(String(row.file).replace(/\.md$/i, "").toLowerCase()));
       const pending = rows.filter((row) => !settled.includes(row));
       paintDecisions(pending, settled);
