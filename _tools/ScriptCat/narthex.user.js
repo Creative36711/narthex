@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.59
+// @version      1.4.60
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -76,6 +76,9 @@
     pendingTtlMs: 600000, // отправка старше 10 минут не досылается: адресат её не получил
     undeliveredTtlMs: 7200000, // неотправленное задание ждёт Мастера два часа, а не десять минут
     replyWaitMs: 1800000, // 30 минут без единого сообщения — повод остановиться
+    pageWaitMs: 90000, // страница адресата не отрисовалась — это «нет связи», а не молчание агента
+    pageReloadMs: 20000, // столько ждём отрисовку, прежде чем перечитать страницу один раз
+    observeGraceMs: 30000, // сколько смотрим на отрисованную страницу, прежде чем судить о молчании
     sendVerifyMs: 6000, // сколько ждём своё сообщение в чате после нажатия Send
     captchaGuardMs: 8000, // сколько после «отправлено» ждём капчу: она всплывает с задержкой
     stalledMs: 2700000, // 45 минут — и только для карточки, по которой ход потерян
@@ -288,7 +291,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.59";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.60";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -1837,6 +1840,39 @@
   function lastMessageId() {
     const list = messages();
     return list.length ? list.at(-1).id.replace("chat-message-", "") : "";
+  }
+
+  /**
+   * Страница адресата отрисована — и только тогда по ней можно судить.
+   *
+   * 25.10, 16:55:59–16:56:07. Мастер снял паузу после обрыва связи, скрипт
+   * открыл страницу Turn Runtime, а через 8 секунд решил, что агент молчит
+   * 77 минут: транскрипт ещё не отрисовался, `messagesAfter()` вернул пусто,
+   * кнопка Stop не нарисована. Ожидание сняли, карточку вернули в Ready —
+   * а ответ лежал в чате: агент отработал 17 м 53 с и прислал маркер.
+   *
+   * «Пусто на странице» и «агент молчит» — разные вещи. Пока транскрипт не
+   * отрисован, о молчании не судим вовсе: это либо загрузка, либо сеть.
+   */
+  function pageReady() {
+    const state = String((typeof document !== "undefined" && document.readyState) || "");
+    if (state && state !== "interactive" && state !== "complete") {
+      return { ok: false, why: `страница ещё грузится (${state})` };
+    }
+    // Ошибка связи в самой странице: чат остаётся пустым, сколько ни жди.
+    const broken = [...document.querySelectorAll('[role="alert"]')].find((el) => {
+      if (!visible(el)) return false;
+      const text = shortLabel(el) || String(el.textContent || "");
+      return /connection|соединени|network|reconnect|переподключ/i.test(text);
+    });
+    if (broken) return { ok: false, why: "страница не догрузилась: нет связи" };
+    const nodes = messages();
+    if (nodes.length) return { ok: true, why: `сообщений ${nodes.length}` };
+    // Пустой транскрипт ещё не значит «ответа нет»: у только что открытой
+    // страницы поле ввода рисуется раньше истории. Готовой считаем страницу,
+    // где видно поле ввода или плашку завершения, — там уже есть что читать.
+    if (composer() || completionPlaque()) return { ok: true, why: "поле ввода на месте, транскрипт пуст" };
+    return { ok: false, why: "ни реплик, ни поля ввода — страница не отрисовалась" };
   }
 
   /** Наша реплика: в транскрипте Arena она помечена отдельным layout. */
@@ -6777,15 +6813,74 @@
       // Но молчание и работа — разные вещи. Задача может идти часами: пока
       // виден Stop или плашка «думает», ход живой, и снимать передачу нельзя —
       // иначе агент останется без ответа, а карточка вернётся в Ready.
+      //
+      // И третья разница, из-за которой этот блок переписан 25.10: отсутствие
+      // ответа на ещё не отрисованной странице — не молчание, а загрузка.
       if (expect) {
         const since = Number(expect.sentAt || expect.at) || 0;
         const waited = Date.now() - since;
+
+        // Отсчёт наблюдения — с того момента, когда страница адресата открылась
+        // в этой попытке, а не с отправки: после обрыва связи и «Продолжить»
+        // скрипт заходит на страницу, которой ещё секунду назад не видел.
+        const path = location.pathname || "/";
+        if (expect.seenPath !== path || !Number(expect.seenAt)) {
+          expect = { ...expect, seenPath: path, seenAt: Date.now(), readyAt: 0, pageReloaded: false };
+          GM_setValue(K.expect, expect);
+        }
+        const watched = Date.now() - Number(expect.seenAt || Date.now());
+
+        // Пока транскрипт не отрисован, о молчании агента не судим: пустая
+        // страница — это загрузка или сеть, а не «задание не дошло».
+        const page = pageReady();
+        if (page.ok && !Number(expect.readyAt)) {
+          // Дальше короткая выдержка: сразу после отрисовки ответ может ещё
+          // доезжать, и «пусто» в этот момент ничего не доказывает.
+          expect = { ...expect, readyAt: Date.now() };
+          GM_setValue(K.expect, expect);
+        }
+        if (!page.ok) {
+          if (watched > C.pageWaitMs) {
+            // Ожидание НЕ снимаем и карточку НЕ трогаем: работа могла быть
+            // сделана, а ответ — лежать в чате. Это пауза про связь, а не про
+            // исполнителя, поэтому после «Продолжить» всё перечитывается.
+            expect = { ...expect, seenAt: 0, readyAt: 0, pageReloaded: false };
+            GM_setValue(K.expect, expect);
+            pause(
+              `Страница «${me.name}» не открылась за ${Math.round(watched / 1000)} с (${page.why}). ` +
+                "Это не молчание агента: ожидание, очередь и карточка на месте. " +
+                "Проверьте связь и нажмите «Продолжить» — скрипт перечитает страницу и заберёт ответ.",
+              { kind: "offline", ref: me.id, runId: expect.runId || "" },
+            );
+            return;
+          }
+          if (watched > C.pageReloadMs && !expect.pageReloaded) {
+            expect = { ...expect, pageReloaded: true };
+            GM_setValue(K.expect, expect);
+            log(
+              `Страница «${me.name}» не отрисовалась за ${Math.round(watched / 1000)} с (${page.why}) — ` +
+                "перечитываю её. Ожидание не снимаю: ответ агента остаётся в чате.",
+            );
+            location.reload();
+            return;
+          }
+          logThrottled(
+            `page-render:${me.id}`,
+            `Страница «${me.name}» ещё не отрисовалась (${page.why}) — жду, ответ не снимаю.`,
+            false,
+            C.tickMs,
+          );
+          return;
+        }
+
+        const observed = Number(expect.readyAt) ? Date.now() - Number(expect.readyAt) : 0;
         const fresh = messagesAfter(expect.watermark || "").length;
         const working = stillWorking();
-        if (waited > C.replyWaitMs && !fresh && !working) {
+        if (waited > C.replyWaitMs && observed > C.observeGraceMs && !fresh && !working) {
           const stuck = expect;
           dropHandoff(
-            `${me.name} не ответил ни одним сообщением за ${Math.round(waited / 60000)} мин и ничего не делает: похоже, задание до него не дошло. ` +
+            `${me.name} не ответил ни одним сообщением за ${Math.round(waited / 60000)} мин и ничего не делает: ` +
+              `страница открыта и видна, ответа в ней нет — похоже, задание до него не дошло. ` +
               `Очередь и ожидание сняты — нажмите «Продолжить» и пройдите шаг заново.`,
           );
           await releaseUndelivered(stuck, "агент не ответил и ничего не делает");
