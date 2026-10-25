@@ -1,0 +1,388 @@
+{
+ "version": 2,
+ "label": "Алдрик, стражник ворот",
+ "nodes": [
+  {
+   "id": "main",
+   "label": "Начало разговора",
+   "sections": [
+    {
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "heard_about_bandits"
+      }
+     ],
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "А, это снова ты."
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Про бандитов новостей нет. Караван из Вельдена так и не пришёл."
+       }
+      }
+     ],
+     "else_steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "Стой... а, это ты. Проходи."
+       }
+      }
+     ]
+    }
+   ],
+   "choices": [
+    {
+     "text": "Расскажи о городе.",
+     "once": true,
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Каэрден — перекрёсток трёх трактов. Был богат, пока дороги были чисты."
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Рынок — прямо за воротами. Таверна «Дубовый щит» — дальше по улице. В лес на западе без нужды не ходи."
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay"
+    },
+    {
+     "text": "Что тут у вас происходит?",
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "heard_about_bandits",
+       "not": true
+      }
+     ],
+     "once": true,
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Банда с холмов душит торговлю. Третью неделю ни один караван не дошёл."
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "set_flag",
+          "flag": "heard_about_bandits"
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Поговори с Браном на рынке, если хочешь заработать на этом мечом."
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay"
+    },
+    {
+     "text": "Пойдёшь со мной против банды Йорека?",
+     "conds": [
+      {
+       "type": "quest",
+       "quest": "quest_bandit_threat",
+       "stage": "",
+       "not": true
+      },
+      {
+       "type": "quest",
+       "quest": "quest_bandit_threat",
+       "stage": "completed_fight",
+       "not": true
+      },
+      {
+       "type": "quest",
+       "quest": "quest_bandit_threat",
+       "stage": "completed_deal",
+       "not": true
+      },
+      {
+       "type": "in_party",
+       "npc": "npc_guard_aldric",
+       "not": true
+      }
+     ],
+     "once": true,
+     "sections": [
+      {
+       "conds": [
+        {
+         "type": "disp_ge",
+         "target": "faction_town_guard",
+         "value": 10
+        }
+       ],
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Алдрик долго смотрит на вас, потом сплёвывает и снимает щит со спины. # action"
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "А, пропади оно всё. Капитан всё равно носа за стены не кажет. Идём — только чур, махать мечом в полную силу."
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "join_party",
+          "npc": "npc_guard_aldric"
+         }
+        }
+       ],
+       "goto": "end",
+       "else_steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Я тебя второй день знаю, а ты меня — в самое пекло зовёшь."
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Докажи, что ты не пустозвон: помоги городу — тогда и поговорим. Стража ценит дела, не слова."
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay"
+    },
+    {
+     "text": "Поделишься едой, служивый? (Убеждение)",
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "aldric_gave_ration",
+       "not": true
+      },
+      {
+       "type": "flag",
+       "flag": "aldric_ration_refused",
+       "not": true
+      }
+     ],
+     "once": true,
+     "sections": [],
+     "goto": "stay",
+     "check": {
+      "skill": "persuade",
+      "difficulty": 40,
+      "success": {
+       "sections": [
+        {
+         "steps": [
+          {
+           "kind": "line",
+           "line": {
+            "text": "Эх... ладно. Держи, у меня в караулке ещё остался паёк."
+           }
+          },
+          {
+           "kind": "effect",
+           "effect": {
+            "type": "set_flag",
+            "flag": "aldric_gave_ration"
+           }
+          },
+          {
+           "kind": "effect",
+           "effect": {
+            "type": "add_item",
+            "item": "item_bread",
+            "qty": 1
+           }
+          },
+          {
+           "kind": "line",
+           "line": {
+            "text": "Только не болтай, а то вся голытьба сбежится."
+           }
+          }
+         ]
+        }
+       ],
+       "goto": "stay"
+      },
+      "fail": {
+       "sections": [
+        {
+         "steps": [
+          {
+           "kind": "effect",
+           "effect": {
+            "type": "set_flag",
+            "flag": "aldric_ration_refused"
+           }
+          },
+          {
+           "kind": "line",
+           "line": {
+            "text": "Я тебе не богадельня. Иди к Маэве, у неё похлёбка за пять марок."
+           }
+          },
+          {
+           "kind": "line",
+           "line": {
+            "text": "И не заводи эту песню снова — сказал нет, значит нет."
+           }
+          }
+         ]
+        }
+       ],
+       "goto": "stay"
+      }
+     }
+    },
+    {
+     "text": "Бывай.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Смотри в оба на дорогах."
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "end"
+    }
+   ]
+  },
+  {
+   "id": "first_meeting",
+   "label": "Первая встреча у ворот",
+   "sections": [
+    {
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "Стой, путник."
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Немногие нынче добираются до Каэрдена по тракту. Дороги кишат бандитами. С чем пожаловал?"
+       }
+      }
+     ]
+    }
+   ],
+   "choices": [
+    {
+     "text": "Ищу работу. Слышал, у вас неспокойно.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Неспокойно — мягко сказано."
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Банда с холмов грабит караваны уже третью неделю. Торговцы воют, склады пустеют."
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "set_flag",
+          "flag": "heard_about_bandits"
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Если ищешь монету за работу мечом — поговори с торговцем Браном на рынке. Он пострадал больше всех."
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "first_meeting_tail"
+    },
+    {
+     "text": "Просто путник. Переночую и дальше.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Тогда тебе в «Дубовый щит», это за рынком."
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Хозяйка Маэва дерёт недорого, а похлёбка у неё лучшая в долине."
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "first_meeting_tail"
+    }
+   ]
+  },
+  {
+   "id": "first_meeting_tail",
+   "label": "Напутствие у ворот",
+   "sections": [
+    {
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "Ворота открыты до заката. Ночью в город не пускаем — приказ капитана."
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Да, и вот ещё: вода в бочке у стены — бесплатная. Пей, сколько влезет."
+       }
+      }
+     ]
+    }
+   ],
+   "choices": [],
+   "goto": "end"
+  }
+ ]
+}

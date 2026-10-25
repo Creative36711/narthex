@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://narthex.local/contracts/adventure.schema.json",
+  "title": "Adventure pack data",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "startScene", "startNode", "scenes", "combinations", "riddles", "endings"],
+  "properties": {
+    "version": { "const": 1 },
+    "startScene": { "type": "string", "minLength": 1 },
+    "startNode": { "type": "string", "minLength": 1 },
+    "scenes": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/scene" }
+    },
+    "combinations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/combination" }
+    },
+    "riddles": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/riddle" }
+    },
+    "endings": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/ending" }
+    }
+  },
+  "$defs": {
+    "point": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "x", "y"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "x": { "type": "number" },
+        "y": { "type": "number" }
+      }
+    },
+    "hotspot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "x", "y", "w", "h", "message"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "label": { "type": "string", "minLength": 1 },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "w": { "type": "number", "exclusiveMinimum": 0 },
+        "h": { "type": "number", "exclusiveMinimum": 0 },
+        "message": { "type": "string" },
+        "item": { "type": "string", "minLength": 1 },
+        "dialogue": { "type": "string", "minLength": 1 },
+        "node": { "type": "string", "minLength": 1 }
+      }
+    },
+    "scene": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["walk", "hotspots"],
+      "properties": {
+        "walk": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["nodes", "edges"],
+          "properties": {
+            "nodes": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/point" }
+            },
+            "edges": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
+                "items": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        },
+        "hotspots": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/hotspot" }
+        }
+      }
+    },
+    "combination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "inputs", "output", "message"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "inputs": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "output": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1 }
+      }
+    },
+    "riddle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "scene", "background", "solution", "ending", "message"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "scene": { "type": "string", "minLength": 1 },
+        "background": { "type": "string", "minLength": 1 },
+        "solution": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "ending": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1 }
+      }
+    },
+    "ending": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

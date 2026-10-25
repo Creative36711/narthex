@@ -76,6 +76,7 @@
     "probe:pack-host": "tsx scripts/pack-host-probe.mts",
     "probe:narrative-pack": "tsx packs/narrative/probes/campaign.mts",
     "probe:adventure": "tsx scripts/adventure-probe.mts",
+    "probe:adventure-mechanics": "tsx scripts/adventure-mechanics-probe.mts",
     "check:playkit-bundle": "tsx scripts/check-playkit-bundle.mts",
     "check:campaigns": "tsx scripts/campaign-copies.mts",
     "publish:campaigns": "tsx scripts/campaign-copies.mts --write",
