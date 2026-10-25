@@ -17,7 +17,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-assert.match(src, /@version\s+1\.4\.65/, 'версия 1.4.65');
+assert.match(src, /@version\s+1\.4\.66/, 'версия 1.4.66');
 
 const sliceBetween = (startMarker, endMarker) => {
   const from = src.indexOf(startMarker);
@@ -198,7 +198,9 @@ const run = async () => {
   assert.match(lines.find((line) => /ждал дольше срока/.test(line)), /принят вариант по умолчанию/, 'закрытие не молчит');
 
   // ── 7. Подключение к ходу ────────────────────────────────────────────────
-  assert.match(src, /if \(decision\.question !== undefined\)/, 'вопрос Координатора разбирается из маркера');
+  assert.match(src, /if \(decision\.question !== undefined && norm\(decision\.next\) !== "blocked"\)/, 'вопрос Координатора разбирается из маркера');
+  assert.match(src, /if \(askText\)/, 'вопрос при остановке не выбрасывается');
+  assert.match(src, /Ответ Мастера: цикл уже остановлен и ждёт его/, 'у вопроса при остановке есть прямой вариант по умолчанию');
   assert.match(src, /if \(result\.question !== undefined\)/, 'вопрос исполнителя разбирается из маркера');
   assert.match(src, /await questionBriefing\(mission\)/, 'перед планом читаются вопросы и ответы');
   assert.match(src, /if \(sent\) await markDelivered\(briefing\.fresh\)/, 'ответ доставляется только после отправки');

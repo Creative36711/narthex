@@ -18,7 +18,7 @@ import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
-assert.match(src, /@version\s+1\.4\.65/, 'версия 1.4.65');
+assert.match(src, /@version\s+1\.4\.66/, 'версия 1.4.66');
 
 const sliceBetween = (startMarker, endMarker) => {
   const from = src.indexOf(startMarker);
@@ -100,7 +100,9 @@ assert.equal(api.reworkLine(null), '', 'null тоже пустой');
 }
 
 // ── 6. Промпт: Rework возвращается, Accepted — нет ─────────────────────────
-assert.match(src, /Rework — не выдача: карточка с этим статусом исполнителю не уходит/, 'правило Rework в промпте');
+assert.match(src, /Rework — не выдача и не приговор: разбираешь его ты, а не Мастер/, 'правило Rework в промпте');
+assert.match(src, /\(б\) Карточка была сформулирована с ошибкой — перепиши её Намерение, Инварианты, Acceptance и Scope/, 'ошибочную карточку правит Координатор');
+assert.match(src, /Acceptance карточки — не оракул миссии/, 'карточка и оракул миссии разведены');
 assert.match(
   src,
   /верни её в Ready: следы прошлого ответа \(«Submitted At», «PR», «Run ID»\) снимет транспорт/,

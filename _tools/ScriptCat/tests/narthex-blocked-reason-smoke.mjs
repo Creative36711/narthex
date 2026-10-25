@@ -1,4 +1,4 @@
-// Проба 1.4.65: пауза «blocked» объясняет факт, а не шаблон.
+// Проба 1.4.66: пауза «blocked» объясняет факт, а не шаблон.
 //
 // Случай Мастера (2026-10-25, пауза 19:43:32). Координатор вернул
 // next:"blocked" без need, и транспорт написал:
@@ -18,7 +18,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const V = '1.4.65';
+const V = '1.4.66';
 
 assert.equal((src.split('\n').find((line) => line.startsWith('// @version')) || '').trim(), '// @version      ' + V, `версия ${V}`);
 
@@ -106,6 +106,14 @@ assert.doesNotMatch(empty, /ждёт роль Tools/, 'чужие роли не 
 // ── 6. Пустая база ролей не превращается в ложное «роли нет» ───────────────
 const noDirectory = blockedReason({ need: 'Tools', directory: [] });
 assert.match(noDirectory, /Роли «Tools» в базе «Роли» нет/, 'без данных — так и говорим');
+
+// ── 7. Вопрос при остановке виден в паузе ──────────────────────────────────
+const withAsk = blockedReason({ need: 'Tools', directory, queue, ask: 'Принять ли ADR 2.14?', asked: true });
+assert.match(withAsk, /Координатор спрашивает: «Принять ли ADR 2\.14\?»/, 'суть вопроса в тексте паузы');
+assert.match(withAsk, /Вопрос записан в базу «Вопросы»/, 'сказано, что он уже в базе');
+
+const lostAsk = blockedReason({ need: '', directory, queue, ask: 'Принять ли ADR 2.14?', asked: false });
+assert.match(lostAsk, /Вопрос в «Вопросы» не записался — он есть только в этом сообщении/, 'не потеряли и при сбое записи');
 
 console.log(
   `OK: narthex ${V} — пауза «blocked» называет настоящую причину: статус роли, ` +

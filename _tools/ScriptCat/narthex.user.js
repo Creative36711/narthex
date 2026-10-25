@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.65
+// @version      1.4.66
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -126,6 +126,7 @@
     ntfy: "cfn-ntfy",
     gh: "cfn-gh",
     questions: "cfn-questions",
+    qBadge: "cfn-q-badge",
     count: "cfn-log-count",
     debug: "cfn-debug-toggle",
   };
@@ -293,7 +294,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.65";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.66";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -888,7 +889,7 @@
         <button id="${ui.step}" title="Один шаг цикла" style="${btnStyle()}">Шаг</button>
         <button id="${ui.toggle}" style="${btnStyle()}">▶ Включить</button>
         <button id="${ui.ntfy}" title="Уведомления ntfy: тихие вехи и громкие тревоги" style="${btnStyle()}">🔔</button>
-        <button id="${ui.questions}" title="Вопросы агентов к Мастеру — база «Вопросы» в Notion" style="${btnStyle()}">❓</button>
+        <button id="${ui.questions}" title="Вопросы агентов к Мастеру — база «Вопросы» в Notion" style="${btnStyle()}">❓<span id="${ui.qBadge}" style="display:none;margin-left:3px;padding:0 4px;border-radius:7px;background:#b23b3b;color:#fff;font-size:10px;line-height:14px;vertical-align:middle">0</span></button>
         <button id="${ui.gh}" title="GitHub: токен для приватного репозитория и возврат карточки после ложного отказа" style="${btnStyle()}">🐙</button>
         <button id="${ui.debug}" title="Отладка в консоли браузера (F12)" style="${btnStyle()}">🐞</button>
         <button id="${ui.reset}" title="Сбросить очередь и ожидание прошлых попыток (журнал и настройки останутся)" style="${btnStyle()}">↺</button>
@@ -934,6 +935,8 @@
     renderLog();
     setStatus();
     paintDebugButton();
+    paintQuestions(openQuestions().rows);
+    watchQuestions();
     maybeGhDialog();
   }
 
@@ -5528,10 +5531,10 @@
       "ОЧЕРЕДЬ — ТВОЯ",
       "Движок ставит Running и Submitted; Accepted, Rework и Ready ставишь ты. Нарезка, порядок, Кому, Sequence, число Ready, выдача черновика (Draft → Ready), правка его полей и архив лишнего — твои действия. Код, ветки и PR — не твоя зона.",
       "Мастер и Архитектор пишут только черновики: это твой задел, а не приказ — правь под оракул миссии и выдавай сам, не дожидаясь Мастера. В архив — только если черновик дублирует уже выданное.",
-      "Rework — не выдача: карточка с этим статусом исполнителю не уходит. Хочешь переделать — верни её в Ready: следы прошлого ответа («Submitted At», «PR», «Run ID») снимет транспорт на выдаче, чистить их коннектором не надо. Принятую (Accepted) обратно в Ready не возвращай.",
+      "Rework — не выдача и не приговор: разбираешь его ты, а не Мастер. (а) Нужна переделка — верни её в Ready: следы прошлого ответа («Submitted At», «PR», «Run ID») снимет транспорт на выдаче. (б) Карточка была сформулирована с ошибкой — перепиши её Намерение, Инварианты, Acceptance и Scope; это правка карточки, а не смена оракула миссии. (в) Работа уже сделана другими карточками — поставь Accepted с пометкой «остаток разбит на …» или убери её. Принятую (Accepted) обратно в Ready не возвращай. Держать Rework «на всякий случай» нельзя: он висит в очереди и мешает закрыть миссию.",
       "Scope карточки обязан покрывать артефакты её Оракула: пробу, npm-скрипт и запись решения перечисляй в Scope прямо — иначе исполнитель встанет на границе зоны.",
       "Если роль не может получить работу («Ждёт», пустой Agent URL, нет в «Ролях») — назначь в «Кому» активную роль или оставь Draft и назови, кого он ждёт. Статус роли и Agent URL — зона Мастера, не меняй их.",
-      "Оракул и инварианты менять нельзя: только ADR proposed и пауза миссии.",
+      "Оракул миссии (ТЗ §2/§3) и инварианты миссии менять нельзя: если проверка требует другого смысла — только ADR proposed и решение Мастера. Acceptance карточки — не оракул миссии: ошибочную формулировку ты исправляешь сам, но так, чтобы смысл проверки миссии не изменился.",
       "",
       "ХОД — один ответ:",
       "1) Submitted → проверь по Acceptance, поставь Accepted или Rework (причина в «Ответ»).",
@@ -5539,7 +5542,7 @@
       '3) Миссия выполнена → «Состояние» = «Завершена» и next = "done".',
       "",
       "next — имя роли той карточки, которую выдаёшь. Своё имя значит «ход снова мне»: это не ошибка, но работу надо выдать в этом же ответе.",
-      'Остановить цикл можно только одним способом: next = "blocked" и need = "<роль>" — когда роли нет и заменить её некем. Других поводов нет.',
+      'Остановить цикл можно только одним способом: next = "blocked" и need = "<роль>" — когда работы для активных ролей нет вовсе. Rework, черновики и спорный Scope — твоя работа, а не повод. Если единственное, что осталось, — решение Мастера по оракулу, остановка законна; тогда объясни её полем question: вопрос без варианта по умолчанию при остановке попадает в «Вопросы» и в текст паузы, чтобы Мастер увидел суть, а не только «нет роли». Иначе — работай дальше.',
       "Вопрос Мастеру задаётся полем question в маркере (формат — в «КАК РЕШАТЬ»): цикл при этом не останавливается.",
       "",
       "Последней строкой ответа:",
@@ -5968,6 +5971,167 @@
    */
   const Q = { wait: "Ждёт", done: "Решено", byDefault: "Принят дефолт", cancelled: "Отменён" };
 
+  /**
+   * Вопросы к Мастеру: счётчик на панели и громкий пуш о новом.
+   *
+   * 25.10 Мастер заметил: вопрос в Notion легко пропустить, а рядом со знаком
+   * «?» на панели не было ни числа, ни подсказки. Теперь счётчик открытых
+   * вопросов висит на самой кнопке, подсказка перечисляет первые три, а каждый
+   * новый вопрос даёт громкое уведомление в ntfy — ровно один раз: id
+   * запоминаются. Снимок списка лежит в ScriptCat, поэтому панель показывает
+   * число сразу после загрузки страницы, ещё до запроса в Notion.
+   *
+   * Опрос — не чаще раза в questionCheckMs (10 минут): Notion не любит лишних
+   * запросов, а вопрос, который ждёт сутки, за десять минут не изменится.
+   * Вопрос, который задал сам скрипт, уходит в пуш сразу из `askQuestion`.
+   */
+  const qText = (row) => row.text ?? rt(row?.properties?.["Вопрос"]);
+  const qFallback = (row) => row.fallback ?? rt(row?.properties?.["По умолчанию"]);
+
+  function openQuestions() {
+    const cache = GM_getValue("cfn-q-open", null);
+    return cache && Array.isArray(cache.rows) ? cache : { at: 0, rows: [] };
+  }
+
+  function paintQuestions(rows) {
+    // Пробы вызывают вопросы в Node: без DOM панели нет, и это не ошибка.
+    if (typeof document === "undefined") return;
+    const list = rows || [];
+    const badge = document.getElementById(ui.qBadge);
+    if (badge) {
+      badge.textContent = list.length ? String(list.length) : "";
+      badge.style.display = list.length ? "inline-block" : "none";
+    }
+    const button = document.getElementById(ui.questions);
+    if (!button) return;
+    const shown = list.slice(0, 3).map((row) => {
+      const fallback = qFallback(row);
+      return `«${qText(row)}»${fallback ? ` (по умолчанию: ${fallback})` : ""}`;
+    });
+    button.title = list.length
+      ? `Открытых вопросов к Мастеру: ${list.length}. ${shown.join("; ")}${
+          list.length > 3 ? `; и ещё ${list.length - 3}` : ""
+        }. Нажмите, чтобы открыть базу «Вопросы».`
+      : "Вопросов к Мастеру нет — база «Вопросы» в Notion";
+    button.style.background = list.length ? "#3a3320" : "#242833";
+    button.style.borderColor = list.length ? "#8a6b2a" : "#343a46";
+  }
+
+  /**
+   * Отметить только что созданный вопрос: снимок для панели, память о
+   * показанном. Сбой здесь не должен стоить вопроса — поэтому глушим его.
+   */
+  function noteQuestionAsked(row, q) {
+    try {
+      const cache = openQuestions();
+      if (!questionsSeen()) rememberQuestionSeen(cache.rows.map((item) => item.id));
+      rememberQuestionSeen([row.id]);
+      GM_setValue("cfn-q-open", {
+        at: cache.at || Date.now(),
+        rows: [
+          ...cache.rows.filter((item) => item.id !== row.id),
+          { id: row.id, text: q.text, fallback: q.fallback, due: row.properties?.["Срок"]?.date?.start || "" },
+        ],
+      });
+      paintQuestions(openQuestions().rows);
+    } catch (e) {
+      // Счётчик — удобство, а не работа: молча продолжаем.
+    }
+  }
+
+  function questionsSeen() {
+    const seen = GM_getValue("cfn-q-seen", null);
+    return Array.isArray(seen) ? seen : null;
+  }
+
+  function rememberQuestionSeen(ids) {
+    const seen = questionsSeen() || [];
+    GM_setValue("cfn-q-seen", [...seen, ...(ids || []).filter((id) => !seen.includes(id))].slice(-200));
+  }
+
+  /**
+   * Новый вопрос — громкий пуш. Первый запуск не будит Мастера пачкой старых:
+   * он только запоминает их и пишет число в журнал.
+   */
+  function notifyNewQuestions(rows) {
+    const seen = questionsSeen();
+    if (!seen) {
+      rememberQuestionSeen((rows || []).map((row) => row.id));
+      if ((rows || []).length) log(`Открытых вопросов к Мастеру: ${rows.length}. Смотрите базу «Вопросы».`);
+      return 0;
+    }
+    const fresh = (rows || []).filter((row) => !seen.includes(row.id));
+    if (!fresh.length) return 0;
+    rememberQuestionSeen(fresh.map((row) => row.id));
+    for (const row of fresh.slice(0, 3)) {
+      const fallback = qFallback(row);
+      log(
+        `Новый вопрос к Мастеру: «${qText(row)}»${fallback ? ` — по умолчанию: ${fallback}` : ""}.`,
+        false,
+        { ntfy: "loud", title: "Narthex: новый вопрос к Мастеру" },
+      );
+    }
+    if (fresh.length > 3) {
+      log(`И ещё ${fresh.length - 3} новых вопроса к Мастеру — откройте базу «Вопросы».`, false, {
+        ntfy: "loud",
+        title: "Narthex: вопросы к Мастеру",
+      });
+    }
+    return fresh.length;
+  }
+
+  /**
+   * Обновить снимок открытых вопросов. Здесь же закрываются по сроку те, у
+   * кого вариант по умолчанию уже наступил: это бухгалтерия, а не работа
+   * цикла, поэтому она идёт и на паузе.
+   */
+  async function refreshQuestions({ force = false, quiet = false } = {}) {
+    const cache = openQuestions();
+    if (!force && Date.now() - cache.at < C.questionCheckMs) {
+      paintQuestions(cache.rows);
+      return cache.rows;
+    }
+    try {
+      const rows = await questionRows([Q.wait]);
+      let closed = new Set();
+      const active = await activeMission().catch(() => null);
+      if (active) {
+        const wanted = rt(active.properties["Миссия"]).trim();
+        const mine = rows.filter((row) => {
+          const value = rt(row.properties["Миссия"]).trim();
+          return !value || missionSame(value, wanted);
+        });
+        const due = expiredQuestions(mine).filter((row) => rt(row.properties["По умолчанию"]));
+        await closeExpired(due);
+        closed = new Set(due.map((row) => row.id));
+      }
+      const open = rows
+        .filter((row) => !closed.has(row.id))
+        .map((row) => ({
+          id: row.id,
+          text: qText(row),
+          fallback: qFallback(row),
+          due: row.properties?.["Срок"]?.date?.start || "",
+        }));
+      GM_setValue("cfn-q-open", { at: Date.now(), rows: open });
+      paintQuestions(open);
+      if (!quiet) notifyNewQuestions(open);
+      return open;
+    } catch (e) {
+      dbg("вопросы: список не обновлён", e.message);
+      paintQuestions(cache.rows);
+      return cache.rows;
+    }
+  }
+
+  let questionsWatch = 0;
+  function watchQuestions() {
+    if (questionsWatch) return;
+    questionsWatch = window.setInterval(() => refreshQuestions().catch(() => {}), C.questionCheckMs);
+    refreshQuestions().catch(() => {});
+  }
+
+
   /** Одна строка без переводов и лишних пробелов — Notion не любит простыни. */
   const oneLine = (value, max) =>
     String(value == null ? "" : value).replace(/\s+/g, " ").trim().slice(0, max);
@@ -6065,9 +6229,11 @@
         properties: questionProps(q, ctx),
       });
       GM_setValue(key, Date.now());
+      // Счётчик на панели и громкий пуш: вопрос в Notion иначе теряется.
+      noteQuestionAsked(row, q);
       log(`Вопрос к Мастеру записан: «${q.text}». По умолчанию: ${q.fallback} — работа идёт дальше.`, false, {
-        ntfy: "quiet",
-        title: "Narthex: вопрос к Мастеру",
+        ntfy: "loud",
+        title: "Narthex: новый вопрос к Мастеру",
       });
       return row;
     } catch (e) {
@@ -6257,7 +6423,7 @@
    * существующую роль. Поэтому текст паузы собирается по фактам: имя роли,
    * её настоящий статус, очередь и уже открытый вопрос.
    */
-  function blockedReason({ need = "", directory = [], queue = null, open = [] } = {}) {
+  function blockedReason({ need = "", directory = [], queue = null, open = [], ask = "", asked = false } = {}) {
     const rows = directory || [];
     const find = (name) => rows.find((r) => norm(r.name) === norm(name));
     const lacks = (row) => {
@@ -6310,6 +6476,14 @@
     if (queue && (queue.rework || []).length) {
       parts.push(
         "Rework — это не «нет роли»: Координатор разбирает причину из «Ответа» карточки и сам решает, выдавать снова или править карточку.",
+      );
+    }
+    if (ask) {
+      parts.push(
+        `Координатор спрашивает: «${ask}». ` +
+          (asked
+            ? "Вопрос записан в базу «Вопросы» — он виден там и счётчиком на панели."
+            : "Вопрос в «Вопросы» не записался — он есть только в этом сообщении, запишите его сами."),
       );
     }
     const first = (open || [])[0];
@@ -6491,7 +6665,7 @@
       log(`Маркер Координатора найден: дальше «${decision.next}» (turn ${decision.turn_id || expect.turnId}).`);
       // Вопрос не останавливает цикл: он живёт строкой в базе «Вопросы», а
       // работа идёт по варианту, который агент назвал сам.
-      if (decision.question !== undefined) {
+      if (decision.question !== undefined && norm(decision.next) !== "blocked") {
         const asked = parseQuestion(decision.question);
         if (asked) {
           await askQuestion(asked, {
@@ -6519,12 +6693,37 @@
         // просто «Ждёт». Поэтому текст собирается по фактам (blockedReason), а
         // не по шаблону: Мастер должен видеть, что дозаполнить, а что создать.
         const need = String(decision.need || "").trim();
+        // Вопрос при остановке раньше выбрасывался: у него нет варианта по
+        // умолчанию (цикл и так стоит), а `parseQuestion` такие не принимает.
+        // Мастер видел только «нужна роль», а суть вопроса оставалась в чате.
+        // Теперь он записывается в «Вопросы» с прямым вариантом по умолчанию —
+        // «ждать ответа Мастера» — и попадает в текст паузы.
+        const rawAsk = decision.question;
+        const askText = rawAsk === undefined ? "" : oneLine(typeof rawAsk === "object" && rawAsk ? rawAsk.text : rawAsk, C.questionTextMax);
+        let askRow = null;
+        if (askText) {
+          const ask = typeof rawAsk === "object" && rawAsk ? rawAsk : {};
+          const asked = parseQuestion({
+            ...ask,
+            text: askText,
+            default: oneLine(ask.default, C.questionDefaultMax) || "Ответ Мастера: цикл уже остановлен и ждёт его",
+            hours: Number(ask.hours) || 168,
+          });
+          if (asked) {
+            askRow = await askQuestion(asked, {
+              roleName: role.name,
+              card: "",
+              mission: rt(mission.properties["Миссия"]),
+              key: `${mission.id}:${decision.turn_id || expect.turnId}:blocked`,
+            });
+          }
+        }
         const [directory, fresh, open] = await Promise.all([
           roleRows().catch(() => []),
           queueOf(mission).catch(() => null),
           questionRows([Q.wait], mission).catch(() => []),
         ]);
-        pause(blockedReason({ need, directory, queue: fresh, open }), {
+        pause(blockedReason({ need, directory, queue: fresh, open, ask: askText, asked: Boolean(askRow) }), {
           kind: "blocked-role",
           ref: mission.id,
           need,
@@ -6960,17 +7159,8 @@
         return;
       }
     }
-    // Сроки вопросов к Мастеру проверяются редко: каждый тик — лишний запрос
-    // в Notion, а вопрос, закрытый на десять минут позже, ничего не меняет.
-    if (Date.now() - (Number(GM_getValue("cfn-q-check-at", 0)) || 0) > C.questionCheckMs) {
-      GM_setValue("cfn-q-check-at", Date.now());
-      try {
-        const active = await activeMission();
-        if (active) await closeExpired(expiredQuestions(await questionRows([Q.wait], active)));
-      } catch (e) {
-        dbg("вопросы: срок не проверен", e.message);
-      }
-    }
+    // Вопросы к Мастеру живут отдельным сторожем (`watchQuestions`): они видны
+    // и на паузе, а тик до паузы не доходит.
     busy = true;
     busyAt = Date.now();
     try {
