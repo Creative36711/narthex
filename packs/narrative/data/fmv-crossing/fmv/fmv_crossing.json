@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "id": "fmv_crossing",
+  "start": "fragment_a",
+  "fragments": [
+    {
+      "id": "fragment_a",
+      "src": "assets/video/fragment_a.webm",
+      "poster": "assets/video/fragment_a.png",
+      "duration_ms": 4000,
+      "subtitles": [
+        {
+          "start_ms": 0,
+          "end_ms": 4000,
+          "text": "У развилки гаснут огни. Фонарь зовёт направо, ворон — налево."
+        }
+      ],
+      "choices": [
+        {
+          "id": "follow_lantern",
+          "text": "Идти на свет фонаря.",
+          "next": "fragment_b",
+          "once": true,
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": { "type": "set_flag", "flag": "chose_lantern" }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "follow_raven",
+          "text": "Идти за вороном.",
+          "next": "fragment_c",
+          "once": true,
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": { "type": "set_flag", "flag": "chose_raven" }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fragment_b",
+      "src": "assets/video/fragment_b.webm",
+      "poster": "assets/video/fragment_b.png",
+      "duration_ms": 5000,
+      "subtitles": [
+        {
+          "start_ms": 0,
+          "end_ms": 5000,
+          "text": "Фонарь освещает безопасную дорогу. Выбор сохранён: свет."
+        }
+      ]
+    },
+    {
+      "id": "fragment_c",
+      "src": "assets/video/fragment_c.webm",
+      "poster": "assets/video/fragment_c.png",
+      "duration_ms": 4000,
+      "subtitles": [
+        {
+          "start_ms": 0,
+          "end_ms": 4000,
+          "text": "Ворон приводит к забытой тропе. Выбор сохранён: тень."
+        }
+      ]
+    }
+  ]
+}

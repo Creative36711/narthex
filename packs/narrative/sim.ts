@@ -1,5 +1,14 @@
 import type { DeepReadonly, PackSimHook } from '../../src/core/pack/host'
+import {
+  chooseFmv,
+  copyFmvState,
+  endFmv,
+  failFmv,
+  readyFmv,
+  startFmv,
+} from './fmv'
 import type {
+  NarrativeChoice,
   NarrativeCondition,
   NarrativeContent,
   NarrativeDialogueNode,
@@ -28,6 +37,7 @@ function runtimeCopy(state: DeepReadonly<NarrativeState>): NarrativeState {
     usedChoices: [...state.usedChoices],
     visitedScenes: [...state.visitedScenes],
     journal: [...state.journal],
+    ...(state.fmv ? { fmv: copyFmvState(state.fmv) } : {}),
   }
 }
 
@@ -47,7 +57,7 @@ export function createNarrativeState(content: NarrativeContent): NarrativeState 
   const scene = content.scenes[content.campaign.starting_scene]
   if (!scene) throw new Error(`Unknown starting scene ${content.campaign.starting_scene}`)
   if (!content.locations[scene.location]) throw new Error(`Unknown starting location ${scene.location}`)
-  return {
+  const state: NarrativeState = {
     scene: scene.id,
     location: scene.location,
     flags: {},
@@ -58,6 +68,12 @@ export function createNarrativeState(content: NarrativeContent): NarrativeState 
     visitedScenes: [scene.id],
     journal: [],
   }
+  if (scene.fmv) {
+    const working = editable(state, content)
+    startFmv(working, content, scene.fmv)
+    return runtimeCopy(working)
+  }
+  return state
 }
 
 function conditionOk(state: WorkingState, condition: NarrativeCondition): boolean {
@@ -213,6 +229,24 @@ function finishDialogueTransition(state: WorkingState, target: string): void {
   else if (target !== 'stay') enterDialogueNode(state, target)
 }
 
+function applyNarrativeChoice(
+  state: WorkingState,
+  owner: string,
+  nodeId: string,
+  choices: readonly NarrativeChoice[],
+  index: number,
+): NarrativeChoice {
+  const choice = choices[index]
+  if (!choice) throw new Error(`Unknown dialogue choice ${index}`)
+  const key = `${owner}:${nodeId}:${index}`
+  if (choice.once && state.usedChoices.includes(key)) throw new Error(`Choice ${key} was already used`)
+  if (!conditionsOk(state, choice.conds ?? [])) throw new Error(`Choice ${key} is not available`)
+  if (choice.check !== undefined) throw new Error('Skill checks require a resolved outcome event')
+  applySections(state, choice.sections ?? [])
+  if (choice.once) state.usedChoices.push(key)
+  return choice
+}
+
 function enterScene(state: WorkingState, sceneId: string): void {
   const scene = state.content.scenes[sceneId]
   if (!scene) throw new Error(`Unknown scene ${sceneId}`)
@@ -220,6 +254,8 @@ function enterScene(state: WorkingState, sceneId: string): void {
   state.scene = sceneId
   state.location = scene.location
   if (!state.visitedScenes.includes(sceneId)) state.visitedScenes.push(sceneId)
+  if (scene.fmv) startFmv(state, state.content, scene.fmv)
+  else delete state.fmv
 }
 
 function reduceNarrative(
@@ -256,15 +292,18 @@ function reduceNarrative(
       break
     }
     case 'choose_dialogue': {
+      if (state.fmv) {
+        chooseFmv(state, content, event.choice, applyNarrativeChoice)
+        break
+      }
       const node = dialogueNode(state)
-      const choice = node.choices?.[event.choice]
-      if (!choice) throw new Error(`Unknown dialogue choice ${event.choice}`)
-      const key = `${state.dialogue!.dialogue}:${node.id}:${event.choice}`
-      if (choice.once && state.usedChoices.includes(key)) throw new Error(`Choice ${key} was already used`)
-      if (!conditionsOk(state, choice.conds ?? [])) throw new Error(`Choice ${key} is not available`)
-      if (choice.check !== undefined) throw new Error('Skill checks require a resolved outcome event')
-      applySections(state, choice.sections ?? [])
-      if (choice.once) state.usedChoices.push(key)
+      const choice = applyNarrativeChoice(
+        state,
+        state.dialogue!.dialogue,
+        node.id,
+        node.choices ?? [],
+        event.choice,
+      )
       finishDialogueTransition(state, choice.goto ?? 'stay')
       break
     }
@@ -274,6 +313,18 @@ function reduceNarrative(
       finishDialogueTransition(state, node.goto ?? 'end')
       break
     }
+    case 'start_fmv':
+      startFmv(state, content, event.scene)
+      break
+    case 'fmv_ready':
+      readyFmv(state, content, event.scene, event.fragment, applyNarrativeChoice)
+      break
+    case 'fmv_error':
+      failFmv(state, content, event.scene, event.fragment, event.code, event.message)
+      break
+    case 'fmv_ended':
+      endFmv(state, content, event.scene, event.fragment)
+      break
     case 'start_quest':
       startQuest(state, event.quest)
       break

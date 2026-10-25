@@ -1,0 +1,21 @@
+{
+  "id": "scene_fmv_crossing",
+  "label": "Перекрёсток огней — ветвящееся видео",
+  "location": "loc_crossing",
+  "fmv": "fmv_crossing",
+  "canvas": { "w": 640, "h": 360 },
+  "states": [
+    {
+      "id": "state_fmv_poster",
+      "label": "Первый кадр всегда доступен",
+      "image": "assets/video/fragment_a.png"
+    }
+  ],
+  "slots": [],
+  "navigation": [
+    {
+      "label": "Открыть карту после видео",
+      "open_map": true
+    }
+  ]
+}

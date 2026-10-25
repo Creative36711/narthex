@@ -1,0 +1,153 @@
+{
+  "id": "fmv-crossing",
+  "title": "Перекрёсток огней — FMV",
+  "version": "0.1.0",
+  "engine_version": "0.1.0",
+  "min_engine": "0.1.0",
+  "package_format": 1,
+  "author": "Narthex",
+  "description": "Демонстрация narrative FMV: предзагруженные видеофрагменты, выбор без пустого кадра и субтитры вне журнала.",
+  "tick_label": "ч",
+  "ticks_per_day": 24,
+  "time_of_day": {
+    "morning": 6,
+    "day": 11,
+    "evening": 18,
+    "night": 22
+  },
+  "starting_region": "region_crossing",
+  "starting_location": "loc_crossing",
+  "starting_scene": "scene_fmv_crossing",
+  "starting_tick": 8,
+  "default_player": "player_mercenary",
+  "needs": [
+    {
+      "id": "hunger",
+      "label": "Голод",
+      "max": 100,
+      "decay_per_tick": 1.2,
+      "critical_threshold": 15,
+      "on_zero_effect": "death"
+    },
+    {
+      "id": "thirst",
+      "label": "Жажда",
+      "max": 100,
+      "decay_per_tick": 1.8,
+      "critical_threshold": 15,
+      "on_zero_effect": "death"
+    },
+    {
+      "id": "energy",
+      "label": "Энергия",
+      "max": 100,
+      "decay_per_tick": 0.7,
+      "critical_threshold": 10,
+      "on_zero_effect": "effect_collapse"
+    },
+    {
+      "id": "warmth",
+      "label": "Тепло",
+      "max": 100,
+      "decay_per_tick": 3,
+      "critical_threshold": 25,
+      "on_zero_effect": "death",
+      "decay_when": [
+        {
+          "type": "time_of_day",
+          "values": [
+            "evening",
+            "night"
+          ]
+        },
+        {
+          "type": "has_item",
+          "items": [
+            "item_wool_cloak",
+            "item_fur_coat"
+          ],
+          "not": true
+        },
+        {
+          "type": "in_location",
+          "locations": [
+            "loc_tavern",
+            "loc_barracks",
+            "loc_temple"
+          ],
+          "not": true
+        }
+      ],
+      "restore_per_tick": 8,
+      "restore_when": [
+        {
+          "type": "in_location",
+          "locations": [
+            "loc_tavern",
+            "loc_barracks",
+            "loc_temple"
+          ]
+        }
+      ]
+    }
+  ],
+  "dice_rules": {
+    "critical_divisor": 5,
+    "special_divisor": 2,
+    "fumble_from": 96
+  },
+  "calendar": {
+    "year_label": "год Пепла",
+    "start_year": 137,
+    "days_per_month": 30,
+    "months": [
+      "Углемес",
+      "Гаревей",
+      "Дымолун",
+      "Пеплопад",
+      "Искроткань",
+      "Студень",
+      "Снеговей",
+      "Таловод",
+      "Розжиг",
+      "Зелень",
+      "Высолнце",
+      "Жатвень"
+    ],
+    "day_names": [
+      "Пепельник",
+      "Кузнецов",
+      "Ветровик",
+      "Странник",
+      "Тихий",
+      "Светлый",
+      "Тёмный"
+    ]
+  },
+  "difficulties": [
+    {
+      "id": "wanderer",
+      "label": "Странник",
+      "description": "Спокойное путешествие: враги бьют вполсилы, цены ниже.",
+      "enemy_damage": 0.5,
+      "prices": 0.85
+    },
+    {
+      "id": "caerden",
+      "label": "Пепел Каэрдена",
+      "description": "Как задумано автором."
+    },
+    {
+      "id": "iron",
+      "label": "Железный человек",
+      "description": "Враги жестоки, голод неумолим, торговцы ломят цену. Без автосохранений.",
+      "enemy_damage": 1.5,
+      "need_decay": 1.5,
+      "prices": 1.25,
+      "no_autosave": true
+    }
+  ],
+  "theme": {
+    "profile": "dark-fantasy"
+  }
+}
