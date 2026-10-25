@@ -16,7 +16,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.73/, 'версия 1.4.73');
+assert.match(src, /@version\s+1\.4\.74/, 'версия 1.4.74');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
@@ -111,7 +111,8 @@ for (const text of [
 }
 assert.match(cpBody, /composerDiagnostics\(\)/, 'при отказе печатается диагностика разметки');
 assert.ok(!/В поле ввода уже есть другой текст/.test(src), 'запрета на чужой текст больше нет');
-assert.match(cpBody, /заменяю его заданием из очереди/, 'замена текста видна в журнале');
+assert.match(cpBody, /очистил перед вставкой задания/, 'видно, что поле очищено перед вставкой');
+assert.match(cpBody, /clearComposer\(editor\)/, 'поле чистится перед заданием, а не поверх старого текста');
 assert.match(cpBody, /const delivery = await deliver\(editor, pending\.text\);/, 'отправка проверяется');
 assert.match(cpBody, /if \(!delivery\.ok\)/, 'неудачная отправка — пауза, а не «отправлено»');
 assert.match(sendBlock, /async function deliver\(editor, text\)/, 'доставка отдельной функцией');
@@ -426,13 +427,13 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   assert.match(out.pauses[0].text, /кнопка не найдена/, 'видно, что кнопки Send нет');
 }
 
-// 6.5a. В редакторе был текст — заменяем и отправляем, без ложной паузы.
+// 6.5a. В редакторе был текст — чистим поле и отправляем, без ложной паузы.
 {
   const { api, out } = load({ pending, editor: freshEditor("черновик Мастера"), send: true });
   await api.consumePending(true);
   assert.equal(out.pauses.length, 0, 'паузы из-за текста больше нет');
   assert.deepEqual(out.clicks, ["send"], 'задание отправлено');
-  assert.ok(out.logs.some((l) => /заменяю его заданием из очереди/.test(l.text)), 'замена отмечена в журнале');
+  assert.ok(out.logs.some((l) => /очистил перед вставкой задания/.test(l.text)), 'очистка отмечена в журнале');
 }
 
 // 6.5a2. Send остаётся серым: редактор не принял ввод — пауза с точной причиной.

@@ -15,10 +15,10 @@ const start = src.indexOf('  const TECH_OPEN =');
 const end = src.indexOf('  // ───────────────────────────── промпты');
 assert.ok(start > 0 && end > start, 'секция технической информации найдена');
 
-const C = { repo: 'Creative36711/narthex', promptMax: 6200 };
-const { technicalInfo, technicalInfoCompact, fitPrompt, TECH_OPEN, TECH_CLOSE } = new Function(
+const C = { repo: 'Creative36711/narthex' };
+const { technicalInfo, TECH_OPEN, TECH_CLOSE } = new Function(
   'C',
-  `${src.slice(start, end)}\nreturn { technicalInfo, technicalInfoCompact, fitPrompt, TECH_OPEN, TECH_CLOSE };`,
+  `${src.slice(start, end)}\nreturn { technicalInfo, TECH_OPEN, TECH_CLOSE };`,
 )(C);
 
 const role = (fn, name = fn) => ({ fn, name });
@@ -31,26 +31,6 @@ for (const fn of ['Executor', 'Auditor', 'Coordinator']) {
   assert.match(text, /ТЕХНИЧЕСКАЯ ИНФОРМАЦИЯ/, `${fn}: заголовок на месте`);
   assert.match(text, /не задание и не текст Координатора/, `${fn}: оговорка об источнике`);
   assert.ok(text.includes('UTC'), `${fn}: есть отметка времени`);
-}
-
-// ── 1б. Сжатый блок: те же факты, короче ───────────────────────────────────
-{
-  const full = technicalInfo(role('Executor', 'Architect'));
-  const short = technicalInfoCompact(role('Executor', 'Architect'));
-  assert.ok(short.length < full.length * 0.6, 'сжатый блок заметно короче полного');
-  assert.ok(short.startsWith(TECH_OPEN) && short.trimEnd().endsWith(TECH_CLOSE), 'метки на месте');
-  assert.match(short, /merge-base HEAD origin\/main/, 'проверка общей истории осталась');
-  assert.match(short, /git reset --hard origin\/main/, 'ритуал старта остался');
-  assert.match(short, /PR покажет удаление чужих файлов/, 'вред снимка назван');
-  assert.match(short, /ставит скрипт/, 'запрет писать поля карточки остался');
-
-  // Задание длиннее бюджета: блок заменяется, задание — нет.
-  const long = `${full}\nЗадача NAR-2.16\n${'строка задания '.repeat(500)}`;
-  const fitted = fitPrompt(long, role('Executor', 'Architect'));
-  assert.ok(fitted.length < long.length, 'длинный промпт сокращается');
-  assert.ok(fitted.includes('строка задания'), 'задание не тронуто');
-  assert.ok(fitted.includes('merge-base HEAD origin/main'), 'факты о среде остались');
-  assert.equal(fitPrompt('короткое задание', role('Executor')), 'короткое задание', 'короткий промпт не меняется');
 }
 
 // ── 2. Executor получает ритуал старта от main ──────────────────────────────

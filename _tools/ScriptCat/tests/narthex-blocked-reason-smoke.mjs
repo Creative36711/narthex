@@ -1,4 +1,4 @@
-// Проба 1.4.73: пауза «blocked» объясняет факт, а не шаблон.
+// Проба 1.4.74: пауза «blocked» объясняет факт, а не шаблон.
 //
 // Случай Мастера (2026-10-25, пауза 19:43:32). Координатор вернул
 // next:"blocked" без need, и транспорт написал:
@@ -18,7 +18,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const V = '1.4.73';
+const V = '1.4.74';
 
 assert.equal((src.split('\n').find((line) => line.startsWith('// @version')) || '').trim(), '// @version      ' + V, `версия ${V}`);
 

@@ -17,7 +17,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // ── 1. Версия ──────────────────────────────────────────────────────────────
-assert.match(src, /@version\s+1\.4\.73/, 'версия 1.4.73');
+assert.match(src, /@version\s+1\.4\.74/, 'версия 1.4.74');
 
 // ── 2. Разбор заявки «PR не будет» ─────────────────────────────────────────
 const from = src.indexOf('  const prDeclined = (result) => {');

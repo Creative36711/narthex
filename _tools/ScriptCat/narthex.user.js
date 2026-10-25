@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.73
+// @version      1.4.74
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -62,8 +62,7 @@
     repo: "Creative36711/narthex", // для ссылки на PR из номера
     tickMs: 15000,
     mergeGraceMs: 90000, // сколько ждём мерж, прежде чем нажать кнопки за агента
-    promptMax: 6200, // длиннее — техблок уходит в коротком виде (25.10: Arena дважды не приняла 7 586 символов)
-    arenaResendMax: 2, // сколько коротких повторов после ошибки Arena в нашем же задании
+    arenaResendMax: 1, // один минимальный повтор после ошибки Arena; второй отказ — пауза
     arenaRetryMs: 180000, // ошибка старше трёх минут уже не про нашу отправку
     continueWaitMs: 20000, // после Merged ждём Continue: без неё агент не получит новую ветку
     prCardWaitMs: 8000, // карточка PR может отрисоваться позже ответа
@@ -302,7 +301,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.73";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.74";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -794,9 +793,9 @@
     GM_setValue(K.pause, null);
     // Пауза из-за «Something went wrong»: сообщение не приняли, и ожидание
     // ответа — фикция. «Продолжить» — это и есть просьба отправить заново,
-    // поэтому окно свежести ошибки (`arenaRetryMs`) считается от нажатия, а не
-    // от неудачной отправки, и повторы начинаются с чистого счёта. Иначе старое
-    // сообщение с ошибкой так и осталось бы «уже показанным» (−1.4.73).
+    // поэтому окно свежести ошибки (`arenaRetryMs`) считается от нажатия, а в
+    // очередь кладётся минимальное сообщение «прочитай карточку сам». Старая
+    // отметка «эту ошибку уже видели» снимается: иначе новый код её не тронет.
     if (paused && paused.kind === "arena-error") {
       GM_setValue(K.errSeen, "");
       const waiting = GM_getValue(K.expect, null);
@@ -807,11 +806,13 @@
           verified: false,
           arenaResend: 0,
         });
-        log(
-          "Пауза была из-за ошибки Arena: сообщение не приняли — повторю задание короткой версией.",
-          false,
-          { ntfy: "quiet" },
+        retryRejectedHandoff(
+          GM_getValue(K.expect, null),
+          { messageId: paused.ref || "" },
+          "Пауза была из-за ошибки Arena",
         );
+      } else {
+        log("Пауза была из-за ошибки Arena, а ожидания уже нет: нажмите «Шаг», чтобы начать ход заново.", true);
       }
     }
     // Новый бюджет напоминаний: Мастер уже посмотрел, почему агент молчал.
@@ -2566,46 +2567,37 @@
       .trim().length;
 
   /**
-   * Короткая версия задания — для повтора, когда Arena отклонила полную.
+   * Минимальное сообщение вместо отклонённого задания.
    *
-   * 25.10 дважды подряд (21:24 и 22:55) задание NAR-2.16 не принялось ошибкой
-   * «Something went wrong. Please try again.»: сообщение в чате есть, ход у
-   * агента не начался. Оба раза это был Architect и полный промпт примерно на
-   * пять тысяч символов. Повторять его целиком бессмысленно — с большой
-   * вероятностью та же ошибка. Поэтому второй заход короче: что делать, где
-   * границы и маркер. Техблок и правила хода остаются в первом сообщении — оно
-   * видно в чате выше, а при его отсутствии агент читает журнал попытки.
+   * 25.10 задание Architect (NAR-2.16) не принималось трижды: «Something went
+   * wrong. Please try again.» — и на полном тексте (7 586 символов), и на
+   * сокращённом техблоке (7 610 после переотправки). Дело не в длине и не в
+   * разметке: Arena отклоняет сам текст задания. Поэтому повтор — это не
+   * пересказ, а просьба прочитать задание самому: ссылка на карточку, номера
+   * выдачи и формат маркера. Всё остальное агент берёт из карточки.
    */
-  function compactPrompt(expect, level = 0) {
-    const head =
-      level <= 0
-        ? [
-            `Задача ${expect.title || expect.ref || ""} (dispatch ${expect.ref || ""}, run ${expect.runId || ""}).`,
-            "Предыдущее сообщение Arena отклонила ошибкой, но оно видно в чате выше — это то же задание.",
-            "Выполни его: только своя зона из карточки, один PR, мерж сам (`gh pr merge --squash`),",
-            "оракул карточки не ослабляй, спорное — строкой «Допущение: …» в отчёт.",
-          ]
-        : [
-            "Задание выше не принялось ошибкой Arena. Выполни его как есть.",
-            `Карточка ${expect.ref || ""}, run ${expect.runId || ""}.`,
-          ];
-    const tail = [
+  function minimalPrompt(expect) {
+    const id = String(expect.ref || "");
+    const url = expect.url || (id ? `https://app.notion.com/p/${id.replace(/-/g, "")}` : "");
+    return [
+      `Задание ${expect.title || id} (dispatch ${id}, run ${expect.runId || ""}).`,
+      "Полный текст Arena не приняла ошибкой. Прочитай задание сам — оно в карточке:",
+      url || `(карточка Notion ${id})`,
+      "Поля карточки — Намерение, Инварианты, Оракул (Acceptance), Scope — и есть задание.",
+      "Работай только в своей зоне, PR мержи сам (`gh pr merge --squash`), оракул не ослабляй.",
       "Последней строкой ответа — ровно один маркер:",
-      `CF_AGENT_RESULT {"dispatch_id":"${expect.ref || ""}","run_id":"${expect.runId || ""}","status":"submitted","check":0,"report":"<путь>","pr":<номер PR>,"merged":true}`,
-      "Работа без PR — `\"pr\": null`.",
-    ];
-    return [...head, ...tail].join("\n");
+      `CF_AGENT_RESULT {"dispatch_id":"${id}","run_id":"${expect.runId || ""}","status":"submitted","check":0,"report":"<путь>","pr":<номер PR>,"merged":true}`,
+      'Работа без PR — `"pr": null`.',
+    ].join("\n");
   }
 
   /**
-   * Задание, которое Arena съела ошибкой, возвращается в очередь коротким текстом.
+   * Задание, которое Arena съела ошибкой, возвращается в очередь минимальным
+   * сообщением. Повтор один: второй отказ подряд — пауза, а не цикл.
    *
    * «Задание отправлено» в этом случае врёт: сообщение в транскрипте есть, ход у
    * агента не начался. Отметка доставки снимается, id «мёртвого» сообщения
-   * запоминается (иначе `lastUserSays` примет старую копию за новую отправку),
-   * а вместо полного промпта в очередь кладётся `compactPrompt`.
-   *
-   * Повторяется не бесконечно: `arenaResendMax` подряд, дальше — честная пауза.
+   * запоминается (иначе `lastUserSays` примет старую копию за новую отправку).
    */
   function retryRejectedHandoff(expect, alert, why) {
     if (!expect || !expect.roleId) return false;
@@ -2613,7 +2605,7 @@
     if (Date.now() - Number(expect.sentAt || 0) > C.arenaRetryMs) return false;
     const done = Number(expect.arenaResend) || 0;
     if (done >= C.arenaResendMax) return false;
-    const text = compactPrompt(expect, done);
+    const text = minimalPrompt(expect);
     GM_setValue(K.deadSend, (alert && alert.messageId) || "");
     GM_setValue(K.pending, {
       roleId: expect.roleId,
@@ -2636,9 +2628,9 @@
       lastReplyAt: 0,
     });
     log(
-      `${why}: задание до «${expect.roleName || "агента"}» не принялось — повторяю короткой версией ` +
-        `(${done + 1} из ${C.arenaResendMax}): ${text.length} символов вместо ${String(expect.text || "").length}. ` +
-        "Новый ход Координатора не нужен.",
+      `${why}: задание до «${expect.roleName || "агента"}» не принялось — повторяю минимальным сообщением ` +
+        `«прочитай карточку сам» (${text.length} символов вместо ${String(expect.text || "").length}). ` +
+        "Второй отказ подряд — пауза. Новый ход Координатора не нужен.",
       true,
       { ntfy: "quiet", title: "Narthex: повторяю задание" },
     );
@@ -2753,6 +2745,7 @@
         turnId: expect.turnId,
         runId: expect.runId,
         title: expect.title,
+        url: expect.url,
         tries: sent + 1,
       });
       return true;
@@ -2837,6 +2830,17 @@
       // короткие повторы уже исчерпаны.
       const expect = GM_getValue(K.expect, null);
       if (retryRejectedHandoff(expect, alert, `Arena ответила «${alert.text || "ошибка без текста"}»`)) {
+        return true;
+      }
+      const tried = Number(expect?.arenaResend) || 0;
+      if (tried > 0) {
+        // Минимальное сообщение тоже не прошло: второй отказ подряд — стоп.
+        pause(
+          `Arena второй раз не приняла задание «${expect?.title || expect?.ref || "агента"}»: ` +
+            `«${alert.text || "ошибка без текста"}». Минимальное сообщение тоже отклонено — ` +
+            "цикл остановлен. Задание в очереди, карточка Running: посмотрите страницу агента.",
+          { kind: "arena-error", ref: alert.messageId, runId: expect?.runId || "" },
+        );
         return true;
       }
       pause(`Видимая ошибка Arena в последнем сообщении: ${alert.text || "текст ошибки пуст"}.`, {
@@ -3322,6 +3326,45 @@
   }
 
   const composerText = (editor) => (editor?.innerText || editor?.textContent || "").replace(/\s+/g, " ").trim();
+
+  /**
+   * Очистить поле ввода.
+   *
+   * 25.10 Arena вернула отклонённый текст задания обратно в поле: сообщение «не
+   * ушло», а черновик остался. Если этого не заметить, следующая вставка
+   * склеится со старым текстом, и вместо минимального сообщения уйдёт тот же
+   * отклонённый промпт — ошибка повторится.
+   */
+  function clearComposer(editor) {
+    const live = composerAlive(editor) ? editor : composer();
+    if (!live) return false;
+    if (!composerText(live)) return true;
+    live.focus();
+    try {
+      if (live.tagName === "TEXTAREA" || live.tagName === "INPUT") {
+        const proto = live.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+        const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+        if (setter) setter.call(live, "");
+        else live.value = "";
+        live.dispatchEvent(new Event("input", { bubbles: true }));
+        return !composerText(live);
+      }
+      const range = document.createRange();
+      range.selectNodeContents(live);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      document.execCommand("delete");
+    } catch (e) {
+      dbg("composer: очистка не удалась", String(e?.message || e));
+    }
+    // Запасной путь — как у вставки: иначе ProseMirror оставит свой старый узел.
+    if (composerText(live) && composerAlive(live)) {
+      live.textContent = "";
+      live.dispatchEvent(new InputEvent("input", { bubbles: true, data: "", inputType: "deleteContentBackward" }));
+    }
+    return !composerText(live);
+  }
 
   /**
    * Плашка «задание выполнено». Два вида, оба перекрывают чат:
@@ -4197,20 +4240,10 @@
     return String(h);
   }
 
-  async function sendToRole(role, rawText, kind, ref, extra = {}) {
+  async function sendToRole(role, text, kind, ref, extra = {}) {
     const force = extra.force === true;
     const payload = { ...extra };
     delete payload.force;
-    // Длинный промпт сокращается только в части техблока: задание не меняется.
-    const text = fitPrompt(rawText, role);
-    if (text !== rawText) {
-      log(
-        `Задание длинное (${rawText.length} символов) — техблок сокращён до ${text.length}: ` +
-          "длинные сообщения Arena иногда не принимает.",
-        false,
-        { ntfy: false },
-      );
-    }
 
     // Двойная обработка одного ответа (нажали «Шаг» дважды, сработал
     // автоцикл) отправляла агенту второй такой же текст. Агент отвечал на
@@ -4472,10 +4505,18 @@
       return true;
     }
 
-    // Что было в поле, не важно: задание в очереди — это текущий ход. Прежний
-    // запрет на «чужой текст» порождал ложные паузы (остаток прошлой попытки,
-    // подсказка редактора), поэтому текст просто заменяется.
-    if (composerText(editor)) log("В поле ввода был текст — заменяю его заданием из очереди.");
+    // Что было в поле, не важно: задание в очереди — это текущий ход. Но сначала
+    // поле очищается: Arena возвращает туда отклонённый текст, и вставка поверх
+    // склеила бы минимальное сообщение со старым промптом.
+    if (composerText(editor)) {
+      const cleared = clearComposer(editor);
+      log(
+        cleared
+          ? "В поле ввода был текст (Arena возвращает туда отклонённое) — очистил перед вставкой задания."
+          : "Поле ввода не очистилось — вставляю задание поверх: вставка заменяет текст целиком.",
+        !cleared,
+      );
+    }
 
     // Не вставляем мгновенно после загрузки страницы: ровный машинный ритм
     // выглядит как бот и мешает живому диалогу.
@@ -5496,42 +5537,6 @@
   function technicalInfo(role) {
     const body = TECH_BY_FN[role.fn] || EXECUTOR_TECH;
     return [techHeader(role), "", body, "", TECH_CLOSE].join("\n");
-  }
-
-  /**
-   * Тот же блок, но сжатый — для длинных заданий.
-   *
-   * 25.10 задание NAR-2.16 вышло на 7 586 символов (1 594 из них — техблок), и
-   * Arena дважды ответила «Something went wrong. Please try again.»; то же
-   * задание, пересказанное коротко, проходило. Факты о среде терять нельзя,
-   * поэтому в длинном промпте они остаются, но без повторов и объяснений.
-   */
-  function technicalInfoCompact(role) {
-    return [
-      techHeader(role),
-      "",
-      `Репозиторий ${C.repo}; единственная ветка для мержа — main.`,
-      "Arena может посадить сессию на ветку-СНИМОК без общей истории с main: коммит в main не попадёт,",
-      "а PR покажет удаление чужих файлов. СТАРТ: git fetch origin main; git merge-base HEAD origin/main;",
-      "git reset --hard origin/main; git switch -c nar/<номер> origin/main; git diff --stat main — пусто.",
-      "ЗАПРЕЩЕНО: работать на снимке, трогать чужую зону, мержить в обход PR.",
-      "Поля карточки (Dispatch State, Run ID, PR, Check, даты) ставит скрипт — руками не вписывать.",
-      "",
-      TECH_CLOSE,
-    ].join("\n");
-  }
-
-  /**
-   * Промпт не длиннее `C.promptMax`: длинный блок заменяется сжатым, задание
-   * остаётся как есть. Длина — единственное, что здесь меняется.
-   */
-  function fitPrompt(text, role) {
-    const raw = String(text || "");
-    if (raw.length <= C.promptMax) return raw;
-    const start = raw.indexOf(TECH_OPEN);
-    const end = raw.indexOf(TECH_CLOSE);
-    if (start < 0 || end < start) return raw;
-    return raw.slice(0, start) + technicalInfoCompact(role) + raw.slice(end + TECH_CLOSE.length);
   }
 
   // ───────────────────────────── промпты ─────────────────────────────
@@ -7675,6 +7680,8 @@
       runId,
       logId,
       title: taskTitle(card),
+      // Ссылка нужна минимальному повтору: «прочитай карточку сам».
+      url: card.url || "",
     }));
   }
 

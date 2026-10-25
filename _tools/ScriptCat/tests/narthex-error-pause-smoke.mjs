@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и новый адрес ntfy.
-assert.match(src, /@version\s+1\.4\.73/, 'версия 1.4.73');
+assert.match(src, /@version\s+1\.4\.74/, 'версия 1.4.74');
 assert.match(src, /@connect\s+ntfy\.sh/, 'ntfy.sh разрешён в @connect');
 
 // 2. Журнал: ограничен, очищается, счётчик виден.
@@ -53,7 +53,8 @@ assert.ok(monitor.length > 0, 'монитор ошибок на месте');
 assert.match(monitor, /latestUserMessageAlert\(\)/, 'алерт в последнем сообщении ловится');
 assert.match(monitor, /detectVisibleErrorCard\(\)/, 'красная карточка интерфейса ловится');
 assert.match(monitor, /alreadyReported\(key\)/, 'одна и та же ошибка не ставит паузу дважды');
-assert.equal((monitor.match(/pause\(/g) || []).length, 2, 'обе ветки останавливают цикл');
+assert.equal((monitor.match(/pause\(/g) || []).length, 3, 'алерт (повтор исчерпан и обычный) и красная карточка останавливают цикл');
+assert.match(monitor, /Arena второй раз не приняла задание/, 'второй отказ подряд назван причиной паузы');
 assert.ok(!monitor.includes('.click('), 'монитор ошибок ничего не нажимает');
 
 // 6. Лестница маркера: напоминание, затем пауза.
