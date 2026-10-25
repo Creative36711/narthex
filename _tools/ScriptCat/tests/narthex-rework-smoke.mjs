@@ -1,4 +1,4 @@
-// Проба 1.4.57: у Rework есть путь назад.
+// Проба 1.4.58: у Rework есть путь назад.
 //
 // 25.10 Координатор поставил NAR-2.5 в Rework за форму ответа: код уже лежал в
 // main, а в отчёте не хватало цитат. Транспорт выдаёт только Ready, поэтому из
@@ -18,7 +18,7 @@ import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
-assert.match(src, /@version\s+1\.4\.57/, 'версия 1.4.57');
+assert.match(src, /@version\s+1\.4\.58/, 'версия 1.4.58');
 
 const sliceBetween = (startMarker, endMarker) => {
   const from = src.indexOf(startMarker);
@@ -115,4 +115,4 @@ assert.match(src, /reworkLine\(queue\.rework\)/, 'reworkLine вызываетс�
 assert.match(src, /function coordinatorPrompt\([\s\S]*?ready = "",\n\s*rework = "",/, 'промпт принимает строку Rework');
 assert.match(src, /^\s+ready,\n\s+rework,/m, 'и ставит её сразу после Ready');
 
-console.log('OK: narthex 1.4.57 — Rework не запирает карточку: причина в промпте, путь назад назван, следы снимает транспорт');
+console.log('OK: narthex 1.4.58 — Rework не запирает карточку: причина в промпте, путь назад назван, следы снимает транспорт');
