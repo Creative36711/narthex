@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.67
+// @version      1.4.68
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -57,6 +57,7 @@
     questionTextMax: 180,
     questionDefaultMax: 200,
     questionCheckMs: 600000, // как часто проверять сроки вопросов (10 минут)
+    adrCheckMs: 600000, // как часто смотреть docs/decisions на proposed (10 минут)
     pageUrl: "https://app.notion.com/p/Narthex-4016f0cf570581f7a1f7c3661c608ffd",
     repo: "Creative36711/narthex", // для ссылки на PR из номера
     tickMs: 15000,
@@ -127,6 +128,8 @@
     gh: "cfn-gh",
     questions: "cfn-questions",
     qBadge: "cfn-q-badge",
+    adr: "cfn-adr",
+    adrBadge: "cfn-adr-badge",
     count: "cfn-log-count",
     debug: "cfn-debug-toggle",
   };
@@ -294,7 +297,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.67";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.68";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -890,6 +893,7 @@
         <button id="${ui.toggle}" style="${btnStyle()}">▶ Включить</button>
         <button id="${ui.ntfy}" title="Уведомления ntfy: тихие вехи и громкие тревоги" style="${btnStyle()}">🔔</button>
         <button id="${ui.questions}" title="Вопросы агентов к Мастеру — база «Вопросы» в Notion" style="${btnStyle()}">❓<span id="${ui.qBadge}" style="display:none;margin-left:3px;padding:0 4px;border-radius:7px;background:#b23b3b;color:#fff;font-size:10px;line-height:14px;vertical-align:middle">0</span></button>
+        <button id="${ui.adr}" title="Решения (ADR) со статусом proposed — ждут Мастера" style="${btnStyle()}">⚖<span id="${ui.adrBadge}" style="display:none;margin-left:3px;padding:0 4px;border-radius:7px;background:#8a6b2a;color:#fff;font-size:10px;line-height:14px;vertical-align:middle">0</span></button>
         <button id="${ui.gh}" title="GitHub: токен для приватного репозитория и возврат карточки после ложного отказа" style="${btnStyle()}">🐙</button>
         <button id="${ui.debug}" title="Отладка в консоли браузера (F12)" style="${btnStyle()}">🐞</button>
         <button id="${ui.reset}" title="Сбросить очередь и ожидание прошлых попыток (журнал и настройки останутся)" style="${btnStyle()}">↺</button>
@@ -916,6 +920,8 @@
       paintDebugButton();
     };
     document.getElementById(ui.questions).onclick = () => window.open(C.questionsUrl, "_blank", "noopener");
+    document.getElementById(ui.adr).onclick = () =>
+      window.open(`https://github.com/${C.repo}/tree/main/docs/decisions`, "_blank", "noopener");
     document.getElementById(ui.ntfy).onclick = () => ntfyDialog();
     document.getElementById(ui.gh).onclick = () => githubDialog();
     document.getElementById(ui.stop).onclick = () => {
@@ -937,6 +943,8 @@
     paintDebugButton();
     paintQuestions(openQuestions().rows);
     watchQuestions();
+    paintDecisions(openDecisions().rows);
+    watchDecisions();
     maybeGhDialog();
   }
 
@@ -5367,6 +5375,8 @@
       "Неоднозначность решаешь сам: минимальное изменение, «Допущение: …» строкой в отчёт; меняет контракт — запись в docs/decisions.",
       'Вопрос Мастеру задаётся только полем question в маркере: {"text":"…","options":["A","B"],"default":"A","hours":24}. Вариант по умолчанию обязателен — по нему ты работаешь сразу, не дожидаясь ответа; ответ придёт строкой в следующем промпте. Больше одного вопроса за ход не задавай.',
       "Вопрос уместен, только если ответ меняет то, что будет построено, и ни ТЗ, ни карточка его не дают. Порядок, формулировки, оформление — решай сам.",
+      "Предложение (ADR `proposed` в docs/decisions) — это тоже вопрос, и оно не работает без второго шага: в том же ходе задай question со ссылкой на файл, тремя вариантами и default = «оставить как есть». Иначе решение лежит в репозитории, где Мастер его не увидит. Ответ придёт строкой в следующем промпте — тогда и меняй статус: `accepted` или `rejected`, с датой. Оставлять `proposed` после ответа нельзя: это выглядит как нерешённый вопрос.",
+      "Статус решения не проверяет ни один тест и не должен проверять: оракул, который требует `Статус: proposed`, защищает открытый вопрос от ответа. Проверка вправе требовать только допустимый статус, а не конкретный.",
       "Опрос в чате, «May I…», просьба разрешения — не вопрос, а остановка хода: работа не сдаётся, карточка висит в Running. Не делай так.",
       "Файлы для показа не открывай: путь к файлу назови текстом в отчёте — Мастер откроет сам, если нужно.",
     ].join("\n");
@@ -5548,6 +5558,7 @@
       "Scope карточки обязан покрывать артефакты её Оракула: пробу, npm-скрипт и запись решения перечисляй в Scope прямо — иначе исполнитель встанет на границе зоны.",
       "Если роль не может получить работу («Ждёт», пустой Agent URL, нет в «Ролях») — назначь в «Кому» активную роль или оставь Draft и назови, кого он ждёт. Статус роли и Agent URL — зона Мастера, не меняй их.",
       "Оракул миссии (ТЗ §2/§3) и инварианты миссии менять нельзя: если проверка требует другого смысла — только ADR proposed и решение Мастера. Acceptance карточки — не оракул миссии: ошибочную формулировку ты исправляешь сам, но так, чтобы смысл проверки миссии не изменился.",
+      "ADR proposed — это очередь решений Мастера, и она видна ему счётчиком «⚖» на панели. Каждое своё предложение сопровождай вопросом в том же маркере: текст — суть решения плюс имя файла, три варианта, default = «оставить как есть». Ответ Мастера придёт строкой «Ответы Мастера» — по нему ты либо принимаешь решение (переведи ADR в `accepted`/`rejected` с датой в том же ходе, через исполнителя), либо продолжаешь по варианту по умолчанию. Нерешённое предложение — долг, а не состояние: если оно висит, назови его в Итоге миссии.",
       "",
       "ХОД — один ответ:",
       "1) Submitted → проверь по Acceptance, поставь Accepted или Rework (причина в «Ответ»).",
@@ -6372,6 +6383,135 @@
       log(`База «Вопросы» не читается: ${e.message}`, true);
       return { fresh: [], openLine: "", answersLine: "" };
     }
+  }
+
+  // ─────────────────────────── решения на Мастере (ADR) ───────────────────────
+  /**
+   * Предложение живёт в репозитории, а не в Notion: `docs/decisions/<X>.md` со
+   * строкой `Статус: proposed`.
+   *
+   * 25.10 Мастер спросил: «предложено — это кто предложил?» Оказалось, что
+   * механизм предложения работает наполовину: агент законно пишет ADR и должен
+   * остановиться, но остановки не происходит, а сам файл никто не читает — из
+   * 21 журнала поле `Статус:` было у двух. Счётчик вопросов тут не спасает:
+   * вопрос — отдельная запись, а ADR мог появиться и без вопроса.
+   *
+   * Поэтому счётчик решений читает репозиторий напрямую: имена файлов и их
+   * `Статус:` из `docs/decisions` в main. Содержимое кэшируется по sha: за
+   * проверку уходит один запрос на каталог, а файл перечитывается только когда
+   * его sha изменился. Ошибка чтения — не пауза: без счётчика цикл работает.
+   */
+  const ADR_FOLDER = "docs/decisions";
+  const ADR_PROPOSED = "proposed";
+
+  /** `Статус:` из шапки ADR; пусто — поля нет. */
+  const adrStatusOf = (text) => {
+    const m = String(text || "").match(/^\s*Статус:\s*(.+?)\s*$/m);
+    return m ? m[1].replace(/[`*]/g, "").trim().toLowerCase() : "";
+  };
+
+  function openDecisions() {
+    const cache = GM_getValue("cfn-adr-open", null);
+    return cache && Array.isArray(cache.rows) ? cache : { at: 0, rows: [], known: null };
+  }
+
+  /** Содержимое файла из ответа GitHub: base64 → UTF-8, без устаревших API. */
+  function b64Text(value) {
+    const clean = String(value || "").replace(/\s+/g, "");
+    if (!clean) return "";
+    try {
+      const bytes = Uint8Array.from(atob(clean), (ch) => ch.charCodeAt(0));
+      return new TextDecoder().decode(bytes);
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function paintDecisions(rows) {
+    if (typeof document === "undefined") return;
+    const list = rows || [];
+    const badge = document.getElementById(ui.adrBadge);
+    if (badge) {
+      badge.textContent = list.length ? String(list.length) : "";
+      badge.style.display = list.length ? "inline-block" : "none";
+    }
+    const button = document.getElementById(ui.adr);
+    if (!button) return;
+    button.title = list.length
+      ? `Решений на Мастере: ${list.length} — ${list
+          .slice(0, 4)
+          .map((row) => row.file)
+          .join(", ")}${list.length > 4 ? "…" : ""}. Нажмите, чтобы открыть ${ADR_FOLDER}.`
+      : "Решений, ждущих Мастера, нет — docs/decisions в main";
+    button.style.background = list.length ? "#3a3320" : "#242833";
+    button.style.borderColor = list.length ? "#8a6b2a" : "#343a46";
+  }
+
+  /**
+   * Новое предложение — громкий пуш. Первый запуск молчит и только запоминает,
+   * что уже висит: иначе Мастер получает пачку из старых решений и перестаёт
+   * верить каналу (ровно та же ошибка, что была с вопросами).
+   */
+  function announceDecisions(rows) {
+    const cache = openDecisions();
+    const names = (rows || []).map((row) => row.file);
+    const before = Array.isArray(cache.known) ? cache.known : null;
+    GM_setValue("cfn-adr-open", { at: Date.now(), rows: rows || [], known: names });
+    if (!before) {
+      if (names.length)
+        log(`Решений на Мастере: ${names.length} (${names.join(", ")}).`, false, { ntfy: false });
+      return 0;
+    }
+    const fresh = names.filter((name) => !before.includes(name));
+    if (!fresh.length) return 0;
+    log(`Новое решение ждёт Мастера: ${fresh.join(", ")} — ${ADR_FOLDER} в main.`, false, {
+      ntfy: "loud",
+      title: "Narthex: новое решение (ADR)",
+    });
+    return fresh.length;
+  }
+
+  async function refreshDecisions(force = false) {
+    const cache = openDecisions();
+    if (!force && Date.now() - cache.at < C.adrCheckMs) return cache.rows;
+    const token = GM_getValue(K.ghToken, "");
+    try {
+      const list = await request(
+        "GET",
+        `https://api.github.com/repos/${C.repo}/contents/${ADR_FOLDER}?ref=main`,
+        githubHeaders(token),
+      );
+      if (!Array.isArray(list)) throw new Error("GitHub вернул не список файлов");
+      const texts = GM_getValue("cfn-adr-text", {}) || {};
+      const rows = [];
+      for (const item of list) {
+        if (!item || item.type !== "file" || !/\.md$/i.test(item.name || "")) continue;
+        const cached = texts[item.name];
+        let status = cached && cached.sha === item.sha ? cached.status : "";
+        if (!status) {
+          const file = await request("GET", item.url, githubHeaders(token));
+          status = adrStatusOf(b64Text(file && file.content)) || "нет";
+          texts[item.name] = { sha: item.sha, status };
+        }
+        if (status === ADR_PROPOSED)
+          rows.push({ file: item.name, sha: item.sha, url: item.html_url || "" });
+      }
+      GM_setValue("cfn-adr-text", texts);
+      paintDecisions(rows);
+      announceDecisions(rows);
+      return rows;
+    } catch (e) {
+      dbg("решения: список не обновлён", e.message);
+      paintDecisions(cache.rows);
+      return cache.rows;
+    }
+  }
+
+  let decisionsWatch = 0;
+  function watchDecisions() {
+    if (decisionsWatch) return;
+    decisionsWatch = window.setInterval(() => refreshDecisions().catch(() => {}), C.adrCheckMs);
+    refreshDecisions().catch(() => {});
   }
 
   /** Свежие счётчики очереди: после решения Координатора старые уже неверны. */
