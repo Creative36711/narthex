@@ -1,4 +1,4 @@
-// Проба 1.4.71: `"question":null` — это «вопроса нет», а не ошибка.
+// Проба 1.4.72: `"question":null` — это «вопроса нет», а не ошибка.
 //
 // Случай Мастера (25.10, 20:53). Tools закончил NAR-2.15 и прислал полный
 // маркер, в котором поле вопроса было явно пустым:
@@ -25,9 +25,9 @@ import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const V = '1.4.71';
+const V = '1.4.72';
 
-assert.match(src, /@version\s+1\.4\.71/, `версия ${V}`);
+assert.match(src, /@version\s+1\.4\.72/, `версия ${V}`);
 
 // ── 1. В коде нет проверки «вопрос есть, если поле не undefined» ────────────
 assert.doesNotMatch(

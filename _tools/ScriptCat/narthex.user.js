@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.71
+// @version      1.4.72
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -6389,6 +6389,8 @@
   function queueQuestion(q, ctx = {}) {
     const stored = GM_getValue(K.qQueue, []);
     const list = Array.isArray(stored) ? stored : [];
+    const sameText = norm(q?.text);
+    if (sameText && list.some((item) => norm(item?.q?.text) === sameText)) return;
     list.push({ q, ctx, at: Date.now() });
     GM_setValue(K.qQueue, list.slice(-10));
   }
@@ -6401,6 +6403,15 @@
     let saved = 0;
     for (const item of list) {
       if (!item || !item.q || !item.q.text) continue;
+      // Пока вопрос лежал в очереди, Мастер мог уже ответить на такой же (или на
+      // тот же ADR) — тогда не пишем и не будим.
+      const same = await sameQuestionRow(item.q.text);
+      if (same) {
+        log(`Отложенный вопрос «${item.q.text}» уже есть в «Вопросах» — не записываю второй раз.`, false, {
+          ntfy: false,
+        });
+        continue;
+      }
       try {
         const row = await notion("POST", "pages", {
           parent: { type: "data_source_id", data_source_id: C.questions },
@@ -6424,25 +6435,57 @@
   }
 
   /**
-   * Такой вопрос уже есть в базе? Возвращает строку Notion или null.
+   * Ссылки на решения в тексте вопроса: `docs/decisions/NAR-2.14.md` и `NAR-2.14`.
+   *
+   * Номер миссии (`NAR-2`) сюда не попадает намеренно: по нему склеились бы
+   * разные вопросы одной миссии.
+   */
+  const adrRefsOf = (text) => {
+    const out = new Set();
+    const src = String(text || "");
+    for (const m of src.matchAll(/docs\/decisions\/([\w.-]+?)\.md/gi)) out.add(`file:${m[1].toLowerCase()}`);
+    for (const m of src.matchAll(/\bNAR-\d+\.\d+(?:-[\wА-Яа-яЁё]+)?/gi)) out.add(`adr:${m[0].toLowerCase()}`);
+    return out;
+  };
+
+  /**
+   * Явная пометка «это не повтор»: по одному и тому же решению Мастера можно
+   * спросить второй раз, если вопрос правда другой. Без пометки повтор про
+   * уже решённый ADR не создаётся и не будит Мастера.
+   */
+  const followUpOf = (text) => /(уточнени|ещ[её] вопрос|новый вопрос|дополнительн|вдогонку)/i.test(String(text || ""));
+
+  /**
+   * Такой вопрос уже есть в базе? Возвращает `{ row, why }` или null.
    *
    * 25.10 Мастер заметил: уведомления приходят о том, на что он уже ответил.
-   * Причина — повторная запись того же вопроса (старый ход Координатора был
-   * применён второй раз) и повторы в тексте. Сравнение идёт по нормализованному
-   * тексту, а если оба текста длинные — по началу: поле обрезается до
-   * questionTextMax, и хвост у двух записей может отличаться.
+   * Причин было две — повторная запись того же вопроса (старый ход Координатора
+   * применён второй раз) и другой текст про уже решённое решение («как решить
+   * открытый ADR NAR-2.14.md?» при готовом ответе «принять F3–F5»). Поэтому
+   * сравниваются и нормализованный текст, и ссылки на ADR.
    */
   async function sameQuestionRow(text) {
     const wanted = norm(text);
     if (!wanted) return null;
+    const refs = adrRefsOf(text);
     try {
       const rows = await questionRows([Q.wait, Q.done, Q.byDefault]);
       for (const row of rows) {
-        const got = norm(rt(row.properties["Вопрос"]));
+        const raw = rt(row.properties["Вопрос"]);
+        const got = norm(raw);
         if (!got) continue;
-        if (got === wanted) return row;
+        if (got === wanted) return { row, why: "text" };
         const long = wanted.length >= 60 && got.length >= 60;
-        if (long && (got.startsWith(wanted.slice(0, 60)) || wanted.startsWith(got.slice(0, 60)))) return row;
+        if (long && (got.startsWith(wanted.slice(0, 60)) || wanted.startsWith(got.slice(0, 60)))) return { row, why: "text" };
+        // Тот же вопрос другими словами: 25.10 про открытый ADR 2.14 спросили
+        // второй раз («как решить…» вместо «принять или отклонить»), и Мастер
+        // получил уведомление о том, на что уже ответил. Ссылка на решение —
+        // достаточный признак: вопрос про тот же ADR уже задан.
+        if (refs.size && !followUpOf(text)) {
+          const seen = adrRefsOf(raw);
+          const shared = [...refs].find((ref) => seen.has(ref));
+          if (shared) return { row, why: "adr", ref: shared.replace(/^(adr|file):/, "") };
+        }
       }
     } catch (e) {
       dbg("вопросы: дубль не проверен", e.message);
@@ -6455,17 +6498,15 @@
     if (GM_getValue(key, false)) return null;
     const same = await sameQuestionRow(q.text);
     if (same) {
-      const status = sel(same.properties?.["Статус"]);
-      const answer = rt(same.properties?.["Ответ"]).replace(/\s+/g, " ").trim();
+      const status = sel(same.row.properties?.["Статус"]);
+      const answer = rt(same.row.properties?.["Ответ"]).replace(/\s+/g, " ").trim();
       GM_setValue(key, Date.now());
-      log(
+      const fact =
         status === Q.wait
-          ? `Такой вопрос уже ждёт ответа в «Вопросах» — второй раз не записываю и не уведомляю.`
-          : `Такой вопрос уже решён Мастером${answer ? `: «${answer.slice(0, 140)}»` : ""} — ` +
-              "второй раз не записываю и не уведомляю.",
-        false,
-        { ntfy: false },
-      );
+          ? "вопрос уже ждёт ответа"
+          : `Мастер уже ответил${answer ? `: «${answer.slice(0, 140)}»` : ""}`;
+      const where = same.why === "adr" ? `По решению «${String(same.ref).toUpperCase()}»` : "Такой вопрос уже задан:";
+      log(`${where} ${fact} — второй раз не записываю и не уведомляю.`, false, { ntfy: false });
       return null;
     }
     try {

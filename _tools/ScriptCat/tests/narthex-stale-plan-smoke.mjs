@@ -1,4 +1,4 @@
-// Проба 1.4.71: план по устаревшей очереди не применяется, а вопросы не дублируются.
+// Проба 1.4.72: план по устаревшей очереди не применяется, а вопросы не дублируются.
 //
 // 25.10. Мастер вернул в Ready карточку NAR-2.16, которая висела в Running после
 // съеденной отправки. Скрипт в это время дочитывал ответ Координатора, снятый ДО
@@ -130,7 +130,7 @@ has('План Координатора не совпадает с очередь
 has('Ready-карточку с меньшим Sequence не обходи молча', 'правило записано в промпт Координатора');
 
 // ── 3. Дедупликация вопросов поведением ───────────────────────────────────
-const dedupeSrc = cut('  async function sameQuestionRow(text) {', '  async function askQuestion(q, ctx = {}) {');
+const dedupeSrc = cut('  const adrRefsOf = (text) => {', '  async function askQuestion(q, ctx = {}) {');
 const askSrc = cut('  async function askQuestion(q, ctx = {}) {', '  /** Отметить ответы доставленными');
 
 function makeAsk({ rows = [], failQuery = false } = {}) {
@@ -193,7 +193,7 @@ const same = async () => {
   const res = await api.askQuestion(question, { key: 'm:1' });
   assert.equal(res, null, 'дубль не создаёт строку');
   const note = api.logs.slice(before).find((l) => l.text);
-  assert.ok(note && note.text.includes('уже решён Мастером'), 'в журнале сказано, что отвечать не нужно');
+  assert.ok(note && note.text.includes('Мастер уже ответил'), 'в журнале сказано, что отвечать не нужно');
   assert.ok(note && note.text.includes('524 288'), 'виден ответ Мастера');
   assert.notEqual(note.ntfy, 'loud', 'громкого пуша нет');
 }
@@ -221,6 +221,58 @@ const same = async () => {
   assert.ok(res && res.id, 'новый вопрос записывается');
 }
 
+// 3.5 Тот же ADR другими словами — это повтор, а не новый вопрос (случай 25.10).
+{
+  const api = makeAsk({
+    rows: [row('NAR-2.14: принять F3/F4/F5?', 'Решено', 'принять F3–F5')],
+  });
+  const before = api.logs.length;
+  const res = await api.askQuestion(
+    { ...question, text: 'Как решить открытый ADR docs/decisions/NAR-2.14.md?' },
+    { key: 'm:5' },
+  );
+  assert.equal(res, null, 'повтор про решённый ADR не создаёт строку');
+  const note = api.logs.slice(before).find((l) => l.text);
+  assert.ok(note && note.text.includes('NAR-2.14'), 'назван ADR, по которому уже ответили');
+  assert.ok(note && note.text.includes('Мастер уже ответил'), 'сказано, что ответ есть');
+  assert.ok(note && note.text.includes('F3'), 'виден прежний ответ');
+  assert.notEqual(note.ntfy, 'loud', 'громкого пуша нет');
+}
+
+// 3.6 Явное уточнение по тому же ADR проходит: если вопрос правда другой, Мастера спросят.
+{
+  const api = makeAsk({ rows: [row('NAR-2.14: принять F3/F4/F5?', 'Решено', 'принять')] });
+  const res = await api.askQuestion(
+    { ...question, text: 'Уточнение по NAR-2.14: что делать с F6 после приёмки F3–F5?' },
+    { key: 'm:6' },
+  );
+  assert.ok(res && res.id, 'уточнение не глушится');
+}
+
+// 3.7 Разные ADR не склеиваются.
+{
+  const api = makeAsk({ rows: [row('NAR-2.15: какой предел, 71 680 или 524 288?', 'Решено', '524 288')] });
+  const res = await api.askQuestion(
+    { ...question, text: 'NAR-2.14: записывать ли accepted сейчас?' },
+    { key: 'm:7' },
+  );
+  assert.ok(res && res.id, 'вопрос про другой ADR записывается');
+}
+
+// 3.8 Тот же ADR, но прежний вопрос ещё ждёт, — второй раз не пишем и не будим.
+{
+  const api = makeAsk({ rows: [row('NAR-2.14: принять F3/F4/F5?', 'Ждёт')] });
+  const before = api.logs.length;
+  const res = await api.askQuestion(
+    { ...question, text: 'Как решить открытый ADR docs/decisions/NAR-2.14.md?' },
+    { key: 'm:8' },
+  );
+  assert.equal(res, null, 'дубль ждущего вопроса не создаётся');
+  const note = api.logs.slice(before).find((l) => l.text);
+  assert.ok(note && note.text.includes('ждёт ответа'), 'причина названа');
+  assert.notEqual(note.ntfy, 'loud', 'громкого пуша нет');
+}
+
 // ── 4. «⚖» не зовёт Мастера туда, где он уже ответил ─────────────────────
 const decidedSrc = cut('  async function decidedAdrNames() {', '  /** `Статус:` из шапки ADR');
 const { decidedAdrNames } = new Function(
@@ -246,6 +298,10 @@ has('if (answered === null) {', 'сбой чтения ответов не во�
 has('paintDecisions(cache.rows);', 'при сбое показывается прежний счётчик');
 has('announceDecisions(pending);', 'пуш только про то, что правда ждёт Мастера');
 has('в счётчик «⚖» не входит', 'в журнале сказано, что это работа агентов');
+has('const same = await sameQuestionRow(item.q.text);', 'отложенный вопрос сверяется с базой перед записью');
+has('if (sameText && list.some((item) => norm(item?.q?.text) === sameText)) return;', 'в очереди не копится один и тот же вопрос');
+has('const refs = adrRefsOf(text);', 'ссылки на ADR участвуют в поиске дубля');
+has('const followUpOf = (text) =>', 'уточнение по тому же ADR не глушится');
 has('Решение уже принято, ждёт записи в репозиторий (это работа агентов)', 'подсказка кнопки «⚖»');
 
 console.log('stale-plan-dedupe: ok');

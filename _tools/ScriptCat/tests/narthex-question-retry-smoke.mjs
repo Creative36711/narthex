@@ -1,4 +1,4 @@
-// Проба 1.4.71: вопрос, который не записался в Notion, не теряется.
+// Проба 1.4.72: вопрос, который не записался в Notion, не теряется.
 //
 // 25.10 в 21:28 Координатор спросил про предел руководства — и в базе «Вопросы»
 // не появилось ни строки: «Ждёт» = 0. Вопрос остался только в маркере, ❓ и пуш
@@ -20,13 +20,14 @@ const to = src.indexOf('  async function askQuestion(q, ctx = {}) {');
 assert.ok(from > 0 && to > from, 'блок очереди вопросов на месте');
 const block = src.slice(from, to);
 
-function make({ failPost = false } = {}) {
+function make({ failPost = false, rows = [] } = {}) {
   const store = new Map();
   const logs = [];
   const posted = [];
   let posts = 0;
   const fn = new Function(
     'GM_getValue', 'GM_setValue', 'K', 'C', 'notion', 'questionProps', 'noteQuestionAsked', 'log', 'dbg',
+    'norm', 'questionRows', 'Q', 'rt',
     `${block}\nreturn { queueQuestion, flushQuestionQueue };`,
   );
   const api = fn(
@@ -44,6 +45,10 @@ function make({ failPost = false } = {}) {
     (row, q) => logs.push({ note: q.text, rowId: row.id }),
     (text, error, opts) => logs.push({ text, error: Boolean(error), ntfy: opts?.ntfy }),
     () => {},
+    (v) => String(v || '').trim().toLowerCase(),
+    async () => rows,
+    { wait: 'Ждёт', done: 'Решено', byDefault: 'Принят дефолт' },
+    (p) => (p?.rich_text || p?.title || []).map((x) => x.plain_text || x.text?.content || '').join(''),
   );
   return { ...api, store, logs, posted, posts: () => posts };
 }
@@ -88,11 +93,39 @@ const question = {
   assert.equal(store.get('k-queue').length, 0, 'все отложенные вопросы записаны');
 }
 
+// ── 3б. Мастер ответил, пока вопрос лежал в очереди: не пишем и не будим ──
+{
+  const answered = {
+    id: 'row-1',
+    properties: {
+      'Вопрос': { title: [{ plain_text: 'NAR-2.15: какой предел, 71 680 или 524 288?' }] },
+      'Статус': { select: { name: 'Решено' } },
+      'Ответ': { rich_text: [{ plain_text: '524 288' }] },
+    },
+  };
+  const { queueQuestion, flushQuestionQueue, store, posted, logs } = make({ rows: [answered] });
+  queueQuestion({ ...question, text: 'Как решить открытый ADR docs/decisions/NAR-2.15.md?' }, { key: 'm:9' });
+  const saved = await flushQuestionQueue();
+  assert.equal(saved, 0, 'повтор про решённый ADR не записан');
+  assert.equal(posted.length, 0, 'лишнего POST нет');
+  assert.equal(store.get('k-queue').length, 0, 'вопрос снят с очереди, а не копится');
+  assert.ok(!logs.some((l) => l.ntfy === 'loud'), 'громкого пуша нет');
+  assert.ok(logs.some((l) => l.text && l.text.includes('уже есть')), 'причина названа в журнале');
+}
+
+// ── 3в. Один и тот же текст в очередь дважды не попадает ──────────────────
+{
+  const { queueQuestion, store } = make({ failPost: true });
+  queueQuestion(question, { key: 'm:10' });
+  queueQuestion(question, { key: 'm:10' });
+  assert.equal(store.get('k-queue').length, 1, 'дубль в очереди не появляется');
+}
+
 // ── 4. Проводка: неудача пишется в очередь, повтор идёт с проверкой ────────
 has('queueQuestion(q, ctx);', 'неудачная запись попадает в очередь');
 has('Строка отложена и повторится сама', 'Мастер видит, что вопрос не потерян');
 has('await flushQuestionQueue();', 'повтор запускается при обновлении вопросов');
 has('qQueue: "cfn-q-queue",', 'ключ хранилища очереди');
-has('@version      1.4.71', 'версия 1.4.71');
+has('@version      1.4.72', 'версия 1.4.72');
 
 console.log('question-retry: ok');
