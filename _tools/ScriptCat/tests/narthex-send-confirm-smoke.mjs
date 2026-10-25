@@ -67,9 +67,18 @@ const node = (text, { user = true, wrapper = null } = {}) => ({
 });
 const wrapperNode = (text) => ({ textContent: text, closest: () => null });
 
-const lastUserSays = (nodes) => {
-  const { lastUserSays: fn } = new Function('document', 'flat', `${userSrc}\nreturn { lastUserSays };`)(makeDoc(nodes), (x) =>
-    String(x || '').toLowerCase().replace(/\s+/g, ' ').trim(),
+const lastUserSays = (nodes, dead = '') => {
+  const { lastUserSays: fn } = new Function(
+    'document',
+    'flat',
+    'GM_getValue',
+    'K',
+    `${userSrc}\nreturn { lastUserSays };`,
+  )(
+    makeDoc(nodes),
+    (x) => String(x || '').toLowerCase().replace(/\s+/g, ' ').trim(),
+    (key) => (key === 'cfn-dead-send' ? dead : ''),
+    { deadSend: 'cfn-dead-send' },
   );
   return fn;
 };

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.68
+// @version      1.4.69
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -111,6 +111,7 @@
     step: "cfn-step-request",
     debug: "cfn-debug",
     lastSend: "cfn-last-send",
+    deadSend: "cfn-dead-send",
     stateV: "cfn-state-v",
   };
 
@@ -789,7 +790,9 @@
     // Новый бюджет напоминаний: Мастер уже посмотрел, почему агент молчал.
     const expect = GM_getValue(K.expect, null);
     if (expect) {
-      GM_setValue(K.expect, { ...expect, tries: 0, lastReplySig: "", lastReplyAt: 0 });
+      // `autoResend` — право на одну автоматическую переотправку после
+      // «Продолжить»: Мастер уже увидел ошибку и ждёт, что задание уйдёт само.
+      GM_setValue(K.expect, { ...expect, tries: 0, autoResend: 0, lastReplySig: "", lastReplyAt: 0 });
     }
     log(`Пауза снята Мастером (${reason}). Продолжаю.`, false, { ntfy: "quiet" });
     if (GM_getValue(K.pending, null)) {
@@ -2528,6 +2531,46 @@
       .trim().length;
 
   /**
+   * Задание, которое Arena съела ошибкой, возвращается в очередь.
+   *
+   * 25.10 (21:24) «Задание отправлено» сменилось через секунду на «Something
+   * went wrong. Please try again.»: сообщение в транскрипте есть, ход у агента
+   * не начался. Скрипт считал доставку состоявшейся и ждал ответа, которого не
+   * будет; «Продолжить» не переотправлял, и Мастеру пришлось вручную сбрасывать
+   * цикл. Отметка доставки здесь врёт, поэтому текст задания возвращается в
+   * очередь, а id «мёртвого» сообщения запоминается: `lastUserSays` больше не
+   * примет старую копию за новую отправку.
+   */
+  function requeueUndelivered(expect, alert, why) {
+    if (!expect || !expect.text) return false;
+    GM_setValue(K.deadSend, (alert && alert.messageId) || "");
+    GM_setValue(K.pending, {
+      roleId: expect.roleId,
+      roleName: expect.roleName,
+      roleUrl: expect.roleUrl,
+      text: expect.text,
+      at: Date.now(),
+      undelivered: true,
+      sendTries: 0,
+    });
+    GM_setValue(K.expect, {
+      ...expect,
+      sentAt: null,
+      verified: false,
+      undelivered: true,
+      cardRolled: false,
+      autoResend: (Number(expect.autoResend) || 0) + 1,
+    });
+    log(
+      `${why}: задание до «${expect.roleName || "агента"}» не дошло — отправляю его ещё раз, ` +
+        "новый ход Координатора не нужен.",
+      true,
+      { ntfy: "quiet", title: "Narthex: повторяю отправку" },
+    );
+    return true;
+  }
+
+  /**
    * Ждём ответ без маркера. Возвращает true, если ход уже обработан
    * (напоминание ушло или цикл поставлен на паузу).
    *
@@ -2557,6 +2600,31 @@
     const replies = messagesAfter(expect.watermark || "");
     const last = replies.at(-1);
     if (!last) {
+      // Ошибка Arena поверх нашего задания: сообщение в чате есть, а ход не
+      // начался. От «агент думает» это отличается только самой ошибкой, поэтому
+      // проверка стоит здесь. Первая переотправка — автоматическая (Мастер уже
+      // нажал «Продолжить»); вторая подряд — пауза с честной причиной.
+      const eaten = latestUserMessageAlert();
+      if (eaten && expect.sentAt) {
+        if ((Number(expect.autoResend) || 0) < 1) {
+          requeueUndelivered(expect, eaten, `Arena ответила «${eaten.text}»`);
+          // Отправляем прямо здесь, а не «следующим тиком»: шаг уже выполняется,
+          // и отложенный тик был бы молча проглочен сторожем блокировки.
+          const again = await consumePending(true);
+          if (!again) {
+            log("Переотправка на этой странице не началась — задание осталось в очереди и уйдёт на следующем шаге.", true, {
+              ntfy: "quiet",
+            });
+          }
+          return true;
+        }
+        pause(
+          `Arena снова не доставила задание: «${eaten.text}». Задание осталось в очереди — ` +
+            "нажмите «Продолжить», оно уйдёт этой же карточке, без нового хода Координатора.",
+          { kind: "arena-error", ref: eaten.messageId },
+        );
+        return true;
+      }
       // Нормальное ожидание, но нажатый «Шаг» должен получить ответ, а не тишину.
       if (manual) {
         const sentMin = expect.sentAt ? Math.max(1, Math.round((Date.now() - expect.sentAt) / 60000)) : 0;
@@ -3791,7 +3859,13 @@
     if (!key) return false;
     const list = userMessages();
     const last = list.at(-1);
-    return Boolean(last) && flat(last.textContent || "").includes(key);
+    if (!last) return false;
+    // Сообщение, которое Arena съела ошибкой, осталось в транскрипте — но
+    // агенту оно не ушло. Принять его за новую отправку значило бы снова
+    // поверить в доставку, которой нет (25.10, 21:24).
+    const dead = GM_getValue(K.deadSend, "");
+    if (dead && nodeId(last) === dead) return false;
+    return flat(last.textContent || "").includes(key);
   }
 
   /** Ждём подтверждение доставки: сообщение в чате, а не «поле опустело». */
@@ -4421,6 +4495,7 @@
       dbg("Send: доставка подтверждена, отметка внутри чата", { watermark, via: delivery.via || "message" });
     }
     GM_setValue(K.pending, null);
+    GM_setValue(K.deadSend, "");
     pendingNoticeAt = 0;
     log("Задание отправлено.");
     return true;
