@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.66
+// @version      1.4.67
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -294,7 +294,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.66";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.67";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -1339,12 +1339,25 @@
   function adoptIds(result, expect) {
     const fixed = { ...result };
     const stray = [];
-    if (!isUuid(fixed.dispatch_id) || norm(fixed.dispatch_id) !== norm(expect.ref)) {
-      stray.push(`dispatch_id «${fixed.dispatch_id || "нет"}»`);
-      fixed.dispatch_id = expect.ref;
+    // Короткие ключи `dispatch`/`run` — не «чужой id», а тот же самый: 25.10
+    // Tools прислал маркер с верными значениями под короткими именами, и
+    // журнал получил предупреждение о битом id. Принимаем синонимы молча;
+    // вслух называем только то, что действительно не совпало.
+    const given = (...keys) => {
+      for (const key of keys) {
+        const value = fixed[key];
+        if (value !== undefined && value !== null && value !== "") return String(value);
+      }
+      return "";
+    };
+    const dispatch = given("dispatch_id", "dispatch", "dispatchId");
+    const run = given("run_id", "run", "runId");
+    if (!isUuid(dispatch) || norm(dispatch) !== norm(expect.ref)) {
+      stray.push(`dispatch_id «${dispatch || "нет"}»`);
     }
-    if (expect.runId && norm(fixed.run_id) !== norm(expect.runId)) {
-      stray.push(`run_id «${fixed.run_id || "нет"}»`);
+    fixed.dispatch_id = expect.ref;
+    if (expect.runId) {
+      if (norm(run) !== norm(expect.runId)) stray.push(`run_id «${run || "нет"}»`);
       fixed.run_id = expect.runId;
     }
     return { result: fixed, stray };
@@ -5649,21 +5662,30 @@
     if (GM_getValue(`cfn-done:${result.dispatch_id}:${result.run_id}`, false)) return false;
 
     const page = await notion("GET", `pages/${result.dispatch_id}`);
-    if (result.question !== undefined) {
-      const asked = parseQuestion(result.question);
-      if (asked) {
-        await askQuestion(asked, {
-          roleName: role.name,
-          card: taskTitle(page),
-          mission: rt(page.properties["Миссия"]),
-          key: `${result.dispatch_id}:${result.run_id}`,
-        });
-      } else {
-        log(
-          "Вопрос исполнителя без варианта по умолчанию — не принят: работа идёт по его собственному решению.",
-          true,
-        );
-      }
+    // `"question":null` — это «вопроса нет», а не «вопрос без варианта».
+    const asked = questionInMarker(result.question, "Работа идёт по решению исполнителя");
+    if (asked.kind === "asked") {
+      await askQuestion(asked.question, {
+        roleName: role.name,
+        card: taskTitle(page),
+        mission: rt(page.properties["Миссия"]),
+        key: `${result.dispatch_id}:${result.run_id}`,
+      });
+    } else if (asked.kind === "text") {
+      // Вопрос написан, а варианта по умолчанию нет. Раньше он выбрасывался:
+      // Мастер видел громкую ошибку и не видел вопроса. Записываем с честным
+      // вариантом — работа и так идёт по решению исполнителя.
+      log(
+        `Вопрос исполнителя пришёл без варианта по умолчанию — записан с вариантом «${asked.question.fallback}»: ответ Мастера дойдёт следующим ходом.`,
+        false,
+        { ntfy: "quiet", title: "Narthex: вопрос без варианта по умолчанию" },
+      );
+      await askQuestion(asked.question, {
+        roleName: role.name,
+        card: taskTitle(page),
+        mission: rt(page.properties["Миссия"]),
+        key: `${result.dispatch_id}:${result.run_id}`,
+      });
     }
     if (taskState(page) !== "Running") {
       // Карточку уже оформили — прошлой попыткой скрипта или руками после
@@ -6157,6 +6179,45 @@
       options,
       blocks: oneLine(raw.blocks, 200),
       hours: Number.isFinite(hours) && hours >= 1 ? Math.min(hours, 168) : C.questionHours,
+    };
+  }
+
+  /**
+   * Что на самом деле пришло в поле `question`.
+   *
+   * `"question":null` — обычный способ сказать «вопроса нет»: поле пишут явно,
+   * чтобы маркер был полным. Пока проверка была на `!== undefined`, такой
+   * маркер давал громкую ошибку «вопрос без варианта по умолчанию» при том,
+   * что вопроса не было (25.10, NAR-2.15: `"question":null`, ошибка Мастеру).
+   *
+   *   none  — вопроса нет: поля нет, `null`, пустая строка, объект без текста;
+   *   asked — вопрос с текстом и вариантом по умолчанию;
+   *   text  — вопрос написан, а варианта по умолчанию нет.
+   *
+   * Вопрос из `text` не выбрасывается: он попадает в базу с честным вариантом
+   * по умолчанию — тем, по которому работа и так идёт. Иначе Мастер получает
+   * ошибку вместо вопроса.
+   */
+  function questionInMarker(raw, fallback) {
+    if (raw === undefined || raw === null) return { kind: "none" };
+    const obj = typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+    const text = oneLine(typeof raw === "string" ? raw : obj.text, C.questionTextMax);
+    if (!text) return { kind: "none" };
+    const asked = parseQuestion(raw);
+    if (asked) return { kind: "asked", question: asked };
+    const options = Array.isArray(obj.options)
+      ? obj.options.map((option) => oneLine(option, 80)).filter(Boolean).slice(0, 4)
+      : [];
+    const hours = Number(obj.hours);
+    return {
+      kind: "text",
+      question: {
+        text,
+        options,
+        blocks: oneLine(obj.blocks, 200),
+        hours: Number.isFinite(hours) && hours >= 1 ? Math.min(hours, 168) : C.questionHours,
+        fallback: oneLine(fallback, C.questionDefaultMax) || "Работа идёт по решению агента",
+      },
     };
   }
 
@@ -6665,21 +6726,25 @@
       log(`Маркер Координатора найден: дальше «${decision.next}» (turn ${decision.turn_id || expect.turnId}).`);
       // Вопрос не останавливает цикл: он живёт строкой в базе «Вопросы», а
       // работа идёт по варианту, который агент назвал сам.
-      if (decision.question !== undefined && norm(decision.next) !== "blocked") {
-        const asked = parseQuestion(decision.question);
-        if (asked) {
-          await askQuestion(asked, {
+      if (norm(decision.next) !== "blocked") {
+        // Та же история, что у исполнителя: `"question":null` — не вопрос, а
+        // вопрос без варианта по умолчанию записывается с честным вариантом
+        // «работа идёт по решению Координатора» — по next он и так идёт.
+        const asked = questionInMarker(decision.question, "Работа идёт по решению Координатора");
+        if (asked.kind === "text") {
+          log(
+            `Вопрос Координатора пришёл без варианта по умолчанию — записан с вариантом «${asked.question.fallback}»: дальше идём по next.`,
+            false,
+            { ntfy: "quiet", title: "Narthex: вопрос без варианта по умолчанию" },
+          );
+        }
+        if (asked.kind !== "none") {
+          await askQuestion(asked.question, {
             roleName: role.name,
             card: "",
             mission: rt(mission.properties["Миссия"]),
             key: `${mission.id}:${decision.turn_id || expect.turnId}`,
           });
-        } else {
-          log(
-            "Вопрос в маркере без варианта по умолчанию — не принят: это просьба остановиться, а не вопрос. " +
-              "Дальше — по next: без варианта по умолчанию работать не по чему.",
-            true,
-          );
         }
       }
       if (norm(decision.next) === "blocked") {

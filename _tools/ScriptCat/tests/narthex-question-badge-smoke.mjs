@@ -1,4 +1,4 @@
-// Проба 1.4.66: вопрос к Мастеру видно на панели и слышно в телефоне.
+// Проба 1.4.67: вопрос к Мастеру видно на панели и слышно в телефоне.
 //
 // Случай Мастера (25.10): вопрос лежал в базе «Вопросы», но на панели рядом со
 // знаком «?» не было ни числа, ни подсказки — вопрос легко пропустить. Плюс
@@ -17,7 +17,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const V = '1.4.66';
+const V = '1.4.67';
 
 const versionLine = (src.split('\n').find((line) => line.startsWith('// @version')) || '')
   .replace(/\s+/g, ' ')
@@ -86,7 +86,7 @@ assert.ok(store.get('cfn-q-seen').includes('q3'), 'свой вопрос не п
 assert.doesNotThrow(() => api.paintQuestions(cache.rows), 'без DOM рисование молчит');
 
 // ── 3. Вопрос при остановке не выбрасывается ───────────────────────────────
-assert.match(src, /if \(decision\.question !== undefined && norm\(decision\.next\) !== "blocked"\)/, 'общий разбор вопроса не трогает остановку');
+assert.match(src, /if \(norm\(decision\.next\) !== "blocked"\)/, 'общий разбор вопроса не трогает остановку');
 assert.match(src, /const rawAsk = decision\.question;/, 'в остановке вопрос читается отдельно');
 assert.match(src, /Ответ Мастера: цикл уже остановлен и ждёт его/, 'прямой вариант по умолчанию — ждать Мастера');
 assert.match(src, /hours: Number\(ask\.hours\) \|\| 168/, 'срок остановочного вопроса — неделя, а не сутки');
