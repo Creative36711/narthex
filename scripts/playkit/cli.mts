@@ -29,10 +29,18 @@ import seedrandom from 'seedrandom'
 import { loadCampaign } from '../../src/core/loader'
 import { GameEngine } from '../../src/core/engine'
 import { PRNG } from '../../src/core/prng'
+import { PackHost } from '../../src/core/pack/host'
 import { newCharChoice } from '../../src/core/charcreate'
 import { ENGINE_VERSION } from '../../src/shared/versions'
 import { analyzeCampaign, formatGraphReport } from './analyze'
 import { readInstalledPackCatalogue, resolveProjectCapabilityModesForCheck, resolveProjectPackForCheck } from './project-pack'
+import {
+  createNarrativePackBinding,
+  loadNarrativeContent,
+  NARRATIVE_PACK_MANIFEST,
+  narrativeEntryEvent,
+} from '../../packs/narrative/runtime'
+import type { NarrativeState } from '../../packs/narrative/types'
 
 const PLAYKIT_VERSION = '0.1.0'
 const DEFAULT_ORIGIN = 'http://cf-play.local/'
@@ -1060,10 +1068,31 @@ async function cmdCheck(
       text: `${diagnostic.code}: ${diagnostic.message}`,
     }
   }
-  const { campaign } = await loadEngine(config.campaignDir, config.seed, false, emptyInjection())
+  const { campaign, engine } = await loadEngine(config.campaignDir, config.seed, false, emptyInjection())
   const graph = analyzeCampaign(campaign)
   const errors = graph.findings.filter((finding) => finding.severity === 'error')
   const warnings = graph.findings.filter((finding) => finding.severity === 'warning')
+
+  // Statically invalid data already has a precise diagnostic. Valid campaigns must
+  // execute a real pack event; construction or sim failure aborts the check.
+  let pack: AnyObj = null
+  if (!errors.length) {
+    const content = await loadNarrativeContent(config.campaignDir)
+    const binding = createNarrativePackBinding(content, NARRATIVE_PACK_MANIFEST)
+    const host = engine.attachPackSim(binding)
+    if (!(host instanceof PackHost)) throw new Error('PACK_RUNTIME_MISSING: cf-play did not receive a PackHost')
+    const event = narrativeEntryEvent(content, binding.state)
+    const before = binding.state
+    const after = engine.runPackSim(event, seeds[0]) as NarrativeState
+    const execution = engine.packExecution
+    if (!execution || execution.steps !== 1) throw new Error('PACK_RUNTIME_MISSING: narrative.sim did not execute')
+    pack = {
+      ...execution,
+      event: event.type,
+      from: { scene: before.scene, location: before.location, fmv: before.fmv?.phase ?? null },
+      to: { scene: after.scene, location: after.location, fmv: after.fmv?.phase ?? null },
+    }
+  }
 
   const routeFiles: string[] = []
   const dir = routesDir ?? join(config.campaignDir, 'routes')
@@ -1101,6 +1130,7 @@ async function cmdCheck(
     campaign: { id: graph.campaign.id, title: graph.campaign.title },
     verdict,
     problems,
+    pack,
     graph: {
       counts: graph.counts,
       errors: errors.map((finding) => `${finding.code}: ${finding.message}`),

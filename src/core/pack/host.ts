@@ -38,6 +38,15 @@ export interface PackHooks<State, Event, Frame> {
   readonly view?: PackViewHook<State, Frame>
 }
 
+/** A fail-fast runtime binding: the caller supplies pack code and its initial state. */
+export interface PackSimBinding<State, Event, Frame> {
+  readonly manifest: PackHostManifest
+  readonly hooks: PackHooks<State, Event, Frame> & {
+    readonly sim: PackSimHook<State, Event>
+  }
+  readonly state: State
+}
+
 export interface PackPause {
   readonly packId: string
   readonly hook: 'register' | 'sim' | 'view'

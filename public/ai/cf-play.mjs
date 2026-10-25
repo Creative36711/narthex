@@ -889,8 +889,8 @@ function compareVersions(a2, b2) {
 function versionGreaterOrEqual(a2, b2) {
   return compareVersions(a2, b2) >= 0;
 }
-function checkEngine(required) {
-  const req = String(required ?? "").trim();
+function checkEngine(required2) {
+  const req = String(required2 ?? "").trim();
   const actual = ENGINE_VERSION;
   if (!req || req === "0" || req === "0.0.0") return { ok: true, required: req || "\u2014", actual, message: "" };
   if (versionGreaterOrEqual(actual, req)) return { ok: true, required: req, actual, message: "" };
@@ -14418,8 +14418,8 @@ function bindExternals(story, engine) {
     engine.setDialogueTimer(Number(seconds) || 0, knot);
     return 0;
   });
-  bind("present_item", (okKnot, failKnot, required) => {
-    engine.promptPresentItem(okKnot, failKnot, required);
+  bind("present_item", (okKnot, failKnot, required2) => {
+    engine.promptPresentItem(okKnot, failKnot, required2);
     return 0;
   });
   bind("play_sound", (sound, volume) => {
@@ -14612,8 +14612,8 @@ function dialogueTimeout() {
   this.dialogue.timer = this.dialogueTimer ?? void 0;
   this.notify();
 }
-function promptPresentItem(okKnot, failKnot, required) {
-  this.pendingDialoguePresenting = { ok: okKnot, fail: failKnot, required: required || void 0 };
+function promptPresentItem(okKnot, failKnot, required2) {
+  this.pendingDialoguePresenting = { ok: okKnot, fail: failKnot, required: required2 || void 0 };
 }
 function commitDialoguePresenting() {
   const next = this.pendingDialoguePresenting;
@@ -16869,6 +16869,174 @@ var init_equipment = __esm({
   }
 });
 
+// src/core/pack/host.ts
+function cloneValue(value) {
+  return structuredClone(value);
+}
+function readonlySnapshot(value, label) {
+  const clone = cloneValue(value);
+  const proxies = /* @__PURE__ */ new WeakMap();
+  const wrap = (item) => {
+    if (item === null || typeof item !== "object") return item;
+    const cached = proxies.get(item);
+    if (cached) return cached;
+    const proxy = new Proxy(item, {
+      get(target, key, receiver) {
+        return wrap(Reflect.get(target, key, receiver));
+      },
+      set() {
+        throw new TypeError(`${label} is read-only; state writes are forbidden`);
+      },
+      deleteProperty() {
+        throw new TypeError(`${label} is read-only; state writes are forbidden`);
+      },
+      defineProperty() {
+        throw new TypeError(`${label} is read-only; state writes are forbidden`);
+      },
+      setPrototypeOf() {
+        throw new TypeError(`${label} is read-only; state writes are forbidden`);
+      }
+    });
+    proxies.set(item, proxy);
+    return proxy;
+  };
+  return wrap(clone);
+}
+function isPromiseLike(value) {
+  return !!value && (typeof value === "object" || typeof value === "function") && typeof value.then === "function";
+}
+function impureSimReason(hook) {
+  if (hook.constructor?.name === "AsyncFunction" || hook.constructor?.name === "GeneratorFunction") {
+    return "sim hook must be synchronous";
+  }
+  const source = Function.prototype.toString.call(hook).replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
+  for (const [name, pattern] of FORBIDDEN_SIM_GLOBALS) {
+    if (pattern.test(source)) return `sim hook uses forbidden ${name}`;
+  }
+  if (source.includes("[native code]")) return "sim hook must be inspectable pure source";
+  return null;
+}
+function pauseCopy(pause) {
+  return pause ? { ...pause } : null;
+}
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+var FORBIDDEN_SIM_GLOBALS, PackHost;
+var init_host = __esm({
+  "src/core/pack/host.ts"() {
+    FORBIDDEN_SIM_GLOBALS = [
+      ["Date.now", /\bDate\s*\.\s*now\s*\(/],
+      ["Date construction", /\b(?:new\s+)?Date\s*\(/],
+      ["Math.random", /\bMath\s*\.\s*random\s*\(/],
+      ["I/O or ambient state", /\b(?:fetch|XMLHttpRequest|WebSocket|EventSource|localStorage|sessionStorage|document|window|self|globalThis|process|require|import|crypto|navigator|console|performance)\b/],
+      ["timer", /\b(?:setTimeout|setInterval|clearTimeout|clearInterval)\s*\(/]
+    ];
+    PackHost = class {
+      manifests = /* @__PURE__ */ new Map();
+      order = [];
+      registrations = /* @__PURE__ */ new Map();
+      pauseState = null;
+      constructor(manifests) {
+        for (const manifest of manifests) {
+          if (!manifest.id || this.manifests.has(manifest.id)) {
+            this.pauseState = {
+              packId: manifest.id || "(unknown)",
+              hook: "register",
+              reason: "invalid or duplicate pack registration in the host registry"
+            };
+            break;
+          }
+          this.manifests.set(manifest.id, manifest);
+          this.order.push(manifest.id);
+        }
+      }
+      get paused() {
+        return pauseCopy(this.pauseState);
+      }
+      register(packId, hooks) {
+        if (this.pauseState) return false;
+        const manifest = this.manifests.get(packId);
+        if (!manifest) return this.fail(packId, "register", "pack is not present in the host registry");
+        if (this.registrations.has(packId)) return this.fail(packId, "register", "pack hooks are already registered");
+        if (hooks.sim && !this.hasDeclaredHook(manifest, "sim")) {
+          return this.fail(packId, "register", "sim hook is not declared by the pack manifest");
+        }
+        if (hooks.view && !this.hasDeclaredHook(manifest, "view")) {
+          return this.fail(packId, "register", "view hook is not declared by the pack manifest");
+        }
+        if (hooks.sim) {
+          const purityFailure = impureSimReason(hooks.sim);
+          if (purityFailure) return this.fail(packId, "register", purityFailure);
+        }
+        this.registrations.set(packId, hooks);
+        return true;
+      }
+      runSim(input) {
+        let state;
+        try {
+          state = cloneValue(input.state);
+          if (!Number.isSafeInteger(input.seed)) throw new TypeError("seed must be a safe integer");
+        } catch (error) {
+          this.fail("(host)", "sim", errorMessage(error));
+          return { state: input.state, paused: this.paused };
+        }
+        if (this.pauseState) return { state, paused: this.paused };
+        for (const packId of this.order) {
+          const hook = this.registrations.get(packId)?.sim;
+          if (!hook) continue;
+          try {
+            const result = hook(Object.freeze({
+              state: readonlySnapshot(state, `sim state for ${packId}`),
+              event: readonlySnapshot(input.event, `sim event for ${packId}`),
+              seed: input.seed
+            }));
+            if (isPromiseLike(result)) {
+              void Promise.resolve(result).catch(() => void 0);
+              throw new TypeError("sim hooks must be synchronous and deterministic");
+            }
+            if (result !== void 0) state = cloneValue(result);
+          } catch (error) {
+            this.fail(packId, "sim", errorMessage(error));
+            break;
+          }
+        }
+        return { state, paused: this.paused };
+      }
+      runView(input) {
+        if (this.pauseState || input.enabled === false || input.headless === true) return this.paused;
+        for (const packId of this.order) {
+          const hook = this.registrations.get(packId)?.view;
+          if (!hook) continue;
+          try {
+            const result = hook(Object.freeze({
+              state: readonlySnapshot(input.state, `view state for ${packId}`),
+              frame: readonlySnapshot(input.frame, `view frame for ${packId}`),
+              draw: (command) => input.draw(cloneValue(command))
+            }));
+            if (isPromiseLike(result)) {
+              void Promise.resolve(result).catch(() => void 0);
+              throw new TypeError("view hooks must be synchronous");
+            }
+            if (result !== void 0) throw new TypeError("view hooks cannot return state or effects");
+          } catch (error) {
+            this.fail(packId, "view", errorMessage(error));
+            break;
+          }
+        }
+        return this.paused;
+      }
+      hasDeclaredHook(manifest, kind) {
+        return (manifest.provides.seams ?? []).some((seam) => seam.kind === kind);
+      }
+      fail(packId, hook, reason) {
+        this.pauseState ??= { packId, hook, reason };
+        return false;
+      }
+    };
+  }
+});
+
 // src/core/engine.ts
 var engine_exports = {};
 __export(engine_exports, {
@@ -16894,6 +17062,9 @@ __export(engine_exports, {
   slotKey: () => slotKey,
   writeSave: () => writeSave
 });
+function packError(code, pause) {
+  return new Error(`${code}: ${pause.packId}/${pause.hook}: ${pause.reason}`);
+}
 function loadSave(campaignId) {
   return loadState(campaignId);
 }
@@ -16930,6 +17101,7 @@ var init_engine = __esm({
     init_equipment();
     init_brp();
     init_audio();
+    init_host();
     init_savemigrate();
     GameEngine = class _GameEngine {
       audio = { playUi, playInteraction, stopSound };
@@ -16986,6 +17158,7 @@ var init_engine = __esm({
       cutsceneSerial = 0;
       freshRun;
       envelope = null;
+      packRuntime = null;
       constructor(campaign2, state) {
         this.campaign = campaign2;
         this.freshRun = !state;
@@ -17001,6 +17174,41 @@ var init_engine = __esm({
           this.rng = new PRNG();
           this.state = this.newState();
         }
+      }
+      /** Attach pack-owned code explicitly; there is no legacy fallback after this boundary. */
+      attachPackSim(binding) {
+        const seam = binding.manifest.provides.seams?.find((candidate) => candidate.kind === "sim")?.id;
+        if (typeof seam !== "string" || !seam || typeof binding.hooks.sim !== "function") {
+          throw new Error(`PACK_SIM_MISSING: ${binding.manifest.id || "(unknown)"} has no declared sim hook`);
+        }
+        const host = new PackHost([binding.manifest]);
+        if (!host.register(binding.manifest.id, binding.hooks)) {
+          const pause = host.paused;
+          if (pause) throw packError("PACK_REGISTER_FAILED", pause);
+          throw new Error(`PACK_REGISTER_FAILED: ${binding.manifest.id}/register`);
+        }
+        this.packRuntime = {
+          host,
+          state: binding.state,
+          packId: binding.manifest.id,
+          seam,
+          steps: 0
+        };
+        return host;
+      }
+      get packExecution() {
+        const runtime = this.packRuntime;
+        return runtime ? { packId: runtime.packId, seam: runtime.seam, steps: runtime.steps } : null;
+      }
+      /** Execute one pack event; a pause is an error, never permission to use core rules instead. */
+      runPackSim(event, seed = 0) {
+        const runtime = this.packRuntime;
+        if (!runtime) throw new Error("PACK_RUNTIME_MISSING: attachPackSim is required before runPackSim");
+        const result = runtime.host.runSim({ state: runtime.state, event, seed });
+        if (result.paused) throw packError("PACK_SIM_FAILED", result.paused);
+        runtime.state = result.state;
+        runtime.steps += 1;
+        return result.state;
       }
       subscribe(fn) {
         this.listeners.add(fn);
@@ -17556,8 +17764,8 @@ var init_engine = __esm({
       dialogueTimeout() {
         return dialogueRuntime.dialogueTimeout.call(this);
       }
-      promptPresentItem(okKnot, failKnot, required) {
-        return dialogueRuntime.promptPresentItem.call(this, okKnot, failKnot, required);
+      promptPresentItem(okKnot, failKnot, required2) {
+        return dialogueRuntime.promptPresentItem.call(this, okKnot, failKnot, required2);
       }
       submitPresentedItem(itemId) {
         return dialogueRuntime.submitPresentedItem.call(this, itemId);
@@ -17894,8 +18102,8 @@ var init_engine = __esm({
 var import_seedrandom3 = __toESM(require_seedrandom2(), 1);
 import { createHash } from "node:crypto";
 import { existsSync as existsSync2 } from "node:fs";
-import { mkdir, readFile as readFile2, readdir, writeFile } from "node:fs/promises";
-import { basename, dirname, extname, join as join2, relative, resolve as resolve2, sep } from "node:path";
+import { mkdir, readFile as readFile3, readdir, writeFile } from "node:fs/promises";
+import { basename, dirname, extname, join as join3, relative, resolve as resolve2, sep } from "node:path";
 
 // src/core/loader.ts
 init_migrate();
@@ -18051,6 +18259,7 @@ async function loadCampaign(basePath) {
 // scripts/playkit/cli.mts
 init_engine();
 init_prng();
+init_host();
 
 // src/core/charcreate.ts
 init_brp();
@@ -18897,6 +19106,784 @@ async function resolveProjectPackForCheck(projectDir, registryOverride) {
   return resolveProjectPack(project, contracts.kinds, contracts.packs, installed);
 }
 
+// packs/narrative/runtime.ts
+import { readFile as readFile2 } from "node:fs/promises";
+import { join as join2 } from "node:path";
+
+// packs/narrative/pack.json
+var pack_default = {
+  id: "narrative",
+  title: "\u0421\u044E\u0436\u0435\u0442 \u0438 \u0432\u0435\u0442\u0432\u043B\u0435\u043D\u0438\u0435",
+  version: "1.1.0",
+  runtime: "turn",
+  provides: {
+    kind: true,
+    schema: "schema/narrative.schema.json",
+    panels: [
+      {
+        id: "scenes",
+        title: "\u0421\u0446\u0435\u043D\u044B",
+        slot: "left",
+        schema: "schema/scene.schema.json",
+        caps: [
+          "scenes"
+        ],
+        order: 10
+      },
+      {
+        id: "dialogue",
+        title: "\u0414\u0438\u0430\u043B\u043E\u0433\u0438",
+        slot: "center",
+        schema: "schema/dialogue.schema.json",
+        caps: [
+          "dialogue"
+        ],
+        order: 20
+      },
+      {
+        id: "flow",
+        title: "\u0413\u0440\u0430\u0444 \u0432\u0435\u0442\u0432\u043B\u0435\u043D\u0438\u044F",
+        slot: "center",
+        caps: [
+          "narrative"
+        ],
+        order: 30
+      },
+      {
+        id: "map",
+        title: "\u041A\u0430\u0440\u0442\u0430 \u043C\u0438\u0440\u0430",
+        slot: "center",
+        schema: "schema/world.schema.json",
+        caps: [
+          "map"
+        ],
+        order: 40
+      },
+      {
+        id: "quests",
+        title: "\u041A\u0432\u0435\u0441\u0442\u044B",
+        slot: "center",
+        schema: "schema/quest.schema.json",
+        caps: [
+          "quests"
+        ],
+        order: 50
+      },
+      {
+        id: "fmv",
+        title: "FMV-\u0444\u0440\u0430\u0433\u043C\u0435\u043D\u0442\u044B",
+        slot: "center",
+        schema: "schema/fmv.schema.json",
+        caps: [
+          "fmv"
+        ],
+        order: 60
+      }
+    ],
+    validators: [
+      {
+        id: "dangling-goto",
+        title: "\u041F\u0435\u0440\u0435\u0445\u043E\u0434 \u0432 \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0443\u044E \u0441\u0446\u0435\u043D\u0443",
+        severity: "error",
+        description: "\u041B\u044E\u0431\u043E\u0439 goto, \u0432\u044B\u0431\u043E\u0440 \u0438\u043B\u0438 \u043F\u0440\u0430\u0432\u0438\u043B\u043E \u0441\u0441\u044B\u043B\u0430\u0435\u0442\u0441\u044F \u043D\u0430 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0443\u044E \u0441\u0446\u0435\u043D\u0443.",
+        caps: [
+          "scenes"
+        ]
+      },
+      {
+        id: "unreachable-scene",
+        title: "\u041D\u0435\u0434\u043E\u0441\u0442\u0438\u0436\u0438\u043C\u0430\u044F \u0441\u0446\u0435\u043D\u0430",
+        severity: "warn",
+        description: "\u041A\u0430\u0436\u0434\u0430\u044F \u0441\u0446\u0435\u043D\u0430 \u0434\u043E\u0441\u0442\u0438\u0436\u0438\u043C\u0430 \u0445\u043E\u0442\u044F \u0431\u044B \u043E\u0434\u043D\u0438\u043C \u043C\u0430\u0440\u0448\u0440\u0443\u0442\u043E\u043C \u043E\u0442 \u0441\u0442\u0430\u0440\u0442\u043E\u0432\u043E\u0439.",
+        caps: [
+          "narrative"
+        ]
+      },
+      {
+        id: "dangling-ink-knot",
+        title: "\u0423\u0437\u0435\u043B ink \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D",
+        severity: "error",
+        description: "\u0412\u0441\u0435 \u043F\u0435\u0440\u0435\u0445\u043E\u0434\u044B \u0434\u0438\u0430\u043B\u043E\u0433\u0430 \u0432\u0435\u0434\u0443\u0442 \u0432 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0438\u0435 \u0443\u0437\u043B\u044B.",
+        caps: [
+          "dialogue"
+        ]
+      },
+      {
+        id: "dangling-quest-stage",
+        title: "\u041F\u0435\u0440\u0435\u0445\u043E\u0434 \u0432 \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0443\u044E \u0441\u0442\u0430\u0434\u0438\u044E",
+        severity: "error",
+        description: "\u041A\u0430\u0436\u0434\u044B\u0439 \u043F\u0435\u0440\u0435\u0445\u043E\u0434 \u043A\u0432\u0435\u0441\u0442\u0430 \u0432\u0435\u0434\u0451\u0442 \u0432 \u043E\u0431\u044A\u044F\u0432\u043B\u0435\u043D\u043D\u0443\u044E \u0441\u0442\u0430\u0434\u0438\u044E \u0442\u043E\u0433\u043E \u0436\u0435 \u043A\u0432\u0435\u0441\u0442\u0430.",
+        caps: [
+          "quests"
+        ]
+      }
+    ],
+    probes: [
+      {
+        id: "reachability",
+        title: "\u0414\u043E\u0441\u0442\u0438\u0436\u0438\u043C\u043E\u0441\u0442\u044C \u0441\u0446\u0435\u043D",
+        kind: "graph",
+        budget_ms: 5e3,
+        checks: [
+          "\u043A\u0430\u0436\u0434\u0430\u044F \u0441\u0446\u0435\u043D\u0430 \u0434\u043E\u0441\u0442\u0438\u0436\u0438\u043C\u0430 \u043E\u0442 \u0441\u0442\u0430\u0440\u0442\u043E\u0432\u043E\u0439",
+          "\u043D\u0435\u0442 \u043A\u043E\u043C\u043F\u043E\u043D\u0435\u043D\u0442, \u043E\u0442\u0440\u0435\u0437\u0430\u043D\u043D\u044B\u0445 \u043E\u0442 \u0441\u0442\u0430\u0440\u0442\u0430"
+        ],
+        caps: [
+          "narrative"
+        ]
+      },
+      {
+        id: "dialogue-coverage",
+        title: "\u041F\u043E\u043A\u0440\u044B\u0442\u0438\u0435 \u0434\u0438\u0430\u043B\u043E\u0433\u043E\u0432",
+        kind: "graph",
+        budget_ms: 5e3,
+        checks: [
+          "\u043A\u0430\u0436\u0434\u044B\u0439 \u0443\u0437\u0435\u043B \u0434\u0438\u0430\u043B\u043E\u0433\u0430 \u0434\u043E\u0441\u0442\u0438\u0436\u0438\u043C \u0445\u043E\u0442\u044F \u0431\u044B \u043E\u0434\u043D\u0438\u043C \u0432\u044B\u0431\u043E\u0440\u043E\u043C",
+          "\u043D\u0435\u0442 \u0443\u0437\u043B\u043E\u0432 \u0431\u0435\u0437 \u0432\u044B\u0445\u043E\u0434\u0430, \u043A\u0440\u043E\u043C\u0435 \u0442\u0435\u0440\u043C\u0438\u043D\u0430\u043B\u044C\u043D\u044B\u0445"
+        ],
+        caps: [
+          "dialogue"
+        ]
+      },
+      {
+        id: "route-smoke",
+        title: "\u041F\u0440\u043E\u0433\u043E\u043D \u043C\u0430\u0440\u0448\u0440\u0443\u0442\u043E\u0432",
+        kind: "run",
+        budget_ms: 6e4,
+        checks: [
+          "\u043C\u0430\u0440\u0448\u0440\u0443\u0442 \u043F\u043E \u0441\u0446\u0435\u043D\u0430\u043C, \u0434\u0438\u0430\u043B\u043E\u0433\u0430\u043C \u0438 \u043A\u0432\u0435\u0441\u0442\u0430\u043C \u0440\u0435\u0430\u043B\u044C\u043D\u043E\u0439 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 \u043F\u0440\u043E\u0445\u043E\u0434\u0438\u0442 \u0431\u0435\u0437 \u043F\u0430\u0443\u0437\u044B",
+          "\u043D\u0430 \u043A\u0430\u0436\u0434\u043E\u043C \u0448\u0430\u0433\u0435 \u0445\u043E\u0441\u0442 \u0432\u043E\u0437\u0432\u0440\u0430\u0449\u0430\u0435\u0442 \u0434\u043E\u043F\u0443\u0441\u0442\u0438\u043C\u043E\u0435 \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u0435",
+          "\u043F\u0440\u043E\u0433\u043E\u043D \u0434\u0435\u0442\u0435\u0440\u043C\u0438\u043D\u0438\u0440\u043E\u0432\u0430\u043D \u043F\u043E seed",
+          "20 \u043F\u0440\u043E\u0433\u043E\u043D\u043E\u0432 \u0438\u0437 20 \u0441 \u043E\u0434\u043D\u0438\u043C seed \u0434\u0430\u044E\u0442 \u043E\u0434\u0438\u043D\u0430\u043A\u043E\u0432\u044B\u0439 \u0445\u0435\u0448 \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u044F",
+          "\u0432\u043A\u043B\u044E\u0447\u0451\u043D\u043D\u044B\u0439 \u0438 \u0432\u044B\u043A\u043B\u044E\u0447\u0435\u043D\u043D\u044B\u0439 view \u0434\u0430\u044E\u0442 \u043E\u0434\u0438\u043D\u0430\u043A\u043E\u0432\u044B\u0439 \u0445\u0435\u0448 \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u044F"
+        ],
+        caps: [
+          "narrative"
+        ]
+      },
+      {
+        id: "quest-transitions",
+        title: "\u041F\u0435\u0440\u0435\u0445\u043E\u0434\u044B \u0441\u0442\u0430\u0434\u0438\u0439 \u043A\u0432\u0435\u0441\u0442\u043E\u0432",
+        kind: "run",
+        budget_ms: 5e3,
+        checks: [
+          "\u0441\u0442\u0430\u0440\u0442 \u043A\u0432\u0435\u0441\u0442\u0430 \u0432\u044B\u0431\u0438\u0440\u0430\u0435\u0442 \u043F\u0435\u0440\u0432\u0443\u044E \u043E\u0431\u044A\u044F\u0432\u043B\u0435\u043D\u043D\u0443\u044E \u0441\u0442\u0430\u0434\u0438\u044E",
+          "\u0444\u043B\u0430\u0433\u0438, \u043F\u0440\u0435\u0434\u043C\u0435\u0442\u044B \u0438 \u0432\u0445\u043E\u0434 \u0432 \u043B\u043E\u043A\u0430\u0446\u0438\u044E \u043F\u0440\u043E\u0434\u0432\u0438\u0433\u0430\u044E\u0442 \u0441\u0442\u0430\u0434\u0438\u0438 \u0434\u0435\u0442\u0435\u0440\u043C\u0438\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u043E",
+          "\u0444\u0438\u043D\u0430\u043B\u044C\u043D\u044B\u0435 \u0441\u0442\u0430\u0434\u0438\u0438 \u043F\u043E\u043B\u0443\u0447\u0430\u044E\u0442 \u0441\u043E\u0445\u0440\u0430\u043D\u044F\u0435\u043C\u044B\u0439 \u0441\u0442\u0430\u0442\u0443\u0441 completed \u0438\u043B\u0438 failed"
+        ],
+        caps: [
+          "quests"
+        ]
+      }
+    ],
+    seams: [
+      {
+        id: "narrative.sim",
+        kind: "sim",
+        signature: "(ctx: PackSimContext<NarrativeState, NarrativeEvent>) => NarrativeState",
+        description: "\u0427\u0438\u0441\u0442\u044B\u0439 \u043F\u0435\u0440\u0435\u0445\u043E\u0434 \u0441\u0446\u0435\u043D, \u0434\u0438\u0430\u043B\u043E\u0433\u043E\u0432 \u0438 \u043A\u0432\u0435\u0441\u0442\u043E\u0432 \u043D\u0430 \u043D\u0435\u0438\u0437\u043C\u0435\u043D\u044F\u0435\u043C\u044B\u0445 \u0434\u0430\u043D\u043D\u044B\u0445 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438.",
+        caps: [
+          "narrative",
+          "scenes",
+          "dialogue",
+          "quests"
+        ]
+      },
+      {
+        id: "narrative.view",
+        kind: "view",
+        signature: "(ctx: PackViewContext<NarrativeState, NarrativeFrame>) => void",
+        description: "\u041F\u0440\u043E\u0435\u043A\u0446\u0438\u044F \u0441\u0446\u0435\u043D\u044B, \u0430\u043A\u0442\u0438\u0432\u043D\u043E\u0433\u043E \u0434\u0438\u0430\u043B\u043E\u0433\u0430 \u0438 \u0436\u0443\u0440\u043D\u0430\u043B\u0430 \u0442\u043E\u043B\u044C\u043A\u043E \u0432 draw-\u043F\u043E\u0440\u0442.",
+        caps: [
+          "narrative",
+          "scenes",
+          "dialogue",
+          "quests"
+        ]
+      }
+    ]
+  },
+  saves: {
+    namespace: "narrative",
+    version: 3,
+    migrations: 3
+  },
+  requires: {
+    core: ">=1.0.0",
+    packs: [],
+    caps: []
+  },
+  caps: [
+    "narrative",
+    "scenes",
+    "dialogue",
+    "map",
+    "inventory",
+    "needs",
+    "skills",
+    "relationships",
+    "trade",
+    "combat",
+    "quests",
+    "cutscenes",
+    "fmv",
+    "codex",
+    "crafting",
+    "time"
+  ]
+};
+
+// packs/narrative/fmv.ts
+function copyFmvState(state) {
+  return {
+    ...state,
+    ready: [...state.ready],
+    lastTransition: state.lastTransition ? { ...state.lastTransition } : null,
+    error: state.error ? { ...state.error } : null
+  };
+}
+function documentFor(content, sceneId) {
+  const document = content.fmv?.[sceneId];
+  if (!document) throw new Error(`Unknown FMV scene ${sceneId}`);
+  return document;
+}
+function fragmentFor(document, fragmentId) {
+  const fragment = document.fragments.find((candidate) => candidate.id === fragmentId);
+  if (!fragment) throw new Error(`Unknown FMV fragment ${document.id}/${fragmentId}`);
+  return fragment;
+}
+function startFmv(state, content, sceneId) {
+  const document = documentFor(content, sceneId);
+  fragmentFor(document, document.start);
+  state.fmv = {
+    scene: sceneId,
+    fragment: document.start,
+    phase: "loading",
+    ready: [],
+    pendingChoice: null,
+    presentation: 1,
+    lastTransition: null,
+    error: null
+  };
+}
+function chooseFmv(state, content, index, applyChoice) {
+  const runtime = state.fmv;
+  if (!runtime || runtime.phase !== "choice" && runtime.phase !== "buffering") {
+    throw new Error("FMV scene is not waiting for a choice");
+  }
+  const document = documentFor(content, runtime.scene);
+  const current = fragmentFor(document, runtime.fragment);
+  const choice = current.choices?.[index];
+  if (!choice) throw new Error(`Unknown dialogue choice ${index}`);
+  fragmentFor(document, choice.next);
+  if (!runtime.ready.includes(choice.next)) {
+    runtime.pendingChoice = index;
+    runtime.phase = "buffering";
+    return;
+  }
+  applyChoice(state, runtime.scene, current.id, current.choices ?? [], index);
+  runtime.lastTransition = {
+    from: current.id,
+    to: choice.next,
+    choice: choice.id,
+    choiceIndex: index,
+    readyNext: true
+  };
+  runtime.fragment = choice.next;
+  runtime.phase = "playing";
+  runtime.pendingChoice = null;
+  runtime.presentation += 1;
+  runtime.error = null;
+}
+function readyFmv(state, content, sceneId, fragmentId, applyChoice) {
+  const runtime = state.fmv;
+  if (!runtime || runtime.scene !== sceneId) return;
+  const document = documentFor(content, sceneId);
+  fragmentFor(document, fragmentId);
+  if (!runtime.ready.includes(fragmentId)) runtime.ready.push(fragmentId);
+  if (runtime.pendingChoice !== null) {
+    const current = fragmentFor(document, runtime.fragment);
+    if (current.choices?.[runtime.pendingChoice]?.next === fragmentId) {
+      runtime.phase = "buffering";
+      chooseFmv(state, content, runtime.pendingChoice, applyChoice);
+      return;
+    }
+  }
+  if (runtime.fragment === fragmentId && runtime.pendingChoice === null && (runtime.phase === "loading" || runtime.phase === "error")) {
+    runtime.phase = "playing";
+    runtime.error = null;
+  }
+}
+function failFmv(state, content, sceneId, fragmentId, code, message) {
+  const runtime = state.fmv;
+  if (!runtime || runtime.scene !== sceneId) return;
+  fragmentFor(documentFor(content, sceneId), fragmentId);
+  runtime.phase = "error";
+  runtime.error = { code, message, fragment: fragmentId };
+}
+function endFmv(state, content, sceneId, fragmentId) {
+  const runtime = state.fmv;
+  if (!runtime || runtime.scene !== sceneId || runtime.fragment !== fragmentId) return;
+  const current = fragmentFor(documentFor(content, sceneId), fragmentId);
+  if (runtime.phase !== "playing") throw new Error(`FMV fragment ${sceneId}/${fragmentId} is not playing`);
+  runtime.phase = current.choices?.length ? "choice" : "ended";
+}
+function drawFmv(state, content, frame, draw) {
+  const runtime = state.fmv;
+  if (!runtime) return;
+  const document = documentFor(content, runtime.scene);
+  const current = fragmentFor(document, runtime.fragment);
+  draw({
+    type: "narrative.fmv.frame",
+    frame: frame.frame,
+    scene: runtime.scene,
+    fragment: current.id,
+    src: current.src,
+    poster: current.poster,
+    duration_ms: current.duration_ms,
+    ready: runtime.ready.includes(current.id),
+    presentation: runtime.presentation,
+    status: runtime.phase,
+    blank: false
+  });
+  if (runtime.phase === "choice" || runtime.phase === "buffering") {
+    draw({
+      type: "narrative.fmv.choices",
+      frame: frame.frame,
+      scene: runtime.scene,
+      fragment: current.id,
+      pendingChoice: runtime.pendingChoice,
+      choices: (current.choices ?? []).map((choice, index) => ({
+        index,
+        id: choice.id,
+        text: choice.text,
+        next: choice.next,
+        ready: runtime.ready.includes(choice.next)
+      }))
+    });
+  }
+  if (runtime.phase === "playing") {
+    const position = frame.position_ms ?? 0;
+    for (const subtitle of current.subtitles) {
+      if (position >= subtitle.start_ms && position < subtitle.end_ms) {
+        draw({
+          type: "narrative.fmv.subtitle",
+          frame: frame.frame,
+          scene: runtime.scene,
+          fragment: current.id,
+          start_ms: subtitle.start_ms,
+          end_ms: subtitle.end_ms,
+          text: subtitle.text
+        });
+      }
+    }
+  }
+  if (runtime.error) {
+    draw({
+      type: "narrative.fmv.error",
+      frame: frame.frame,
+      scene: runtime.scene,
+      fragment: runtime.error.fragment,
+      code: runtime.error.code,
+      message: runtime.error.message,
+      recoverable: true
+    });
+  }
+}
+
+// packs/narrative/sim.ts
+function runtimeCopy(state) {
+  return {
+    scene: state.scene,
+    location: state.location,
+    flags: { ...state.flags },
+    inventory: { ...state.inventory },
+    quests: Object.fromEntries(Object.entries(state.quests).map(([id, quest]) => [
+      id,
+      { ...quest, journal: [...quest.journal] }
+    ])),
+    dialogue: state.dialogue ? { ...state.dialogue } : null,
+    usedChoices: [...state.usedChoices],
+    visitedScenes: [...state.visitedScenes],
+    journal: [...state.journal],
+    ...state.fmv ? { fmv: copyFmvState(state.fmv) } : {}
+  };
+}
+function editable(state, content) {
+  return { ...runtimeCopy(state), content };
+}
+function required(value, label) {
+  if (!value) throw new Error(`Missing ${label}`);
+  return value;
+}
+function createNarrativeState(content) {
+  const scene = content.scenes[content.campaign.starting_scene];
+  if (!scene) throw new Error(`Unknown starting scene ${content.campaign.starting_scene}`);
+  if (!content.locations[scene.location]) throw new Error(`Unknown starting location ${scene.location}`);
+  const state = {
+    scene: scene.id,
+    location: scene.location,
+    flags: {},
+    inventory: {},
+    quests: {},
+    dialogue: null,
+    usedChoices: [],
+    visitedScenes: [scene.id],
+    journal: []
+  };
+  if (scene.fmv) {
+    const working = editable(state, content);
+    startFmv(working, content, scene.fmv);
+    return runtimeCopy(working);
+  }
+  return state;
+}
+function conditionOk(state, condition) {
+  let result;
+  switch (condition.type) {
+    case "flag":
+    case "flag_set":
+      result = state.flags[required(condition.flag, "flag condition id")] === true;
+      break;
+    case "quest": {
+      const questId = required(condition.quest, "quest condition id");
+      result = (state.quests[questId]?.stage ?? "") === (condition.stage ?? "");
+      break;
+    }
+    case "has_item":
+      result = (state.inventory[required(condition.item, "item condition id")] ?? 0) > 0;
+      break;
+    case "item_ge":
+      result = (state.inventory[required(condition.item, "item condition id")] ?? 0) >= (condition.count ?? 1);
+      break;
+    case "player_enters_location":
+      result = state.location === required(condition.location, "location condition id");
+      break;
+    default:
+      throw new Error(`Unsupported narrative condition ${condition.type}`);
+  }
+  return condition.not ? !result : result;
+}
+function conditionsOk(state, conditions) {
+  return conditions.every((condition) => conditionOk(state, condition));
+}
+function writeJournal(state, questId, textKey) {
+  const quest = state.content.quests[questId];
+  if (!quest) throw new Error(`Unknown quest ${questId}`);
+  const text = quest.journal_entries[textKey];
+  if (!text) throw new Error(`Unknown journal entry ${questId}/${textKey}`);
+  if (!state.journal.includes(text)) state.journal.push(text);
+  const current = state.quests[questId];
+  if (current && !current.journal.includes(text)) current.journal.push(text);
+}
+function enterQuestStage(state, questId, stageId) {
+  const quest = state.content.quests[questId];
+  if (!quest) throw new Error(`Unknown quest ${questId}`);
+  const stage = quest.stages.find((candidate) => candidate.id === stageId);
+  if (!stage) throw new Error(`Unknown quest stage ${questId}/${stageId}`);
+  const previous = state.quests[questId];
+  state.quests[questId] = {
+    stage: stageId,
+    status: stage.final ? stage.outcome === "failure" ? "failed" : "completed" : "active",
+    journal: previous ? [...previous.journal] : []
+  };
+  for (const effect of stage.on_enter_effects ?? []) {
+    if (effect.type === "journal_update") applyEffect2(state, effect);
+  }
+}
+function startQuest(state, questId) {
+  if (state.quests[questId]) return;
+  const quest = state.content.quests[questId];
+  if (!quest) throw new Error(`Unknown quest ${questId}`);
+  const first = quest.stages[0];
+  if (!first) throw new Error(`Quest ${questId} has no stages`);
+  enterQuestStage(state, questId, first.id);
+}
+function advanceQuests(state) {
+  for (let pass = 0; pass < 64; pass++) {
+    let changed = false;
+    for (const questId of Object.keys(state.content.quests).sort()) {
+      const current = state.quests[questId];
+      if (!current || current.status !== "active") continue;
+      const quest = state.content.quests[questId];
+      const stage = quest.stages.find((candidate) => candidate.id === current.stage);
+      if (!stage) throw new Error(`Unknown active quest stage ${questId}/${current.stage}`);
+      const transition = (stage.transitions ?? []).find((candidate) => conditionsOk(state, candidate.conditions));
+      if (!transition) continue;
+      enterQuestStage(state, questId, transition.to);
+      changed = true;
+    }
+    if (!changed) return;
+  }
+  throw new Error("Quest transition limit exceeded");
+}
+function changeItem(state, itemId, delta) {
+  const quantity = (state.inventory[itemId] ?? 0) + delta;
+  if (quantity < 0) throw new Error(`Not enough ${itemId}`);
+  if (quantity === 0) delete state.inventory[itemId];
+  else state.inventory[itemId] = quantity;
+}
+function applyEffect2(state, effect) {
+  switch (effect.type) {
+    case "set_flag":
+      state.flags[required(effect.flag, "flag effect id")] = true;
+      return;
+    case "start_quest":
+      startQuest(state, required(effect.quest, "quest effect id"));
+      return;
+    case "add_item":
+      changeItem(state, required(effect.item, "item effect id"), effect.qty ?? 1);
+      return;
+    case "remove_item":
+      changeItem(state, required(effect.item, "item effect id"), -(effect.qty ?? 1));
+      return;
+    case "journal_update":
+      writeJournal(state, required(effect.quest, "journal quest id"), required(effect.text_key, "journal text key"));
+      return;
+    default:
+      throw new Error(`Unsupported narrative effect ${effect.type}`);
+  }
+}
+function applySteps(state, steps) {
+  for (const step of steps) {
+    if (step.effect) applyEffect2(state, step.effect);
+  }
+}
+function applySections(state, sections) {
+  for (const section of sections) {
+    const steps = conditionsOk(state, section.conds ?? []) ? section.steps : section.else_steps;
+    applySteps(state, steps ?? []);
+  }
+}
+function dialogueNode(state) {
+  if (!state.dialogue) throw new Error("No active dialogue");
+  const dialogueDoc = state.content.dialogues[state.dialogue.dialogue];
+  if (!dialogueDoc) throw new Error(`Unknown dialogue ${state.dialogue.dialogue}`);
+  const node = dialogueDoc.nodes.find((candidate) => candidate.id === state.dialogue.node);
+  if (!node) throw new Error(`Unknown dialogue node ${state.dialogue.dialogue}/${state.dialogue.node}`);
+  return node;
+}
+function enterDialogueNode(state, nodeId) {
+  if (!state.dialogue) throw new Error("No active dialogue");
+  const dialogueDoc = state.content.dialogues[state.dialogue.dialogue];
+  if (!dialogueDoc) throw new Error(`Unknown dialogue ${state.dialogue.dialogue}`);
+  const node = dialogueDoc.nodes.find((candidate) => candidate.id === nodeId);
+  if (!node) throw new Error(`Unknown dialogue node ${state.dialogue.dialogue}/${nodeId}`);
+  state.dialogue.node = nodeId;
+  applySections(state, node.sections ?? []);
+}
+function finishDialogueTransition(state, target) {
+  if (target === "end") state.dialogue = null;
+  else if (target !== "stay") enterDialogueNode(state, target);
+}
+function applyNarrativeChoice(state, owner, nodeId, choices, index) {
+  const choice = choices[index];
+  if (!choice) throw new Error(`Unknown dialogue choice ${index}`);
+  const key = `${owner}:${nodeId}:${index}`;
+  if (choice.once && state.usedChoices.includes(key)) throw new Error(`Choice ${key} was already used`);
+  if (!conditionsOk(state, choice.conds ?? [])) throw new Error(`Choice ${key} is not available`);
+  if (choice.check !== void 0) throw new Error("Skill checks require a resolved outcome event");
+  applySections(state, choice.sections ?? []);
+  if (choice.once) state.usedChoices.push(key);
+  return choice;
+}
+function enterScene(state, sceneId) {
+  const scene = state.content.scenes[sceneId];
+  if (!scene) throw new Error(`Unknown scene ${sceneId}`);
+  if (!state.content.locations[scene.location]) throw new Error(`Unknown scene location ${scene.location}`);
+  state.scene = sceneId;
+  state.location = scene.location;
+  if (!state.visitedScenes.includes(sceneId)) state.visitedScenes.push(sceneId);
+  if (scene.fmv) startFmv(state, state.content, scene.fmv);
+  else delete state.fmv;
+}
+function reduceNarrative(content, readonlyState, event) {
+  const state = editable(readonlyState, content);
+  switch (event.type) {
+    case "goto": {
+      const current = state.content.scenes[state.scene];
+      if (!current?.navigation?.some((navigation) => navigation.go_to_scene === event.scene)) {
+        throw new Error(`Scene ${state.scene} has no navigation to ${event.scene}`);
+      }
+      enterScene(state, event.scene);
+      break;
+    }
+    case "travel": {
+      const current = state.content.locations[state.location];
+      if (!current?.travel_connections?.some((connection) => connection.to === event.location)) {
+        throw new Error(`Location ${state.location} has no route to ${event.location}`);
+      }
+      const target = state.content.locations[event.location];
+      if (!target) throw new Error(`Unknown location ${event.location}`);
+      const scene = target.arrival_scene ?? target.scenes[0];
+      enterScene(state, required(scene, `arrival scene for ${event.location}`));
+      break;
+    }
+    case "start_dialogue": {
+      if (state.dialogue) throw new Error("Another dialogue is already active");
+      if (!state.content.dialogues[event.dialogue]) throw new Error(`Unknown dialogue ${event.dialogue}`);
+      state.dialogue = { dialogue: event.dialogue, node: event.node ?? "main" };
+      enterDialogueNode(state, state.dialogue.node);
+      break;
+    }
+    case "choose_dialogue": {
+      if (state.fmv) {
+        chooseFmv(state, content, event.choice, applyNarrativeChoice);
+        break;
+      }
+      const node = dialogueNode(state);
+      const choice = applyNarrativeChoice(
+        state,
+        state.dialogue.dialogue,
+        node.id,
+        node.choices ?? [],
+        event.choice
+      );
+      finishDialogueTransition(state, choice.goto ?? "stay");
+      break;
+    }
+    case "continue_dialogue": {
+      const node = dialogueNode(state);
+      if (node.choices?.length) throw new Error("Dialogue node is waiting for a choice");
+      finishDialogueTransition(state, node.goto ?? "end");
+      break;
+    }
+    case "start_fmv":
+      startFmv(state, content, event.scene);
+      break;
+    case "fmv_ready":
+      readyFmv(state, content, event.scene, event.fragment, applyNarrativeChoice);
+      break;
+    case "fmv_error":
+      failFmv(state, content, event.scene, event.fragment, event.code, event.message);
+      break;
+    case "fmv_ended":
+      endFmv(state, content, event.scene, event.fragment);
+      break;
+    case "start_quest":
+      startQuest(state, event.quest);
+      break;
+    case "set_flag":
+      state.flags[event.flag] = event.value ?? true;
+      break;
+    case "add_item":
+      changeItem(state, event.item, event.quantity ?? 1);
+      break;
+  }
+  advanceQuests(state);
+  return runtimeCopy(state);
+}
+function createNarrativeSim(content) {
+  return ({ state, event }) => reduceNarrative(content, state, event);
+}
+
+// packs/narrative/view.ts
+function createNarrativeView(content) {
+  return ({ state, frame, draw }) => {
+    draw({
+      type: "narrative.scene",
+      frame: frame.frame,
+      scene: state.scene,
+      location: state.location
+    });
+    if (state.dialogue) {
+      draw({
+        type: "narrative.dialogue",
+        frame: frame.frame,
+        dialogue: state.dialogue.dialogue,
+        node: state.dialogue.node
+      });
+    }
+    for (const [quest, questState] of Object.entries(state.quests)) {
+      draw({
+        type: "narrative.quest",
+        frame: frame.frame,
+        quest,
+        stage: questState.stage,
+        status: questState.status
+      });
+    }
+    drawFmv(state, content, frame, draw);
+  };
+}
+
+// packs/narrative/hooks.ts
+function createNarrativeHooks(content) {
+  return {
+    sim: createNarrativeSim(content),
+    view: createNarrativeView(content)
+  };
+}
+
+// packs/narrative/runtime.ts
+var NARRATIVE_PACK_MANIFEST = pack_default;
+async function readJson2(path) {
+  return JSON.parse(await readFile2(path, "utf8"));
+}
+function flattenLocations(regions) {
+  const result = {};
+  for (const region of regions) {
+    for (const location of region.locations) result[location.id] = location;
+    Object.assign(result, flattenLocations(region.sub_regions ?? []));
+  }
+  return result;
+}
+async function loadNarrativeContent(campaignDir) {
+  const [campaign2, world2, dataManifest] = await Promise.all([
+    readJson2(join2(campaignDir, "campaign.json")),
+    readJson2(join2(campaignDir, "world.json")),
+    readJson2(join2(campaignDir, "manifest.json"))
+  ]);
+  const scenes = {};
+  for (const file of dataManifest.scenes) {
+    const scene = await readJson2(join2(campaignDir, "scenes", file));
+    scenes[scene.id] = scene;
+  }
+  const dialogues = {};
+  for (const file of dataManifest.dialogues) {
+    const id = file.replace(/\.ink$/, "");
+    dialogues[id] = await readJson2(
+      join2(campaignDir, "dialogues", `${id}.dlg.json`)
+    );
+  }
+  const quests2 = {};
+  for (const file of dataManifest.quests ?? []) {
+    const quest = await readJson2(join2(campaignDir, "quests", file));
+    quests2[quest.id] = quest;
+  }
+  const fmvDocuments = {};
+  for (const file of dataManifest.fmv ?? []) {
+    const document = await readJson2(join2(campaignDir, "fmv", file));
+    fmvDocuments[document.id] = document;
+  }
+  return {
+    campaign: campaign2,
+    scenes,
+    locations: flattenLocations(world2.regions),
+    dialogues,
+    quests: quests2,
+    ...Object.keys(fmvDocuments).length ? { fmv: fmvDocuments } : {}
+  };
+}
+function createNarrativePackBinding(content, manifest) {
+  return {
+    manifest,
+    hooks: createNarrativeHooks(content),
+    state: createNarrativeState(content)
+  };
+}
+function narrativeEntryEvent(content, state) {
+  if (state.fmv) {
+    return { type: "fmv_ready", scene: state.fmv.scene, fragment: state.fmv.fragment };
+  }
+  const scene = content.scenes[state.scene];
+  const target = scene?.navigation?.find((navigation) => navigation.go_to_scene)?.go_to_scene;
+  if (target) return { type: "goto", scene: target };
+  const destination = content.locations[state.location]?.travel_connections?.[0]?.to;
+  if (destination) return { type: "travel", location: destination };
+  throw new Error(`PACK_RUNTIME_NO_ENTRY: ${state.scene} has no FMV, scene navigation, or travel event`);
+}
+
 // scripts/playkit/cli.mts
 var PLAYKIT_VERSION = "0.1.0";
 var DEFAULT_ORIGIN = "http://cf-play.local/";
@@ -18955,7 +19942,7 @@ function flagText(flags, key) {
 }
 async function walk(dir, acc = []) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
-    const full = join2(dir, entry.name);
+    const full = join3(dir, entry.name);
     if (entry.isDirectory()) {
       if (entry.name === "node_modules" || entry.name === ".git") continue;
       await walk(full, acc);
@@ -18972,7 +19959,7 @@ async function logicDigest(dir) {
   for (const file of files) {
     hash.update(relative(dir, file).split(sep).join("/"));
     hash.update("\0");
-    hash.update(await readFile2(file));
+    hash.update(await readFile3(file));
     hash.update("\0");
   }
   return "sha256:" + hash.digest("hex");
@@ -18995,7 +19982,7 @@ function installShims(campaignDir) {
     const rel = decodeURIComponent(new URL(url).pathname).replace(/^\/+/, "");
     const target = resolve2(campaignDir, rel);
     if (!target.startsWith(resolve2(campaignDir))) throw new Error(`cf-play: \u043F\u0443\u0442\u044C \u0432\u043D\u0435 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 (${rel})`);
-    return new Response(await readFile2(target), { status: 200 });
+    return new Response(await readFile3(target), { status: 200 });
   };
 }
 function entityLabel2(entity) {
@@ -19488,10 +20475,10 @@ async function writeRun(config, result, steps, engine, campaign2, debug) {
   }
   if (config.outDir) {
     await mkdir(config.outDir, { recursive: true });
-    await writeFile(join2(config.outDir, "transcript.md"), transcript, "utf8");
-    await writeFile(join2(config.outDir, "run.json"), runJson, "utf8");
-    await writeFile(join2(config.outDir, "result.json"), JSON.stringify(result, null, 2), "utf8");
-    if (debug) await writeFile(join2(config.outDir, "state.final.json"), JSON.stringify(engine.state, null, 2), "utf8");
+    await writeFile(join3(config.outDir, "transcript.md"), transcript, "utf8");
+    await writeFile(join3(config.outDir, "run.json"), runJson, "utf8");
+    await writeFile(join3(config.outDir, "result.json"), JSON.stringify(result, null, 2), "utf8");
+    if (debug) await writeFile(join3(config.outDir, "state.final.json"), JSON.stringify(engine.state, null, 2), "utf8");
   }
   return transcript;
 }
@@ -19683,25 +20670,43 @@ async function cmdCheck(config, seeds, stepsLimit, routesDir, packRegistryPath =
       text: `${diagnostic.code}: ${diagnostic.message}`
     };
   }
-  const { campaign: campaign2 } = await loadEngine(config.campaignDir, config.seed, false, emptyInjection());
+  const { campaign: campaign2, engine } = await loadEngine(config.campaignDir, config.seed, false, emptyInjection());
   const graph = analyzeCampaign(campaign2);
   const errors = graph.findings.filter((finding) => finding.severity === "error");
   const warnings = graph.findings.filter((finding) => finding.severity === "warning");
+  let pack = null;
+  if (!errors.length) {
+    const content = await loadNarrativeContent(config.campaignDir);
+    const binding = createNarrativePackBinding(content, NARRATIVE_PACK_MANIFEST);
+    const host = engine.attachPackSim(binding);
+    if (!(host instanceof PackHost)) throw new Error("PACK_RUNTIME_MISSING: cf-play did not receive a PackHost");
+    const event = narrativeEntryEvent(content, binding.state);
+    const before = binding.state;
+    const after = engine.runPackSim(event, seeds[0]);
+    const execution = engine.packExecution;
+    if (!execution || execution.steps !== 1) throw new Error("PACK_RUNTIME_MISSING: narrative.sim did not execute");
+    pack = {
+      ...execution,
+      event: event.type,
+      from: { scene: before.scene, location: before.location, fmv: before.fmv?.phase ?? null },
+      to: { scene: after.scene, location: after.location, fmv: after.fmv?.phase ?? null }
+    };
+  }
   const routeFiles = [];
-  const dir = routesDir ?? join2(config.campaignDir, "routes");
+  const dir = routesDir ?? join3(config.campaignDir, "routes");
   if (existsSync2(dir)) {
-    for (const name of await readdir(dir)) if (name.endsWith(".json")) routeFiles.push(join2(dir, name));
+    for (const name of await readdir(dir)) if (name.endsWith(".json")) routeFiles.push(join3(dir, name));
   }
   const routeRuns = [];
   for (const file of routeFiles.sort()) {
-    const script = JSON.parse(await readFile2(file, "utf8"));
-    const out = config.outDir ? join2(config.outDir, "routes", basename(file, ".json")) : null;
+    const script = JSON.parse(await readFile3(file, "utf8"));
+    const out = config.outDir ? join3(config.outDir, "routes", basename(file, ".json")) : null;
     const routeSeed = script.seed === void 0 ? config.seed : String(script.seed);
     const run = await cmdRun({ ...config, seed: routeSeed, outDir: out, routeName: file }, script);
     routeRuns.push({ file, status: run.status, steps: run.steps, assertions: run.assertions, transcript: run.hashes.transcript });
   }
   const sweep = await cmdSweep(
-    { ...config, quiet: true, outDir: config.outDir ? join2(config.outDir, "sweep") : null },
+    { ...config, quiet: true, outDir: config.outDir ? join3(config.outDir, "sweep") : null },
     seeds,
     stepsLimit
   );
@@ -19719,6 +20724,7 @@ async function cmdCheck(config, seeds, stepsLimit, routesDir, packRegistryPath =
     campaign: { id: graph.campaign.id, title: graph.campaign.title },
     verdict,
     problems,
+    pack,
     graph: {
       counts: graph.counts,
       errors: errors.map((finding) => `${finding.code}: ${finding.message}`),
@@ -19763,10 +20769,10 @@ async function cmdCheck(config, seeds, stepsLimit, routesDir, packRegistryPath =
   if (uncovered.length) text.push(`\u043D\u0435 \u043F\u043E\u043A\u0440\u044B\u0442\u043E: ${uncovered.slice(0, 15).join(", ")}${uncovered.length > 15 ? ` \u2026 \u0435\u0449\u0451 ${uncovered.length - 15}` : ""}`);
   if (config.outDir) {
     await mkdir(config.outDir, { recursive: true });
-    await writeFile(join2(config.outDir, "report.json"), JSON.stringify(result, null, 2), "utf8");
-    await writeFile(join2(config.outDir, "report.md"), text.join("\n") + "\n", "utf8");
-    await writeFile(join2(config.outDir, "graph.json"), JSON.stringify(graph, null, 2), "utf8");
-    await writeFile(join2(config.outDir, "graph.md"), formatGraphReport(graph), "utf8");
+    await writeFile(join3(config.outDir, "report.json"), JSON.stringify(result, null, 2), "utf8");
+    await writeFile(join3(config.outDir, "report.md"), text.join("\n") + "\n", "utf8");
+    await writeFile(join3(config.outDir, "graph.json"), JSON.stringify(graph, null, 2), "utf8");
+    await writeFile(join3(config.outDir, "graph.md"), formatGraphReport(graph), "utf8");
   }
   return { result, text: text.join("\n") + "\n" };
 }
@@ -19912,7 +20918,7 @@ async function cmdSweep(config, seeds, stepsLimit) {
   const finals = {};
   for (let seed = seeds[0]; seed <= seeds[1]; seed++) {
     const one = await cmdSearch(
-      { ...config, seed: String(seed), outDir: config.outDir ? join2(config.outDir, `seed-${seed}`) : null },
+      { ...config, seed: String(seed), outDir: config.outDir ? join3(config.outDir, `seed-${seed}`) : null },
       "explore",
       stepsLimit
     );
@@ -19964,15 +20970,15 @@ async function cmdSweep(config, seeds, stepsLimit) {
   }
   if (config.outDir) {
     await mkdir(config.outDir, { recursive: true });
-    await writeFile(join2(config.outDir, "sweep.json"), JSON.stringify(result, null, 2), "utf8");
-    await writeFile(join2(config.outDir, "sweep.md"), lines.join("\n") + "\n", "utf8");
+    await writeFile(join3(config.outDir, "sweep.json"), JSON.stringify(result, null, 2), "utf8");
+    await writeFile(join3(config.outDir, "sweep.md"), lines.join("\n") + "\n", "utf8");
   }
   return { result, text: lines.join("\n") + "\n" };
 }
 async function cmdVerify(dir, expectEngine, honestOnly) {
-  const resultRaw = await readFile2(join2(dir, "result.json"), "utf8");
-  const transcript = await readFile2(join2(dir, "transcript.md"), "utf8");
-  const runRaw = await readFile2(join2(dir, "run.json"), "utf8");
+  const resultRaw = await readFile3(join3(dir, "result.json"), "utf8");
+  const transcript = await readFile3(join3(dir, "transcript.md"), "utf8");
+  const runRaw = await readFile3(join3(dir, "run.json"), "utf8");
   const result = JSON.parse(resultRaw);
   const failures = [];
   if (sha256(transcript) !== result.hashes.transcript) failures.push("transcript.md \u043D\u0435 \u0441\u043E\u0432\u043F\u0430\u0434\u0430\u0435\u0442 \u0441 \u0445\u0435\u0448\u0435\u043C \u0432 result.json");
@@ -20038,7 +21044,7 @@ async function main() {
     );
   }
   const CAMPAIGN_COMMANDS = ["check", "graph", "dialogue", "run", "fuzz", "explore", "sweep"];
-  if (CAMPAIGN_COMMANDS.includes(command) && campaignDir && !existsSync2(join2(campaignDir, "campaign.json"))) {
+  if (CAMPAIGN_COMMANDS.includes(command) && campaignDir && !existsSync2(join3(campaignDir, "campaign.json"))) {
     die(`${command}: \u0432 \xAB${campaignDir}\xBB \u043D\u0435\u0442 campaign.json \u2014 \u044D\u0442\u043E \u043D\u0435 \u043F\u0430\u043F\u043A\u0430 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438`);
   }
   if (command === "check") {
@@ -20048,7 +21054,7 @@ async function main() {
     const config2 = {
       campaignDir,
       seed,
-      outDir: outDir ?? resolve2(join2(campaignDir, ".cf-play", "check")),
+      outDir: outDir ?? resolve2(join3(campaignDir, ".cf-play", "check")),
       debug,
       quiet: asJson,
       injection: emptyInjection(),
@@ -20072,8 +21078,8 @@ async function main() {
     const text = formatGraphReport(report);
     if (outDir) {
       await mkdir(outDir, { recursive: true });
-      await writeFile(join2(outDir, "graph.json"), JSON.stringify(report, null, 2), "utf8");
-      await writeFile(join2(outDir, "graph.md"), text, "utf8");
+      await writeFile(join3(outDir, "graph.json"), JSON.stringify(report, null, 2), "utf8");
+      await writeFile(join3(outDir, "graph.md"), text, "utf8");
     }
     if (asJson) console.log(JSON.stringify(report, null, 2));
     else console.log(text);
@@ -20103,8 +21109,8 @@ async function main() {
     );
     if (outDir) {
       await mkdir(outDir, { recursive: true });
-      await writeFile(join2(outDir, "dialogue.json"), JSON.stringify(report, null, 2), "utf8");
-      await writeFile(join2(outDir, "dialogue.md"), text, "utf8");
+      await writeFile(join3(outDir, "dialogue.json"), JSON.stringify(report, null, 2), "utf8");
+      await writeFile(join3(outDir, "dialogue.md"), text, "utf8");
     }
     if (asJson) console.log(JSON.stringify(report, null, 2));
     else console.log(text);
@@ -20125,7 +21131,7 @@ async function main() {
   if (command === "run") {
     const scriptPath = flagText(flags, "script");
     if (!scriptPath) die("run: \u043D\u0443\u0436\u0435\u043D --script route.json");
-    const script = JSON.parse(await readFile2(resolve2(scriptPath), "utf8"));
+    const script = JSON.parse(await readFile3(resolve2(scriptPath), "utf8"));
     result = await cmdRun(config, script);
   } else if (command === "explore") {
     result = await cmdSearch(config, "explore", Number(flagText(flags, "steps") ?? 300));
@@ -20135,7 +21141,7 @@ async function main() {
     const runs = [];
     for (let current = from; current <= to; current++) {
       const one = await cmdSearch(
-        { ...config, seed: String(current), outDir: outDir ? join2(outDir, `seed-${current}`) : null },
+        { ...config, seed: String(current), outDir: outDir ? join3(outDir, `seed-${current}`) : null },
         "fuzz",
         Number(flagText(flags, "steps") ?? 400)
       );
@@ -20154,7 +21160,7 @@ async function main() {
     };
     if (outDir) {
       await mkdir(outDir, { recursive: true });
-      await writeFile(join2(outDir, "result.json"), JSON.stringify(result, null, 2), "utf8");
+      await writeFile(join3(outDir, "result.json"), JSON.stringify(result, null, 2), "utf8");
     }
   }
   if (asJson) {
@@ -20179,7 +21185,7 @@ async function main() {
     console.log(`
 ${result.status === "ok" ? "\u2713" : "\u2717"} ${result.campaign.title}: ${result.status}, \u0448\u0430\u0433\u043E\u0432 ${result.steps}, seed ${result.seed}`);
     if (result.evidence === "injected") console.log(`  ! \u043F\u0440\u043E\u0433\u043E\u043D \u0441 \u043E\u0442\u043B\u0430\u0434\u043E\u0447\u043D\u044B\u043C\u0438 \u043F\u0440\u0430\u0432\u043A\u0430\u043C\u0438: ${result.injected.join("; ")}`);
-    if (config.outDir) console.log(`  transcript: ${join2(config.outDir, "transcript.md")}`);
+    if (config.outDir) console.log(`  transcript: ${join3(config.outDir, "transcript.md")}`);
     const scenes = result.coverage.scenes;
     if (scenes?.missing?.length) console.log(`  \u043D\u0435 \u043F\u043E\u0441\u0435\u0449\u0435\u043D\u043E \u0441\u0446\u0435\u043D: ${scenes.missing.length} \u0438\u0437 ${scenes.missing.length + scenes.seen.length}`);
   }
