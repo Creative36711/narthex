@@ -17,7 +17,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-assert.match(src, /@version\s+1\.4\.70/, 'версия 1.4.70');
+assert.match(src, /@version\s+1\.4\.71/, 'версия 1.4.71');
 
 const sliceBetween = (startMarker, endMarker) => {
   const from = src.indexOf(startMarker);

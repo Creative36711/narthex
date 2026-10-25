@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и новый адрес ntfy.
-assert.match(src, /@version\s+1\.4\.70/, 'версия 1.4.70');
+assert.match(src, /@version\s+1\.4\.71/, 'версия 1.4.71');
 assert.match(src, /@connect\s+ntfy\.sh/, 'ntfy.sh разрешён в @connect');
 
 // 2. Журнал: ограничен, очищается, счётчик виден.

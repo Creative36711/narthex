@@ -1,4 +1,4 @@
-// Проба 1.4.70: вопрос к Мастеру видно на панели и слышно в телефоне.
+// Проба 1.4.71: вопрос к Мастеру видно на панели и слышно в телефоне.
 //
 // Случай Мастера (25.10): вопрос лежал в базе «Вопросы», но на панели рядом со
 // знаком «?» не было ни числа, ни подсказки — вопрос легко пропустить. Плюс
@@ -17,7 +17,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const V = '1.4.70';
+const V = '1.4.71';
 
 const versionLine = (src.split('\n').find((line) => line.startsWith('// @version')) || '')
   .replace(/\s+/g, ' ')

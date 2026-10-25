@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.70
+// @version      1.4.71
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -5631,6 +5631,7 @@
       "Движок ставит Running и Submitted; Accepted, Rework и Ready ставишь ты. Нарезка, порядок, Кому, Sequence, число Ready, выдача черновика (Draft → Ready), правка его полей и архив лишнего — твои действия. Код, ветки и PR — не твоя зона.",
       "Мастер и Архитектор пишут только черновики: это твой задел, а не приказ — правь под оракул миссии и выдавай сам, не дожидаясь Мастера. В архив — только если черновик дублирует уже выданное.",
       "Rework — не выдача и не приговор: разбираешь его ты, а не Мастер. (а) Нужна переделка — верни её в Ready: следы прошлого ответа («Submitted At», «PR», «Run ID») снимет транспорт на выдаче. (б) Карточка была сформулирована с ошибкой — перепиши её Намерение, Инварианты, Acceptance и Scope; это правка карточки, а не смена оракула миссии. (в) Работа уже сделана другими карточками — поставь Accepted с пометкой «остаток разбит на …» или убери её. Принятую (Accepted) обратно в Ready не возвращай. Держать Rework «на всякий случай» нельзя: он висит в очереди и мешает закрыть миссию.",
+      "Ready-карточку с меньшим Sequence не обходи молча. Выдаёшь не её — назови в ответе причину (ждёт решения Мастера, зависит от другой карточки, сформулирована неверно) и поправь ей Sequence или убери в Draft. Молчаливый обход выглядит как потерянная работа: карточка остаётся Ready и ждёт следующего круга.",
       "Scope карточки обязан покрывать артефакты её Оракула: пробу, npm-скрипт и запись решения перечисляй в Scope прямо — иначе исполнитель встанет на границе зоны.",
       "Если роль не может получить работу («Ждёт», пустой Agent URL, нет в «Ролях») — назначь в «Кому» активную роль или оставь Draft и назови, кого он ждёт. Статус роли и Agent URL — зона Мастера, не меняй их.",
       "Оракул миссии (ТЗ §2/§3) и инварианты миссии менять нельзя: если проверка требует другого смысла — только ADR proposed и решение Мастера. Acceptance карточки — не оракул миссии: ошибочную формулировку ты исправляешь сам, но так, чтобы смысл проверки миссии не изменился.",
@@ -6422,9 +6423,51 @@
     return saved;
   }
 
+  /**
+   * Такой вопрос уже есть в базе? Возвращает строку Notion или null.
+   *
+   * 25.10 Мастер заметил: уведомления приходят о том, на что он уже ответил.
+   * Причина — повторная запись того же вопроса (старый ход Координатора был
+   * применён второй раз) и повторы в тексте. Сравнение идёт по нормализованному
+   * тексту, а если оба текста длинные — по началу: поле обрезается до
+   * questionTextMax, и хвост у двух записей может отличаться.
+   */
+  async function sameQuestionRow(text) {
+    const wanted = norm(text);
+    if (!wanted) return null;
+    try {
+      const rows = await questionRows([Q.wait, Q.done, Q.byDefault]);
+      for (const row of rows) {
+        const got = norm(rt(row.properties["Вопрос"]));
+        if (!got) continue;
+        if (got === wanted) return row;
+        const long = wanted.length >= 60 && got.length >= 60;
+        if (long && (got.startsWith(wanted.slice(0, 60)) || wanted.startsWith(got.slice(0, 60)))) return row;
+      }
+    } catch (e) {
+      dbg("вопросы: дубль не проверен", e.message);
+    }
+    return null;
+  }
+
   async function askQuestion(q, ctx = {}) {
     const key = `cfn-asked:${ctx.key || q.text}`;
     if (GM_getValue(key, false)) return null;
+    const same = await sameQuestionRow(q.text);
+    if (same) {
+      const status = sel(same.properties?.["Статус"]);
+      const answer = rt(same.properties?.["Ответ"]).replace(/\s+/g, " ").trim();
+      GM_setValue(key, Date.now());
+      log(
+        status === Q.wait
+          ? `Такой вопрос уже ждёт ответа в «Вопросах» — второй раз не записываю и не уведомляю.`
+          : `Такой вопрос уже решён Мастером${answer ? `: «${answer.slice(0, 140)}»` : ""} — ` +
+              "второй раз не записываю и не уведомляю.",
+        false,
+        { ntfy: false },
+      );
+      return null;
+    }
     try {
       const row = await notion("POST", "pages", {
         parent: { type: "data_source_id", data_source_id: C.questions },
@@ -6538,6 +6581,32 @@
   const ADR_FOLDER = "docs/decisions";
   const ADR_PROPOSED = "proposed";
 
+  /**
+   * Имена решений, по которым Мастер уже ответил в «Вопросах».
+   *
+   * ADR остаётся `proposed`, пока решение не записано в репозиторий. Но само
+   * решение может быть уже принято — ответ лежит в базе. Держать такой ADR в
+   * счётчике «ждёт Мастера» значит звать человека туда, где его больше нет:
+   * осталась работа агентов. 25.10 именно так висели NAR-2.14 и NAR-2.15.
+   */
+  async function decidedAdrNames() {
+    const names = new Set();
+    try {
+      const rows = await questionRows([Q.done, Q.byDefault]);
+      for (const row of rows) {
+        const answer = rt(row.properties?.["Ответ"]).trim();
+        if (!answer) continue;
+        const text = `${rt(row.properties?.["Вопрос"])} ${answer}`;
+        for (const hit of text.matchAll(/NAR-\d+(?:\.\d+)?(?:-[\wа-яё]+)?/gi)) {
+          names.add(hit[0].toLowerCase());
+        }
+      }
+    } catch (e) {
+      dbg("решения: ответы Мастера не прочитаны", e.message);
+    }
+    return names;
+  }
+
   /** `Статус:` из шапки ADR; пусто — поля нет. */
   const adrStatusOf = (text) => {
     const m = String(text || "").match(/^\s*Статус:\s*(.+?)\s*$/m);
@@ -6561,9 +6630,10 @@
     }
   }
 
-  function paintDecisions(rows) {
+  function paintDecisions(rows, settled = []) {
     if (typeof document === "undefined") return;
     const list = rows || [];
+    const waiting = (settled || []).map((row) => row.file);
     const badge = document.getElementById(ui.adrBadge);
     if (badge) {
       badge.textContent = list.length ? String(list.length) : "";
@@ -6571,12 +6641,15 @@
     }
     const button = document.getElementById(ui.adr);
     if (!button) return;
+    const decidedHint = waiting.length
+      ? ` Решение уже принято, ждёт записи в репозиторий (это работа агентов): ${waiting.slice(0, 4).join(", ")}.`
+      : "";
     button.title = list.length
       ? `Решений на Мастере: ${list.length} — ${list
           .slice(0, 4)
           .map((row) => row.file)
-          .join(", ")}${list.length > 4 ? "…" : ""}. Нажмите, чтобы открыть ${ADR_FOLDER}.`
-      : "Решений, ждущих Мастера, нет — docs/decisions в main";
+          .join(", ")}${list.length > 4 ? "…" : ""}. Нажмите, чтобы открыть ${ADR_FOLDER}.${decidedHint}`
+      : `Решений, ждущих Мастера, нет — ${ADR_FOLDER} в main.${decidedHint}`;
     button.style.background = list.length ? "#3a3320" : "#242833";
     button.style.borderColor = list.length ? "#8a6b2a" : "#343a46";
   }
@@ -6631,9 +6704,19 @@
           rows.push({ file: item.name, sha: item.sha, url: item.html_url || "" });
       }
       GM_setValue("cfn-adr-text", texts);
-      paintDecisions(rows);
-      announceDecisions(rows);
-      return rows;
+      const answered = await decidedAdrNames();
+      const settled = rows.filter((row) => answered.has(String(row.file).replace(/\.md$/i, "").toLowerCase()));
+      const pending = rows.filter((row) => !settled.includes(row));
+      paintDecisions(pending, settled);
+      announceDecisions(pending);
+      if (settled.length) {
+        logThrottled(
+          "adr-settled",
+          `Решение Мастера уже принято в «Вопросах», но в репозитории ADR ещё proposed: ` +
+            `${settled.map((row) => row.file).join(", ")}. Это работа агентов, а не Мастера — в счётчик «⚖» не входит.`,
+        );
+      }
+      return pending;
     } catch (e) {
       dbg("решения: список не обновлён", e.message);
       paintDecisions(cache.rows);
@@ -6725,6 +6808,20 @@
    * строке «Очередь» видно только число: Координатор не знал, чья она, и мог
    * назвать в next не ту роль — или создать дубликат «на всякий случай».
    */
+  /**
+   * Отпечаток Ready: id карточки и её Sequence.
+   *
+   * По нему видно, та ли это очередь, по которой Координатор принимал решение.
+   * 25.10 план пришёл по одной очереди, а применился к другой: Мастер вернул
+   * зависшую карточку в Ready уже после запроса плана — и вместо неё ушла
+   * следующая по порядку.
+   */
+  const readyKeyOf = (cards) =>
+    (cards || [])
+      .map((card) => `${card.id}:${card.properties?.["Sequence"]?.number ?? ""}`)
+      .sort()
+      .join(",");
+
   function readyLine(cards) {
     const rows = [...(cards || [])].sort((a, b) => {
       const sa = Number(a.properties?.["Sequence"]?.number ?? 0);
@@ -6959,6 +7056,70 @@
         .filter(Boolean)
         .at(-1);
       if (!decision) return markerMissing(role, expect, "CF_COORDINATOR_RESULT", manual);
+
+      // Решение по устаревшей очереди не применяется.
+      //
+      // 25.10, 21:36–21:42. Карточка NAR-2.16 висела в Running после съеденной
+      // отправки; Мастер вернул её в Ready. Скрипт в это время дочитывал ответ
+      // Координатора, полученный ДО правки, — в нём стояло next: "Tools", и
+      // ушла NAR-2.17, хотя в Ready уже лежала NAR-2.16 с меньшим Sequence.
+      // Транспорт не выбирает за Координатора, но и применять его решение к
+      // другой очереди не имеет права: план посчитан по снимку, снимок устарел.
+      if (expect.kind === "plan" && typeof expect.readyKey === "string") {
+        const was = new Map(
+          expect.readyKey
+            .split(",")
+            .filter(Boolean)
+            .map((part) => {
+              const [id, seq] = part.split(":");
+              return [id, seq || ""];
+            }),
+        );
+        const now = new Map(ready.map((card) => [card.id, String(card.properties?.["Sequence"]?.number ?? "")]));
+        // Ушла из Ready, сменился её Sequence, или карточка, которая в момент
+        // вопроса была в работе, снова стала Ready — всё это чужие правки:
+        // план считался по другому снимку. Появление новой карточки само по
+        // себе не признак: её в этом же ответе мог создать Координатор.
+        const left = [...was.keys()].filter((id) => !now.has(id));
+        const moved = [...was.keys()].filter((id) => now.has(id) && now.get(id) !== was.get(id));
+        const returned = (Array.isArray(expect.runningIds) ? expect.runningIds : []).filter((id) => now.has(id));
+        if (left.length || moved.length || returned.length) {
+          const what = [
+            left.length ? `ушли из Ready: ${left.join(", ")}` : "",
+            moved.length ? `сменился Sequence у ${moved.join(", ")}` : "",
+            returned.length ? `вернулись в Ready из работы: ${returned.join(", ")}` : "",
+          ]
+            .filter(Boolean)
+            .join("; ");
+          const shifts = (Number(GM_getValue("cfn-plan-shift", 0)) || 0) + 1;
+          GM_setValue("cfn-plan-shift", shifts);
+          GM_setValue(K.expect, null);
+          GM_setValue("cfn-plan-at", 0);
+          if (shifts > 2) {
+            pause(
+              `План Координатора не совпадает с очередью уже ${shifts}-й раз (${what}). ` +
+                "Решение по устаревшей очереди не применяю: проверьте карточки и нажмите «Продолжить».",
+              { kind: "plan-shift", ref: mission.id },
+            );
+            return true;
+          }
+          log(
+            `Пока ждали план, очередь изменилась (${what}). Решение «${decision.next}» относится к прежней очереди — ` +
+              "не применяю, прошу новый план: иначе уйдёт не та карточка.",
+            true,
+            { ntfy: "quiet", title: "Narthex: план по устаревшей очереди" },
+          );
+          await requestPlan(
+            mission,
+            role,
+            await queueOf(mission),
+            `Пока ты отвечал, очередь изменилась: ${what}. Пересчитай план по текущей очереди.`,
+            { force: true },
+          );
+          return true;
+        }
+        GM_setValue("cfn-plan-shift", 0);
+      }
 
       // Миссия в маркере — проверка по существу: решение чужой миссии
       // применять нельзя, тут пауза оправдана.
@@ -7212,7 +7373,14 @@
       ),
       "plan",
       mission.id,
-      { missionId: mission.id, turnId, title: "план Координатора" },
+      {
+        missionId: mission.id,
+        turnId,
+        title: "план Координатора",
+        // Снимок очереди на момент вопроса: по нему видно, устарел ли ответ.
+        readyKey: readyKeyOf(queue.ready),
+        runningIds: (queue.running || []).map((card) => card.id),
+      },
     );
     if (sent) await markDelivered(briefing.fresh);
     return true;
