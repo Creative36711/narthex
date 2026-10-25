@@ -97,7 +97,7 @@ const demo = await loadCampaign(base)
     }],
   } as never)
   check('4 диалог: эффект в ink', ink.includes('~ unlock_codex("codex_rat_giant")'))
-  check('4 диалог: external привязан', readFileSync('src/core/dialogue.ts', 'utf8').includes("bind('unlock_codex'"))
+  check('4 диалог: external привязан', readFileSync('packs/narrative/dialogue.ts', 'utf8').includes("bind('unlock_codex'"))
   void condInk
 }
 

@@ -7,15 +7,16 @@ import {
   PackOperationError,
   type PackOperation,
 } from '../../src/core/pack/host'
-import type { DialogueHistoryEntry, DialogueUI } from '../../src/core/dialogue'
-import { dialogueRuntime } from '../../src/core/dialogue-runtime'
-import { director } from '../../src/core/director'
-import { encounters } from '../../src/core/encounters'
-import { quests } from '../../src/core/quests'
-import { roguelike } from '../../src/core/roguelike'
-import { sceneSlots } from '../../src/core/scene-slots'
-import { social } from '../../src/core/social'
-import { world } from '../../src/core/world'
+import type { DialogueHistoryEntry, DialogueUI } from './dialogue'
+import { cleanDialogueLine } from './dialogue'
+import { dialogueRuntime } from './dialogue-runtime'
+import { director } from './director'
+import { encounters } from './encounters'
+import { quests } from './quests'
+import { roguelike } from './roguelike'
+import { sceneSlots } from './scene-slots'
+import { social } from './social'
+import { world } from './world'
 import manifest from './pack.json' with { type: 'json' }
 
 declare module '../../src/core/engine' {
@@ -59,6 +60,7 @@ addThisOperations(sceneSlots as unknown as Record<string, unknown>)
 addContextOperations(social as unknown as Record<string, unknown>)
 addContextOperations(world as unknown as Record<string, unknown>)
 
+operations.cleanDialogueLine = (_context, raw: string) => cleanDialogueLine(raw)
 operations['effect:start_dialogue'] = (context, effect: Extract<Effect, { type: 'start_dialogue' }>) => {
   context.startDialogue(effect.entity, effect.dialogue_knot)
 }

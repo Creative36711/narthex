@@ -1,7 +1,7 @@
 import { Compiler, Story, type CompilerOptions } from 'inkjs/full'
-import type { EngineCtx } from './context'
-import type { NpcDef } from '../shared/types'
-import { playInteraction } from '../shared/audio'
+import type { EngineCtx } from '../../src/core/context'
+import type { NpcDef } from '../../src/shared/types'
+import { playInteraction } from '../../src/shared/audio'
 
 /**
  * Dialogue Engine — Ink runtime (ТЗ 4.5).

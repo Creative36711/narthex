@@ -114,7 +114,7 @@ const DPM = meta.calendar!.days_per_month! // 30
     }],
   } as never)
   check('4 диалог: эффект погоды в ink', ink.includes('~ set_weather("weather_cold_rain")'))
-  const ext = readFileSync('src/core/dialogue.ts', 'utf8')
+  const ext = readFileSync('packs/narrative/dialogue.ts', 'utf8')
   check('4 externals: weather_is и set_weather привязаны', ext.includes("bind('weather_is'") && ext.includes("bind('set_weather'"))
 
   const hud = readFileSync('src/player/HUD.tsx', 'utf8')

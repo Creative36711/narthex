@@ -1,7 +1,7 @@
-import type { EngineCtx } from './context'
-import { capabilityIsOff } from './caps'
-import { evalCondition } from './conditions'
-import { playUi } from '../shared/audio'
+import type { EngineCtx } from '../../src/core/context'
+import { capabilityIsOff } from '../../src/core/caps'
+import { evalCondition } from '../../src/core/conditions'
+import { playUi } from '../../src/shared/audio'
 
 export const quests = {
   // ─────────────── квесты (ТЗ 3.7) ───────────────

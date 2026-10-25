@@ -1,9 +1,9 @@
-import type { EngineCtx } from './context'
-import type { EncounterEntry, EventTableDef, GenWeightedItem, NpcGeneratorDef, TravelConnection } from '../shared/types'
-import { featureOn } from './caps'
-import { skillCheck, difficultyModifier, CHECK_RESULT_LABEL } from './brp'
-import { timeOfDay } from './time'
-import { effects } from './effects'
+import type { EngineCtx } from '../../src/core/context'
+import type { EncounterEntry, EventTableDef, GenWeightedItem, NpcGeneratorDef, TravelConnection } from '../../src/shared/types'
+import { featureOn } from '../../src/core/caps'
+import { skillCheck, difficultyModifier, CHECK_RESULT_LABEL } from '../../src/core/brp'
+import { timeOfDay } from '../../src/core/time'
+import { effects } from '../../src/core/effects'
 
 // ─────────────── скрытность и обнаружение (аудит §5.6 п.12) ───────────────
 

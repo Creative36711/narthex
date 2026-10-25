@@ -157,7 +157,7 @@ const f = (p: string) => readFileSync(p, 'utf8')
 {
   const types = f('src/shared/types.ts')
   const engine = f('src/core/engine.ts')
-  const dlg = f('src/core/dialogue.ts')
+  const dlg = f('packs/narrative/dialogue.ts')
   const guide = f('docs/ai-campaign-guide.md')
   check('9.2 потребность умеет убывать/восстанавливаться по погоде', types.includes("{ type: 'weather'; weather: string; not?: boolean }") && engine.includes("case 'weather':"))
   check('9.2 редактор потребностей даёт выбрать погоду', f('src/editor/CampaignEditor.tsx').includes("{ id: 'weather', label: 'Погода — текущая' }"))
