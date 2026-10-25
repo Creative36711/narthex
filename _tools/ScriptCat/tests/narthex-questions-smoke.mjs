@@ -17,7 +17,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-assert.match(src, /@version\s+1\.4\.69/, 'версия 1.4.69');
+assert.match(src, /@version\s+1\.4\.70/, 'версия 1.4.70');
 
 const sliceBetween = (startMarker, endMarker) => {
   const from = src.indexOf(startMarker);
@@ -34,7 +34,7 @@ const patched = [];
 const lines = [];
 
 const api = new Function(
-  'C', 'rt', 'sel', 'norm', 'GM_getValue', 'GM_setValue', 'notion', 'patch', 'log',
+  'C', 'rt', 'sel', 'norm', 'GM_getValue', 'GM_setValue', 'notion', 'patch', 'log', 'K', 'noteQuestionAsked', 'dbg',
   `${block}
    return { Q, parseQuestion, questionDeadline, expiredQuestions, openQuestionsLine, answersLine, questionProps, askQuestion, markDelivered, closeExpired };`,
 )(
@@ -50,6 +50,9 @@ const api = new Function(
   },
   async (id, properties) => patched.push({ id, properties }),
   (text) => lines.push(text),
+  { qQueue: 'cfn-q-queue' },
+  () => {},
+  () => {},
 );
 
 const props = (over = {}) => ({
@@ -161,7 +164,7 @@ const run = async () => {
 
   // Ошибка Notion не срывает ход.
   const failing = new Function(
-    'C', 'rt', 'sel', 'norm', 'GM_getValue', 'GM_setValue', 'notion', 'patch', 'log',
+    'C', 'rt', 'sel', 'norm', 'GM_getValue', 'GM_setValue', 'notion', 'patch', 'log', 'K', 'noteQuestionAsked', 'dbg',
     `${block}
      return { parseQuestion, askQuestion };`,
   )(
@@ -176,6 +179,9 @@ const run = async () => {
     },
     async () => {},
     (text) => lines.push(text),
+    { qQueue: 'cfn-q-queue' },
+    () => {},
+    () => {},
   );
   const none = await failing.askQuestion(failing.parseQuestion({ text: 'q', default: 'a' }), { key: 'turn-x' });
   assert.equal(none, null, 'ошибка записи не возвращает строку');

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.69
+// @version      1.4.70
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -112,6 +112,7 @@
     debug: "cfn-debug",
     lastSend: "cfn-last-send",
     deadSend: "cfn-dead-send",
+    qQueue: "cfn-q-queue",
     stateV: "cfn-state-v",
   };
 
@@ -6194,6 +6195,13 @@
    * цикла, поэтому она идёт и на паузе.
    */
   async function refreshQuestions({ force = false, quiet = false } = {}) {
+    // Отложенные вопросы повторяются здесь же: проверка идёт и на паузе, а
+    // вопрос, который ждёт Мастера, не должен зависеть от хода цикла.
+    try {
+      await flushQuestionQueue();
+    } catch (e) {
+      dbg("вопросы: очередь не обработана", e.message);
+    }
     const cache = openQuestions();
     if (!force && Date.now() - cache.at < C.questionCheckMs) {
       paintQuestions(cache.rows);
@@ -6367,6 +6375,53 @@
    * Записать вопрос в базу. Ошибка Notion ход не срывает: агент уже идёт по
    * варианту по умолчанию, а строка нужна Мастеру, а не циклу.
    */
+  /**
+   * Вопрос, который не записался, не теряется.
+   *
+   * 25.10 в 21:28 Координатор задал вопрос о пределе руководства, а строки в
+   * «Вопросах» не появилось: база показала 0 «Ждёт». Вопрос жил только в
+   * маркере — Мастер увидел его лишь случайно, а ❓ и пуш молчали. Notion не
+   * любит отвечать быстро и иногда отказывает; запись, которая уже не
+   * повторится, — потерянный вопрос. Поэтому неудача складывается в очередь и
+   * повторяется при следующей проверке вопросов.
+   */
+  function queueQuestion(q, ctx = {}) {
+    const stored = GM_getValue(K.qQueue, []);
+    const list = Array.isArray(stored) ? stored : [];
+    list.push({ q, ctx, at: Date.now() });
+    GM_setValue(K.qQueue, list.slice(-10));
+  }
+
+  async function flushQuestionQueue() {
+    const stored = GM_getValue(K.qQueue, []);
+    const list = Array.isArray(stored) ? stored : [];
+    if (!list.length) return 0;
+    const left = [];
+    let saved = 0;
+    for (const item of list) {
+      if (!item || !item.q || !item.q.text) continue;
+      try {
+        const row = await notion("POST", "pages", {
+          parent: { type: "data_source_id", data_source_id: C.questions },
+          properties: questionProps(item.q, item.ctx || {}),
+        });
+        noteQuestionAsked(row, item.q);
+        saved += 1;
+        log(`Отложенный вопрос к Мастеру записался: «${item.q.text}».`, false, {
+          ntfy: "loud",
+          title: "Narthex: вопрос к Мастеру",
+        });
+      } catch (e) {
+        left.push(item);
+      }
+    }
+    GM_setValue(K.qQueue, left);
+    if (left.length && saved === 0) {
+      dbg("вопросы: очередь не ушла", left.length);
+    }
+    return saved;
+  }
+
   async function askQuestion(q, ctx = {}) {
     const key = `cfn-asked:${ctx.key || q.text}`;
     if (GM_getValue(key, false)) return null;
@@ -6384,8 +6439,12 @@
       });
       return row;
     } catch (e) {
+      // Запись, которая уже не повторится, — потерянный вопрос: Мастер увидит
+      // его только в маркере. Поэтому строка ждёт в очереди и повторяется.
+      queueQuestion(q, ctx);
       log(
-        `Вопрос к Мастеру в базу не записался (${e.message}). Агент идёт по варианту по умолчанию: ${q.fallback}.`,
+        `Вопрос к Мастеру в базу не записался (${e.message}). Строка отложена и повторится сама; ` +
+          `пока агент идёт по варианту по умолчанию: ${q.fallback}.`,
         true,
       );
       return null;
