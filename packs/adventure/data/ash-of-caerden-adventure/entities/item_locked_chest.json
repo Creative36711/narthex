@@ -1,0 +1,9 @@
+{
+  "id": "item_locked_chest",
+  "type": "item",
+  "category": "container",
+  "label": "Запертый сундук",
+  "description": "Старый сундук с кованым замком. Заперт — нужен ключ.",
+  "weight": 20,
+  "stackable": false
+}

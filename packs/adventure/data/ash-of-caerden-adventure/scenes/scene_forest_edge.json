@@ -1,0 +1,58 @@
+{
+  "id": "scene_forest_edge",
+  "label": "Опушка",
+  "location": "loc_forest",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_default",
+      "label": "Лес",
+      "image": "assets/img/scenes/forest_edge.jpg",
+      "condition": null
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_herbs",
+      "label": "Заросли трав",
+      "type": [
+        "container",
+        "item"
+      ],
+      "shape": "rect",
+      "x": 690,
+      "y": 450,
+      "w": 330,
+      "h": 230,
+      "default_entity": "item_herb_bush",
+      "condition": {
+        "not_flag": "herbs_gathered"
+      }
+    }
+  ],
+  "navigation": [
+    {
+      "area": {
+        "x": 20,
+        "y": 380,
+        "w": 260,
+        "h": 300
+      },
+      "label": "К городу (4 ч)",
+      "open_map": true
+    },
+    {
+      "area": {
+        "x": 20,
+        "y": 620,
+        "w": 260,
+        "h": 80
+      },
+      "open_map": true,
+      "label": "🗺 Карта долины"
+    }
+  ]
+}

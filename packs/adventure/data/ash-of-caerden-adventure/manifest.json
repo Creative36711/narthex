@@ -1,0 +1,111 @@
+{
+  "scenes": [
+    "scene_gates_front.json",
+    "scene_gates_guardroom.json",
+    "scene_market.json",
+    "scene_tavern_hall.json",
+    "scene_forest_edge.json",
+    "scene_ravine_camp.json",
+    "scene_temple.json",
+    "scene_barracks.json",
+    "scene_mine_entrance.json",
+    "scene_mine_deep.json"
+  ],
+  "entities": [
+    "player_mercenary.json",
+    "npc_guard_aldric.json",
+    "npc_bran.json",
+    "npc_maeva.json",
+    "item_bread.json",
+    "item_waterskin.json",
+    "item_silver.json",
+    "item_dried_meat.json",
+    "item_herb.json",
+    "item_water_barrel.json",
+    "item_guard_ration.json",
+    "item_herb_bush.json",
+    "npc_bandit.json",
+    "npc_rat_giant.json",
+    "item_short_sword.json",
+    "item_leather_jerkin.json",
+    "npc_yorek.json",
+    "item_healing_salve.json",
+    "npc_corvin.json",
+    "npc_lena.json",
+    "item_medallion.json",
+    "item_skeleton.json",
+    "item_secret_passage.json",
+    "npc_guard.json",
+    "item_club.json",
+    "item_guard_spear.json",
+    "item_claymore.json",
+    "item_gambeson.json",
+    "item_chain_shirt.json",
+    "item_wool_cloak.json",
+    "item_fur_coat.json",
+    "item_tavern_key.json",
+    "item_locked_chest.json",
+    "item_travel_lockpicks.json",
+    "item_wrench.json",
+    "item_pump.json"
+  ],
+  "rules": [
+    "rule_intro_cutscene.json",
+    "rule_gates_greeting.json",
+    "rule_forest_intro.json",
+    "effect_collapse.json",
+    "rule_forest_ambush.json",
+    "encounter_cellar_rats.json",
+    "rule_start_bandit_quest.json",
+    "encounter_camp_fight.json",
+    "rule_start_rats_quest.json",
+    "rule_start_secret_path.json",
+    "rule_mine_trap.json",
+    "rule_raid_warning.json",
+    "rule_market_raid.json",
+    "rule_city_assault.json",
+    "encounter_camp_fight_surprise.json",
+    "rule_maeva_thanks.json",
+    "rule_weather_ashfall.json",
+    "rule_weather_ravine_rain.json",
+    "gen_whisper_blessing.json",
+    "gen_whisper_chill.json",
+    "gen_whisper_protest.json"
+  ],
+  "dialogues": [
+    "aldric.ink",
+    "maeva.ink",
+    "bran.ink",
+    "yorek.ink",
+    "corvin.ink",
+    "lena.ink"
+  ],
+  "arenas": [
+    "arena_cellar.json",
+    "arena_forest_road.json",
+    "arena_camp.json",
+    "arena_market.json",
+    "arena_gates_battle.json"
+  ],
+  "quests": [
+    "quest_bandit_threat.json",
+    "quest_rats.json",
+    "quest_relic.json",
+    "quest_secret_path.json"
+  ],
+  "encounters": [
+    "encounters.json"
+  ],
+  "cutscenes": [
+    "cutscene_intro.json"
+  ],
+  "recipes": [
+    "recipe_healing_salve.json",
+    "recipe_pump_water.json"
+  ],
+  "codex": [
+    "codex_kaerden_valley.json",
+    "codex_oaken_shield.json",
+    "codex_rat_giant.json"
+  ]
+}

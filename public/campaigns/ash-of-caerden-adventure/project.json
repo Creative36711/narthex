@@ -2,8 +2,9 @@
   "format": 2,
   "id": "ash-of-caerden",
   "title": "Пепел Каэрдена",
-  "kind": "narrative",
+  "kind": "adventure",
   "caps": [
+    "adventure",
     "narrative",
     "scenes",
     "dialogue",

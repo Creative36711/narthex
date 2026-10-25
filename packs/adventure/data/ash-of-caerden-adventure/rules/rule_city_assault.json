@@ -1,0 +1,52 @@
+{
+  "id": "rule_city_assault",
+  "label": "Штурм города (день 10)",
+  "once": true,
+  "conditions": [
+    {
+      "type": "tick_elapsed",
+      "min_tick": 240
+    }
+  ],
+  "effects": [
+    {
+      "type": "teleport_player",
+      "location": "loc_gates",
+      "scene": "scene_gates_front"
+    },
+    {
+      "type": "start_combat",
+      "enemies": [
+        {
+          "entity": "npc_yorek",
+          "count": 1
+        },
+        {
+          "entity": "npc_bandit",
+          "count": 3
+        }
+      ],
+      "arena": "arena_gates_battle",
+      "intro": "Набат! Банда Йорека в полном составе идёт на штурм Каэрдена. Все, кто держит оружие, — к воротам! Ворота трещат под ударами. Йорек сам ведёт банду на приступ — это последняя битва за Каэрден. Трое стражников встают рядом с вами.",
+      "on_victory": [
+        {
+          "type": "set_flag",
+          "flag": "camp_cleared"
+        },
+        {
+          "type": "show_message",
+          "text": "Йорек пал у стен города, его банда рассеяна. Каэрден выстоял."
+        },
+        {
+          "type": "game_over_victory"
+        }
+      ],
+      "allies": [
+        {
+          "entity": "npc_guard",
+          "count": 3
+        }
+      ]
+    }
+  ]
+}
