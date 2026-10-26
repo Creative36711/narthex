@@ -1,0 +1,13 @@
+{
+  "visibility": "internal",
+  "audience": "agents-and-smokes-only",
+  "created_by": "NAR-2, карточка 2.3-Б",
+  "used_by": [
+    "scripts/adventure-mechanics-probe.mts",
+    "npm run check:campaigns",
+    "scripts/visual/playthrough.mjs",
+    "cf-play check public/campaigns/ash-of-caerden-adventure"
+  ],
+  "reason": "Те же данные narrative под видом проекта kind: adventure — проверяет шов «движок / пак». Намеренно НЕ внесён в реестр. id исправлен 26.10 (D-072): раньше совпадал с narrative, из-за чего выбор adventure в браузере грузил narrative-сцену.",
+  "remove_rule": "Удалять вместе с паком adventure и publications.json; не трогать без карточки миссии."
+}

@@ -1,6 +1,6 @@
 {
   "id": "fmv-crossing",
-  "title": "Перекрёсток огней — FMV",
+  "title": "[DEV] Перекрёсток огней — проект FMV (полигон смоуков)",
   "version": "0.1.0",
   "engine_version": "0.1.0",
   "min_engine": "0.1.0",
@@ -20,77 +20,7 @@
   "starting_scene": "scene_fmv_crossing",
   "starting_tick": 8,
   "default_player": "player_mercenary",
-  "needs": [
-    {
-      "id": "hunger",
-      "label": "Голод",
-      "max": 100,
-      "decay_per_tick": 1.2,
-      "critical_threshold": 15,
-      "on_zero_effect": "death"
-    },
-    {
-      "id": "thirst",
-      "label": "Жажда",
-      "max": 100,
-      "decay_per_tick": 1.8,
-      "critical_threshold": 15,
-      "on_zero_effect": "death"
-    },
-    {
-      "id": "energy",
-      "label": "Энергия",
-      "max": 100,
-      "decay_per_tick": 0.7,
-      "critical_threshold": 10,
-      "on_zero_effect": "effect_collapse"
-    },
-    {
-      "id": "warmth",
-      "label": "Тепло",
-      "max": 100,
-      "decay_per_tick": 3,
-      "critical_threshold": 25,
-      "on_zero_effect": "death",
-      "decay_when": [
-        {
-          "type": "time_of_day",
-          "values": [
-            "evening",
-            "night"
-          ]
-        },
-        {
-          "type": "has_item",
-          "items": [
-            "item_wool_cloak",
-            "item_fur_coat"
-          ],
-          "not": true
-        },
-        {
-          "type": "in_location",
-          "locations": [
-            "loc_tavern",
-            "loc_barracks",
-            "loc_temple"
-          ],
-          "not": true
-        }
-      ],
-      "restore_per_tick": 8,
-      "restore_when": [
-        {
-          "type": "in_location",
-          "locations": [
-            "loc_tavern",
-            "loc_barracks",
-            "loc_temple"
-          ]
-        }
-      ]
-    }
-  ],
+  "needs": [],
   "dice_rules": {
     "critical_divisor": 5,
     "special_divisor": 2,
@@ -149,5 +79,6 @@
   ],
   "theme": {
     "profile": "dark-fantasy"
-  }
+  },
+  "currencies": []
 }

@@ -1,7 +1,7 @@
 {
   "format": 2,
-  "id": "ash-of-caerden",
-  "title": "Пепел Каэрдена",
+  "id": "ash-of-caerden-adventure",
+  "title": "[DEV] Пепел Каэрдена — проект adventure (полигон смоуков)",
   "kind": "adventure",
   "caps": [
     "adventure",

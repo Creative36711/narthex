@@ -1,0 +1,13 @@
+{
+  "visibility": "internal",
+  "audience": "agents-and-smokes-only",
+  "created_by": "NAR-1 (полигон смоуков)",
+  "used_by": [
+    "cf-play check public/campaigns/ash-of-caerden",
+    "scripts/*-smoke.mts (~40)",
+    "scripts/playkit/cli.mts (example)",
+    "scripts/visual/playthrough.mjs"
+  ],
+  "reason": "Эталон narrative для оракула §2.1 и headless-проверок движка/редактора. Намеренно НЕ внесён в campaigns/index.json: игроку показывается «Кампаний пока нет». 27 изображений удалены в 60a2da5 (4,4 МБ → 524 КБ), ссылки в JSON оставлены для проверки путей.",
+  "remove_rule": "Удалять только вместе со всеми смоуками и оракулом cf-play check; замена — новая эталонная кампания через карточку миссии."
+}

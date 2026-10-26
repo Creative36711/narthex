@@ -94,13 +94,15 @@
     "check:module-size": "tsx scripts/check-module-size.mts",
     "check:campaigns": "tsx scripts/campaign-copies.mts",
     "publish:campaigns": "tsx scripts/campaign-copies.mts --write",
-    "check:contracts": "tsx scripts/contracts-check.mts && npm run check:packs && npm run check:pack-boundary && npm run check:decisions && npm run check:module-size && npm run check:browser-gate",
+    "check:contracts": "tsx scripts/contracts-check.mts && npm run check:packs && npm run check:pack-boundary && npm run check:decisions && npm run check:module-size && npm run check:browser-gate && npm run check:dev-campaigns && npm run check:campaign-formats",
     "check:brand": "tsx scripts/brand-guard.mts",
     "check:version": "tsx scripts/version.mts check",
     "version:bump": "tsx scripts/version.mts bump",
     "shot": "node scripts/visual/shot.mjs",
     "visual:shots": "node scripts/visual/shots.mjs",
-    "check:browser-gate": "tsx scripts/check-browser-gate.mts"
+    "check:browser-gate": "tsx scripts/check-browser-gate.mts",
+    "check:dev-campaigns": "tsx scripts/check-dev-campaigns.mts",
+    "check:campaign-formats": "tsx scripts/audit-campaign-formats.mts"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

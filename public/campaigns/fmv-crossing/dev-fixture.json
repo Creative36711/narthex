@@ -1,0 +1,12 @@
+{
+  "visibility": "internal",
+  "audience": "agents-and-smokes-only",
+  "created_by": "NAR-2 (демонстрация narrative FMV)",
+  "used_by": [
+    "npm run check:campaigns",
+    "scripts/visual/playthrough.mjs (регрессия D-072)",
+    "docs/agents/tz-nar-3.md карточка 3.2"
+  ],
+  "reason": "Минимальный проект с ветвящимся видео: постер, предзагрузка, субтитры. Намеренно НЕ внесён в реестр. Содержит навигацию без area в исходном виде — это регрессионный случай для migrateNavigation() (D-072).",
+  "remove_rule": "Удалять вместе с FMV-паком и карточкой 3.2 миссии NAR-3."
+}
