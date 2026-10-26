@@ -190,3 +190,7 @@ rc=0
 После `npm run pack:ai-kit` ZIP распакован во временный каталог. Запущенные **из распакованного набора** `campaign-audit.mjs` на `public/campaigns/fmv-crossing` и `cf-play.mjs check` завершились `rc=0`; первый сообщил `Итого: 0 ошибок, 0 предупреждений, 4 заметок`, второй — `ошибок 0 · предупреждений 0`. Пакет: `110 файлов, 2.80 МБ`, ZIP `0.60 МБ`.
 
 Дополнительно: `npx oxlint scripts/campaign-audit.mts scripts/campaign-fmv-audit.mts scripts/campaign-fmv-audit-smoke.mts` — `Found 0 warnings and 0 errors`, `rc=0`. Общий `npm run lint` остаётся красным по существующим lint-замечаниям/ошибкам в других файлах репозитория (`1505 warnings`, `5 errors`, `rc=1`); новые audit-файлы в targeted lint чистые, unrelated lint-код вне Scope не менялся.
+
+## Pull request
+
+PR #78: https://github.com/Creative36711/narthex/pull/78. `visual.yml` на PR прошёл: Actions run `40367601556`, check `screenshots`, `pass` (4m36s).
