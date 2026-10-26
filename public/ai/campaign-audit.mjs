@@ -96,6 +96,10 @@ function migrateMeta(meta) {
 function migrateNavigation(scene, world) {
   let changed = false;
   const out = scene.navigation.map((nav) => {
+    if (!nav.area) {
+      changed = true;
+      return { ...nav, area: { x: 0, y: 0, w: 640, h: 360 } };
+    }
     const legacy = nav.go_to_location;
     if (!legacy) return nav;
     changed = true;
@@ -243,13 +247,132 @@ var init_loader = __esm({
   }
 });
 
-// src/shared/types.ts
-function featureOn(meta, key) {
-  return meta.features?.[key] !== false;
+// src/core/pack/capability-modes.ts
+function projectCapabilityMode(project, capabilityId) {
+  const options = isRecord(project.cap_options) ? project.cap_options : {};
+  const option = isRecord(options[capabilityId]) ? options[capabilityId] : {};
+  return option.mode === "code" || option.mode === "off" ? option.mode : "core";
 }
+var isRecord;
+var init_capability_modes = __esm({
+  "src/core/pack/capability-modes.ts"() {
+    isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value) && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
+  }
+});
+
+// src/core/caps.ts
+function assertEnableable(id, source) {
+  const capability = capabilityById.get(id);
+  if (!capability) {
+    throw new TypeError(`Unknown capability "${id}" in campaign.meta.${source}; check the capability registry.`);
+  }
+  if (!ENABLED_STATUSES.has(capability.status)) {
+    throw new TypeError(`Capability "${id}" cannot be enabled from campaign.meta.${source} (status: ${capability.status}).`);
+  }
+  return capability;
+}
+function parseCapabilityList(value, source) {
+  if (!Array.isArray(value)) {
+    const kind = value === null ? "null" : typeof value;
+    throw new TypeError(`Invalid campaign.meta.${source}: expected an array of capability ids, received ${kind}.`);
+  }
+  const result = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const id of value) {
+    if (typeof id !== "string" || id.trim() === "") {
+      throw new TypeError(`Invalid campaign.meta.${source}: every capability id must be a non-empty string.`);
+    }
+    assertEnableable(id, source);
+    if (!seen.has(id)) {
+      result.push(id);
+      seen.add(id);
+    }
+  }
+  return result;
+}
+function campaignCaps(meta) {
+  if (meta.caps !== void 0) return parseCapabilityList(meta.caps, "caps");
+  const features = meta.features;
+  if (features === void 0) return [...LEGACY_DEFAULT_CAPS];
+  if (Array.isArray(features)) return parseCapabilityList(features, "features");
+  if (features === null || typeof features !== "object") {
+    const kind = features === null ? "null" : typeof features;
+    throw new TypeError(`Unsupported campaign.meta.features format: expected string[] or a boolean map, received ${kind}.`);
+  }
+  const prototype = Object.getPrototypeOf(features);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw new TypeError("Unsupported campaign.meta.features format: expected a plain boolean map.");
+  }
+  const enabled = new Set(LEGACY_DEFAULT_CAPS);
+  for (const [id, value] of Object.entries(features)) {
+    if (typeof value !== "boolean") {
+      throw new TypeError(`Invalid campaign.meta.features["${id}"]: expected a boolean, received ${value === null ? "null" : typeof value}.`);
+    }
+    assertEnableable(id, "features");
+    if (value) enabled.add(id);
+    else enabled.delete(id);
+  }
+  return [...enabled];
+}
+function featureOn(meta, id) {
+  const capability = capabilityById.get(id);
+  if (!capability) throw new TypeError(`Unknown runtime capability "${id}"; check the capability registry.`);
+  return ENABLED_STATUSES.has(capability.status) && campaignCaps(meta).includes(id);
+}
+var CAPABILITY_REGISTRY, capabilityById, LEGACY_DEFAULT_CAPS, ENABLED_STATUSES;
+var init_caps = __esm({
+  "src/core/caps.ts"() {
+    CAPABILITY_REGISTRY = [
+      { "id": "narrative", "title": "\u0413\u0440\u0430\u0444 \u0441\u0446\u0435\u043D, \u0444\u043B\u0430\u0433\u0438, \u0432\u0435\u0442\u0432\u043B\u0435\u043D\u0438\u0435", "pack": "narrative", "status": "stable", "since": 2, "enables": "campaign story graph and branching", "probe": "smoke:core" },
+      { "id": "scenes", "title": "\u0421\u0446\u0435\u043D\u044B \u0438 \u043F\u0435\u0440\u0435\u0445\u043E\u0434\u044B \u043C\u0435\u0436\u0434\u0443 \u043D\u0438\u043C\u0438", "pack": "narrative", "status": "stable", "since": 2, "enables": "scene state and navigation", "probe": "smoke:scene-editor" },
+      { "id": "dialogue", "title": "\u0414\u0438\u0430\u043B\u043E\u0433\u0438 \u0438 \u0432\u0435\u0442\u0432\u044F\u0449\u0438\u0435\u0441\u044F \u0440\u0435\u043F\u043B\u0438\u043A\u0438", "pack": "narrative", "status": "stable", "since": 2, "enables": "Ink dialogue and choices", "probe": "smoke:dlg-ui" },
+      { "id": "map", "title": "\u041A\u0430\u0440\u0442\u0430 \u043C\u0438\u0440\u0430 \u0438 \u043B\u043E\u043A\u0430\u0446\u0438\u0438", "pack": "narrative", "status": "stable", "since": 2, "enables": "world map and location travel", "probe": "smoke:travel-transition" },
+      { "id": "inventory", "title": "\u0418\u043D\u0432\u0435\u043D\u0442\u0430\u0440\u044C \u0438 \u043F\u0440\u0435\u0434\u043C\u0435\u0442\u044B", "pack": "narrative", "status": "stable", "since": 2, "enables": "inventory, equipment, and item use", "probe": "smoke:encumbrance" },
+      { "id": "needs", "title": "\u041F\u043E\u0442\u0440\u0435\u0431\u043D\u043E\u0441\u0442\u0438 \u0438 \u0438\u0445 \u0443\u0431\u044B\u0432\u0430\u043D\u0438\u0435", "pack": "narrative", "status": "stable", "since": 2, "enables": "tracked needs and their recovery", "probe": "smoke:time-semantics" },
+      { "id": "skills", "title": "\u041D\u0430\u0432\u044B\u043A\u0438 \u0438 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438", "pack": "narrative", "status": "stable", "since": 2, "enables": "skill checks and character growth", "probe": "smoke:core" },
+      { "id": "relationships", "title": "\u041E\u0442\u043D\u043E\u0448\u0435\u043D\u0438\u044F \u0441 \u043F\u0435\u0440\u0441\u043E\u043D\u0430\u0436\u0430\u043C\u0438", "pack": "narrative", "status": "stable", "since": 2, "enables": "NPC relationships and disposition", "probe": "smoke:ai-runtime" },
+      { "id": "trade", "title": "\u0422\u043E\u0440\u0433\u043E\u0432\u043B\u044F \u0438 \u0446\u0435\u043D\u044B", "pack": "narrative", "status": "stable", "since": 2, "enables": "trading and prices", "probe": "smoke:currency" },
+      { "id": "combat", "title": "\u041F\u043E\u0448\u0430\u0433\u043E\u0432\u044B\u0439 \u0431\u043E\u0439", "pack": "narrative", "status": "stable", "since": 2, "enables": "turn-based combat", "probe": "smoke:core" },
+      { "id": "quests", "title": "\u041A\u0432\u0435\u0441\u0442\u044B \u0438 \u0441\u0442\u0430\u0434\u0438\u0438", "pack": "narrative", "status": "stable", "since": 2, "enables": "quest stages and journal", "probe": "smoke:quest-journal-runtime" },
+      { "id": "cutscenes", "title": "\u041A\u0430\u0442\u0441\u0446\u0435\u043D\u044B", "pack": "narrative", "status": "stable", "since": 2, "enables": "queued campaign cutscenes", "probe": "smoke:cutscene-queue" },
+      { "id": "fmv", "title": "\u0412\u0435\u0442\u0432\u044F\u0449\u0435\u0435\u0441\u044F \u0432\u0438\u0434\u0435\u043E (FMV)", "pack": "narrative", "status": "experimental", "since": 2, "enables": "branching video with preload and subtitles", "probe": "probe:fmv" },
+      { "id": "codex", "title": "\u041A\u043E\u0434\u0435\u043A\u0441 \u0438 \u0431\u0435\u0441\u0442\u0438\u0430\u0440\u0438\u0439", "pack": "narrative", "status": "stable", "since": 2, "enables": "codex entries and categories", "probe": "smoke:p2" },
+      { "id": "crafting", "title": "\u041A\u0440\u0430\u0444\u0442 \u0438 \u0440\u0435\u0446\u0435\u043F\u0442\u044B", "pack": "narrative", "status": "stable", "since": 2, "enables": "recipes and crafting actions", "probe": "smoke:craft-fail-time" },
+      { "id": "time", "title": "\u0418\u0433\u0440\u043E\u0432\u043E\u0435 \u0432\u0440\u0435\u043C\u044F \u0438 \u043A\u0430\u043B\u0435\u043D\u0434\u0430\u0440\u044C", "pack": "narrative", "status": "stable", "since": 2, "enables": "clock, calendar, and elapsed time", "probe": "smoke:time-semantics" },
+      { "id": "adventure", "title": "Point-and-click \u043F\u0440\u0438\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435", "pack": "adventure", "status": "experimental", "since": 2, "enables": "point-and-click adventure scenes and interactions", "probe": "probe:adventure" },
+      { "id": "state-machine", "title": "\u041F\u043E\u0448\u0430\u0433\u043E\u0432\u044B\u0439 \u0430\u0432\u0442\u043E\u043C\u0430\u0442 \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u0439", "pack": "state-ui", "status": "planned", "since": 3, "enables": "generic state-machine runtime", "probe": null },
+      { "id": "cards", "title": "\u041A\u0430\u0440\u0442\u044B, \u043A\u043E\u043B\u043E\u0434\u044B, \u044D\u0444\u0444\u0435\u043A\u0442\u044B", "pack": "state-ui", "status": "planned", "since": 3, "enables": "card collections and effects", "probe": null },
+      { "id": "auto-battle", "title": "\u0410\u0432\u0442\u043E\u0431\u0430\u0442\u043B\u0435\u0440 \u0438 \u0441\u0438\u043C\u0443\u043B\u044F\u0446\u0438\u044F \u043F\u0430\u0440\u0442\u0438\u0438", "pack": "state-ui", "status": "planned", "since": 3, "enables": "automated battle simulation", "probe": null },
+      { "id": "turn-validation", "title": "\u0421\u0435\u0440\u0432\u0435\u0440\u043D\u0430\u044F \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u0445\u043E\u0434\u0430", "pack": "state-ui", "status": "planned", "since": 3, "enables": "authoritative server-side turn validation", "probe": null },
+      { "id": "grid", "title": "\u0421\u0435\u0442\u043A\u0430 \u0438 \u043A\u043B\u0435\u0442\u043A\u0438", "pack": "grid-strategy", "status": "planned", "since": 3, "enables": "grid cells and coordinates", "probe": null },
+      { "id": "pathfinding", "title": "\u041F\u043E\u0438\u0441\u043A \u043F\u0443\u0442\u0438 A*", "pack": "grid-strategy", "status": "planned", "since": 3, "enables": "A-star pathfinding", "probe": null },
+      { "id": "units", "title": "\u041E\u0442\u0440\u044F\u0434\u044B \u0438 \u044E\u043D\u0438\u0442\u044B", "pack": "grid-strategy", "status": "planned", "since": 3, "enables": "tactical units and squads", "probe": null },
+      { "id": "economy", "title": "\u041F\u043E\u0442\u043E\u043A\u043E\u0432\u0430\u044F \u044D\u043A\u043E\u043D\u043E\u043C\u0438\u043A\u0430", "pack": "grid-strategy", "status": "planned", "since": 3, "enables": "streaming strategy-game economy", "probe": null },
+      { "id": "ai-director", "title": "\u041F\u0440\u043E\u0442\u0438\u0432\u043D\u0438\u043A \u0438 \u0435\u0433\u043E \u043B\u043E\u0433\u0438\u043A\u0430", "pack": "grid-strategy", "status": "planned", "since": 3, "enables": "opponent and director logic", "probe": null },
+      { "id": "realtime-loop", "title": "\u0426\u0438\u043A\u043B \u0440\u0435\u0430\u043B\u044C\u043D\u043E\u0433\u043E \u0432\u0440\u0435\u043C\u0435\u043D\u0438", "pack": "endless-2d", "status": "planned", "since": 4, "enables": "real-time simulation loop", "probe": null },
+      { "id": "physics2d", "title": "\u0422\u0432\u0451\u0440\u0434\u044B\u0435 \u0442\u0435\u043B\u0430 2D", "pack": "endless-2d", "status": "planned", "since": 4, "enables": "2D rigid-body physics", "probe": null },
+      { "id": "procedural-gen", "title": "\u041F\u0440\u043E\u0446\u0435\u0434\u0443\u0440\u043D\u0430\u044F \u0433\u0435\u043D\u0435\u0440\u0430\u0446\u0438\u044F", "pack": "endless-2d", "status": "planned", "since": 4, "enables": "procedural content generation", "probe": null },
+      { "id": "mobile-input", "title": "\u0422\u0430\u0447-\u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u0435 \u0438 \u043C\u043E\u0431\u0438\u043B\u044C\u043D\u044B\u0439 \u044D\u043A\u0440\u0430\u043D", "pack": "endless-2d", "status": "planned", "since": 4, "enables": "touch-first mobile input", "probe": null },
+      { "id": "spatial3d", "title": "3D-\u0441\u0446\u0435\u043D\u0430 \u0438 \u043A\u0430\u043C\u0435\u0440\u0430", "pack": "spatial-3d", "status": "planned", "since": 5, "enables": "3D scene and camera", "probe": null },
+      { "id": "character-controller", "title": "\u041A\u043E\u043D\u0442\u0440\u043E\u043B\u043B\u0435\u0440 \u043F\u0435\u0440\u0441\u043E\u043D\u0430\u0436\u0430", "pack": "spatial-3d", "status": "planned", "since": 5, "enables": "3D character movement", "probe": null },
+      { "id": "skeletal-animation", "title": "\u0421\u043A\u0435\u043B\u0435\u0442\u043D\u0430\u044F \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u044F", "pack": "spatial-3d", "status": "planned", "since": 5, "enables": "skeletal animation", "probe": null },
+      { "id": "triggers", "title": "\u0422\u0440\u0438\u0433\u0433\u0435\u0440\u044B \u0438 \u0437\u043E\u043D\u044B", "pack": "spatial-3d", "status": "planned", "since": 5, "enables": "3D trigger volumes and zones", "probe": null },
+      { "id": "multiplayer-turn", "title": "\u0410\u0441\u0438\u043D\u0445\u0440\u043E\u043D\u043D\u044B\u0435 \u043A\u043E\u043C\u043D\u0430\u0442\u044B", "pack": null, "status": "reserved", "since": 6, "enables": "reserved asynchronous multiplayer sessions", "probe": null },
+      { "id": "multiplayer-realtime", "title": "\u0421\u0435\u0441\u0441\u0438\u0438 \u0432 \u0440\u0435\u0430\u043B\u044C\u043D\u043E\u043C \u0432\u0440\u0435\u043C\u0435\u043D\u0438", "pack": null, "status": "reserved", "since": 6, "enables": "reserved real-time multiplayer sessions", "probe": null }
+    ];
+    capabilityById = new Map(
+      CAPABILITY_REGISTRY.map((capability) => [capability.id, capability])
+    );
+    LEGACY_DEFAULT_CAPS = ["map", "inventory", "needs", "skills", "relationships", "trade", "combat", "time"];
+    ENABLED_STATUSES = /* @__PURE__ */ new Set(["stable", "experimental"]);
+  }
+});
+
+// src/shared/types.ts
 var DEFAULT_EMOTION;
 var init_types = __esm({
   "src/shared/types.ts"() {
+    init_caps();
     DEFAULT_EMOTION = { id: "neutral", label: "\u041E\u0431\u044B\u0447\u043D\u044B\u0439" };
   }
 });
@@ -342,12 +465,21 @@ var init_store = __esm({
     init_loader();
     init_ruleFiles();
     init_versions();
+    init_capability_modes();
     init_types();
     init_skills();
     FIRE_RULE_MAX_DEPTH = 2;
     EditorStore = class _EditorStore {
       basePath;
       // "/campaigns/ash-of-caerden"
+      project = { kind: "narrative" };
+      packResolution = null;
+      capabilityModes = null;
+      resolveModes;
+      projectOriginal = null;
+      projectOriginalText = null;
+      projectFileExists = false;
+      resolvePack;
       // до load() — безопасные пустые значения: рендер между сменой кампании
       // и загрузкой не должен падать (фидбек №4–5 шестого раунда)
       meta = { id: "", title: "" };
@@ -374,8 +506,58 @@ var init_store = __esm({
       static AI_BASELINE_VERSION = 1;
       /** верхний лимит сохраняемого снимка в символах JSON — страховка от квоты localStorage (~5 МБ в браузерах) */
       static AI_BASELINE_LIMIT = 4 * 1024 * 1024;
-      constructor(basePath) {
+      constructor(basePath, resolvePack, resolveModes) {
         this.basePath = basePath;
+        this.resolvePack = resolvePack;
+        this.resolveModes = resolveModes;
+      }
+      setCapabilityMode(capabilityId, mode, availableCaps, requiredCaps = []) {
+        if (!availableCaps.includes(capabilityId)) throw new Error(`\u0412\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u044C \xAB${capabilityId}\xBB \u043D\u0435 \u043F\u0440\u0438\u043D\u0430\u0434\u043B\u0435\u0436\u0438\u0442 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u043D\u043E\u043C\u0443 \u043F\u0430\u043A\u0443.`);
+        if (mode === "off" && requiredCaps.includes(capabilityId)) {
+          throw new Error(`\u041E\u0431\u044F\u0437\u0430\u0442\u0435\u043B\u044C\u043D\u0443\u044E \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u044C \xAB${capabilityId}\xBB \u043D\u0435\u043B\u044C\u0437\u044F \u0432\u044B\u043A\u043B\u044E\u0447\u0438\u0442\u044C.`);
+        }
+        const project = this.projectFileExists ? { ...this.project } : {
+          format: 2,
+          id: this.meta.id || "new-project",
+          title: this.meta.title || "\u041D\u043E\u0432\u044B\u0439 \u043F\u0440\u043E\u0435\u043A\u0442",
+          kind: typeof this.project.kind === "string" ? this.project.kind : "narrative",
+          caps: [...availableCaps],
+          engine: { min: ENGINE_VERSION },
+          entry: "world.json"
+        };
+        const caps = Array.isArray(project.caps) ? project.caps.filter((value) => typeof value === "string") : [...availableCaps];
+        const originallyDeclared = Array.isArray(this.projectOriginal?.caps) && this.projectOriginal.caps.includes(capabilityId);
+        if (!caps.includes(capabilityId)) caps.push(capabilityId);
+        const currentOptions = project.cap_options && typeof project.cap_options === "object" && !Array.isArray(project.cap_options) ? { ...project.cap_options } : {};
+        const originalOptions = this.projectOriginal?.cap_options && typeof this.projectOriginal.cap_options === "object" && !Array.isArray(this.projectOriginal.cap_options) ? this.projectOriginal.cap_options : {};
+        const originalOption = originalOptions[capabilityId];
+        const originalMode = this.projectOriginal ? projectCapabilityMode(this.projectOriginal, capabilityId) : "core";
+        if (mode === originalMode && this.projectOriginal) {
+          if (originalOption === void 0) delete currentOptions[capabilityId];
+          else currentOptions[capabilityId] = originalOption;
+          if (!originallyDeclared) {
+            const index = caps.indexOf(capabilityId);
+            if (index >= 0) caps.splice(index, 1);
+          }
+        } else if (mode === "core") {
+          const currentOption = currentOptions[capabilityId];
+          const version = currentOption && typeof currentOption === "object" && !Array.isArray(currentOption) ? currentOption.version : void 0;
+          if (version === void 0) delete currentOptions[capabilityId];
+          else currentOptions[capabilityId] = { version };
+        } else {
+          const currentOption = currentOptions[capabilityId];
+          const version = currentOption && typeof currentOption === "object" && !Array.isArray(currentOption) ? currentOption.version : void 0;
+          currentOptions[capabilityId] = { mode, version: Number.isInteger(version) && Number(version) > 0 ? version : 1 };
+        }
+        const next = { ...project, caps };
+        if (Object.keys(currentOptions).length) next.cap_options = currentOptions;
+        else delete next.cap_options;
+        const capabilityModes = this.resolveModes?.(next) ?? null;
+        if (capabilityModes?.status === "invalid") throw new Error(capabilityModes.message);
+        this.project = next;
+        this.capabilityModes = capabilityModes;
+        this.projectFileExists = true;
+        this.touch("project.json");
       }
       subscribe(fn) {
         this.listeners.add(fn);
@@ -398,6 +580,35 @@ var init_store = __esm({
             throw new Error(`\u0424\u0430\u0439\u043B ${rel} \u043E\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442 \u0438\u043B\u0438 \u043F\u043E\u0432\u0440\u0435\u0436\u0434\u0451\u043D (\u043A\u0430\u043C\u043F\u0430\u043D\u0438\u044F \u0437\u0430\u043F\u0438\u0441\u0430\u043D\u0430 \u043D\u0435 \u043F\u043E\u043B\u043D\u043E\u0441\u0442\u044C\u044E?)`);
           }
         };
+        this.project = { kind: "narrative" };
+        this.projectOriginal = null;
+        this.projectOriginalText = null;
+        this.projectFileExists = false;
+        const projectResponse = await fetch(`${this.basePath}/project.json?t=${Date.now()}`);
+        if (projectResponse.ok) {
+          const projectText = await projectResponse.text();
+          try {
+            this.project = JSON.parse(projectText);
+            this.projectFileExists = true;
+            this.projectOriginalText = projectText;
+            this.projectOriginal = JSON.parse(projectText);
+          } catch {
+            const contentType = projectResponse.headers.get("content-type") ?? "";
+            if (contentType.includes("text/html") || /^\s*<!doctype html/i.test(projectText)) {
+              this.project = { kind: "narrative" };
+            } else {
+              throw new Error("\u0424\u0430\u0439\u043B project.json \u043F\u043E\u0432\u0440\u0435\u0436\u0434\u0451\u043D.");
+            }
+          }
+        } else if (projectResponse.status === 404) {
+          this.project = { kind: "narrative" };
+        } else {
+          throw new Error(`\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C project.json: ${projectResponse.status}`);
+        }
+        this.packResolution = this.resolvePack?.(this.project) ?? null;
+        if (this.packResolution?.status === "missing") return;
+        this.capabilityModes = this.resolveModes?.(this.project) ?? null;
+        if (this.capabilityModes?.status === "invalid") throw new Error(this.capabilityModes.message);
         this.meta = await getJson("campaign.json");
         this.world = await getJson("world.json");
         this.manifest = await getJson("manifest.json");
@@ -1021,6 +1232,12 @@ var init_store = __esm({
       }
       // ─────────────── правки ───────────────
       touch(path, group = "") {
+        if (path.startsWith("quests/") && projectCapabilityMode(this.project, "quests") === "off") {
+          const previous = this.snapshots.get(path);
+          if (previous !== void 0) this.jsonFiles.set(path, JSON.parse(previous));
+          this.notify();
+          return;
+        }
         const now = Date.now();
         const prev = this.snapshots.get(path);
         const sameBurst = group !== "" && this.lastTouch.path === path && this.lastTouch.group === group && now - this.lastTouch.at < 900;
@@ -1043,7 +1260,11 @@ var init_store = __esm({
         if (!step) return null;
         const { path, text } = step;
         if (path === "campaign.json") this.meta = JSON.parse(text);
-        else if (path === "world.json") this.world = JSON.parse(text);
+        else if (path === "project.json") {
+          this.project = JSON.parse(text);
+          this.projectFileExists = true;
+          this.capabilityModes = this.resolveModes?.(this.project) ?? null;
+        } else if (path === "world.json") this.world = JSON.parse(text);
         else if (path === "manifest.json") this.manifest = JSON.parse(text);
         else if (this.textFiles.has(path)) this.textFiles.set(path, text);
         else this.jsonFiles.set(path, JSON.parse(text));
@@ -1055,7 +1276,13 @@ var init_store = __esm({
         return path;
       }
       setJson(path, data) {
-        this.jsonFiles.set(path, data);
+        if (path === "project.json") {
+          this.project = data;
+          this.projectFileExists = true;
+          this.capabilityModes = this.resolveModes?.(this.project) ?? null;
+        } else {
+          this.jsonFiles.set(path, data);
+        }
         this.touch(path);
       }
       setText(path, text) {
@@ -1072,6 +1299,7 @@ var init_store = __esm({
       }
       /** создать новый файл и внести в манифест */
       createFile(section, filename, data) {
+        if (section === "quests" && projectCapabilityMode(this.project, "quests") === "off") return "";
         const dir = section;
         const path = `${dir}/${filename}`;
         const list = this.manifest[section] ?? (this.manifest[section] = []);
@@ -1084,6 +1312,7 @@ var init_store = __esm({
         return path;
       }
       deleteFile(section, filename) {
+        if (section === "quests" && projectCapabilityMode(this.project, "quests") === "off") return;
         const dir = section;
         const path = `${dir}/${filename}`;
         const list = this.manifest[section] ?? [];
@@ -1099,6 +1328,12 @@ var init_store = __esm({
       }
       // ─────────────── сохранение ───────────────
       fileText(path) {
+        if (path === "project.json") {
+          if (this.projectOriginal && this.projectOriginalText !== null && JSON.stringify(this.project) === JSON.stringify(this.projectOriginal)) {
+            return this.projectOriginalText;
+          }
+          return JSON.stringify(this.project, null, 2);
+        }
         if (path === "campaign.json") return JSON.stringify(this.meta, null, 2);
         if (path === "world.json") return JSON.stringify(this.world, null, 2);
         if (path === "manifest.json") return JSON.stringify(this.manifest, null, 2);
@@ -1106,7 +1341,7 @@ var init_store = __esm({
         return JSON.stringify(this.jsonFiles.get(path), null, 2);
       }
       hasFile(path) {
-        return path === "campaign.json" || path === "world.json" || path === "manifest.json" || this.jsonFiles.has(path) || this.textFiles.has(path);
+        return path === "project.json" && this.projectFileExists || path === "campaign.json" || path === "world.json" || path === "manifest.json" || this.jsonFiles.has(path) || this.textFiles.has(path);
       }
       /** Зафиксировать текущее состояние кампании как исходную базу для диффа изменений */
       captureBaseline() {
@@ -1243,7 +1478,7 @@ var init_store = __esm({
         return list.sort((a, b) => a.path.localeCompare(b.path, "ru"));
       }
       categorizePath(path) {
-        if (path === "campaign.json") return "meta";
+        if (path === "project.json" || path === "campaign.json") return "meta";
         if (path === "world.json") return "world";
         if (path.startsWith("scenes/")) return "scene";
         if (path.startsWith("dialogues/")) return "dialogue";
@@ -1257,6 +1492,7 @@ var init_store = __esm({
         return "other";
       }
       titleForPath(path) {
+        if (path === "project.json") return "\u0420\u0435\u0436\u0438\u043C\u044B \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u0435\u0439 \u043F\u0440\u043E\u0435\u043A\u0442\u0430";
         if (path === "campaign.json") return `\u041F\u0430\u0441\u043F\u043E\u0440\u0442 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 \xAB${this.meta.title || this.meta.id}\xBB`;
         if (path === "world.json") return "\u041A\u0430\u0440\u0442\u0430 \u043C\u0438\u0440\u0430 \u0438 \u043B\u043E\u043A\u0430\u0446\u0438\u0438";
         if (path === "manifest.json") return "\u041C\u0430\u043D\u0438\u0444\u0435\u0441\u0442 \u0441\u0442\u0440\u0443\u043A\u0442\u0443\u0440\u044B";
@@ -1348,6 +1584,7 @@ var init_store = __esm({
       }
       allPaths() {
         return [
+          ...this.projectFileExists ? ["project.json"] : [],
           "campaign.json",
           "world.json",
           "manifest.json",
@@ -4698,6 +4935,37 @@ var require_utils = __commonJS({
       }
       return output.join("");
     }
+    function removeDotSegmentsRelative(path) {
+      if (path === "" || path[0] === "/") {
+        return removeDotSegments(path);
+      }
+      const segments = path.split("/");
+      const last = segments.length - 1;
+      const output = [];
+      let trailingDirectory = false;
+      for (let i = 0; i <= last; i++) {
+        const segment = segments[i];
+        if (segment === "." || segment === "..") {
+          if (segment === "..") {
+            if (output.length !== 0 && output[output.length - 1] !== "..") {
+              output.pop();
+            } else {
+              output.push("..");
+            }
+          }
+          trailingDirectory = i === last;
+        } else {
+          output.push(segment);
+        }
+      }
+      if (trailingDirectory && output[output.length - 1] !== "..") {
+        output.push("");
+      }
+      if (output.length === 0 || output[0] === "" || output[0].includes(":")) {
+        output.unshift(".");
+      }
+      return output.join("/");
+    }
     var HOST_DELIMS = { "@": "%40", "/": "%2F", "?": "%3F", "#": "%23", ":": "%3A" };
     var HOST_DELIM_RE = /[@/?#:]/g;
     var HOST_DELIM_NO_COLON_RE = /[@/?#]/g;
@@ -4958,6 +5226,7 @@ var require_utils = __commonJS({
       encodeFragment,
       escapePreservingEscapes,
       removeDotSegments,
+      removeDotSegmentsRelative,
       isIPv4,
       isUUID,
       normalizeIPv6,
@@ -5181,16 +5450,18 @@ var require_schemes = __commonJS({
 var require_fast_uri = __commonJS({
   "node_modules/fast-uri/index.js"(exports, module) {
     "use strict";
-    var { normalizeIPv6, removeDotSegments, recomposeAuthority, normalizePercentEncoding, normalizePathEncoding, serializePathEncoding, normalizeQueryFragmentEncoding, encodeQuery, encodeFragment, reescapeHostDelimiters, isIPv4, nonSimpleDomain } = require_utils();
+    var { normalizeIPv6, removeDotSegments, removeDotSegmentsRelative, recomposeAuthority, normalizePercentEncoding, normalizePathEncoding, serializePathEncoding, normalizeQueryFragmentEncoding, encodeQuery, encodeFragment, reescapeHostDelimiters, isIPv4, nonSimpleDomain } = require_utils();
     var { SCHEMES, getSchemeHandler } = require_schemes();
     var VALID_SCHEME = /^[A-Za-z][A-Za-z0-9+.-]*$/u;
     var MALFORMED_SCHEME_ERROR = "URI scheme is malformed.";
-    function decodeValidScheme(scheme) {
-      const decodedScheme = unescape(String(scheme));
-      if (!VALID_SCHEME.test(decodedScheme)) {
+    var MALFORMED_HOST_ERROR = "URI host is malformed.";
+    var FORBIDDEN_DOMAIN_HOST_CHARACTER = /[\0-\x20"#/:<>?@[\\\]^`{|}\x7F]/u;
+    function validateScheme(scheme) {
+      const stringScheme = String(scheme);
+      if (!VALID_SCHEME.test(stringScheme)) {
         throw new TypeError(MALFORMED_SCHEME_ERROR);
       }
-      return decodedScheme;
+      return stringScheme;
     }
     function normalize(uri, options) {
       if (typeof uri === "string") {
@@ -5227,6 +5498,9 @@ var require_fast_uri = __commonJS({
       const resolvedSchemeHandler = getSchemeHandler(options && options.scheme || resolved.scheme);
       const resolvedHost = resolved.host;
       const resolvedHostIsIP = resolvedHost !== void 0 && resolvedHost !== "" && (isIPv4(resolvedHost) || normalizeIPv6(resolvedHost).isIPV6);
+      if (hasForbiddenDomainHost(resolved, options || {}, resolvedSchemeHandler, resolvedHostIsIP)) {
+        throw new Error(MALFORMED_HOST_ERROR);
+      }
       canonicalizeHost(resolved, options || {}, resolvedSchemeHandler, resolvedHostIsIP);
       const encodedASCIIHost = resolvedHost && resolvedHost.indexOf("%") !== -1 && !new RegExp("\\P{ASCII}", "u").test(resolvedHost);
       if (resolved.error && !encodedASCIIHost) {
@@ -5268,14 +5542,15 @@ var require_fast_uri = __commonJS({
             if (relative.path[0] === "/") {
               target.path = removeDotSegments(relative.path);
             } else {
-              if ((base.userinfo !== void 0 || base.host !== void 0 || base.port !== void 0) && !base.path) {
+              const baseHasAuthority = base.userinfo !== void 0 || base.host !== void 0 || base.port !== void 0;
+              if (baseHasAuthority && !base.path) {
                 target.path = "/" + relative.path;
               } else if (!base.path) {
                 target.path = relative.path;
               } else {
                 target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative.path;
               }
-              target.path = removeDotSegments(target.path);
+              target.path = base.scheme === void 0 && !baseHasAuthority && target.path[0] !== "/" ? removeDotSegmentsRelative(target.path) : removeDotSegments(target.path);
             }
             target.query = relative.query;
           }
@@ -5313,12 +5588,13 @@ var require_fast_uri = __commonJS({
       const options = Object.assign({}, opts);
       const uriTokens = [];
       if (component.scheme) {
-        component.scheme = decodeValidScheme(component.scheme);
+        component.scheme = validateScheme(component.scheme);
       }
       const schemeHandler = getSchemeHandler(options.scheme || component.scheme);
       if (schemeHandler && schemeHandler.serialize) schemeHandler.serialize(component, options);
       const hasAuthority = component.userinfo !== void 0 || component.host !== void 0 || component.port !== void 0;
-      const pathNoScheme = !options.skipEscape && component.scheme === void 0 && !hasAuthority;
+      const schemelessReference = (component.scheme === void 0 || options.reference === "suffix") && !hasAuthority;
+      const pathNoScheme = !options.skipEscape && schemelessReference;
       if (component.path !== void 0) {
         if (!options.skipEscape) {
           component.path = serializePathEncoding(component.path, pathNoScheme);
@@ -5327,7 +5603,7 @@ var require_fast_uri = __commonJS({
         }
       }
       if (options.reference !== "suffix" && component.scheme) {
-        component.scheme = decodeValidScheme(component.scheme);
+        component.scheme = validateScheme(component.scheme);
         uriTokens.push(component.scheme, ":");
       }
       const authority = recomposeAuthority(component);
@@ -5343,9 +5619,9 @@ var require_fast_uri = __commonJS({
       if (component.path !== void 0) {
         let s = component.path;
         if (!options.absolutePath && (!schemeHandler || !schemeHandler.absolutePath)) {
-          s = removeDotSegments(s);
+          s = schemelessReference && s[0] !== "/" ? removeDotSegmentsRelative(s) : removeDotSegments(s);
         }
-        if (pathNoScheme) {
+        if (schemelessReference) {
           s = serializePathEncoding(s, true);
         }
         if (authority === void 0 && s[0] === "/" && s[1] === "/") {
@@ -5392,15 +5668,33 @@ var require_fast_uri = __commonJS({
       return hasMalformedPercentEncoding(matches[3]) || host !== void 0 && !isIPLiteral(host) && hasMalformedPercentEncoding(host) || hasMalformedPercentEncoding(matches[6]) || hasMalformedPercentEncoding(matches[7]) || hasMalformedPercentEncoding(matches[8]);
     }
     function canonicalizeHost(parsed, options, schemeHandler, isIP) {
+      if (hasForbiddenDomainHost(parsed, options, schemeHandler, isIP)) {
+        parsed.error = parsed.error || MALFORMED_HOST_ERROR;
+        return true;
+      }
       if (!options.unicodeSupport && (!schemeHandler || !schemeHandler.unicodeSupport) && parsed.host && !isIPLiteral(parsed.host) && (options.domainHost || schemeHandler && schemeHandler.domainHost) && isIP === false && nonSimpleDomain(parsed.host)) {
+        let url;
         try {
-          parsed.host = new URL("http://" + parsed.host).hostname;
+          url = new URL("http://" + parsed.host);
         } catch (e) {
           parsed.error = parsed.error || "Host's domain name can not be converted to ASCII: " + e;
           return true;
         }
+        if (!isHostOnlyURL(url)) {
+          parsed.error = parsed.error || MALFORMED_HOST_ERROR;
+          return true;
+        }
+        parsed.host = url.hostname;
       }
       return false;
+    }
+    function hasForbiddenDomainHost(parsed, options, schemeHandler, isIP) {
+      return Boolean(
+        parsed.host && isIP === false && !isIPLiteral(parsed.host) && (options.domainHost || schemeHandler && schemeHandler.domainHost) && FORBIDDEN_DOMAIN_HOST_CHARACTER.test(parsed.host)
+      );
+    }
+    function isHostOnlyURL(url) {
+      return url.username === "" && url.password === "" && url.port === "" && url.pathname === "/" && url.search === "" && url.hash === "" && url.hostname !== "";
     }
     function parseWithStatus(uri, opts) {
       const options = Object.assign({}, opts);
@@ -5456,9 +5750,8 @@ var require_fast_uri = __commonJS({
         parsed.query = matches[7];
         parsed.fragment = matches[8];
         if (parsed.scheme !== void 0) {
-          const decodedScheme = unescape(parsed.scheme);
-          if (VALID_SCHEME.test(decodedScheme)) {
-            parsed.scheme = decodedScheme.toLowerCase();
+          if (VALID_SCHEME.test(parsed.scheme)) {
+            parsed.scheme = parsed.scheme.toLowerCase();
           } else {
             parsed.error = parsed.error || MALFORMED_SCHEME_ERROR;
             malformedScheme = true;
@@ -5486,7 +5779,7 @@ var require_fast_uri = __commonJS({
             malformedIPLiteral = hasIPLiteralBracket && (!bracketedIPLiteral || ipv6result.error === true);
             parsed.host = isIP ? ipv6result.host : ipv6result.host.toLowerCase();
             if (malformedIPLiteral) {
-              parsed.error = parsed.error || "URI host is malformed.";
+              parsed.error = parsed.error || MALFORMED_HOST_ERROR;
               malformedAuthorityOrPort = true;
             }
           } else {
@@ -5514,7 +5807,7 @@ var require_fast_uri = __commonJS({
           if (!isIP) {
             host = normalizePercentEncoding(host.toLowerCase());
           }
-          parsed.host = reescapeHostDelimiters(host, isIP);
+          parsed.host = isIP || options.scheme !== "null" ? reescapeHostDelimiters(host, isIP) : host;
         }
         if (!schemeHandler || schemeHandler && !schemeHandler.skipNormalize) {
           if (parsed.path) {
