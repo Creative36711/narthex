@@ -101,8 +101,8 @@ rc=0
 
 Локальный `node scripts/visual/shots.mjs` на обычном билде с зарегистрированным проектом дал rc=1: fallback Chromium нашёл по два элемента без доступного имени на экранах `editor-desktop` и `editor-narrow`. Это empty-state screenshot script; его oracle и `src/` не менялись. `.github/workflows/visual.yml` теперь запускает его на отдельной копии `dist` с изолированным `[]`, не меняя `dist` или `public`. Тот же локальный workflow-путь дал rc=0: 4/4 empty-state снимка, затем реальный preview, playthrough (20 шагов, 0 находок) и campaign-start smoke.
 
-Первый GitHub run `40358044101` завершился failure в шаге браузерных снимков; остальные шаги до него (включая 55 smokes, сборку и оба oracle) были зелёными. Локальный повтор с изолированной копией проходит; в PR #77 включён этот же исправленный workflow. Актуальный результат последующих Actions runs см. в checks PR.
+Первый GitHub run `40358044101` завершился failure в шаге браузерных снимков; остальные шаги до него (включая 55 smokes, сборку и оба oracle) были зелёными. После изоляции empty-state build-копии повторный Actions run `40361110169` на head `c79ef26` прошёл: все 23 шага успешны, включая визуальные снимки, playthrough, оба smoke и artifact upload (4m29s).
 
 ## Pull request
 
-PR #77: https://github.com/Creative36711/narthex/pull/77.
+PR #77: https://github.com/Creative36711/narthex/pull/77. Актуальный результат последующих Actions runs см. в checks PR.
