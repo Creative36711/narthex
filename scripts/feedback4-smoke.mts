@@ -4,6 +4,7 @@
  */
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 import { generateInk, migrateDlgDoc } from '../src/editor/dialogueDoc'
 import { Compiler } from 'inkjs/full'
 

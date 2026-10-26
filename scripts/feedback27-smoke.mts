@@ -20,8 +20,9 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 import { repairState, type ReportCtx } from '../src/core/savemigrate'
-import { drainStory, type DialogueLine } from '../src/core/dialogue'
+import { drainStory, type DialogueLine } from '../packs/narrative/index'
 import { EditorStore } from '../src/editor/store'
 import { validateCampaign } from '../src/editor/campaignAudit'
 import type { GameState } from '../src/shared/types'
@@ -175,7 +176,7 @@ const ctx = (): ReportCtx & { texts: string[] } => {
 
 // ── 9. §9 дизайн-дока: внешние вызовы, которых не хватало ──
 {
-  const dlg = f('src/core/dialogue.ts')
+  const dlg = f('packs/narrative/dialogue.ts')
   check('9 skill_check возвращает 1/0 для ветвления в ink', /bind\('skill_check'[\s\S]{0,400}return .*success \? 1 : 0/.test(dlg))
   check('9 появился внешний вызов set_entity_state', dlg.includes("bind('set_entity_state'"))
   check('9 open_trade доступен из ink', dlg.includes("bind('open_trade'"))

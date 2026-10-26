@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 import type { CampaignPackage } from '../src/shared/types'
 
 console.log('--- Запуск smoke:cutscene-postcard-queue ---')

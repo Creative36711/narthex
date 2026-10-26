@@ -1,7 +1,7 @@
-import type { ItemDef, NpcDef } from '../shared/types'
-import type { EngineCtx } from './context'
-import { CHECK_RESULT_LABEL, skillCheck } from './brp'
-import { rollDice } from './dice'
+import type { ItemDef, NpcDef } from '../../src/shared/types'
+import type { EngineCtx } from '../../src/core/context'
+import { CHECK_RESULT_LABEL, skillCheck } from '../../src/core/brp'
+import { rollDice } from '../../src/core/dice'
 
 export const social = {
   // ─────────────── репутация и фракции (ТЗ 4.8) ───────────────

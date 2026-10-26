@@ -5,6 +5,7 @@
  */
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 import { PRNG } from '../src/core/prng'
 import type { CampaignData, NpcDef, AbilityDef } from '../src/shared/types'
 import type { CombatController, Combatant } from '../src/core/combat'

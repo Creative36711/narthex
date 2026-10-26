@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { CombatController } from '../src/core/combat.ts'
 import { GameEngine } from '../src/core/engine.ts'
+import '../packs/narrative/operations'
 import type { ArenaDef, CombatDef, CampaignData } from '../src/shared/types.ts'
 
 console.log('Testing Combat Forecast, Log Filter, and World Routes...')

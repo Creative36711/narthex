@@ -1,4 +1,5 @@
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 import type { CampaignData } from '../src/shared/types'
 
 console.log('Testing Dialogue Backlog, Campaign Deadline, and Scene Playtest...')

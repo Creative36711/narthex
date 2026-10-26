@@ -1,3 +1,4 @@
+import '../packs/narrative/operations'
 /**
  * Смоук-ревизия фидбека 16 (описания сущностей):
  * 1. у NPC появилось описание (типы, редактор, заготовки);
@@ -14,7 +15,7 @@ const checks: Array<[string, boolean]> = []
 
 const types = rd('src/shared/types.ts')
 const engine = rd('src/core/engine.ts')
-const dialogue = rd('src/core/dialogue.ts')
+const dialogue = rd('packs/narrative/dialogue.ts')
 const schemas = rd('src/editor/schemas.ts')
 const entEditor = rd('src/editor/EntityEditor.tsx')
 const dlgBuilder = rd('src/editor/DialogueBuilder.tsx')

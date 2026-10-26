@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import './editor/packCatalog'
 import type { CampaignData } from './shared/types'
 import { loadCampaign } from './core/loader'
 import { GameEngine, hasSave, openSave, exportSaveText, preserveSave } from './core/engine'

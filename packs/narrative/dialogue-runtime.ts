@@ -1,9 +1,9 @@
-import type { EngineCtx } from './context'
-import type { ItemDef, NpcDef } from '../shared/types'
+import type { EngineCtx } from '../../src/core/context'
+import type { ItemDef, NpcDef } from '../../src/shared/types'
 import type { Story } from 'inkjs'
 import { bindExternals, createStory, drainStory, firstInkKnot } from './dialogue'
-import { playInteraction, playUi } from '../shared/audio'
-import { stopVoiceAudio } from '../shared/voiceAudio'
+import { playInteraction, playUi } from '../../src/shared/audio'
+import { stopVoiceAudio } from '../../src/shared/voiceAudio'
 
 /** подпись спикера реплики в истории диалога: явный # speaker — его имя, иначе собеседник */
 function dlgSpeakerLabel(this: EngineCtx, line: { speaker?: string }, npc: NpcDef): string {

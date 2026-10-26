@@ -22,6 +22,7 @@
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 import { evalCondition } from '../src/core/conditions'
 import { EditorStore } from '../src/editor/store'
 import { exportMonolith, importMonolith, parseMonolith } from '../src/editor/monolith'
@@ -181,7 +182,7 @@ const campaign: CampaignData = {
   check('3 открытый рецепт виден сразу', labels().includes('recipe_open_bread'))
   e.fireRule('rule_unlock')
   check('3 unlock_recipe открыл рецепт', labels().includes('recipe_tonic'))
-  const ink = readFileSync('src/core/dialogue.ts', 'utf8')
+  const ink = readFileSync('packs/narrative/dialogue.ts', 'utf8')
   check('3 внешняя команда Ink unlock_recipe есть', /bind\('unlock_recipe'/.test(ink))
   const editor = readFileSync('src/editor/RecipeEditor.tsx', 'utf8')
   check('3 редактор умеет «Открыть по ходу игры»', editor.includes('Открыть по ходу игры'))

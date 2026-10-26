@@ -1,8 +1,8 @@
-import type { EngineCtx } from './context'
-import type { CampaignData } from '../shared/types'
-import { evalCondition } from './conditions'
-import { removeSave } from './savemigrate'
-import { meta } from './meta'
+import type { EngineCtx } from '../../src/core/context'
+import type { CampaignData } from '../../src/shared/types'
+import { evalCondition } from '../../src/core/conditions'
+import { removeSave } from '../../src/core/savemigrate'
+import { meta } from '../../src/core/meta'
 
 type EngineConstructor = new (campaign: CampaignData) => EngineCtx
 
