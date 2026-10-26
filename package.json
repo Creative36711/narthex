@@ -11,6 +11,7 @@
     "play": "tsx scripts/playkit/cli.mts",
     "playthrough": "node scripts/visual/playthrough.mjs",
     "playthrough:adventure": "node scripts/visual/playthrough.mjs --adventure",
+    "playthrough:exam": "node scripts/visual/playthrough.mjs --exam",
     "generate:campaign-schema": "tsx scripts/gen-schema.mts",
     "audit:campaign-formats": "tsx scripts/audit-campaign-formats.mts",
     "lint": "oxlint",

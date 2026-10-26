@@ -121,11 +121,14 @@ jobs:
           # Браузер уже стоит выше (playwright install --with-deps chromium).
           node scripts/visual/playthrough.mjs http://127.0.0.1:4173 out/visual/play
           PLAY=$?
+          npm run playthrough:exam -- http://127.0.0.1:4173 out/visual/exam
+          EXAM=$?
           npm run smoke:campaign-start -- http://127.0.0.1:4173
           START=$?
           kill "$SERVER_PID" 2>/dev/null
           if [ "$SHOTS" -ne 0 ]; then exit "$SHOTS"; fi
           if [ "$PLAY" -ne 0 ]; then exit "$PLAY"; fi
+          if [ "$EXAM" -ne 0 ]; then exit "$EXAM"; fi
           exit "$START"
 
       - name: Сохранить снимки и отчёт

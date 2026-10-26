@@ -211,6 +211,30 @@ node public/ai/cf-play.mjs check public/campaigns/ash-of-caerden
 **Риск.** Шов окажется дырявым: паку понадобится правка ядра. Если в PR нового
 пака диф ядра не пуст — архитектура неверна, и это дешевле узнать здесь.
 
+### Результат контрольного экзамена — 26.10.2026
+
+**Фаза 2 не закрыта.** Строгий NAR-3.7 завершился с `check = 1`: оба
+маршрута достигли финального экрана (Ash — `ending_ashes` после гибели в
+засаде; adventure — `ending_gate_unlocked`), но Ash зафиксировал 5 экранов
+ошибки и 7 наблюдений с битыми `<img>`. Кроме того, image-запросы обоих
+паков включают отсутствующие файлы, которые preview отвечает как HTML.
+Отсутствующие изображения в Ash-полигонах оставлены без изменений по scope;
+пока критерий `check = 0` не выполнен, фазу закрывать нельзя. Фаза 3 не начата.
+
+Материалы NAR-3.1–3.7:
+
+- NAR-3.1: [PR #71 — подключение adventure runtime и браузерное доказательство](https://github.com/Creative36711/narthex/pull/71). Отдельного `_tools/reports/NAR-3.1.md` в checkout нет.
+- NAR-3.2: [`_tools/reports/NAR-3.2.md`](../_tools/reports/NAR-3.2.md), [PR #72](https://github.com/Creative36711/narthex/pull/72).
+- NAR-3.3: [`_tools/reports/NAR-3.3.md`](../_tools/reports/NAR-3.3.md), [PR #73](https://github.com/Creative36711/narthex/pull/73), [PR #74](https://github.com/Creative36711/narthex/pull/74).
+- NAR-3.4: [`_tools/reports/NAR-3.4.md`](../_tools/reports/NAR-3.4.md), [PR #76](https://github.com/Creative36711/narthex/pull/76).
+- NAR-3.5: [`_tools/reports/NAR-3.5.md`](../_tools/reports/NAR-3.5.md), [PR #77](https://github.com/Creative36711/narthex/pull/77).
+- NAR-3.6: [`_tools/reports/NAR-3.6.md`](../_tools/reports/NAR-3.6.md), [PR #78](https://github.com/Creative36711/narthex/pull/78).
+- NAR-3.7: [`_tools/reports/NAR-3.7.md`](../_tools/reports/NAR-3.7.md), включая literal stdout, мутационную пробу и PNG финальных кадров.
+
+Старый `npm run playthrough -- http://localhost:4173 out/play` сохранён:
+20 шагов, 0 находок, exit code 0. Новый строгий экзамен запускается отдельно
+как `npm run playthrough:exam` и добавлен в `visual.yml`.
+
 ---
 
 ## Фаза 3. Второй рантайм — настоящий realtime
