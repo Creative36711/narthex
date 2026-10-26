@@ -79,15 +79,9 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
   const [panel, setPanel] = useState<PanelId>(null)
   const [packSession, setPackSession] = useState<AdventureSession | null>(null)
   const gameViewRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const root = gameViewRef.current
-    if (!root) return
-    const hideFailedImageNotice = () => root.querySelectorAll<HTMLElement>('.scene-bg-note').forEach((note) => { note.hidden = true })
-    const observer = new MutationObserver(hideFailedImageNotice)
-    observer.observe(root, { childList: true, subtree: true })
-    hideFailedImageNotice()
-    return () => observer.disconnect()
-  }, [engine])
+  // Никакого скрытия ошибок на уровне DOM: техническую плашку убрали из
+  // SceneScreen (D-076), а не маскируем её наблюдателем за мутациями —
+  // иначе настоящая поломка у витринного проекта тоже стала бы невидимой.
   useEffect(() => {
     let active = true
     setPackSession(null)

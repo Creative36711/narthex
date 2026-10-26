@@ -1,3 +1,4 @@
+import { scenePlayerSource } from './scene-sources.mts'
 import '../packs/narrative/operations'
 /**
  * Смоук-ревизия фидбека 16 (описания сущностей):
@@ -10,7 +11,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 const root = process.cwd()
-const rd = (p: string) => readFileSync(join(root, p), 'utf-8')
+const rd = (p: string) => (p.endsWith('src/player/SceneScreen.tsx') ? scenePlayerSource() : readFileSync(join(root, p), 'utf-8'))
 const checks: Array<[string, boolean]> = []
 
 const types = rd('src/shared/types.ts')

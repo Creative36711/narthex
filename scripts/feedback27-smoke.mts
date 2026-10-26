@@ -17,6 +17,7 @@
  *  9. §9 дизайн-дока: skill_check ветвится в ink (1/0), set_entity_state и
  *     open_trade документированы как внешние вызовы.
  */
+import { scenePlayerSource } from './scene-sources.mts'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
@@ -170,7 +171,7 @@ const ctx = (): ReportCtx & { texts: string[] } => {
 
 // ── 8. заголовок сцены без дубля локации ──
 {
-  const scene = f('src/player/SceneScreen.tsx')
+  const scene = scenePlayerSource()
   check('8 дубль «Локация — Локация — День» убран', scene.includes('scene.label === loc?.location.label'))
 }
 

@@ -11,11 +11,15 @@
  *   - каталог вне реестра обязан иметь маркер и [DEV] в заголовке;
  *   - id уникален и совпадает с именем каталога;
  *   - временные каталоги __dev_* / __smoke* не попадают в git;
- *   - реестр не содержит внутренних кампаний.
+ *   - реестр не содержит внутренних кампаний;
+ *   - отсутствующие медиа объявлены в `known_absent_images` (D-076), а
+ *     объявление обязано быть живым: путь существует в ссылках и не существует
+ *     на диске.
  */
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { join, relative, resolve } from 'node:path'
+import { declaredAbsences, normalizeAssetPath } from './visual/absence-policy.mjs'
 
 const root = process.cwd()
 const campaignsDir = join(root, 'public/campaigns')
@@ -27,6 +31,66 @@ const dirs = readdirSync(campaignsDir, { withFileTypes: true })
   .sort()
 
 const problems: string[] = []
+
+/** Все ссылки вида "assets/..." внутри JSON кампании. */
+function assetReferenceSet(campaignDir: string): Set<string> {
+  const refs = new Set<string>()
+  const walkJson = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name.startsWith('.')) continue
+      const path = join(dir, entry.name)
+      if (entry.isDirectory()) { walkJson(path); continue }
+      if (!entry.name.endsWith('.json')) continue
+      for (const match of readFileSync(path, 'utf8').matchAll(/"assets\/[^"]+"/g)) {
+        refs.add(normalizeAssetPath(match[0].slice(1, -1)))
+      }
+    }
+  }
+  walkJson(campaignDir)
+  return refs
+}
+
+/** Ссылки на медиа, которых нет на диске. */
+function missingAssetReferences(campaignDir: string, refs: Set<string>): string[] {
+  return [...refs].filter((ref) => !existsSync(join(campaignDir, ref))).sort()
+}
+
+/** D-076: объявления отсутствий — данные фикстуры, а не список в тесте. */
+function checkAbsenceDeclarations(campaignDir: string, dir: string, isFixture: boolean): void {
+  const refs = assetReferenceSet(campaignDir)
+  const missing = missingAssetReferences(campaignDir, refs)
+  const declared = declaredAbsences(campaignsDir, dir)
+  const markerFile = join(campaignDir, 'dev-fixture.json')
+  const markerData = existsSync(markerFile)
+    ? JSON.parse(readFileSync(markerFile, 'utf8')) as Record<string, unknown>
+    : null
+  const rawDeclared = markerData?.known_absent_images
+
+  if (rawDeclared !== undefined && !Array.isArray(rawDeclared)) {
+    problems.push(`campaigns/${dir}: known_absent_images должен быть массивом строк`)
+    return
+  }
+  if (!isFixture && declared.length) {
+    problems.push(`campaigns/${dir}: проект витрины не может объявлять отсутствующие медиа`)
+    return
+  }
+
+  for (const ref of declared) {
+    if (!ref.startsWith('assets/')) problems.push(`campaigns/${dir}: known_absent_images «${ref}» вне assets/`)
+    if (existsSync(join(campaignDir, ref))) {
+      problems.push(`campaigns/${dir}: «${ref}» объявлен отсутствующим, но файл на диске (устаревшее объявление)`)
+    }
+    if (!refs.has(ref)) problems.push(`campaigns/${dir}: «${ref}» объявлен отсутствующим, но нигде не упомянут (мёртвое объявление)`)
+  }
+
+  for (const ref of missing) {
+    if (declared.includes(ref)) continue
+    // Витрина обязана быть полной: любой отсутствующий файл — ошибка.
+    problems.push(`campaigns/${dir}: отсутствует ${ref}, но это не объявлено в known_absent_images`)
+  }
+}
+
+const declaredCounts: string[] = []
 
 for (const id of registered) {
   if (!dirs.includes(id)) problems.push(`реестр содержит «${id}», но каталога нет`)
@@ -68,6 +132,10 @@ for (const dir of dirs) {
   } else if (existsSync(marker)) {
     problems.push(`campaigns/${dir}: помечен как внутренний, но внесён в реестр игрока`)
   }
+
+  checkAbsenceDeclarations(base, dir, isFixture)
+  const declared = declaredAbsences(campaignsDir, dir)
+  if (declared.length) declaredCounts.push(`${dir}: ${declared.length}`)
 }
 
 // Временные каталоги, оставленные смоуками, не должны попадать в репозиторий.
@@ -93,4 +161,5 @@ if (problems.length) {
   console.error('\nПравила: docs/agents/dev-campaigns.md')
   process.exit(1)
 }
-console.log(`Гейт внутренних кампаний: ok — ${dirs.length} полигона, ${registered.length} записей в реестре, сирот нет.`)
+const declaredSummary = declaredCounts.length ? `; объявленных отсутствий — ${declaredCounts.join(', ')}` : ''
+console.log(`Гейт внутренних кампаний: ok — ${dirs.length} полигона, ${registered.length} записей в реестре, сирот нет${declaredSummary}.`)

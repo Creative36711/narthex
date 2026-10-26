@@ -105,7 +105,7 @@
     "campaign:release": "tsx scripts/campaign-visibility.mts release",
     "smoke:campaign-visibility": "tsx scripts/campaign-visibility-smoke.mts",
     "smoke:campaign-fmv-audit": "tsx scripts/campaign-fmv-audit-smoke.mts",
-    "check:contracts": "tsx scripts/contracts-check.mts && npm run check:packs && npm run check:pack-boundary && npm run check:decisions && npm run check:module-size && npm run check:browser-gate && npm run check:dev-campaigns && npm run check:campaign-formats && npm run smoke:campaign-visibility && npm run smoke:campaign-fmv-audit",
+    "check:contracts": "tsx scripts/contracts-check.mts && npm run check:packs && npm run check:pack-boundary && npm run check:decisions && npm run check:module-size && npm run check:browser-gate && npm run check:dev-campaigns && npm run check:campaign-formats && npm run smoke:campaign-visibility && npm run smoke:campaign-fmv-audit && npm run smoke:absence-policy",
     "check:brand": "tsx scripts/brand-guard.mts",
     "check:version": "tsx scripts/version.mts check",
     "version:bump": "tsx scripts/version.mts bump",
@@ -113,7 +113,8 @@
     "visual:shots": "node scripts/visual/shots.mjs",
     "check:browser-gate": "tsx scripts/check-browser-gate.mts",
     "check:dev-campaigns": "tsx scripts/check-dev-campaigns.mts",
-    "check:campaign-formats": "tsx scripts/audit-campaign-formats.mts"
+    "check:campaign-formats": "tsx scripts/audit-campaign-formats.mts",
+    "smoke:absence-policy": "tsx scripts/absence-policy-smoke.mts"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
