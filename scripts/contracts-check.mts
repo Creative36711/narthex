@@ -101,6 +101,7 @@ check('у каждой возможности есть назначение и �
 const unknownProbes = registry.caps.filter((cap: Json) => cap.probe !== null && !packageJson.scripts?.[cap.probe])
 check('пробы возможностей существуют в npm scripts', unknownProbes.length === 0,
   unknownProbes.map((cap: Json) => `${cap.id}: ${cap.probe}`).join(', '))
+check('гейт размеров модулей зарегистрирован в npm scripts', typeof packageJson.scripts?.['check:module-size'] === 'string')
 
 const listProfile = { features: ['combat'] }
 const listCaps = campaignCaps(listProfile)
