@@ -1,0 +1,52 @@
+NAR-3.7 strict real-browser exam
+Base URL: http://localhost:4173
+Browser: Chromium 131.0.6778.0
+Fixture root: public/campaigns
+
+--- ash-of-caerden ---
+  ash-of-caerden / ash-of-caerden-01-home: Стартовое меню — кнопок 5, битых img 0
+  ash-of-caerden / ash-of-caerden-02-selected: Пак выбран в меню кампаний — кнопок 5, битых img 0
+  ash-of-caerden / ash-of-caerden-03-character: Создание героя перед новым забегом — кнопок 40, битых img 0
+  ash-of-caerden / ash-of-caerden-04-new-run-scene: Сцена после «Нового забега» — кнопок 17, битых img 0
+  ash-of-caerden / ash-of-caerden-05-gates-ready: Стартовая сцена и диалог закрыты — кнопок 13, битых img 0
+  ash-of-caerden / ash-of-caerden-06-map: Карта долины из стартовой сцены — кнопок 23, битых img 0
+  ash-of-caerden / ash-of-caerden-07-forest-encounter: Прибытие в лесную локацию / состояние боя — кнопок 13, битых img 0
+  ash-of-caerden / ash-of-caerden-09-ending: Итоговый экран Ash: Пепел принял ещё одного — кнопок 13, битых img 0
+PASS ash-of-caerden: steps=8; pageerror=0; errorScreens=0; brokenImg=0; emptySrcImg=0; rawNpcIds=0; emptyStart=false
+  finalState=ending_ashes
+  finalFrame=/home/user/narthex/out/nar37-followup/ash-of-caerden/ash-of-caerden-09-ending.png
+  known-absence=assets/img/scenes/gates_front_day.jpg; status=200; content-type=text/html; expected image/*, received text/html
+  known-absence=assets/img/npc/aldric_neutral.jpg; status=200; content-type=text/html; expected image/*, received text/html
+  known-absence=assets/img/maps/caerden_valley.jpg; status=200; content-type=text/html; expected image/*, received text/html
+  known-absence=assets/img/scenes/forest_edge.jpg; status=200; content-type=text/html; expected image/*, received text/html
+  console-error=[сцена] фон не загрузился: http://localhost:4173/campaigns/ash-of-caerden/assets/img/scenes/gates_front_day.jpg
+  console-error=Failed to load resource: portrait fallback http://localhost:4173/campaigns/ash-of-caerden/assets/img/npc/aldric_neutral.jpg
+  console-error=Failed to load resource: portrait fallback http://localhost:4173/campaigns/ash-of-caerden/assets/img/npc/aldric_neutral.jpg
+  console-error=Failed to load resource: map image fallback http://localhost:4173/campaigns/ash-of-caerden/assets/img/maps/caerden_valley.jpg
+  console-error=Failed to load resource: map image fallback http://localhost:4173/campaigns/ash-of-caerden/assets/img/scenes/forest_edge.jpg
+  console-error=[сцена] фон не загрузился: http://localhost:4173/campaigns/ash-of-caerden/assets/img/scenes/forest_edge.jpg
+
+--- ash-of-caerden-adventure ---
+  ash-of-caerden-adventure / ash-of-caerden-adventure-01-home: Стартовое меню — кнопок 5, битых img 0
+  ash-of-caerden-adventure / ash-of-caerden-adventure-02-selected: Пак выбран в меню кампаний — кнопок 5, битых img 0
+  ash-of-caerden-adventure / ash-of-caerden-adventure-03-character: Создание героя adventure — кнопок 40, битых img 0
+  ash-of-caerden-adventure / ash-of-caerden-adventure-04-stage: Сцена adventure после нового забега — кнопок 23, битых img 0
+  ash-of-caerden-adventure / ash-of-caerden-adventure-05-walk: Ходьба к точке сцены — кнопок 22, битых img 0
+  ash-of-caerden-adventure / ash-of-caerden-adventure-06-inspect: Осмотр символов ворот — кнопок 22, битых img 0
+  ash-of-caerden-adventure / ash-of-caerden-adventure-07-items: Взяты два предмета — кнопок 23, битых img 0
+  ash-of-caerden-adventure / ash-of-caerden-adventure-08-combination: Два предмета соединены в мазь — кнопок 23, битых img 0
+  ash-of-caerden-adventure / ash-of-caerden-adventure-09-dialogue: Разговор со стражником — кнопок 27, битых img 0
+  ash-of-caerden-adventure / ash-of-caerden-adventure-10-riddle: Крупный план загадки ворот — кнопок 24, битых img 0
+  ash-of-caerden-adventure / ash-of-caerden-adventure-11-rejected-answer: Неверная последовательность отклонена — кнопок 24, битых img 0
+  ash-of-caerden-adventure / ash-of-caerden-adventure-12-ending: Финал: ending_gate_unlocked — кнопок 20, битых img 0
+PASS ash-of-caerden-adventure: steps=12; pageerror=0; errorScreens=0; brokenImg=0; emptySrcImg=0; rawNpcIds=0; emptyStart=false
+  finalState=ending_gate_unlocked
+  finalFrame=/home/user/narthex/out/nar37-followup/ash-of-caerden-adventure/ash-of-caerden-adventure-12-ending.png
+  known-absence=assets/img/scenes/gates_front_day.jpg; status=200; content-type=text/html; expected image/*, received text/html
+  known-absence=assets/img/npc/aldric_neutral.jpg; status=200; content-type=text/html; expected image/*, received text/html
+  console-error=[сцена] фон не загрузился: http://localhost:4173/campaigns/ash-of-caerden-adventure/assets/img/scenes/gates_front_day.jpg
+  console-error=Failed to load resource: portrait fallback http://localhost:4173/campaigns/ash-of-caerden-adventure/assets/img/npc/aldric_neutral.jpg
+  console-error=Failed to load resource: portrait fallback http://localhost:4173/campaigns/ash-of-caerden-adventure/assets/img/npc/aldric_neutral.jpg
+  console-error=Failed to load resource: portrait fallback http://localhost:4173/campaigns/ash-of-caerden-adventure/assets/img/npc/aldric_neutral.jpg
+
+RESULT: PASS; packs=2; steps=20; findings=0

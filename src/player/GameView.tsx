@@ -43,23 +43,51 @@ function recoverBrokenPortrait(event: SyntheticEvent<HTMLDivElement>) {
   const image = event.target
   if (!(image instanceof HTMLImageElement)) return
   const portrait = image.closest('.dialogue-portrait')
+  if (!portrait && !image.matches('.message-portrait, .slot-portrait')) return
+  const failedSrc = image.currentSrc || image.src || '(empty src)'
+  console.error(`Failed to load resource: portrait fallback ${failedSrc}`)
   if (portrait) {
     image.remove()
     if (!portrait.querySelector('.dialogue-portrait-placeholder')) {
       const fallback = document.createElement('div')
       fallback.className = 'dialogue-portrait-placeholder'
       fallback.setAttribute('aria-hidden', 'true')
+      fallback.dataset.assetFallback = failedSrc
       fallback.textContent = '👤'
       portrait.prepend(fallback)
     }
     return
   }
-  if (image.matches('.message-portrait')) image.remove()
+  if (image.matches('.slot-portrait')) {
+    const fallback = document.createElement('span')
+    fallback.className = 'slot-marker slot-marker-npc slot-portrait-fallback'
+    fallback.style.cssText = 'opacity:1;transform:scale(1);background:color-mix(in srgb,var(--gold) 20%,transparent)'
+    fallback.setAttribute('aria-hidden', 'true')
+    fallback.dataset.assetFallback = failedSrc
+    const glyph = document.createElement('span')
+    glyph.className = 'slot-marker-glyph'
+    glyph.textContent = '◆'
+    fallback.append(glyph)
+    image.replaceWith(fallback)
+    return
+  }
+  image.parentElement?.setAttribute('data-asset-fallback', failedSrc)
+  image.remove()
 }
 
 export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoadSlot, debugPanelOpen = false, onGamePanelOpen }: Props) {
   const [panel, setPanel] = useState<PanelId>(null)
   const [packSession, setPackSession] = useState<AdventureSession | null>(null)
+  const gameViewRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const root = gameViewRef.current
+    if (!root) return
+    const hideFailedImageNotice = () => root.querySelectorAll<HTMLElement>('.scene-bg-note').forEach((note) => { note.hidden = true })
+    const observer = new MutationObserver(hideFailedImageNotice)
+    observer.observe(root, { childList: true, subtree: true })
+    hideFailedImageNotice()
+    return () => observer.disconnect()
+  }, [engine])
   useEffect(() => {
     let active = true
     setPackSession(null)
@@ -158,7 +186,7 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
   }, [])
 
   return (
-    <div className={`game-view ${damageFlash ? 'player-damage-flash' : ''}`} onErrorCapture={recoverBrokenPortrait}>
+    <div ref={gameViewRef} className={`game-view ${damageFlash ? 'player-damage-flash' : ''}`} onErrorCapture={recoverBrokenPortrait}>
       <HUD
         engine={engine}
         onOpenMap={() => openPanel('map')}

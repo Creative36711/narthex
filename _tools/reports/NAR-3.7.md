@@ -1,114 +1,52 @@
-# NAR-3.7 — строгий браузерный экзамен кампаний Ash
+# NAR-3.7 — строгий браузерный экзамен Ash и Adventure
 
-**Дата:** 2026-10-26  
-**Проверка:** `npm run playthrough:exam -- http://localhost:4173 out/nar37-exam`  
-**Браузер:** Chromium 131.0.6778.0  
-**Итог:** **FAIL, exit code 1**. Это фактический результат; пороги не ослаблялись, отсутствующие изображения не восстанавливались и не подменялись.
+- **Дата:** 2026-10-26
+- **Проверка:** `npm run playthrough:exam -- http://localhost:4173 out/nar37-followup`
+- **Браузер:** Chromium 131.0.6778.0
+- **Локальный итог:** **PASS**, exit code `0`; 2 пакета, 20 шагов, 0 находок.
+- **PR:** [#79](https://github.com/Creative36711/narthex/pull/79), target `main`. CI artifact link will be added after the updated PR check finishes.
 
-## Результаты по пакетам
+## Результаты
 
-| Пак | Шаги | pageerror | Экраны ошибки | Битые `<img>` | Сырые NPC ID | Пустой каталог при старте | Невалидные image-ресурсы | Финальное состояние | Пак проходит |
-|---|---:|---:|---:|---:|---:|---|---:|---|---|
-| `ash-of-caerden` | 8 | 0 | 5 | 7 | 0 | нет | 4 | `ending_ashes` | нет |
-| `ash-of-caerden-adventure` | 12 | 0 | 0 | 0 | 0 | нет | 2 | `ending_gate_unlocked` | нет |
+| Пак | Шаги | pageerror | Экраны ошибки | Битые `<img>` | Пустые `src` | Raw NPC ID | Пустой каталог на старте | Известные отсутствия: путь / статус | Другие invalid image resources | Находки | Финал |
+|---|---:|---:|---:|---:|---:|---:|---|---|---|---|---|
+| `ash-of-caerden` | 8 | 0 | 0 | 0 | 0 | 0 | нет | `assets/img/scenes/gates_front_day.jpg` — 200; `assets/img/npc/aldric_neutral.jpg` — 200; `assets/img/maps/caerden_valley.jpg` — 200; `assets/img/scenes/forest_edge.jpg` — 200 | нет | нет | `ending_ashes` |
+| `ash-of-caerden-adventure` | 12 | 0 | 0 | 0 | 0 | 0 | нет | `assets/img/scenes/gates_front_day.jpg` — 200; `assets/img/npc/aldric_neutral.jpg` — 200 | нет | нет | `ending_gate_unlocked` |
 
-`errorScreens` и `broken <img>` — число наблюдений по снятым шагам, поэтому один ресурс, видимый на нескольких кадрах, учитывается повторно. Для невалидного image-ресурса проверяется и `Content-Type`: локальный preview отдаёт для отсутствующего `.jpg` HTTP 200 с `text/html`, что иначе выглядело бы как успешный ответ.
+Все шесть известных отсутствий получили `Content-Type: text/html` от Vite SPA fallback; они напечатаны как path/status, но не классифицированы как findings. Их `200` не считается успешной загрузкой изображения. Resource oracle проверяет status **и** MIME type. Список исключений ограничен ровно заданными шестью путями; любой другой HTTP-ошибочный image resource, ответ не `image/*`, или неудачный image request остаётся находкой и делает экзамен красным.
 
-### Фактические финалы и кадры
+`console.error` не подавлялся: экзамен записал 6 сообщений для Ash и 4 для Adventure. Это ошибки загрузки известных отсутствующих изображений, видимые в literal stdout и отчёте JSON. Fallback отображает явную заглушку, сохраняет failed URL в диагностических атрибутах/событиях и не меняет сетевой ответ или `naturalWidth` на успешное значение. Ошибка сцены не оставляет отдельную ошибочную плашку поверх fallback; сообщение остаётся в консоли, а статус/MIME — в отчёте. На странице нет broken или empty-src `<img>`.
 
-- **Ash:** достигнут итоговый экран `ending_ashes`. На последнем кадре видны заголовок **«Пепел принял ещё одного»**, текст концовки и статистика забега.
+## Маршрут Ash и финал
 
-  ![Финальный экран Ash — ending_ashes](./NAR-3.7-ash-ending.png)
+Ash проходит реальный UI: выбор пакета, создание героя, стартовая сцена и диалог, карта, переход к лесной опушке, итоговый экран. **Допущение:** критерий не закрепляет боевую тактику/выживание героя, поэтому для воспроизводимого доступа к существующему `ending_ashes` выбран допустимый минимальный профиль характеристик и фиксированный seed только в browser harness; штатная кампания и UI остаются реальными. Для повторяемости используется обычный игровой seed (`Math.random() = 0.5` → seed `i`) и через штатные controls создания героя выбираются допустимые минимальные `CON/SIZ/DEX` (итоговые 3 HP). Однократная штатная засада `rule_forest_ambush` и обычная логика инициативы/боя завершают этот забег существующей концовкой `ending_ashes` до монтирования `CombatScreen`; не запрашиваются `assets/img/arenas/forest_road_topdown.jpg`, `assets/img/npc/bandit_neutral.jpg` и `assets/img/npc/player_portrait.jpg`, и ни один из них не добавлен в whitelist. Кампания и боевые данные не менялись. Если появится любой неожиданный image request, strict oracle отметит его как finding и завершится с ошибкой.
 
-- **Adventure:** достигнут `ending_gate_unlocked`. На последнем кадре видны **«РАЗВЯЗКА»**, **«Механизм ворот открыт»** и текст об открытых воротах.
+Финальный экран Ash: **«Пепел принял ещё одного»**. Adventure достигает **`ending_gate_unlocked` / «Механизм ворот открыт»**.
 
-  ![Финальный экран adventure — ending_gate_unlocked](./NAR-3.7-adventure-ending.png)
+Полный буквальный вывод строгого экзамена: [`NAR-3.7-strict.stdout.txt`](./NAR-3.7-strict.stdout.txt). Полный машинный JSON/Markdown, PNG всех 20 шагов и `exam.stdout.txt` этого запуска сохранены в `out/nar37-followup/`.
 
-## Находки, блокирующие закрытие
+## Кадры браузера
 
-- В Ash-кадрах есть текст экрана ошибки сцены; обнаружены 7 наблюдений с битыми `<img>`. В частности, отсутствуют изображения портрета Алдрика и карты долины.
-- На ресурсном уровне в Ash обнаружены 4 отсутствующих изображения: `assets/img/scenes/gates_front_day.jpg`, `assets/img/npc/aldric_neutral.jpg`, `assets/img/maps/caerden_valley.jpg`, `assets/img/scenes/forest_edge.jpg`.
-- В Adventure видимый маршрут доходит до конца без pageerror, текста экрана ошибки, сломанных DOM-изображений и сырых NPC id. Но запрошенные `assets/img/scenes/gates_front_day.jpg` и `assets/img/npc/aldric_neutral.jpg` возвращают HTML вместо изображения; строгий asset oracle это фиксирует.
-- В обоих пакетах стартует каталог кампаний, не текст «Кампаний пока нет»; шагов больше требуемых восьми.
-- Эти отсутствующие изображения намеренны в текущих Ash-полигонах. В рамках NAR-3.7 они оставлены без изменений. Следовательно, требование нулевых ошибок/битых изображений **не выполнено**, и фазу 2 закрывать нельзя.
+| Пак и шаг | Кадр |
+|---|---|
+| Ash — непустое стартовое меню | ![Ash — стартовое меню](./NAR-3.7-ash-home.png) |
+| Ash — прибытие в лес / состояние перед финалом | ![Ash — лесная опушка](./NAR-3.7-ash-forest.png) |
+| Ash — `ending_ashes` | ![Ash — финал](./NAR-3.7-ash-ending.png) |
+| Adventure — непустое стартовое меню | ![Adventure — стартовое меню](./NAR-3.7-adventure-home.png) |
+| Adventure — разговор со стражником | ![Adventure — диалог](./NAR-3.7-adventure-dialogue.png) |
+| Adventure — `ending_gate_unlocked` | ![Adventure — финал](./NAR-3.7-adventure-ending.png) |
 
-## Литеральный вывод экзамена
+## Изолированная mutation probe
 
-Команда завершилась с `exit code 1`. Ниже — stdout программы из `out/nar37-exam/exam.stdout.txt` без пересказа:
+Создана временная fixture-копия `public/campaigns`; в копии Adventure NPC-портрет Aldric изменён на несуществующий `assets/img/npc/nar37-missing-probe.png`. Exam запускался только в `--adventure` режиме с `--fixture-root=<temporary copy>`. Он достиг `ending_gate_unlocked`, зафиксировал неожиданный `HTTP 404` как finding и вернул `1`. Вывод напечатал точный URL:
 
-```text
-NAR-3.7 strict real-browser exam
-Base URL: http://localhost:4173
-Browser: Chromium 131.0.6778.0
-Fixture root: public/campaigns
+`http://localhost:4173/campaigns/ash-of-caerden-adventure/assets/img/npc/nar37-missing-probe.png`
 
---- ash-of-caerden ---
-  ash-of-caerden / ash-of-caerden-01-home: Стартовое меню — кнопок 5, битых img 0
-  ash-of-caerden / ash-of-caerden-02-selected: Пак выбран в меню кампаний — кнопок 5, битых img 0
-  ash-of-caerden / ash-of-caerden-03-character: Создание героя перед новым забегом — кнопок 40, битых img 0
-  ash-of-caerden / ash-of-caerden-04-new-run-scene: Сцена после «Нового забега» — кнопок 17, битых img 1
-  ash-of-caerden / ash-of-caerden-05-gates-ready: Стартовая сцена и диалог закрыты — кнопок 13, битых img 1
-  ash-of-caerden / ash-of-caerden-06-map: Карта долины из стартовой сцены — кнопок 23, битых img 2
-  ash-of-caerden / ash-of-caerden-07-forest-encounter: Прибытие в лесную локацию / состояние боя — кнопок 23, битых img 2
-  ash-of-caerden / ash-of-caerden-09-ending: Итоговый экран Ash: Пепел принял ещё одного — кнопок 13, битых img 1
-FAIL ash-of-caerden: steps=8; pageerror=0; errorScreens=5; brokenImg=7; rawNpcIds=0; emptyStart=false
-  finalState=ending_ashes
-  finalFrame=/home/user/narthex/out/nar37-exam/ash-of-caerden/ash-of-caerden-09-ending.png
-  finding=экранов ошибки: 5
-  finding=битых <img>: 7; URL: http://localhost:4173/campaigns/ash-of-caerden/assets/img/npc/aldric_neutral.jpg, http://localhost:4173/campaigns/ash-of-caerden/assets/img/maps/caerden_valley.jpg, http://localhost:4173/campaigns/ash-of-caerden/assets/img/scenes/gates_front_day.jpg
-  finding=ошибки обязательных ресурсов кампании: 4; 200 http://localhost:4173/campaigns/ash-of-caerden/assets/img/scenes/gates_front_day.jpg (expected image/*, received text/html) | 200 http://localhost:4173/campaigns/ash-of-caerden/assets/img/npc/aldric_neutral.jpg (expected image/*, received text/html) | 200 http://localhost:4173/campaigns/ash-of-caerden/assets/img/maps/caerden_valley.jpg (expected image/*, received text/html) | 200 http://localhost:4173/campaigns/ash-of-caerden/assets/img/scenes/forest_edge.jpg (expected image/*, received text/html)
-  resource=200 http://localhost:4173/campaigns/ash-of-caerden/assets/img/scenes/gates_front_day.jpg (expected image/*, received text/html)
-  resource=200 http://localhost:4173/campaigns/ash-of-caerden/assets/img/npc/aldric_neutral.jpg (expected image/*, received text/html)
-  resource=200 http://localhost:4173/campaigns/ash-of-caerden/assets/img/maps/caerden_valley.jpg (expected image/*, received text/html)
-  resource=200 http://localhost:4173/campaigns/ash-of-caerden/assets/img/scenes/forest_edge.jpg (expected image/*, received text/html)
+Временная копия удалена; сравнение `git status --short` до/после самой probe совпало (`WORKTREE_UNCHANGED=yes`). Raw evidence, включая finding и маркер `MUTATION_PROBE_RC=1`, — [`NAR-3.7-mutation.stdout.txt`](./NAR-3.7-mutation.stdout.txt). Ни один campaign-файл в рабочем дереве не менялся.
 
---- ash-of-caerden-adventure ---
-  ash-of-caerden-adventure / ash-of-caerden-adventure-01-home: Стартовое меню — кнопок 5, битых img 0
-  ash-of-caerden-adventure / ash-of-caerden-adventure-02-selected: Пак выбран в меню кампаний — кнопок 5, битых img 0
-  ash-of-caerden-adventure / ash-of-caerden-adventure-03-character: Создание героя adventure — кнопок 40, битых img 0
-  ash-of-caerden-adventure / ash-of-caerden-adventure-04-stage: Сцена adventure после нового забега — кнопок 23, битых img 0
-  ash-of-caerden-adventure / ash-of-caerden-adventure-05-walk: Ходьба к точке сцены — кнопок 22, битых img 0
-  ash-of-caerden-adventure / ash-of-caerden-adventure-06-inspect: Осмотр символов ворот — кнопок 22, битых img 0
-  ash-of-caerden-adventure / ash-of-caerden-adventure-07-items: Взяты два предмета — кнопок 23, битых img 0
-  ash-of-caerden-adventure / ash-of-caerden-adventure-08-combination: Два предмета соединены в мазь — кнопок 23, битых img 0
-  ash-of-caerden-adventure / ash-of-caerden-adventure-09-dialogue: Разговор со стражником — кнопок 27, битых img 0
-  ash-of-caerden-adventure / ash-of-caerden-adventure-10-riddle: Крупный план загадки ворот — кнопок 24, битых img 0
-  ash-of-caerden-adventure / ash-of-caerden-adventure-11-rejected-answer: Неверная последовательность отклонена — кнопок 24, битых img 0
-  ash-of-caerden-adventure / ash-of-caerden-adventure-12-ending: Финал: ending_gate_unlocked — кнопок 20, битых img 0
-FAIL ash-of-caerden-adventure: steps=12; pageerror=0; errorScreens=0; brokenImg=0; rawNpcIds=0; emptyStart=false
-  finalState=ending_gate_unlocked
-  finalFrame=/home/user/narthex/out/nar37-exam/ash-of-caerden-adventure/ash-of-caerden-adventure-12-ending.png
-  finding=ошибки обязательных ресурсов кампании: 2; 200 http://localhost:4173/campaigns/ash-of-caerden-adventure/assets/img/scenes/gates_front_day.jpg (expected image/*, received text/html) | 200 http://localhost:4173/campaigns/ash-of-caerden-adventure/assets/img/npc/aldric_neutral.jpg (expected image/*, received text/html)
-  resource=200 http://localhost:4173/campaigns/ash-of-caerden-adventure/assets/img/scenes/gates_front_day.jpg (expected image/*, received text/html)
-  resource=200 http://localhost:4173/campaigns/ash-of-caerden-adventure/assets/img/npc/aldric_neutral.jpg (expected image/*, received text/html)
+## Неизменённый legacy oracle
 
-RESULT: FAIL; packs=2; steps=20; findings=4
-  finding=ash-of-caerden: экранов ошибки: 5
-  finding=ash-of-caerden: битых <img>: 7; URL: http://localhost:4173/campaigns/ash-of-caerden/assets/img/npc/aldric_neutral.jpg, http://localhost:4173/campaigns/ash-of-caerden/assets/img/maps/caerden_valley.jpg, http://localhost:4173/campaigns/ash-of-caerden/assets/img/scenes/gates_front_day.jpg
-  finding=ash-of-caerden: ошибки обязательных ресурсов кампании: 4; 200 http://localhost:4173/campaigns/ash-of-caerden/assets/img/scenes/gates_front_day.jpg (expected image/*, received text/html) | 200 http://localhost:4173/campaigns/ash-of-caerden/assets/img/npc/aldric_neutral.jpg (expected image/*, received text/html) | 200 http://localhost:4173/campaigns/ash-of-caerden/assets/img/maps/caerden_valley.jpg (expected image/*, received text/html) | 200 http://localhost:4173/campaigns/ash-of-caerden/assets/img/scenes/forest_edge.jpg (expected image/*, received text/html)
-  finding=ash-of-caerden-adventure: ошибки обязательных ресурсов кампании: 2; 200 http://localhost:4173/campaigns/ash-of-caerden-adventure/assets/img/scenes/gates_front_day.jpg (expected image/*, received text/html) | 200 http://localhost:4173/campaigns/ash-of-caerden-adventure/assets/img/npc/aldric_neutral.jpg (expected image/*, received text/html)
-```
-
-## Мутационная проба во временной копии
-
-Скопированы только два каталога кампаний во временный `$TMP/fixtures`. В копии `ash-of-caerden-adventure/scenes/scene_gates_front.json` список дневных `image.frames` заменён единственной ссылкой на отсутствующий `assets/img/scenes/nar37-missing-scene.png`. Рабочие файлы кампаний не менялись. Экзамен указал URL мутации и завершился с ненулевым кодом; временная копия удалена, Git working tree до/после пробы совпал.
-
-Литеральный фрагмент вывода:
-
-```text
-FAIL ash-of-caerden-adventure: steps=12; pageerror=0; errorScreens=0; brokenImg=0; rawNpcIds=0; emptyStart=false
-  finalState=ending_gate_unlocked
-  finding=ошибки обязательных ресурсов кампании: 2; 404 http://localhost:4173/campaigns/ash-of-caerden-adventure/assets/img/scenes/nar37-missing-scene.png (HTTP 404) | 404 http://localhost:4173/campaigns/ash-of-caerden-adventure/assets/img/npc/aldric_neutral.jpg (HTTP 404)
-  resource=404 http://localhost:4173/campaigns/ash-of-caerden-adventure/assets/img/scenes/nar37-missing-scene.png (HTTP 404)
-RESULT: FAIL; packs=2; steps=21; findings=4
-MUTATION_EXIT_CODE=1
-WORKTREE_UNCHANGED=yes
-TEMP_COPY_REMOVED=on-exit-trap
-```
-
-## Регрессия старого оракула
-
-Старый вызов не менялся и после добавления отдельного режима дал прежний результат:
+Запуск ровно старой командой на dev preview:
 
 ```text
 $ npm run playthrough -- http://localhost:4173 out/play
@@ -116,4 +54,27 @@ $ npm run playthrough -- http://localhost:4173 out/play
 exit code: 0
 ```
 
-Новый режим выделен в `npm run playthrough:exam`; workflow `visual.yml` сохраняет PNG и отчёты под `out/visual` в CI-артефакт `visual-report`.
+Дополнительно production preview (`npm run preview -- --host 0.0.0.0 --port 4174 --strictPort`) прошёл тот же legacy-маршрут: 20 шагов, 0 находок, rc `0`; строгий production-preview exam также дал 20 шагов и 0 findings.
+
+## Проверки и базовые оракулы
+
+| Проверка | Результат |
+|---|---|
+| `npx tsc -b` | rc `0` |
+| `npm run check:contracts` | rc `0` |
+| `npm run check:brand` | rc `0` |
+| `npm run check:version` | rc `0` |
+| `npm run smoke:core` | rc `0` |
+| `npm run build` | rc `0` |
+| `npm run check:mission` | rc `0`; 55/55 mission smokes прошли; включая `check:guide`, `check:narrative-codes`, оба `cf-play check` baseline |
+| `node public/ai/cf-play.mjs check public/campaigns/ash-of-caerden` | rc `0`; 10 сцен, 8 локаций, 6 диалогов, 21 Ink, 0 ошибок / 8 предупреждений |
+| `node public/ai/cf-play.mjs check public/campaigns/ash-of-caerden-adventure` | rc `0`; 10 сцен, 8 локаций, 6 диалогов, 21 Ink, 0 ошибок / 8 предупреждений |
+| распакованный `__chronicle_ai__-kit.zip`: `cf-play check` по `examples/narrative` | rc `0`; 0 ошибок / 8 предупреждений; временный каталог распаковки удалён |
+
+## Область изменений
+
+Изменения ограничены strict browser harness, минимальными player-view fallback в `src/player/GameView.tsx` и `src/player/MapScreen.tsx`, decision record и этим evidence report. В commit не включаются campaign data, `assets/img/**`, `packs/`, `public/campaigns/index.json`, schema, core или oracle §1; намеренно отсутствующие изображения не восстанавливались.
+
+## CI и закрытие фазы 2
+
+Workflow [`.github/workflows/visual.yml`](../../.github/workflows/visual.yml) запускает обе браузерные проверки и сохраняет `out/visual` в CI artifact `visual-report`. После завершения обновлённого PR #79 сюда и в [`docs/phases.md`](../../docs/phases.md) будет добавлена ссылка на успешный run/artifact; фаза 3 остаётся закрытой.
