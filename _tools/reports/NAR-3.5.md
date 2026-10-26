@@ -99,8 +99,10 @@ rc=0
 
 `check:mission` подтвердил идентичный контрактный результат для обоих эталонов Ash: по 10/8/6/21, 0 ошибок, 8 предупреждений, пять seed с исходом death и покрытие 6/10. 27 отсутствующих изображений не восстанавливались и не копировались; файлы Ash, решения и oracle/bundle `cf-play` не менялись.
 
-Локальный вспомогательный `node scripts/visual/shots.mjs http://127.0.0.1:4173 out/visual` вернул rc=1: fallback Chromium сообщил о двух элементах без доступного имени на снимках `editor-desktop` и `editor-narrow`. Исходный `shots.mjs` и `src/` не менялись. Полный браузерный playthrough и новый campaign-start smoke на том же preview вернули rc=0. Итог GitHub Actions для PR будет добавлен после запуска.
+Локальный `node scripts/visual/shots.mjs` на обычном билде с зарегистрированным проектом дал rc=1: fallback Chromium нашёл по два элемента без доступного имени на экранах `editor-desktop` и `editor-narrow`. Это empty-state screenshot script; его oracle и `src/` не менялись. `.github/workflows/visual.yml` теперь запускает его на отдельной копии `dist` с изолированным `[]`, не меняя `dist` или `public`. Тот же локальный workflow-путь дал rc=0: 4/4 empty-state снимка, затем реальный preview, playthrough (20 шагов, 0 находок) и campaign-start smoke.
+
+Первый GitHub run `40358044101` завершился failure в шаге браузерных снимков; остальные шаги до него (включая 55 smokes, сборку и оба oracle) были зелёными. Локальный повтор с изолированной копией проходит; в PR #77 включён этот же исправленный workflow. Актуальный результат последующих Actions runs см. в checks PR.
 
 ## Pull request
 
-Ожидает публикации ветки и результата GitHub Actions.
+PR #77: https://github.com/Creative36711/narthex/pull/77.

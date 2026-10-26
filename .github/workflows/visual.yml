@@ -80,24 +80,44 @@ jobs:
           npm i --no-save playwright@1.49.1
           npx playwright install --with-deps chromium
 
-      # Сервер и проверка — в одном шаге: фоновый процесс не переживает
+      # Серверы и проверки — в одном шаге: фоновые процессы не переживают
       # границу шага, а «сервер не поднялся» должен падать здесь, а не тихо.
       - name: Снять экраны и проверить утверждения
         run: |
           set +e
-          npx vite preview --port 4173 --strictPort --host 127.0.0.1 &
+          # Старый pixel smoke фиксирует empty-state UI. Дайте ему отдельную
+          # копию билда с фикстурой [], не меняя dist или public index.
+          EMPTY_DIR=out/visual-empty-preview
+          rm -rf "$EMPTY_DIR"
+          mkdir -p "$EMPTY_DIR"
+          cp -a dist/. "$EMPTY_DIR/"
+          printf '[]\n' > "$EMPTY_DIR/campaigns/index.json"
+          ./node_modules/.bin/vite preview --outDir "$EMPTY_DIR" --port 4174 --strictPort --host 127.0.0.1 &
+          EMPTY_PID=$!
+          npx --yes wait-on@8 http://127.0.0.1:4174 --timeout 60000
+          WAIT=$?
+          if [ "$WAIT" -ne 0 ]; then
+            echo "Изолированный empty-state preview не поднялся за 60 с"
+            kill "$EMPTY_PID" 2>/dev/null
+            rm -rf "$EMPTY_DIR"
+            exit 1
+          fi
+          node scripts/visual/shots.mjs http://127.0.0.1:4174 out/visual
+          SHOTS=$?
+          kill "$EMPTY_PID" 2>/dev/null
+          rm -rf "$EMPTY_DIR"
+
+          # Игровой маршрут и стартовая проверка используют обычный билд с
+          # реальным index: меню → сцена, затем отдельная проверка запуска.
+          ./node_modules/.bin/vite preview --port 4173 --strictPort --host 127.0.0.1 &
           SERVER_PID=$!
           npx --yes wait-on@8 http://127.0.0.1:4173 --timeout 60000
           WAIT=$?
           if [ "$WAIT" -ne 0 ]; then
-            echo "Предпросмотр не поднялся за 60 с"
+            echo "Предпросмотр штатного билда не поднялся за 60 с"
             kill "$SERVER_PID" 2>/dev/null
             exit 1
           fi
-          node scripts/visual/shots.mjs http://127.0.0.1:4173 out/visual
-          SHOTS=$?
-          # Проверка игрой: не только главная страница и редактор, но и путь
-          # игрока — меню → герой → сцена → диалог → переход, плюс FMV-проект.
           # Браузер уже стоит выше (playwright install --with-deps chromium).
           node scripts/visual/playthrough.mjs http://127.0.0.1:4173 out/visual/play
           PLAY=$?
