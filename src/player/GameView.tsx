@@ -20,9 +20,10 @@ import { CutscenePlayer } from '../shared/CutscenePlayer'
 import { BannerLayer, PostcardLayer } from './Atmosphere'
 import { setAudioCampaign, playUi, refreshAmbient, stopAllLoops } from '../shared/audio'
 import { refreshMusic, setMenuMode, stopMusic, applyMusicVolume } from '../shared/music'
-import { featureOn, type MusicTrackDef } from '../shared/types'
+import { featureOn, type MusicTrackDef, type SceneDef } from '../shared/types'
 import { Ico } from '../shared/icons'
 import { AdventureScreen } from './AdventureScreen'
+import { FmvScreen } from './FmvScreen'
 import { loadPlayerPackSession, type AdventureSession } from './adventureRuntime'
 
 interface Props {
@@ -85,6 +86,7 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
   }, [engine, engine.state.player.hp])
   // транзитные подсказки (получено/потеряно): каждая гаснет по таймеру
   const cutscene = engine.cutscene
+  const fmvScene = engine.currentScene() as (SceneDef & { fmv?: string }) | undefined
   const isIntroActive = engine.isSceneIntroActive()
   const isPostcardActive = !cutscene && !isIntroActive && !!engine.postcard
   const isMessageActive = !cutscene && !engine.dialogue && !engine.combat && !isIntroActive && !isPostcardActive && !!engine.messages[0]
@@ -170,9 +172,11 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
         onOpenHelp={() => openPanel('help')}
         onExitToMenu={onExitToMenu}
       />
-      {packSession
-        ? <AdventureScreen engine={engine} session={packSession} />
-        : <SceneScreen engine={engine} onOpenMap={() => openPanel('map')} />}
+      {fmvScene?.fmv
+        ? <FmvScreen engine={engine} scene={fmvScene} onContinue={() => openPanel('map')} />
+        : packSession
+          ? <AdventureScreen engine={engine} session={packSession} />
+          : <SceneScreen engine={engine} onOpenMap={() => openPanel('map')} />}
 
       {!cutscene && !engine.combat && !engine.dialogue && !engine.trade && <PartyPanel engine={engine} />}
 

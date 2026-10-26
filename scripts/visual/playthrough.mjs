@@ -208,28 +208,78 @@ recordSteps = false
   await context.close()
 }
 
-// ── Маршрут 2: FMV-проект не должен ронять приложение ──────────────────
+// ── Маршрут 2: FMV-проект от постера до финала ─────────────────────────
 {
   const hasFmv = campaignIndex().some((c) => c.id === 'fmv-crossing')
+  if (!hasFmv) report.findings.push('в реестре браузерной сборки нет кампании fmv-crossing')
   if (hasFmv) {
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 } })
     const page = await openPage(context)
+    recordSteps = true
     await page.goto(base, { waitUntil: 'networkidle', timeout: 45_000 })
-    await page.evaluate(() => localStorage.setItem('cf_last_campaign', 'fmv-crossing'))
-    await page.reload({ waitUntil: 'networkidle' })
-    await page.waitForTimeout(1200)
-    // явный выбор из списка: так делает игрок
-    await tap(page, 'Кампании')
-    await page.waitForTimeout(700)
-    const items = await page.getByText('Перекрёсток огней', { exact: false }).all()
-    if (items.length) await items[0].click()
-    await page.waitForTimeout(1200)
-    await tap(page, 'Новый забег')
-    await page.waitForTimeout(3500)
-    const state = await step(page, '07-fmv', 'FMV-кампания')
-    if (/Игра столкнулась с ошибкой/.test(state.text)) report.findings.push('FMV-проект роняет приложение')
+    await page.getByRole('button', { name: 'Кампании' }).click()
+    const fmvCard = page.locator('.campaign-row').filter({ hasText: /Перекрёсток огней/ }).locator('.campaign-card')
+    await fmvCard.waitFor({ state: 'visible', timeout: 8000 })
+    await fmvCard.click()
+    await page.waitForFunction(() => /Перекрёсток огней/i.test(document.querySelector('.campaign-title')?.textContent ?? ''), null, { timeout: 12000 })
+    const project = await step(page, '01-fmv-project-open', 'Открыт проект «Перекрёсток огней»')
+    if (/Игра столкнулась с ошибкой|Кампаний пока нет/.test(project.text)) report.findings.push('ошибка при открытии FMV-проекта')
+
+    if (!(await tap(page, 'Новый забег'))) report.findings.push('не найдена кнопка запуска fmv-crossing')
+    await page.waitForSelector('[data-fmv-mode]', { timeout: 20000 })
+    await page.waitForFunction(() => document.querySelector('[data-fmv-mode]')?.getAttribute('data-fmv-phase') === 'playing', null, { timeout: 12000 })
+    await page.waitForSelector('[data-fmv-poster]', { state: 'visible', timeout: 5000 })
+    const poster = await step(page, '02-fmv-poster', 'Постер первого видеофрагмента')
+    const posterState = await page.locator('[data-fmv-poster]').evaluate((img) => ({ loaded: img.complete && img.naturalWidth > 0, box: img.getBoundingClientRect().toJSON() }))
+    if (!posterState.loaded || posterState.box.width < 1 || posterState.box.height < 1) report.findings.push('постер первого фрагмента не загружен или невидим')
+    if (/Фон сцены не загрузился|Игра столкнулась с ошибкой/.test(poster.text)) report.findings.push('ошибка на постере первого фрагмента')
+
+    await page.locator('[data-fmv-play]').click()
+    await page.waitForFunction(() => document.querySelector('[data-fmv-video]')?.getAttribute('class')?.includes('is-visible'), null, { timeout: 5000 })
+    await page.waitForSelector('[data-fmv-subtitle]', { state: 'visible', timeout: 5000 })
+    const subtitleIsOverlay = await page.locator('[data-fmv-subtitle]').evaluate((node) => {
+      const rect = node.getBoundingClientRect()
+      const style = getComputedStyle(node)
+      return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && !node.closest('.journal, [data-journal]')
+    })
+    if (!subtitleIsOverlay) report.findings.push('субтитр не виден поверх видео вне журнала')
+    const firstVideo = await step(page, '03-fmv-video-fragment-a', 'Идёт первый видефрагмент, субтитры поверх видео')
+    if (!firstVideo.text.includes('У развилки гаснут огни')) report.findings.push('текст субтитра первого видеофрагмента отсутствует на экране')
+
+    await page.waitForSelector('[data-fmv-choices]', { timeout: 15000 })
+    const choices = await step(page, '04-fmv-post-fragment-choice', 'Выбор после фрагмента без пустого кадра')
+    const choiceFrame = await page.evaluate(() => {
+      const stage = document.querySelector('.fmv-stage')
+      const poster = document.querySelector('[data-fmv-poster]')
+      const video = document.querySelector('[data-fmv-video]')
+      const choice = document.querySelector('[data-fmv-choices]')
+      return {
+        choiceVisible: !!choice && choice.getBoundingClientRect().width > 0,
+        posterLoaded: !!poster && poster.complete && poster.naturalWidth > 0,
+        mediaPresent: !!stage && !!(poster?.getBoundingClientRect().width || video?.getBoundingClientRect().width),
+      }
+    })
+    if (!choiceFrame.choiceVisible || !choiceFrame.posterLoaded || !choiceFrame.mediaPresent) report.findings.push('после первого фрагмента выбор показан на пустом кадре или без постера')
+    if (!choices.buttons.some((button) => /свет фонаря/i.test(button))) report.findings.push('на первом выборе отсутствует ветка фонаря')
+
+    await page.getByRole('button', { name: /Идти на свет фонаря/ }).click()
+    await page.waitForFunction(() => document.querySelector('[data-fmv-presentation="2"]'), null, { timeout: 8000 })
+    await page.waitForFunction(() => document.querySelector('[data-fmv-mode]')?.getAttribute('data-fmv-phase') === 'playing', null, { timeout: 8000 })
+    await page.waitForSelector('[data-fmv-poster]', { state: 'visible', timeout: 5000 })
+    const nextPoster = await step(page, '05-fmv-poster-fragment-b', 'Постер выбранного второго фрагмента')
+    if (/Игра столкнулась с ошибкой/.test(nextPoster.text)) report.findings.push('ошибка при переходе ко второму фрагменту')
+    await page.locator('[data-fmv-play]').click()
+    await page.waitForFunction(() => document.querySelector('[data-fmv-video]')?.getAttribute('class')?.includes('is-visible'), null, { timeout: 5000 })
+    await page.waitForSelector('[data-fmv-subtitle]', { state: 'visible', timeout: 5000 })
+    const secondVideo = await step(page, '06-fmv-video-fragment-b', 'Идёт второй видеофрагмент')
+    if (!secondVideo.text.includes('Фонарь освещает безопасную дорогу')) report.findings.push('субтитр второго видеофрагмента отсутствует на экране')
+
+    await page.waitForSelector('[data-fmv-ending]', { timeout: 15000 })
+    const ending = await step(page, '07-fmv-ending', 'Достигнут финал выбранной ветки')
+    if (/Игра столкнулась с ошибкой|Фон сцены не загрузился/.test(ending.text)) report.findings.push('ошибка на финальном экране FMV')
     await context.close()
   }
+  recordSteps = false
 }
 
 recordSteps = true
