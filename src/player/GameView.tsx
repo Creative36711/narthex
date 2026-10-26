@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { SyntheticEvent } from 'react'
 import type { GameEngine } from '../core/engine'
 import { HUD } from './HUD'
 import { SceneScreen } from './SceneScreen'
@@ -21,6 +22,8 @@ import { setAudioCampaign, playUi, refreshAmbient, stopAllLoops } from '../share
 import { refreshMusic, setMenuMode, stopMusic, applyMusicVolume } from '../shared/music'
 import { featureOn, type MusicTrackDef } from '../shared/types'
 import { Ico } from '../shared/icons'
+import { AdventureScreen } from './AdventureScreen'
+import { loadPlayerPackSession, type AdventureSession } from './adventureRuntime'
 
 interface Props {
   engine: GameEngine
@@ -35,8 +38,35 @@ interface Props {
 
 type PanelId = 'map' | 'inventory' | 'character' | 'log' | 'help' | 'craft' | 'codex' | 'saves' | 'meta' | null
 
+function recoverBrokenPortrait(event: SyntheticEvent<HTMLDivElement>) {
+  const image = event.target
+  if (!(image instanceof HTMLImageElement)) return
+  const portrait = image.closest('.dialogue-portrait')
+  if (portrait) {
+    image.remove()
+    if (!portrait.querySelector('.dialogue-portrait-placeholder')) {
+      const fallback = document.createElement('div')
+      fallback.className = 'dialogue-portrait-placeholder'
+      fallback.setAttribute('aria-hidden', 'true')
+      fallback.textContent = '👤'
+      portrait.prepend(fallback)
+    }
+    return
+  }
+  if (image.matches('.message-portrait')) image.remove()
+}
+
 export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoadSlot, debugPanelOpen = false, onGamePanelOpen }: Props) {
   const [panel, setPanel] = useState<PanelId>(null)
+  const [packSession, setPackSession] = useState<AdventureSession | null>(null)
+  useEffect(() => {
+    let active = true
+    setPackSession(null)
+    void loadPlayerPackSession(engine)
+      .then((session) => { if (active) setPackSession(session) })
+      .catch((error) => console.error('[narthex] pack screen could not open:', error))
+    return () => { active = false }
+  }, [engine])
   // GameView owns the subscription so embedded playtests update just like the normal player.
   const [, invalidate] = useState(0)
   useEffect(() => engine.subscribe(() => invalidate((n) => n + 1)), [engine])
@@ -126,7 +156,7 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
   }, [])
 
   return (
-    <div className={`game-view ${damageFlash ? 'player-damage-flash' : ''}`}>
+    <div className={`game-view ${damageFlash ? 'player-damage-flash' : ''}`} onErrorCapture={recoverBrokenPortrait}>
       <HUD
         engine={engine}
         onOpenMap={() => openPanel('map')}
@@ -140,7 +170,9 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
         onOpenHelp={() => openPanel('help')}
         onExitToMenu={onExitToMenu}
       />
-      <SceneScreen engine={engine} onOpenMap={() => openPanel('map')} />
+      {packSession
+        ? <AdventureScreen engine={engine} session={packSession} />
+        : <SceneScreen engine={engine} onOpenMap={() => openPanel('map')} />}
 
       {!cutscene && !engine.combat && !engine.dialogue && !engine.trade && <PartyPanel engine={engine} />}
 
