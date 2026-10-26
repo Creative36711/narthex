@@ -27,12 +27,50 @@ jobs:
       - name: Установить зависимости
         run: npm ci
 
-      # Единый экзамен фазы запускается до сборки; таблица rc видна в логах CI.
-      - name: Экзамен миссии до сборки
-        run: npm run check:mission
+      - name: Проверить свежесть бандла аудита до сборки
+        run: npm run check:audit-bundle
+
+      - name: TypeScript
+        run: npx tsc -b
+
+      - name: Контракты и browser gate
+        run: npm run check:contracts
+
+      - name: Граф ядра
+        run: npm run check:core-graph
+
+      - name: Гайд и playkit
+        run: npm run check:guide
+
+      - name: Коды narrative
+        run: npm run check:narrative-codes
+
+      - name: Размер модулей
+        run: npm run check:module-size
+
+      - name: Версия
+        run: npm run check:version
+
+      - name: Бренд
+        run: npm run check:brand
+
+      - name: Smoke ядра
+        run: npm run smoke:core
+
+      - name: Все 55 смоуков миссии NAR-2.15
+        run: npm run smoke:mission
+
+      - name: Эталон narrative
+        run: node public/ai/cf-play.mjs check public/campaigns/ash-of-caerden
+
+      - name: Эталон adventure
+        run: node public/ai/cf-play.mjs check public/campaigns/ash-of-caerden-adventure
 
       - name: Собрать проект
         run: npm run build
+
+      - name: Проверить свежесть бандла после сборки
+        run: npm run check:audit-bundle
 
       - name: Поставить Chromium с системными библиотеками
         run: |
