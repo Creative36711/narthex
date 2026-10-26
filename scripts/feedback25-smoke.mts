@@ -1,3 +1,4 @@
+import { scenePlayerSource } from './scene-sources.mts'
 import '../packs/narrative/operations'
 /**
  * Смоук раунда фидбека 25 (баг-пасс ревью «до обновления», 12 пунктов).
@@ -27,7 +28,7 @@ function check(name: string, ok: boolean, extra = '') {
   console.log(`${ok ? '✓' : '✗ FAIL'} ${name}${extra ? ` — ${extra}` : ''}`)
   if (!ok) failed++
 }
-const f = (p: string) => readFileSync(p, 'utf8')
+const f = (p: string) => (p.endsWith('src/player/SceneScreen.tsx') ? scenePlayerSource() : readFileSync(p, 'utf8'))
 
 // ── 1. тосты предметов ──
 {

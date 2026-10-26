@@ -22,6 +22,7 @@
  */
 import { mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync, statSync } from 'node:fs'
 import { extname, join, relative, resolve, sep } from 'node:path'
+import { declaredAbsences } from './absence-policy.mjs'
 
 const positional = process.argv.slice(2).filter((arg) => !arg.startsWith('--'))
 const adventureOnly = process.argv.includes('--adventure')
@@ -222,17 +223,15 @@ async function dismissMessages(page) {
 }
 
 const strictExamErrorScreen = /Фон сцены не загрузился|Игра столкнулась с ошибкой|Кампаний пока нет|Ошибка загрузки кампании|Сцена не найдена|пак неизвестен/i
-const KNOWN_ABSENT_IMAGES = {
-  'ash-of-caerden': [
-    'assets/img/scenes/gates_front_day.jpg',
-    'assets/img/npc/aldric_neutral.jpg',
-    'assets/img/maps/caerden_valley.jpg',
-    'assets/img/scenes/forest_edge.jpg',
-  ],
-  'ash-of-caerden-adventure': [
-    'assets/img/scenes/gates_front_day.jpg',
-    'assets/img/npc/aldric_neutral.jpg',
-  ],
+/**
+ * Список намеренно отсутствующих медиа берём у самой кампании (D-076):
+ * `known_absent_images` в dev-fixture.json. У проекта витрины маркера нет,
+ * поэтому список пуст и любое отсутствие остаётся находкой. Здесь нет ни
+ * одного захардкоженного пути — иначе проверка знала бы только те файлы,
+ * которые проходит маршрут.
+ */
+function declaredAbsencesFor(campaignId) {
+  return declaredAbsences(campaignRoot, campaignId)
 }
 
 function campaignRelativePath(url, campaignId) {
@@ -508,7 +507,7 @@ async function runExamPack(definition) {
       })
     })
     await page.goto(base, { waitUntil: 'networkidle', timeout: 45000 })
-    const knownPaths = KNOWN_ABSENT_IMAGES[definition.id] || []
+    const knownPaths = declaredAbsencesFor(definition.id)
     const probeResults = await page.evaluate(async ({ campaignId, paths }) => Promise.all(paths.map(async (path) => {
       try {
         const url = `/campaigns/${campaignId}/${path}`
@@ -544,14 +543,23 @@ async function runExamPack(definition) {
   const rawNpcIds = packObservations.reduce((sum, entry) => sum + (entry.rawNpcIds || 0), 0)
   const errorScreens = packObservations.filter((entry) => strictExamErrorScreen.test(entry.text)).length
   const startsWithEmptyCatalog = !packObservations.length || /Кампаний пока нет/i.test(packObservations[0].text)
-  const knownAbsencePaths = new Set(KNOWN_ABSENT_IMAGES[definition.id] || [])
-  const knownAbsences = knownAbsenceChecks.map((check) => ({ ...check, knownAbsence: check.status === 'fetch-error' || check.status >= 400 || !check.contentType.startsWith('image/') }))
+  const knownAbsencePaths = new Set(declaredAbsencesFor(definition.id))
+  const knownAbsences = knownAbsenceChecks.map((check) => ({
+    ...check,
+    knownAbsence: check.status === 'fetch-error' || check.status >= 400 || !check.contentType.startsWith('image/'),
+    servedAsImage: String(check.contentType || '').toLowerCase().startsWith('image/'),
+  }))
   const blockingResourceFailures = [...new Map(
     resourceFailures
       .filter((failure) => isBlockingCampaignResponseFailure(failure) && !knownAbsencePaths.has(failure.path))
       .map((failure) => [failure.url, failure]),
   ).values()]
 
+  // Объявленный путь, который внезапно начал отдаваться картинкой, — устаревшая
+  // декларация, а не успех: фикстура перестала соответствовать данным.
+  for (const stale of knownAbsences.filter((absence) => absence.servedAsImage)) {
+    addFinding(`объявленный отсутствующим путь отдаётся как изображение: ${stale.path} (${stale.contentType})`)
+  }
   if (knownAbsences.some((absence) => absence.status === 'fetch-error')) {
     addFinding(`не удалось получить статус известного image path: ${knownAbsences.filter((absence) => absence.status === 'fetch-error').map((absence) => absence.path).join(', ')}`)
   }
@@ -610,7 +618,7 @@ async function runBrowserExam() {
     emptySrcImages: 0,
     rawNpcIds: 0,
     emptyCatalogAtStart: false,
-    knownAbsentImages: KNOWN_ABSENT_IMAGES,
+    declaredAbsences: 'dev-fixture.json → known_absent_images (D-076)',
     adventureFinal: 'ending_gate_unlocked',
     ashFinal: 'visible end screen with campaign ending id when identifiable',
   }

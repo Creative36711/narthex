@@ -1,3 +1,4 @@
+import { scenePlayerSource } from './scene-sources.mts'
 import { readFileSync } from 'node:fs'
 
 function must(cond: boolean, msg: string) {
@@ -13,7 +14,7 @@ console.log('--- Смоук-тест: Управление эффектом жи
 const typesSrc = readFileSync('src/shared/types.ts', 'utf8')
 must(typesSrc.includes('breathe?: boolean'), '1. Поле breathe добавлено в типы сущностей')
 
-const sceneScreenSrc = readFileSync('src/player/SceneScreen.tsx', 'utf8')
+const sceneScreenSrc = scenePlayerSource()
 must(sceneScreenSrc.includes('entity.type === \'npc\' ? (entity.breathe !== false) : !!entity.breathe'), '2. Логика shouldBreathe корректна: NPC по умолчанию дышит, робот с breathe:false нет, предметы по умолчанию нет')
 must(sceneScreenSrc.includes('cf-breathe'), '3. Класс cf-breathe применяется к спрайту')
 

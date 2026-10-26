@@ -19,6 +19,7 @@
  *     совпадение имён файлов не теряет объекты;
  *  7. группировка предупреждений: повторы схлопываются в одну строку.
  */
+import { scenePlayerSource } from './scene-sources.mts'
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
@@ -148,7 +149,7 @@ const campaign: CampaignData = {
   check('1 правило задало состояние облика', e.entityState('npc_maeva') === 'angry')
   e.applyEffects([{ type: 'set_entity_state', entity: 'npc_maeva', state: '' }])
   check('1 пустая строка снимает состояние', e.entityState('npc_maeva') === undefined)
-  const src = readFileSync('src/player/SceneScreen.tsx', 'utf8')
+  const src = scenePlayerSource()
   const ovl = readFileSync('src/player/DialogueOverlay.tsx', 'utf8')
   check('1 сцена спрашивает движок о состоянии облика', /engine\.entityState\(/.test(src))
   check('1 состояние движка сильнее свойства слота', /entityState\([^)]*\)[\s\S]{0,200}sprite_state/.test(src) === false || src.includes('entityState'))
