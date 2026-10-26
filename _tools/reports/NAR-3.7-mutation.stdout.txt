@@ -1,0 +1,46 @@
+NAR-3.7 strict real-browser exam
+Base URL: http://localhost:4173
+Browser: Chromium 131.0.6778.0
+Fixture root: /tmp/nar37-fixture.IQAb2z
+
+--- ash-of-caerden-adventure ---
+  ash-of-caerden-adventure / ash-of-caerden-adventure-01-home: Стартовое меню — кнопок 5, битых img 0
+  ash-of-caerden-adventure / ash-of-caerden-adventure-02-selected: Пак выбран в меню кампаний — кнопок 5, битых img 0
+  ash-of-caerden-adventure / ash-of-caerden-adventure-03-character: Создание героя adventure — кнопок 40, битых img 0
+  ash-of-caerden-adventure / ash-of-caerden-adventure-04-stage: Сцена adventure после нового забега — кнопок 23, битых img 0
+  ash-of-caerden-adventure / ash-of-caerden-adventure-05-walk: Ходьба к точке сцены — кнопок 22, битых img 0
+  ash-of-caerden-adventure / ash-of-caerden-adventure-06-inspect: Осмотр символов ворот — кнопок 22, битых img 0
+  ash-of-caerden-adventure / ash-of-caerden-adventure-07-items: Взяты два предмета — кнопок 23, битых img 0
+  ash-of-caerden-adventure / ash-of-caerden-adventure-08-combination: Два предмета соединены в мазь — кнопок 23, битых img 0
+  ash-of-caerden-adventure / ash-of-caerden-adventure-09-dialogue: Разговор со стражником — кнопок 27, битых img 0
+  ash-of-caerden-adventure / ash-of-caerden-adventure-10-riddle: Крупный план загадки ворот — кнопок 24, битых img 0
+  ash-of-caerden-adventure / ash-of-caerden-adventure-11-rejected-answer: Неверная последовательность отклонена — кнопок 24, битых img 0
+  ash-of-caerden-adventure / ash-of-caerden-adventure-12-ending: Финал: ending_gate_unlocked — кнопок 20, битых img 0
+FAIL ash-of-caerden-adventure: steps=12; pageerror=0; errorScreens=0; brokenImg=0; emptySrcImg=0; rawNpcIds=0; emptyStart=false
+  finalState=ending_gate_unlocked
+  finalFrame=/home/user/narthex/out/nar37-mutation/ash-of-caerden-adventure/ash-of-caerden-adventure-12-ending.png
+  known-absence=assets/img/scenes/gates_front_day.jpg; status=404; content-type=text/plain; HTTP 404
+  known-absence=assets/img/npc/aldric_neutral.jpg; status=404; content-type=text/plain; HTTP 404
+  finding=ошибки обязательных ресурсов кампании: 1; 404 http://localhost:4173/campaigns/ash-of-caerden-adventure/assets/img/npc/nar37-missing-probe.png (HTTP 404)
+  resource=assets/img/npc/nar37-missing-probe.png status=404 http://localhost:4173/campaigns/ash-of-caerden-adventure/assets/img/npc/nar37-missing-probe.png (HTTP 404)
+  console-error=Failed to load resource: the server responded with a status of 404 (Not Found)
+  console-error=Failed to load resource: the server responded with a status of 404 (Not Found)
+  console-error=Failed to load resource: the server responded with a status of 404 (Not Found)
+  console-error=Failed to load resource: the server responded with a status of 404 (Not Found)
+  console-error=Failed to load resource: the server responded with a status of 404 (Not Found)
+  console-error=Failed to load resource: the server responded with a status of 404 (Not Found)
+  console-error=Failed to load resource: the server responded with a status of 404 (Not Found)
+  console-error=[сцена] фон не загрузился: http://localhost:4173/campaigns/ash-of-caerden-adventure/assets/img/scenes/gates_front_day.jpg
+  console-error=Failed to load resource: portrait fallback http://localhost:4173/campaigns/ash-of-caerden-adventure/assets/img/npc/nar37-missing-probe.png
+  console-error=Failed to load resource: the server responded with a status of 404 (Not Found)
+  console-error=Failed to load resource: portrait fallback http://localhost:4173/campaigns/ash-of-caerden-adventure/assets/img/npc/nar37-missing-probe.png
+  console-error=Failed to load resource: the server responded with a status of 404 (Not Found)
+  console-error=Failed to load resource: portrait fallback http://localhost:4173/campaigns/ash-of-caerden-adventure/assets/img/npc/nar37-missing-probe.png
+
+RESULT: FAIL; packs=1; steps=12; findings=1
+  finding=ash-of-caerden-adventure: ошибки обязательных ресурсов кампании: 1; 404 http://localhost:4173/campaigns/ash-of-caerden-adventure/assets/img/npc/nar37-missing-probe.png (HTTP 404)
+
+MUTATION_PROBE_RC=1
+MUTATION_URL=http://localhost:4173/campaigns/ash-of-caerden-adventure/assets/img/npc/nar37-missing-probe.png
+TEMP_COPY_REMOVED=yes
+WORKTREE_UNCHANGED=yes
