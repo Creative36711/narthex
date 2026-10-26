@@ -30,6 +30,7 @@
     "smoke:ai-task": "tsx scripts/ai-task-smoke.mts",
     "smoke:char-templates": "tsx scripts/char-template-smoke.mts",
     "smoke:no-campaign": "tsx scripts/no-campaign-smoke.mts",
+    "smoke:campaign-start": "node scripts/campaign-start-smoke.mjs",
     "smoke:chronicle-manifest": "tsx scripts/chronicle-manifest-smoke.mts",
     "smoke:dialogues-r31": "tsx scripts/dialogues-round31-smoke.mts",
     "smoke:dialogues-r32": "tsx scripts/dialogues-round32-smoke.mts",

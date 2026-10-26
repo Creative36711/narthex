@@ -60,6 +60,9 @@ jobs:
       - name: Все 55 смоуков миссии NAR-2.15
         run: npm run smoke:mission
 
+      - name: Изолированный smoke пустого реестра
+        run: npm run smoke:no-campaign
+
       - name: Эталон narrative
         run: node public/ai/cf-play.mjs check public/campaigns/ash-of-caerden
 
@@ -98,9 +101,12 @@ jobs:
           # Браузер уже стоит выше (playwright install --with-deps chromium).
           node scripts/visual/playthrough.mjs http://127.0.0.1:4173 out/visual/play
           PLAY=$?
+          npm run smoke:campaign-start -- http://127.0.0.1:4173
+          START=$?
           kill "$SERVER_PID" 2>/dev/null
           if [ "$SHOTS" -ne 0 ]; then exit "$SHOTS"; fi
-          exit "$PLAY"
+          if [ "$PLAY" -ne 0 ]; then exit "$PLAY"; fi
+          exit "$START"
 
       - name: Сохранить снимки и отчёт
         if: always()
