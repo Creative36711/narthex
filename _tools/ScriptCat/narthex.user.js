@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.58
+// @version      1.4.74
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -57,10 +57,13 @@
     questionTextMax: 180,
     questionDefaultMax: 200,
     questionCheckMs: 600000, // как часто проверять сроки вопросов (10 минут)
+    adrCheckMs: 600000, // как часто смотреть docs/decisions на proposed (10 минут)
     pageUrl: "https://app.notion.com/p/Narthex-4016f0cf570581f7a1f7c3661c608ffd",
     repo: "Creative36711/narthex", // для ссылки на PR из номера
     tickMs: 15000,
     mergeGraceMs: 90000, // сколько ждём мерж, прежде чем нажать кнопки за агента
+    arenaResendMax: 1, // один минимальный повтор после ошибки Arena; второй отказ — пауза
+    arenaRetryMs: 180000, // ошибка старше трёх минут уже не про нашу отправку
     continueWaitMs: 20000, // после Merged ждём Continue: без неё агент не получит новую ветку
     prCardWaitMs: 8000, // карточка PR может отрисоваться позже ответа
     prWaitMs: 300000, // общий предел ожидания мержа
@@ -71,9 +74,16 @@
     draftLineMax: 6, // сколько черновиков Координатор видит списком в промпте
     readyLineMax: 6, // сколько карточек Ready Координатор видит списком в промпте
     insertRetries: 3, // с какой попытки вставки в редактор звать Мастера (раньше — сами)
+    composerGraceMs: 8000, // сколько ждём возврата поля ввода, если оно исчезло при перерисовке
+    sendRetries: 3, // сколько тиков ждём дорисовку страницы, прежде чем звать Мастера
+    sendReadyMs: 20000, // столько ждём активную кнопку Send на дорисовывающейся странице
+    clickReadyMs: 8000, // столько ждём кнопку, прежде чем считать её недоступной
     pendingTtlMs: 600000, // отправка старше 10 минут не досылается: адресат её не получил
     undeliveredTtlMs: 7200000, // неотправленное задание ждёт Мастера два часа, а не десять минут
     replyWaitMs: 1800000, // 30 минут без единого сообщения — повод остановиться
+    pageWaitMs: 90000, // страница адресата не отрисовалась — это «нет связи», а не молчание агента
+    pageReloadMs: 20000, // столько ждём отрисовку, прежде чем перечитать страницу один раз
+    observeGraceMs: 30000, // сколько смотрим на отрисованную страницу, прежде чем судить о молчании
     sendVerifyMs: 6000, // сколько ждём своё сообщение в чате после нажатия Send
     captchaGuardMs: 8000, // сколько после «отправлено» ждём капчу: она всплывает с задержкой
     stalledMs: 2700000, // 45 минут — и только для карточки, по которой ход потерян
@@ -103,6 +113,8 @@
     step: "cfn-step-request",
     debug: "cfn-debug",
     lastSend: "cfn-last-send",
+    deadSend: "cfn-dead-send",
+    qQueue: "cfn-q-queue",
     stateV: "cfn-state-v",
   };
 
@@ -119,6 +131,9 @@
     ntfy: "cfn-ntfy",
     gh: "cfn-gh",
     questions: "cfn-questions",
+    qBadge: "cfn-q-badge",
+    adr: "cfn-adr",
+    adrBadge: "cfn-adr-badge",
     count: "cfn-log-count",
     debug: "cfn-debug-toggle",
   };
@@ -286,7 +301,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.55";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.74";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -773,12 +788,47 @@
   function resume(reason = "проверено Мастером") {
     const before = GM_getValue(K.paused, "");
     if (!before) return;
+    const paused = GM_getValue(K.pause, null);
     GM_setValue(K.paused, "");
     GM_setValue(K.pause, null);
+    // Пауза из-за «Something went wrong»: сообщение не приняли, и ожидание
+    // ответа — фикция. «Продолжить» — это и есть просьба отправить заново,
+    // поэтому окно свежести ошибки (`arenaRetryMs`) считается от нажатия, а в
+    // очередь кладётся минимальное сообщение «прочитай карточку сам». Старая
+    // отметка «эту ошибку уже видели» снимается: иначе новый код её не тронет.
+    if (paused && paused.kind === "arena-error") {
+      GM_setValue(K.errSeen, "");
+      const waiting = GM_getValue(K.expect, null);
+      if (waiting) {
+        GM_setValue(K.expect, {
+          ...waiting,
+          sentAt: Date.now(),
+          verified: false,
+          arenaResend: 0,
+        });
+        retryRejectedHandoff(
+          GM_getValue(K.expect, null),
+          { messageId: paused.ref || "" },
+          "Пауза была из-за ошибки Arena",
+        );
+      } else {
+        log("Пауза была из-за ошибки Arena, а ожидания уже нет: нажмите «Шаг», чтобы начать ход заново.", true);
+      }
+    }
     // Новый бюджет напоминаний: Мастер уже посмотрел, почему агент молчал.
     const expect = GM_getValue(K.expect, null);
     if (expect) {
-      GM_setValue(K.expect, { ...expect, tries: 0, lastReplySig: "", lastReplyAt: 0 });
+      // «Продолжить» возвращает право и на автоматический повтор после ошибки
+      // Arena (`arenaResend`), и на напоминания: Мастер уже увидел ошибку и ждёт,
+      // что задание уйдёт само.
+      GM_setValue(K.expect, {
+        ...expect,
+        tries: 0,
+        autoResend: 0,
+        arenaResend: 0,
+        lastReplySig: "",
+        lastReplyAt: 0,
+      });
     }
     log(`Пауза снята Мастером (${reason}). Продолжаю.`, false, { ntfy: "quiet" });
     if (GM_getValue(K.pending, null)) {
@@ -881,7 +931,8 @@
         <button id="${ui.step}" title="Один шаг цикла" style="${btnStyle()}">Шаг</button>
         <button id="${ui.toggle}" style="${btnStyle()}">▶ Включить</button>
         <button id="${ui.ntfy}" title="Уведомления ntfy: тихие вехи и громкие тревоги" style="${btnStyle()}">🔔</button>
-        <button id="${ui.questions}" title="Вопросы агентов к Мастеру — база «Вопросы» в Notion" style="${btnStyle()}">❓</button>
+        <button id="${ui.questions}" title="Вопросы агентов к Мастеру — база «Вопросы» в Notion" style="${btnStyle()}">❓<span id="${ui.qBadge}" style="display:none;margin-left:3px;padding:0 4px;border-radius:7px;background:#b23b3b;color:#fff;font-size:10px;line-height:14px;vertical-align:middle">0</span></button>
+        <button id="${ui.adr}" title="Решения (ADR) со статусом proposed — ждут Мастера" style="${btnStyle()}">⚖<span id="${ui.adrBadge}" style="display:none;margin-left:3px;padding:0 4px;border-radius:7px;background:#8a6b2a;color:#fff;font-size:10px;line-height:14px;vertical-align:middle">0</span></button>
         <button id="${ui.gh}" title="GitHub: токен для приватного репозитория и возврат карточки после ложного отказа" style="${btnStyle()}">🐙</button>
         <button id="${ui.debug}" title="Отладка в консоли браузера (F12)" style="${btnStyle()}">🐞</button>
         <button id="${ui.reset}" title="Сбросить очередь и ожидание прошлых попыток (журнал и настройки останутся)" style="${btnStyle()}">↺</button>
@@ -908,6 +959,8 @@
       paintDebugButton();
     };
     document.getElementById(ui.questions).onclick = () => window.open(C.questionsUrl, "_blank", "noopener");
+    document.getElementById(ui.adr).onclick = () =>
+      window.open(`https://github.com/${C.repo}/tree/main/docs/decisions`, "_blank", "noopener");
     document.getElementById(ui.ntfy).onclick = () => ntfyDialog();
     document.getElementById(ui.gh).onclick = () => githubDialog();
     document.getElementById(ui.stop).onclick = () => {
@@ -927,6 +980,10 @@
     renderLog();
     setStatus();
     paintDebugButton();
+    paintQuestions(openQuestions().rows);
+    watchQuestions();
+    paintDecisions(openDecisions().rows);
+    watchDecisions();
     maybeGhDialog();
   }
 
@@ -1329,12 +1386,25 @@
   function adoptIds(result, expect) {
     const fixed = { ...result };
     const stray = [];
-    if (!isUuid(fixed.dispatch_id) || norm(fixed.dispatch_id) !== norm(expect.ref)) {
-      stray.push(`dispatch_id «${fixed.dispatch_id || "нет"}»`);
-      fixed.dispatch_id = expect.ref;
+    // Короткие ключи `dispatch`/`run` — не «чужой id», а тот же самый: 25.10
+    // Tools прислал маркер с верными значениями под короткими именами, и
+    // журнал получил предупреждение о битом id. Принимаем синонимы молча;
+    // вслух называем только то, что действительно не совпало.
+    const given = (...keys) => {
+      for (const key of keys) {
+        const value = fixed[key];
+        if (value !== undefined && value !== null && value !== "") return String(value);
+      }
+      return "";
+    };
+    const dispatch = given("dispatch_id", "dispatch", "dispatchId");
+    const run = given("run_id", "run", "runId");
+    if (!isUuid(dispatch) || norm(dispatch) !== norm(expect.ref)) {
+      stray.push(`dispatch_id «${dispatch || "нет"}»`);
     }
-    if (expect.runId && norm(fixed.run_id) !== norm(expect.runId)) {
-      stray.push(`run_id «${fixed.run_id || "нет"}»`);
+    fixed.dispatch_id = expect.ref;
+    if (expect.runId) {
+      if (norm(run) !== norm(expect.runId)) stray.push(`run_id «${run || "нет"}»`);
       fixed.run_id = expect.runId;
     }
     return { result: fixed, stray };
@@ -1380,6 +1450,7 @@
     const headers = { "Content-Type": "text/plain;charset=utf-8" };
 
     let gmError = "";
+    let refused = "";
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
         const data = await request("POST", url, headers, payload);
@@ -1391,7 +1462,12 @@
         // прервалась), не мог завершиться никогда: повтор упирался в
         // собственный маркер и падал на нём же.
         if (action === "append" && /duplicate/i.test(why)) return { ok: true, duplicate: true };
-        throw new Error(why);
+        // Шлюз ответил и отказал — это не молчание. Повтор и второй путь дадут
+        // тот же ответ (а у append есть побочный эффект), поэтому сразу наверх:
+        // Мастеру важно видеть «отказал, потому что…», а не «не ответил».
+        refused = why;
+        gmError = why;
+        break;
       } catch (e) {
         gmError = String((e && e.message) || e);
         if (!networkish(gmError)) break;
@@ -1400,18 +1476,27 @@
     }
 
     let fetchError = "";
-    try {
-      const res = await fetch(url, { method: "POST", headers, body: payload });
-      const data = await res.json();
-      if (data && data.ok === true) return data;
-      if (action === "append" && /duplicate/i.test(String((data && data.error) || ""))) return { ok: true, duplicate: true };
-      fetchError = String((data && data.error) || `HTTP ${res.status}`);
-    } catch (e) {
-      fetchError = String((e && e.message) || e);
+    if (!refused) {
+      try {
+        const res = await fetch(url, { method: "POST", headers, body: payload });
+        const data = await res.json();
+        if (data && data.ok === true) return data;
+        if (action === "append" && /duplicate/i.test(String((data && data.error) || ""))) return { ok: true, duplicate: true };
+        refused = String((data && data.error) || "");
+        fetchError = refused || `HTTP ${res.status}`;
+      } catch (e) {
+        fetchError = String((e && e.message) || e);
+      }
     }
 
-    const err = new Error(`шлюз Drive не ответил: GM: ${gmError}; fetch: ${fetchError}`);
+    const err = new Error(
+      refused
+        ? `шлюз Drive отказал: ${refused}`
+        : `шлюз Drive не ответил: GM: ${gmError}; fetch: ${fetchError}`,
+    );
     err.narthex = "gateway";
+    err.refused = Boolean(refused);
+    err.reason = refused;
     throw err;
   }
 
@@ -1757,6 +1842,44 @@
   const taskState = (p) => sel(p.properties["Dispatch State"]);
   const taskRole = (p) => sel(p.properties["Кому"]);
 
+  /**
+   * Слова названия миссии — без знаков и связок.
+   *
+   * 25.10 (фаза 2) Координатор создал NAR-2.14 и NAR-2.15 с «Миссией»
+   * «NAR-2 · Шов движок и пак», а миссия называется «NAR-2 · Шов «движок /
+   * пак»». Сравнение строк в лоб (`includes`) не совпало, обе карточки
+   * выпали из очереди, и транспорт дважды просил план с «0 Ready, 0 Draft»,
+   * хотя карточки лежали в базе, — а потом встал на паузу «в Ready нет
+   * карточки». Поэтому имена сравниваются по словам: кавычки, «·», «/» и
+   * связки «и» на смысл не влияют.
+   */
+  const MISSION_STOPWORDS = new Set(["и", "миссия", "миссии", "фаза", "этап"]);
+  const missionWords = (text) =>
+    String(text || "")
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, " ")
+      .split(" ")
+      .filter((w) => w && !MISSION_STOPWORDS.has(w));
+
+  /**
+   * Одна ли это миссия. Точное совпадение слов — да; перестановка слов и
+   * лишнее слово — тоже да, если короткое название содержит не меньше трёх
+   * слов (иначе «NAR-2» цепляло бы карточки соседних миссий). Пустое поле
+   * «Миссия» в карточке — не чужая миссия: такие карточки считаются всегда.
+   */
+  function missionSame(a, b) {
+    const left = missionWords(a);
+    const right = missionWords(b);
+    if (!left.length || !right.length) return false;
+    const key = (list) => [...list].sort().join(" ");
+    if (key(left) === key(right)) return true;
+    const [small, big] = left.length <= right.length ? [left, right] : [right, left];
+    return small.length >= 3 && small.every((w) => big.includes(w));
+  }
+
+  /** Сказать про «потерянные» карточки — один раз на набор, а не на каждый план. */
+  const missionSkipSeen = new Set();
+
   async function tasks(state, mission) {
     const rows = await query(
       C.requests,
@@ -1764,13 +1887,32 @@
       [{ property: "Sequence", direction: "ascending" }],
     );
     if (!mission) return rows;
-    const wanted = [mission.id, rt(mission.properties["Миссия"])]
-      .filter(Boolean)
-      .map((x) => x.trim().toLowerCase());
-    return rows.filter((row) => {
-      const value = rt(row.properties["Миссия"]).trim().toLowerCase();
-      return !value || wanted.some((w) => value === w || value.includes(w) || w.includes(value));
+    const wanted = rt(mission.properties["Миссия"]).trim();
+    const skipped = [];
+    const kept = rows.filter((row) => {
+      const value = rt(row.properties["Миссия"]).trim();
+      if (!value) return true;
+      if (norm(value) === norm(mission.id)) return true;
+      if (missionSame(value, wanted)) return true;
+      skipped.push({ row, value });
+      return false;
     });
+    if (skipped.length) {
+      const key = `${state}|${skipped.map((s) => s.row.id).join(",")}`;
+      if (!missionSkipSeen.has(key)) {
+        missionSkipSeen.add(key);
+        const list = skipped
+          .map((s) => `«${firstLine(taskTitle(s.row), 40)}» — «${firstLine(s.value, 60)}»`)
+          .join("; ");
+        log(
+          `В «${state}» есть карточки другой миссии, они не в очереди: ${list}. ` +
+            `Очередь миссии «${firstLine(wanted, 60)}».`,
+          false,
+          { tone: "warn", ntfy: "quiet", title: "Narthex: карточка вне миссии" },
+        );
+      }
+    }
+    return kept;
   }
 
   // ───────────────────────────── сообщения чата ─────────────────────────────
@@ -1835,6 +1977,81 @@
   function lastMessageId() {
     const list = messages();
     return list.length ? list.at(-1).id.replace("chat-message-", "") : "";
+  }
+
+  /**
+   * Страница адресата отрисована — и только тогда по ней можно судить.
+   *
+   * 25.10, 16:55:59–16:56:07. Мастер снял паузу после обрыва связи, скрипт
+   * открыл страницу Turn Runtime, а через 8 секунд решил, что агент молчит
+   * 77 минут: транскрипт ещё не отрисовался, `messagesAfter()` вернул пусто,
+   * кнопка Stop не нарисована. Ожидание сняли, карточку вернули в Ready —
+   * а ответ лежал в чате: агент отработал 17 м 53 с и прислал маркер.
+   *
+   * «Пусто на странице» и «агент молчит» — разные вещи. Пока транскрипт не
+   * отрисован, о молчании не судим вовсе: это либо загрузка, либо сеть.
+   */
+  function pageReady(expect) {
+    const state = String((typeof document !== "undefined" && document.readyState) || "");
+    if (state && state !== "interactive" && state !== "complete") {
+      return { ok: false, why: `страница ещё грузится (${state})` };
+    }
+    // Ошибка связи в самой странице: чат остаётся пустым, сколько ни жди.
+    const broken = [...document.querySelectorAll('[role="alert"]')].find((el) => {
+      if (!visible(el)) return false;
+      const text = shortLabel(el) || String(el.textContent || "");
+      return /connection|соединени|network|reconnect|переподключ/i.test(text);
+    });
+    if (broken) return { ok: false, why: "страница не догрузилась: нет связи" };
+    const nodes = messages();
+    if (nodes.length) return { ok: true, why: `сообщений ${nodes.length}` };
+    // Задание отправлено и подтверждено — значит в этом чате есть как минимум
+    // наша реплика. Пустой транскрипт при этом значит одно: список сообщений
+    // ещё не смонтирован. 25.10 в 17:47 поле ввода уже было, сообщений 0 —
+    // и скрипт по нажатому «Шагу» написал «маркера этой выдачи в чате нет»,
+    // хотя маркер лежал в чате.
+    if (userMessages().length) return { ok: true, why: "свои реплики видны, транскрипт отрисован" };
+    if (expect && Number(expect.sentAt)) {
+      return { ok: false, why: "транскрипт ещё не отрисован: своих реплик не видно" };
+    }
+    // Пустой транскрипт ещё не значит «ответа нет»: у только что открытой
+    // страницы поле ввода рисуется раньше истории. Готовой считаем страницу,
+    // где видно поле ввода или плашку завершения, — там уже есть что читать.
+    if (composer() || completionPlaque()) return { ok: true, why: "поле ввода на месте, транскрипт пуст" };
+    return { ok: false, why: "ни реплик, ни поля ввода — страница не отрисовалась" };
+  }
+
+  /**
+   * Приложение Arena отрисовалось — только тогда на странице можно что-то делать.
+   *
+   * 25.10, 17:30:24–17:30:44. Скрипт перешёл на страницу Turn Runtime и через
+   * 20 секунд попытался отправить задание: поле ввода уже было, текст встал
+   * (9186 символов), кнопка Send была в разметке — но `disabled`, потому что
+   * транскрипт в этот момент монтировался (сообщений 0 → 18). Скрипт решил,
+   * что редактор «не принял текст», вернул карточку NAR-2.12 в Ready и встал
+   * на паузу. Работы по карточке не было — виновата спешка.
+   *
+   * Правило: пока документ не догружен, скрипт не делает ничего — ни вставки,
+   * ни кликов, ни закрытия панелей. Ожидание дешевле отката карточки.
+   */
+  function appReady() {
+    if (typeof document === "undefined") return { ok: false, why: "нет документа" };
+    const state = String(document.readyState || "");
+    if (state && state !== "complete" && state !== "interactive") {
+      return { ok: false, why: `документ грузится (${state})` };
+    }
+    // Оболочка приложения: без неё на странице нечего читать и некуда писать.
+    if (!document.querySelector('main, [data-agent-transcript-message], .editor-content, [role="textbox"]')) {
+      return { ok: false, why: "оболочка приложения не отрисована" };
+    }
+    return { ok: true, why: "" };
+  }
+
+  /** Кнопка действительно готова: в документе, видима и не заблокирована. */
+  async function clickReady(el, timeoutMs = C.clickReadyMs) {
+    if (pressable(el)) return true;
+    const found = await waitFor(() => (pressable(el) ? el : null), timeoutMs, 250);
+    return Boolean(found);
   }
 
   /** Наша реплика: в транскрипте Arena она помечена отдельным layout. */
@@ -2350,6 +2567,77 @@
       .trim().length;
 
   /**
+   * Минимальное сообщение вместо отклонённого задания.
+   *
+   * 25.10 задание Architect (NAR-2.16) не принималось трижды: «Something went
+   * wrong. Please try again.» — и на полном тексте (7 586 символов), и на
+   * сокращённом техблоке (7 610 после переотправки). Дело не в длине и не в
+   * разметке: Arena отклоняет сам текст задания. Поэтому повтор — это не
+   * пересказ, а просьба прочитать задание самому: ссылка на карточку, номера
+   * выдачи и формат маркера. Всё остальное агент берёт из карточки.
+   */
+  function minimalPrompt(expect) {
+    const id = String(expect.ref || "");
+    const url = expect.url || (id ? `https://app.notion.com/p/${id.replace(/-/g, "")}` : "");
+    return [
+      `Задание ${expect.title || id} (dispatch ${id}, run ${expect.runId || ""}).`,
+      "Полный текст Arena не приняла ошибкой. Прочитай задание сам — оно в карточке:",
+      url || `(карточка Notion ${id})`,
+      "Поля карточки — Намерение, Инварианты, Оракул (Acceptance), Scope — и есть задание.",
+      "Работай только в своей зоне, PR мержи сам (`gh pr merge --squash`), оракул не ослабляй.",
+      "Последней строкой ответа — ровно один маркер:",
+      `CF_AGENT_RESULT {"dispatch_id":"${id}","run_id":"${expect.runId || ""}","status":"submitted","check":0,"report":"<путь>","pr":<номер PR>,"merged":true}`,
+      'Работа без PR — `"pr": null`.',
+    ].join("\n");
+  }
+
+  /**
+   * Задание, которое Arena съела ошибкой, возвращается в очередь минимальным
+   * сообщением. Повтор один: второй отказ подряд — пауза, а не цикл.
+   *
+   * «Задание отправлено» в этом случае врёт: сообщение в транскрипте есть, ход у
+   * агента не начался. Отметка доставки снимается, id «мёртвого» сообщения
+   * запоминается (иначе `lastUserSays` примет старую копию за новую отправку).
+   */
+  function retryRejectedHandoff(expect, alert, why) {
+    if (!expect || !expect.roleId) return false;
+    if (!expect.sentAt) return false;
+    if (Date.now() - Number(expect.sentAt || 0) > C.arenaRetryMs) return false;
+    const done = Number(expect.arenaResend) || 0;
+    if (done >= C.arenaResendMax) return false;
+    const text = minimalPrompt(expect);
+    GM_setValue(K.deadSend, (alert && alert.messageId) || "");
+    GM_setValue(K.pending, {
+      roleId: expect.roleId,
+      roleName: expect.roleName,
+      roleUrl: expect.roleUrl,
+      text,
+      at: Date.now(),
+      sendTries: 0,
+    });
+    GM_setValue(K.expect, {
+      ...expect,
+      text,
+      sentAt: null,
+      verified: false,
+      undelivered: true,
+      cardRolled: false,
+      arenaResend: done + 1,
+      tries: 0,
+      lastReplySig: "",
+      lastReplyAt: 0,
+    });
+    log(
+      `${why}: задание до «${expect.roleName || "агента"}» не принялось — повторяю минимальным сообщением ` +
+        `«прочитай карточку сам» (${text.length} символов вместо ${String(expect.text || "").length}). ` +
+        "Второй отказ подряд — пауза. Новый ход Координатора не нужен.",
+      true,
+      { ntfy: "quiet", title: "Narthex: повторяю задание" },
+    );
+    return true;
+  }
+
+  /**
    * Ждём ответ без маркера. Возвращает true, если ход уже обработан
    * (напоминание ушло или цикл поставлен на паузу).
    *
@@ -2362,9 +2650,48 @@
       if (manual) log(`${role.name} ещё отвечает (${busyLabel(busyReason())}) — подождите, потом нажмите «Шаг».`);
       return false;
     }
+    // Страница ещё не отрисована — «маркера нет» говорить нельзя: его просто
+    // не видно. То же правило, что в сторожe тишины, распространено на ручной
+    // «Шаг»: пустая страница — не пустой чат.
+    const page = pageReady(expect);
+    if (!page.ok) {
+      if (manual) {
+        log(
+          `Страница «${role.name}» ещё не отрисовалась (${page.why}) — подождите: ` +
+            "читаю ответ из чата, а не из пустой страницы.",
+        );
+      }
+      return false;
+    }
+
     const replies = messagesAfter(expect.watermark || "");
     const last = replies.at(-1);
     if (!last) {
+      // Ошибка Arena поверх нашего задания: сообщение в чате есть, а ход не
+      // начался. От «агент думает» это отличается только самой ошибкой, поэтому
+      // проверка стоит здесь. Первая переотправка — автоматическая (Мастер уже
+      // нажал «Продолжить»); вторая подряд — пауза с честной причиной.
+      const eaten = latestUserMessageAlert();
+      if (eaten && expect.sentAt) {
+        if (retryRejectedHandoff(expect, eaten, `Arena ответила «${eaten.text}»`)) {
+          // Отправляем прямо здесь, а не «следующим тиком»: шаг уже выполняется,
+          // и отложенный тик был бы молча проглочен сторожем блокировки.
+          const again = await consumePending(true);
+          if (!again) {
+            log("Переотправка на этой странице не началась — задание осталось в очереди и уйдёт на следующем шаге.", true, {
+              ntfy: "quiet",
+            });
+          }
+          return true;
+        }
+        pause(
+          `Arena снова не приняла задание: «${eaten.text}» (коротких повторов подряд: ${C.arenaResendMax}). ` +
+            "Задание осталось в очереди — нажмите «Продолжить», оно уйдёт этой же карточке, " +
+            "без нового хода Координатора.",
+          { kind: "arena-error", ref: eaten.messageId },
+        );
+        return true;
+      }
       // Нормальное ожидание, но нажатый «Шаг» должен получить ответ, а не тишину.
       if (manual) {
         const sentMin = expect.sentAt ? Math.max(1, Math.round((Date.now() - expect.sentAt) / 60000)) : 0;
@@ -2418,6 +2745,7 @@
         turnId: expect.turnId,
         runId: expect.runId,
         title: expect.title,
+        url: expect.url,
         tries: sent + 1,
       });
       return true;
@@ -2496,6 +2824,25 @@
       const key = `alert:${alert.messageId}`;
       if (alreadyReported(key)) return false;
       markReported(key);
+      // Ошибка поверх нашего же задания — это не «агент сломался», а «сообщение
+      // не приняли». Ход не снимаем и Мастера не зовём: в очередь кладётся
+      // короткая версия, её отправит ближайший тик. Пауза — только когда
+      // короткие повторы уже исчерпаны.
+      const expect = GM_getValue(K.expect, null);
+      if (retryRejectedHandoff(expect, alert, `Arena ответила «${alert.text || "ошибка без текста"}»`)) {
+        return true;
+      }
+      const tried = Number(expect?.arenaResend) || 0;
+      if (tried > 0) {
+        // Минимальное сообщение тоже не прошло: второй отказ подряд — стоп.
+        pause(
+          `Arena второй раз не приняла задание «${expect?.title || expect?.ref || "агента"}»: ` +
+            `«${alert.text || "ошибка без текста"}». Минимальное сообщение тоже отклонено — ` +
+            "цикл остановлен. Задание в очереди, карточка Running: посмотрите страницу агента.",
+          { kind: "arena-error", ref: alert.messageId, runId: expect?.runId || "" },
+        );
+        return true;
+      }
       pause(`Видимая ошибка Arena в последнем сообщении: ${alert.text || "текст ошибки пуст"}.`, {
         kind: "arena-error",
         ref: alert.messageId,
@@ -2981,6 +3328,45 @@
   const composerText = (editor) => (editor?.innerText || editor?.textContent || "").replace(/\s+/g, " ").trim();
 
   /**
+   * Очистить поле ввода.
+   *
+   * 25.10 Arena вернула отклонённый текст задания обратно в поле: сообщение «не
+   * ушло», а черновик остался. Если этого не заметить, следующая вставка
+   * склеится со старым текстом, и вместо минимального сообщения уйдёт тот же
+   * отклонённый промпт — ошибка повторится.
+   */
+  function clearComposer(editor) {
+    const live = composerAlive(editor) ? editor : composer();
+    if (!live) return false;
+    if (!composerText(live)) return true;
+    live.focus();
+    try {
+      if (live.tagName === "TEXTAREA" || live.tagName === "INPUT") {
+        const proto = live.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+        const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+        if (setter) setter.call(live, "");
+        else live.value = "";
+        live.dispatchEvent(new Event("input", { bubbles: true }));
+        return !composerText(live);
+      }
+      const range = document.createRange();
+      range.selectNodeContents(live);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      document.execCommand("delete");
+    } catch (e) {
+      dbg("composer: очистка не удалась", String(e?.message || e));
+    }
+    // Запасной путь — как у вставки: иначе ProseMirror оставит свой старый узел.
+    if (composerText(live) && composerAlive(live)) {
+      live.textContent = "";
+      live.dispatchEvent(new InputEvent("input", { bubbles: true, data: "", inputType: "deleteContentBackward" }));
+    }
+    return !composerText(live);
+  }
+
+  /**
    * Плашка «задание выполнено». Два вида, оба перекрывают чат:
    *  1) панель с классом из `dispatch.user.js` и кнопкой закрытия;
    *  2) карточка в транскрипте с кнопкой `Skip` (опрос, аудио, предложение).
@@ -3438,11 +3824,18 @@
     // поле ввода» не отличить от «нашёл, но исключил своим же фильтром».
     let droppedSidebar = 0;
     let droppedHidden = 0;
+    let droppedOwn = 0;
+    let droppedService = 0;
+    // `textarea` в перечне не было, а зря: 25.10 в 14:57 диагностика
+    // показывала «contenteditable 0, textarea 1», и по ней нельзя было
+    // понять, чьё это поле — сайдбара, капчи или нашей же панели.
     for (const el of document.querySelectorAll(
-      "[contenteditable]:not([contenteditable='false']), .ProseMirror, [role='textbox']",
+      "textarea:not([readonly]), [contenteditable]:not([contenteditable='false']), .ProseMirror, [role='textbox']",
     )) {
       if (el.tagName === "INPUT") continue;
-      if (inSidebar(el)) droppedSidebar += 1;
+      if (isServiceField(el)) droppedService += 1;
+      else if (inOwnPanel(el)) droppedOwn += 1;
+      else if (inSidebar(el)) droppedSidebar += 1;
       else if (!visible(el)) droppedHidden += 1;
     }
     const parts = [
@@ -3451,6 +3844,8 @@
       `textbox ${count("[role='textbox']")}`,
       droppedSidebar ? `в сайдбаре ${droppedSidebar}` : "",
       droppedHidden ? `скрытых ${droppedHidden}` : "",
+      droppedOwn ? `в своей панели ${droppedOwn}` : "",
+      droppedService ? `служебных ${droppedService}` : "",
       `панель ${completionPanels().length}`,
       `skip ${count('[data-agent-transcript-message="true"] button') && skipCardButton() ? "да" : "нет"}`,
       `путь ${location?.pathname || "/"}`
@@ -3504,6 +3899,55 @@
   }
 
   /**
+   * Поле и кнопка отправки готовы принять клик.
+   *
+   * `sendButton()` уже отбрасывает `disabled`, поэтому «кнопки нет» и «кнопка
+   * есть, но заблокирована» здесь — одно состояние: страница ещё не готова.
+   */
+  function sendReady(editor) {
+    const live = editor && composerAlive(editor) ? editor : composer();
+    if (!live) return { ok: false, why: "поле ввода не найдено" };
+    const state = String(document.readyState || "");
+    if (state && state !== "complete" && state !== "interactive") {
+      return { ok: false, why: `страница грузится (${state})`, editor: live };
+    }
+    const btn = sendButton(live);
+    if (!btn) return { ok: false, why: "кнопка Send ещё неактивна", editor: live };
+    return { ok: true, btn, editor: live };
+  }
+
+  /**
+   * Ждём активную кнопку Send, не снимая задание.
+   *
+   * 17:30:24 (25.10): два фиксированных ожидания по 1,5 и 3 с закончились
+   * раньше, чем страница дорисовала транскрипт, и отказ ушёл в паузу с
+   * откатом карточки. Ждать надо столько, сколько рисуется страница, а текст
+   * в поле — возвращать, если его стёрла перерисовка.
+   */
+  async function waitSendReady(editor, text, timeoutMs = C.sendReadyMs) {
+    const started = Date.now();
+    // Пустая настройка не должна превращать ожидание в NaN: без числа
+    // deadline был бы NaN, и кнопка считалась бы недоступной мгновенно.
+    const deadline = started + (Number(timeoutMs) || 20000);
+    let lastPrompt = 0;
+    let told = false;
+    while (Date.now() < deadline) {
+      const probe = sendReady(editor);
+      if (probe.ok) return probe.btn;
+      if (probe.editor && Date.now() - lastPrompt > 1500) {
+        lastPrompt = Date.now();
+        writePrompt(probe.editor, text);
+      }
+      if (!told && Date.now() - started > 3000) {
+        told = true;
+        log("Страница дорисовывается: кнопка Send ещё неактивна — жду. Задание остаётся в очереди.");
+      }
+      await sleep(300);
+    }
+    return null;
+  }
+
+  /**
    * Отличительная строка задания: по ней видно, что в чат ушло именно это
    * сообщение, а не предыдущее. Первые строки промпта у всех заданий
    * одинаковые (технический блок), поэтому ключ берётся из строки с
@@ -3541,7 +3985,13 @@
     if (!key) return false;
     const list = userMessages();
     const last = list.at(-1);
-    return Boolean(last) && flat(last.textContent || "").includes(key);
+    if (!last) return false;
+    // Сообщение, которое Arena съела ошибкой, осталось в транскрипте — но
+    // агенту оно не ушло. Принять его за новую отправку значило бы снова
+    // поверить в доставку, которой нет (25.10, 21:24).
+    const dead = GM_getValue(K.deadSend, "");
+    if (dead && nodeId(last) === dead) return false;
+    return flat(last.textContent || "").includes(key);
   }
 
   /** Ждём подтверждение доставки: сообщение в чате, а не «поле опустело». */
@@ -3640,14 +4090,24 @@
         live = composer();
         if (!live) {
           // Плашка «задача выполнена» закрывает поле ввода и могла всплыть
-          // между вставкой и кликом (24.10, 20:15). Раньше здесь сразу
-          // снимался ход; теперь убираем панели и перечитываем поле.
+          // между вставкой и кликом (24.10, 20:15). Убираем панели — но ждём
+          // поле ВСЕГДА, даже если панелей не нашлось.
+          //
+          // 25.10 в 14:57 было иначе: панель на месте, кнопки закрытия в ней
+          // нет, `closeCompletionPanels()` вернул 0 — и ожидание пропускалось.
+          // Скрипт сдался через три секунды после вставки, хотя страница ещё
+          // дорисовывала транскрипт (сообщений 0 → 15, contenteditable 0),
+          // вернул карточку в Ready и встал на паузу. Работы по карточке не
+          // было — виновата не отправка, а нетерпение.
           const panels = await closeCompletionPanels();
           if (panels) {
             log(`Поле ввода пропало посреди отправки: убрал панелей ${panels}.`);
             why.push(`поле ввода пропало — убрал панелей ${panels}`);
-            live = await waitFor(composer, 4000, 300);
-            if (live) writePrompt(live, text);
+          }
+          live = await waitFor(composer, C.composerGraceMs, 300);
+          if (live) {
+            dbg("Send: поле вернулось после перерисовки", { attempt, panels });
+            writePrompt(live, text);
           }
         }
         dbg("Send: редактор перечитан", { found: Boolean(live), attempt });
@@ -3657,15 +4117,15 @@
         }
       }
 
-      let btn = await waitForSendReady(live, 1500);
+      // Ждём столько, сколько рисуется страница: кнопка Send появляется
+      // активной только после того, как редактор зарегистрировал ввод.
+      // Два коротких ожидания (1,5 и 3 с) кончались раньше, чем Arena
+      // успевала смонтировать транскрипт.
+      let btn = await waitSendReady(live, text);
       if (!btn) {
-        // Редактор не зарегистрировал ввод: повторяем его и ждём снова.
-        dbg("Send: кнопка неактивна — повторяю вставку текста", () => debugSendButton(live));
-        writePrompt(live, text);
-        btn = await waitForSendReady(live, 3000);
-      }
-      if (!btn) {
-        why.push(`активной кнопки Send нет (${composerDiagnostics()})`);
+        why.push(
+          `активной кнопки Send нет за ${Math.round((Number(C.sendReadyMs) || 20000) / 1000)} с (${composerDiagnostics()})`,
+        );
         break;
       }
 
@@ -3757,6 +4217,13 @@
     console.warn("[Narthex] снимок разметки при отказе отправки:", report);
     return {
       ok: false,
+      // Ни одного клика и поля ввода нет — это не отказ доставки, а
+      // недорисованная страница. Задание осталось в очереди, ход не начат:
+      // откат карточки и пауза тут дороже, чем ещё один тик ожидания.
+      // Клика не было вовсе — сообщение никуда не ушло, и виновата не
+      // доставка, а недорисованная страница: поле есть, кнопка ещё `disabled`,
+      // транскрипт монтируется. Задание остаётся в очереди до `sendRetries`.
+      retry: clicked === 0,
       // Без единого клика причина другая: кнопка не нашлась, а не «нажали
       // и ничего не вышло». Смешивать их нельзя — по причине чинят.
       reason: clicked
@@ -3932,6 +4399,14 @@
       return !act;
     }
 
+    // Страница ещё не отрисована: вставлять текст некуда, а «не нашёл поле»
+    // на недогруженной странице — не повод откатывать карточку. Ждём тик.
+    const shell = appReady();
+    if (!shell.ok) {
+      pendingSay(pending, `Страница ещё грузится (${shell.why}) — задание подождёт.`);
+      return true;
+    }
+
     if (!me || norm(me) !== norm(pending.roleId)) return false;
 
     // Задание, которое не ушло в прошлый раз. Карточку тогда вернули в Ready,
@@ -4030,10 +4505,18 @@
       return true;
     }
 
-    // Что было в поле, не важно: задание в очереди — это текущий ход. Прежний
-    // запрет на «чужой текст» порождал ложные паузы (остаток прошлой попытки,
-    // подсказка редактора), поэтому текст просто заменяется.
-    if (composerText(editor)) log("В поле ввода был текст — заменяю его заданием из очереди.");
+    // Что было в поле, не важно: задание в очереди — это текущий ход. Но сначала
+    // поле очищается: Arena возвращает туда отклонённый текст, и вставка поверх
+    // склеила бы минимальное сообщение со старым промптом.
+    if (composerText(editor)) {
+      const cleared = clearComposer(editor);
+      log(
+        cleared
+          ? "В поле ввода был текст (Arena возвращает туда отклонённое) — очистил перед вставкой задания."
+          : "Поле ввода не очистилось — вставляю задание поверх: вставка заменяет текст целиком.",
+        !cleared,
+      );
+    }
 
     // Не вставляем мгновенно после загрузки страницы: ровный машинный ритм
     // выглядит как бот и мешает живому диалогу.
@@ -4081,6 +4564,28 @@
       captchaPause();
       return true;
     }
+    // Поле ввода не нашлось ни на одной попытке — страница ещё дорисовывается
+    // (25.10, 14:57: шестнадцать секунд после перехода, транскрипт 0 → 15
+    // сообщений, `contenteditable` в документе ноль). Клика не было, значит
+    // работы по карточке нет: держим очередь, карточку не трогаем и повторяем
+    // отправку следующим тиком. Пауза и откат в Ready — только когда ожидание
+    // исчерпано, иначе Мастеру достаётся остановка из-за чужой перерисовки.
+    if (delivery.retry) {
+      const tries = Number(pending.sendTries || 0) + 1;
+      if (tries <= C.sendRetries) {
+        GM_setValue(K.pending, { ...pending, sendTries: tries, at: Date.now() });
+        log(
+          `Страница адресата ещё дорисовывается — повторю отправку через ${Math.round(C.tickMs / 1000)} с ` +
+            `(попытка ${tries} из ${C.sendRetries}). Задание в очереди, карточка не тронута.`,
+          false,
+          { ntfy: false },
+        );
+        setTimeout(() => tick(false), C.tickMs);
+        return true;
+      }
+      log(`Поле ввода не вернулось за ${C.sendRetries} попыток — останавливаюсь и жду Мастера.`, true);
+    }
+
     if (!delivery.ok) {
       // Сообщение в чат не попало — работы по карточке нет, и в Running ей
       // делать нечего. Очередь снимается вместе со статусом: иначе ответ по
@@ -4096,7 +4601,7 @@
         // отправит его этой же карточке. Карточка возвращена в Ready только
         // затем, чтобы не висеть в Running 45 минут; перед отправкой она
         // снова станет Running с тем же Run ID.
-        GM_setValue(K.pending, { ...pending, undelivered: true, at: Date.now() });
+        GM_setValue(K.pending, { ...pending, undelivered: true, sendTries: 0, at: Date.now() });
         if (failed) {
           GM_setValue(K.expect, {
             ...failed,
@@ -4124,8 +4629,11 @@
       dbg("Send: доставка подтверждена, отметка внутри чата", { watermark, via: delivery.via || "message" });
     }
     GM_setValue(K.pending, null);
+    GM_setValue(K.deadSend, "");
     pendingNoticeAt = 0;
-    log("Задание отправлено.");
+    // Длина — в журнал: по ней видно, какое сообщение Arena не приняла, и
+    // сравнить его с коротким повтором (25.10: дважды на задании 2.16).
+    log(`Задание отправлено (${String(pending.text || "").length} символов).`);
     return true;
   }
 
@@ -4235,11 +4743,21 @@
   const badgeVisible = (label) =>
     [...document.querySelectorAll(`[aria-label="${label}"]`)].some(visible);
 
+  // Кнопка PR считается доступной, только когда её можно нажать: пока
+  // страница дорисовывается, Arena держит их `disabled`, и клик по такой
+  // кнопке — это не «нажал», а «ничего не произошло» с записью в журнал.
+  const pressable = (b) =>
+    Boolean(b) &&
+    b.isConnected !== false &&
+    !b.disabled &&
+    b.getAttribute?.("aria-disabled") !== "true" &&
+    visible(b);
+
   const createPr = () =>
-    [...document.querySelectorAll('button[aria-label="Create pull request"]')].find(visible) || null;
+    [...document.querySelectorAll('button[aria-label="Create pull request"]')].find(pressable) || null;
 
   const mergePr = () =>
-    [...document.querySelectorAll('button[aria-label="Merge pull request"]')].find(visible) || null;
+    [...document.querySelectorAll('button[aria-label="Merge pull request"]')].find(pressable) || null;
 
   const mergedFlag = () => badgeVisible("Pull request merged");
 
@@ -4909,8 +5427,11 @@
    *   Coordinator — git не нужен вообще, инструменты Notion и Drive.
    */
 
-  const TECH_OPEN = "<!-- CF_TECH v1 -->";
-  const TECH_CLOSE = "<!-- /CF_TECH -->";
+  // Разметка блока — обычный текст, а не HTML-комментарии: `<!-- -->`
+  // вырезают чистильщики разметки, и своё же задание перестаёт опознаваться
+  // в транскрипте (25.10: дважды подряд ошибка Arena на задании 2.16).
+  const TECH_OPEN = "=== CF_TECH v1 ===";
+  const TECH_CLOSE = "=== /CF_TECH ===";
   const TECH_TITLE = "ТЕХНИЧЕСКАЯ ИНФОРМАЦИЯ";
 
   const stampUtc = () => `${new Date().toISOString().replace("T", " ").slice(0, 16)} UTC`;
@@ -4935,6 +5456,22 @@
     "Коммит в такой ветке в main не попадёт, а PR покажет удаление чужих файлов.",
   ].join("\n");
 
+  /**
+   * Поля карточки, которые ставит скрипт.
+   *
+   * На NAR-2.13 Runtime Auditor вписал в `Output Drive File ID` id своего отчёта
+   * из Arena/reports. Поле — единственная ссылка на журнал попытки, поэтому
+   * запись ответа упёрлась в отказ шлюза («только Arena/logs»), а цикл встал на
+   * паузе. Правило ставится и исполнителю, и аудитору: карточка — не блокнот.
+   */
+  const CARD_FIELDS_RULE = [
+    "КАРТОЧКА: твой выход — ответ в чате и последняя строка-маркер. Поля `Dispatch State`,",
+    "`Run ID`, `Output Drive File ID`, `Recipient Agent ID`, `Started At`, `Submitted At`,",
+    "`PR`, `Check` ставит скрипт; вписанное руками значение ломает запись ответа в журнал",
+    "(NAR-2.13: в `Output Drive File ID` попал отчёт, шлюз отказал). Ссылку на отчёт даёт",
+    "поле `report` в маркере, а не поле карточки.",
+  ].join("\n");
+
   const EXECUTOR_TECH = [
     SNAPSHOT_FACT,
     "",
@@ -4949,6 +5486,8 @@
     "ЗАПРЕЩЕНО: работать на снимке; коммитить в ветку без общей истории с main;",
     "трогать пути вне своего Scope; мержить в main в обход PR.",
     "РАЗРЕШЕНО: только своя зона из карточки, PR в main через `gh`, squash-мерж.",
+    "",
+    CARD_FIELDS_RULE,
   ].join("\n");
 
   const AUDITOR_TECH = [
@@ -4963,6 +5502,8 @@
     "  gh pr view <номер> --json state,mergeCommit",
     "  gh pr diff <номер>",
     "Свою ветку как эталон не используй: она может быть снимком без части файлов.",
+    "",
+    CARD_FIELDS_RULE,
   ].join("\n");
 
   const COORDINATOR_TECH = [
@@ -5048,6 +5589,8 @@
       "Неоднозначность решаешь сам: минимальное изменение, «Допущение: …» строкой в отчёт; меняет контракт — запись в docs/decisions.",
       'Вопрос Мастеру задаётся только полем question в маркере: {"text":"…","options":["A","B"],"default":"A","hours":24}. Вариант по умолчанию обязателен — по нему ты работаешь сразу, не дожидаясь ответа; ответ придёт строкой в следующем промпте. Больше одного вопроса за ход не задавай.',
       "Вопрос уместен, только если ответ меняет то, что будет построено, и ни ТЗ, ни карточка его не дают. Порядок, формулировки, оформление — решай сам.",
+      "Предложение (ADR `proposed` в docs/decisions) — это тоже вопрос, и оно не работает без второго шага: в том же ходе задай question со ссылкой на файл, тремя вариантами и default = «оставить как есть». Иначе решение лежит в репозитории, где Мастер его не увидит. Ответ придёт строкой в следующем промпте — тогда и меняй статус: `accepted` или `rejected`, с датой. Оставлять `proposed` после ответа нельзя: это выглядит как нерешённый вопрос.",
+      "Статус решения не проверяет ни один тест и не должен проверять: оракул, который требует `Статус: proposed`, защищает открытый вопрос от ответа. Проверка вправе требовать только допустимый статус, а не конкретный.",
       "Опрос в чате, «May I…», просьба разрешения — не вопрос, а остановка хода: работа не сдаётся, карточка висит в Running. Не делай так.",
       "Файлы для показа не открывай: путь к файлу назови текстом в отчёте — Мастер откроет сам, если нужно.",
     ].join("\n");
@@ -5225,18 +5768,20 @@
       "ОЧЕРЕДЬ — ТВОЯ",
       "Движок ставит Running и Submitted; Accepted, Rework и Ready ставишь ты. Нарезка, порядок, Кому, Sequence, число Ready, выдача черновика (Draft → Ready), правка его полей и архив лишнего — твои действия. Код, ветки и PR — не твоя зона.",
       "Мастер и Архитектор пишут только черновики: это твой задел, а не приказ — правь под оракул миссии и выдавай сам, не дожидаясь Мастера. В архив — только если черновик дублирует уже выданное.",
-      "Rework — не выдача: карточка с этим статусом исполнителю не уходит. Хочешь переделать — верни её в Ready: следы прошлого ответа («Submitted At», «PR», «Run ID») снимет транспорт на выдаче, чистить их коннектором не надо. Принятую (Accepted) обратно в Ready не возвращай.",
+      "Rework — не выдача и не приговор: разбираешь его ты, а не Мастер. (а) Нужна переделка — верни её в Ready: следы прошлого ответа («Submitted At», «PR», «Run ID») снимет транспорт на выдаче. (б) Карточка была сформулирована с ошибкой — перепиши её Намерение, Инварианты, Acceptance и Scope; это правка карточки, а не смена оракула миссии. (в) Работа уже сделана другими карточками — поставь Accepted с пометкой «остаток разбит на …» или убери её. Принятую (Accepted) обратно в Ready не возвращай. Держать Rework «на всякий случай» нельзя: он висит в очереди и мешает закрыть миссию.",
+      "Ready-карточку с меньшим Sequence не обходи молча. Выдаёшь не её — назови в ответе причину (ждёт решения Мастера, зависит от другой карточки, сформулирована неверно) и поправь ей Sequence или убери в Draft. Молчаливый обход выглядит как потерянная работа: карточка остаётся Ready и ждёт следующего круга.",
       "Scope карточки обязан покрывать артефакты её Оракула: пробу, npm-скрипт и запись решения перечисляй в Scope прямо — иначе исполнитель встанет на границе зоны.",
       "Если роль не может получить работу («Ждёт», пустой Agent URL, нет в «Ролях») — назначь в «Кому» активную роль или оставь Draft и назови, кого он ждёт. Статус роли и Agent URL — зона Мастера, не меняй их.",
-      "Оракул и инварианты менять нельзя: только ADR proposed и пауза миссии.",
+      "Оракул миссии (ТЗ §2/§3) и инварианты миссии менять нельзя: если проверка требует другого смысла — только ADR proposed и решение Мастера. Acceptance карточки — не оракул миссии: ошибочную формулировку ты исправляешь сам, но так, чтобы смысл проверки миссии не изменился.",
+      "ADR proposed — это очередь решений Мастера, и она видна ему счётчиком «⚖» на панели. Каждое своё предложение сопровождай вопросом в том же маркере: текст — суть решения плюс имя файла, три варианта, default = «оставить как есть». Ответ Мастера придёт строкой «Ответы Мастера» — по нему ты либо принимаешь решение (переведи ADR в `accepted`/`rejected` с датой в том же ходе, через исполнителя), либо продолжаешь по варианту по умолчанию. Нерешённое предложение — долг, а не состояние: если оно висит, назови его в Итоге миссии.",
       "",
       "ХОД — один ответ:",
       "1) Submitted → проверь по Acceptance, поставь Accepted или Rework (причина в «Ответ»).",
-      "2) В этом же ответе выдай работу: новая карточка (Намерение, Инварианты, Acceptance с командой-оракулом, Свободно, Scope, Кому, Sequence, Миссия, Dispatch State = Ready) или Draft → Ready. Пустая очередь после хода — незаконченный ход.",
+      "2) В этом же ответе выдай работу: новая карточка (Намерение, Инварианты, Acceptance с командой-оракулом, Свободно, Scope, Кому, Sequence, Миссия, Dispatch State = Ready) или Draft → Ready. Пустая очередь после хода — незаконченный ход. В «Миссию» карточки копируй строку «Миссия: …» из этого промпта как есть: по этому полю транспорт отличает очередь миссии от чужой.",
       '3) Миссия выполнена → «Состояние» = «Завершена» и next = "done".',
       "",
       "next — имя роли той карточки, которую выдаёшь. Своё имя значит «ход снова мне»: это не ошибка, но работу надо выдать в этом же ответе.",
-      'Остановить цикл можно только одним способом: next = "blocked" и need = "<роль>" — когда роли нет и заменить её некем. Других поводов нет.',
+      'Остановить цикл можно только одним способом: next = "blocked" и need = "<роль>" — когда работы для активных ролей нет вовсе. Rework, черновики и спорный Scope — твоя работа, а не повод. Если единственное, что осталось, — решение Мастера по оракулу, остановка законна; тогда объясни её полем question: вопрос без варианта по умолчанию при остановке попадает в «Вопросы» и в текст паузы, чтобы Мастер увидел суть, а не только «нет роли». Иначе — работай дальше.',
       "Вопрос Мастеру задаётся полем question в маркере (формат — в «КАК РЕШАТЬ»): цикл при этом не останавливается.",
       "",
       "Последней строкой ответа:",
@@ -5250,6 +5795,63 @@
 
 
   // ───────────────────────────── ход исполнителя ─────────────────────────────
+  /**
+   * Запись ответа в журнал хода — с возвратом ссылки, если поле в карточке
+   * переписали.
+   *
+   * `Output Drive File ID` — единственная ссылка на журнал попытки, и её может
+   * переписать любой, у кого есть доступ к карточке. На NAR-2.13 (25.10,
+   * 15:59Z) Runtime Auditor создал `Arena/reports`, положил туда отчёт и вписал
+   * его id в это поле вместо журнала. Шлюз отказал по делу — «Запись разрешена
+   * только в текстовые файлы Arena/logs», — а скрипт назвал это «шлюз Drive не
+   * ответил» и встал на паузу: Мастер пошёл проверять развёртывание, хотя шлюз
+   * был жив и прав.
+   *
+   * Порядок: обычная запись → отказ про папку → журнал этой выдачи
+   * (`createLog` идемпотентен по паре Dispatch/Run) → запись в него → ссылка
+   * возвращается в карточку. Отчёт агента не трогается: он не журнал.
+   */
+  async function appendToJournal(dispatchId, runId, declaredLogId, marker, entry) {
+    const refusedBecauseOfFolder = (e) =>
+      Boolean(e && e.refused) &&
+      /текстовые файлы/i.test(String(e.reason || (e && e.message) || e));
+    try {
+      const wrote = await gateway("append", declaredLogId, { marker, entry });
+      return { wrote, logId: declaredLogId };
+    } catch (e) {
+      if (!refusedBecauseOfFolder(e)) throw e;
+      log(
+        `Поле «Output Drive File ID» указывает не на журнал (${declaredLogId}): ` +
+          "шлюз пишет только в Arena/logs. Беру журнал этой выдачи и возвращаю ссылку в карточку.",
+        true,
+        { ntfy: false },
+      );
+      let journalId = "";
+      try {
+        const created = await gateway("createLog", "", { dispatchId, runId });
+        journalId = String(
+          (created && (created.fileId || (created.result && created.result.fileId))) || "",
+        );
+      } catch (createdError) {
+        log(`Журнал этой выдачи не открылся: ${createdError.message}`, true, { ntfy: false });
+        throw e;
+      }
+      if (!journalId) throw e;
+      if (journalId !== declaredLogId) {
+        try {
+          await patch(dispatchId, {
+            "Output Drive File ID": { rich_text: [{ type: "text", text: { content: journalId } }] },
+          });
+          log(`Ссылка на журнал возвращена в карточку: ${journalId}.`);
+        } catch (patchError) {
+          log(`Ссылка на журнал не вернулась в карточку: ${patchError.message}`, true, { ntfy: false });
+        }
+      }
+      const wrote = await gateway("append", journalId, { marker, entry });
+      return { wrote, logId: journalId };
+    }
+  }
+
   async function submitExecutor(role, expect, manual = false) {
     const candidates = messagesAfter(expect.watermark)
       .map((m) => ({ ...m, result: parseMarker(m.raw, "CF_AGENT_RESULT") }))
@@ -5286,21 +5888,30 @@
     if (GM_getValue(`cfn-done:${result.dispatch_id}:${result.run_id}`, false)) return false;
 
     const page = await notion("GET", `pages/${result.dispatch_id}`);
-    if (result.question !== undefined) {
-      const asked = parseQuestion(result.question);
-      if (asked) {
-        await askQuestion(asked, {
-          roleName: role.name,
-          card: taskTitle(page),
-          mission: rt(page.properties["Миссия"]),
-          key: `${result.dispatch_id}:${result.run_id}`,
-        });
-      } else {
-        log(
-          "Вопрос исполнителя без варианта по умолчанию — не принят: работа идёт по его собственному решению.",
-          true,
-        );
-      }
+    // `"question":null` — это «вопроса нет», а не «вопрос без варианта».
+    const asked = questionInMarker(result.question, "Работа идёт по решению исполнителя");
+    if (asked.kind === "asked") {
+      await askQuestion(asked.question, {
+        roleName: role.name,
+        card: taskTitle(page),
+        mission: rt(page.properties["Миссия"]),
+        key: `${result.dispatch_id}:${result.run_id}`,
+      });
+    } else if (asked.kind === "text") {
+      // Вопрос написан, а варианта по умолчанию нет. Раньше он выбрасывался:
+      // Мастер видел громкую ошибку и не видел вопроса. Записываем с честным
+      // вариантом — работа и так идёт по решению исполнителя.
+      log(
+        `Вопрос исполнителя пришёл без варианта по умолчанию — записан с вариантом «${asked.question.fallback}»: ответ Мастера дойдёт следующим ходом.`,
+        false,
+        { ntfy: "quiet", title: "Narthex: вопрос без варианта по умолчанию" },
+      );
+      await askQuestion(asked.question, {
+        roleName: role.name,
+        card: taskTitle(page),
+        mission: rt(page.properties["Миссия"]),
+        key: `${result.dispatch_id}:${result.run_id}`,
+      });
     }
     if (taskState(page) !== "Running") {
       // Карточку уже оформили — прошлой попыткой скрипта или руками после
@@ -5323,14 +5934,19 @@
       log(`В ответе ${role.name} только маркер, отчёта нет — в журнал не пишу.`, true);
       return markerMissing(role, expect, "CF_AGENT_RESULT", manual, "thin");
     }
-    const logId = rt(page.properties["Output Drive File ID"]);
-    if (!logId) throw new Error("В карточке нет Output Drive File ID.");
+    const declaredLog = rt(page.properties["Output Drive File ID"]);
+    if (!declaredLog) throw new Error("В карточке нет Output Drive File ID.");
     const marker = `<!-- CF_DISPATCH ${result.dispatch_id}:${result.run_id} -->`;
     const partsNote = answer.parts > 1 ? `_Ответ собран из ${answer.parts} сообщений хода._\n\n` : "";
-    const wrote = await gateway("append", logId, {
+    // Ссылку на журнал мог переписать агент: пишем в журнал выдачи, а не в то,
+    // что окажется в поле (NAR-2.13, D-071).
+    const { wrote, logId } = await appendToJournal(
+      result.dispatch_id,
+      result.run_id,
+      declaredLog,
       marker,
-      entry: `\n\n${marker}\n## Ответ ${role.name}\n\n${partsNote}${answer.text}\n`,
-    });
+      `\n\n${marker}\n## Ответ ${role.name}\n\n${partsNote}${answer.text}\n`,
+    );
     if (wrote && wrote.duplicate) {
       log("Ответ уже был в журнале Drive (маркер этой же выдачи) — второй раз не пишу, оформляю карточку.");
     }
@@ -5603,6 +6219,174 @@
    */
   const Q = { wait: "Ждёт", done: "Решено", byDefault: "Принят дефолт", cancelled: "Отменён" };
 
+  /**
+   * Вопросы к Мастеру: счётчик на панели и громкий пуш о новом.
+   *
+   * 25.10 Мастер заметил: вопрос в Notion легко пропустить, а рядом со знаком
+   * «?» на панели не было ни числа, ни подсказки. Теперь счётчик открытых
+   * вопросов висит на самой кнопке, подсказка перечисляет первые три, а каждый
+   * новый вопрос даёт громкое уведомление в ntfy — ровно один раз: id
+   * запоминаются. Снимок списка лежит в ScriptCat, поэтому панель показывает
+   * число сразу после загрузки страницы, ещё до запроса в Notion.
+   *
+   * Опрос — не чаще раза в questionCheckMs (10 минут): Notion не любит лишних
+   * запросов, а вопрос, который ждёт сутки, за десять минут не изменится.
+   * Вопрос, который задал сам скрипт, уходит в пуш сразу из `askQuestion`.
+   */
+  const qText = (row) => row.text ?? rt(row?.properties?.["Вопрос"]);
+  const qFallback = (row) => row.fallback ?? rt(row?.properties?.["По умолчанию"]);
+
+  function openQuestions() {
+    const cache = GM_getValue("cfn-q-open", null);
+    return cache && Array.isArray(cache.rows) ? cache : { at: 0, rows: [] };
+  }
+
+  function paintQuestions(rows) {
+    // Пробы вызывают вопросы в Node: без DOM панели нет, и это не ошибка.
+    if (typeof document === "undefined") return;
+    const list = rows || [];
+    const badge = document.getElementById(ui.qBadge);
+    if (badge) {
+      badge.textContent = list.length ? String(list.length) : "";
+      badge.style.display = list.length ? "inline-block" : "none";
+    }
+    const button = document.getElementById(ui.questions);
+    if (!button) return;
+    const shown = list.slice(0, 3).map((row) => {
+      const fallback = qFallback(row);
+      return `«${qText(row)}»${fallback ? ` (по умолчанию: ${fallback})` : ""}`;
+    });
+    button.title = list.length
+      ? `Открытых вопросов к Мастеру: ${list.length}. ${shown.join("; ")}${
+          list.length > 3 ? `; и ещё ${list.length - 3}` : ""
+        }. Нажмите, чтобы открыть базу «Вопросы».`
+      : "Вопросов к Мастеру нет — база «Вопросы» в Notion";
+    button.style.background = list.length ? "#3a3320" : "#242833";
+    button.style.borderColor = list.length ? "#8a6b2a" : "#343a46";
+  }
+
+  /**
+   * Отметить только что созданный вопрос: снимок для панели, память о
+   * показанном. Сбой здесь не должен стоить вопроса — поэтому глушим его.
+   */
+  function noteQuestionAsked(row, q) {
+    try {
+      const cache = openQuestions();
+      if (!questionsSeen()) rememberQuestionSeen(cache.rows.map((item) => item.id));
+      rememberQuestionSeen([row.id]);
+      GM_setValue("cfn-q-open", {
+        at: cache.at || Date.now(),
+        rows: [
+          ...cache.rows.filter((item) => item.id !== row.id),
+          { id: row.id, text: q.text, fallback: q.fallback, due: row.properties?.["Срок"]?.date?.start || "" },
+        ],
+      });
+      paintQuestions(openQuestions().rows);
+    } catch (e) {
+      // Счётчик — удобство, а не работа: молча продолжаем.
+    }
+  }
+
+  function questionsSeen() {
+    const seen = GM_getValue("cfn-q-seen", null);
+    return Array.isArray(seen) ? seen : null;
+  }
+
+  function rememberQuestionSeen(ids) {
+    const seen = questionsSeen() || [];
+    GM_setValue("cfn-q-seen", [...seen, ...(ids || []).filter((id) => !seen.includes(id))].slice(-200));
+  }
+
+  /**
+   * Новый вопрос — громкий пуш. Первый запуск не будит Мастера пачкой старых:
+   * он только запоминает их и пишет число в журнал.
+   */
+  function notifyNewQuestions(rows) {
+    const seen = questionsSeen();
+    if (!seen) {
+      rememberQuestionSeen((rows || []).map((row) => row.id));
+      if ((rows || []).length) log(`Открытых вопросов к Мастеру: ${rows.length}. Смотрите базу «Вопросы».`);
+      return 0;
+    }
+    const fresh = (rows || []).filter((row) => !seen.includes(row.id));
+    if (!fresh.length) return 0;
+    rememberQuestionSeen(fresh.map((row) => row.id));
+    for (const row of fresh.slice(0, 3)) {
+      const fallback = qFallback(row);
+      log(
+        `Новый вопрос к Мастеру: «${qText(row)}»${fallback ? ` — по умолчанию: ${fallback}` : ""}.`,
+        false,
+        { ntfy: "loud", title: "Narthex: новый вопрос к Мастеру" },
+      );
+    }
+    if (fresh.length > 3) {
+      log(`И ещё ${fresh.length - 3} новых вопроса к Мастеру — откройте базу «Вопросы».`, false, {
+        ntfy: "loud",
+        title: "Narthex: вопросы к Мастеру",
+      });
+    }
+    return fresh.length;
+  }
+
+  /**
+   * Обновить снимок открытых вопросов. Здесь же закрываются по сроку те, у
+   * кого вариант по умолчанию уже наступил: это бухгалтерия, а не работа
+   * цикла, поэтому она идёт и на паузе.
+   */
+  async function refreshQuestions({ force = false, quiet = false } = {}) {
+    // Отложенные вопросы повторяются здесь же: проверка идёт и на паузе, а
+    // вопрос, который ждёт Мастера, не должен зависеть от хода цикла.
+    try {
+      await flushQuestionQueue();
+    } catch (e) {
+      dbg("вопросы: очередь не обработана", e.message);
+    }
+    const cache = openQuestions();
+    if (!force && Date.now() - cache.at < C.questionCheckMs) {
+      paintQuestions(cache.rows);
+      return cache.rows;
+    }
+    try {
+      const rows = await questionRows([Q.wait]);
+      let closed = new Set();
+      const active = await activeMission().catch(() => null);
+      if (active) {
+        const wanted = rt(active.properties["Миссия"]).trim();
+        const mine = rows.filter((row) => {
+          const value = rt(row.properties["Миссия"]).trim();
+          return !value || missionSame(value, wanted);
+        });
+        const due = expiredQuestions(mine).filter((row) => rt(row.properties["По умолчанию"]));
+        await closeExpired(due);
+        closed = new Set(due.map((row) => row.id));
+      }
+      const open = rows
+        .filter((row) => !closed.has(row.id))
+        .map((row) => ({
+          id: row.id,
+          text: qText(row),
+          fallback: qFallback(row),
+          due: row.properties?.["Срок"]?.date?.start || "",
+        }));
+      GM_setValue("cfn-q-open", { at: Date.now(), rows: open });
+      paintQuestions(open);
+      if (!quiet) notifyNewQuestions(open);
+      return open;
+    } catch (e) {
+      dbg("вопросы: список не обновлён", e.message);
+      paintQuestions(cache.rows);
+      return cache.rows;
+    }
+  }
+
+  let questionsWatch = 0;
+  function watchQuestions() {
+    if (questionsWatch) return;
+    questionsWatch = window.setInterval(() => refreshQuestions().catch(() => {}), C.questionCheckMs);
+    refreshQuestions().catch(() => {});
+  }
+
+
   /** Одна строка без переводов и лишних пробелов — Notion не любит простыни. */
   const oneLine = (value, max) =>
     String(value == null ? "" : value).replace(/\s+/g, " ").trim().slice(0, max);
@@ -5628,6 +6412,45 @@
       options,
       blocks: oneLine(raw.blocks, 200),
       hours: Number.isFinite(hours) && hours >= 1 ? Math.min(hours, 168) : C.questionHours,
+    };
+  }
+
+  /**
+   * Что на самом деле пришло в поле `question`.
+   *
+   * `"question":null` — обычный способ сказать «вопроса нет»: поле пишут явно,
+   * чтобы маркер был полным. Пока проверка была на `!== undefined`, такой
+   * маркер давал громкую ошибку «вопрос без варианта по умолчанию» при том,
+   * что вопроса не было (25.10, NAR-2.15: `"question":null`, ошибка Мастеру).
+   *
+   *   none  — вопроса нет: поля нет, `null`, пустая строка, объект без текста;
+   *   asked — вопрос с текстом и вариантом по умолчанию;
+   *   text  — вопрос написан, а варианта по умолчанию нет.
+   *
+   * Вопрос из `text` не выбрасывается: он попадает в базу с честным вариантом
+   * по умолчанию — тем, по которому работа и так идёт. Иначе Мастер получает
+   * ошибку вместо вопроса.
+   */
+  function questionInMarker(raw, fallback) {
+    if (raw === undefined || raw === null) return { kind: "none" };
+    const obj = typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+    const text = oneLine(typeof raw === "string" ? raw : obj.text, C.questionTextMax);
+    if (!text) return { kind: "none" };
+    const asked = parseQuestion(raw);
+    if (asked) return { kind: "asked", question: asked };
+    const options = Array.isArray(obj.options)
+      ? obj.options.map((option) => oneLine(option, 80)).filter(Boolean).slice(0, 4)
+      : [];
+    const hours = Number(obj.hours);
+    return {
+      kind: "text",
+      question: {
+        text,
+        options,
+        blocks: oneLine(obj.blocks, 200),
+        hours: Number.isFinite(hours) && hours >= 1 ? Math.min(hours, 168) : C.questionHours,
+        fallback: oneLine(fallback, C.questionDefaultMax) || "Работа идёт по решению агента",
+      },
     };
   }
 
@@ -5691,23 +6514,159 @@
    * Записать вопрос в базу. Ошибка Notion ход не срывает: агент уже идёт по
    * варианту по умолчанию, а строка нужна Мастеру, а не циклу.
    */
+  /**
+   * Вопрос, который не записался, не теряется.
+   *
+   * 25.10 в 21:28 Координатор задал вопрос о пределе руководства, а строки в
+   * «Вопросах» не появилось: база показала 0 «Ждёт». Вопрос жил только в
+   * маркере — Мастер увидел его лишь случайно, а ❓ и пуш молчали. Notion не
+   * любит отвечать быстро и иногда отказывает; запись, которая уже не
+   * повторится, — потерянный вопрос. Поэтому неудача складывается в очередь и
+   * повторяется при следующей проверке вопросов.
+   */
+  function queueQuestion(q, ctx = {}) {
+    const stored = GM_getValue(K.qQueue, []);
+    const list = Array.isArray(stored) ? stored : [];
+    const sameText = norm(q?.text);
+    if (sameText && list.some((item) => norm(item?.q?.text) === sameText)) return;
+    list.push({ q, ctx, at: Date.now() });
+    GM_setValue(K.qQueue, list.slice(-10));
+  }
+
+  async function flushQuestionQueue() {
+    const stored = GM_getValue(K.qQueue, []);
+    const list = Array.isArray(stored) ? stored : [];
+    if (!list.length) return 0;
+    const left = [];
+    let saved = 0;
+    for (const item of list) {
+      if (!item || !item.q || !item.q.text) continue;
+      // Пока вопрос лежал в очереди, Мастер мог уже ответить на такой же (или на
+      // тот же ADR) — тогда не пишем и не будим.
+      const same = await sameQuestionRow(item.q.text);
+      if (same) {
+        log(`Отложенный вопрос «${item.q.text}» уже есть в «Вопросах» — не записываю второй раз.`, false, {
+          ntfy: false,
+        });
+        continue;
+      }
+      try {
+        const row = await notion("POST", "pages", {
+          parent: { type: "data_source_id", data_source_id: C.questions },
+          properties: questionProps(item.q, item.ctx || {}),
+        });
+        noteQuestionAsked(row, item.q);
+        saved += 1;
+        log(`Отложенный вопрос к Мастеру записался: «${item.q.text}».`, false, {
+          ntfy: "loud",
+          title: "Narthex: вопрос к Мастеру",
+        });
+      } catch (e) {
+        left.push(item);
+      }
+    }
+    GM_setValue(K.qQueue, left);
+    if (left.length && saved === 0) {
+      dbg("вопросы: очередь не ушла", left.length);
+    }
+    return saved;
+  }
+
+  /**
+   * Ссылки на решения в тексте вопроса: `docs/decisions/NAR-2.14.md` и `NAR-2.14`.
+   *
+   * Номер миссии (`NAR-2`) сюда не попадает намеренно: по нему склеились бы
+   * разные вопросы одной миссии.
+   */
+  const adrRefsOf = (text) => {
+    const out = new Set();
+    const src = String(text || "");
+    for (const m of src.matchAll(/docs\/decisions\/([\w.-]+?)\.md/gi)) out.add(`file:${m[1].toLowerCase()}`);
+    for (const m of src.matchAll(/\bNAR-\d+\.\d+(?:-[\wА-Яа-яЁё]+)?/gi)) out.add(`adr:${m[0].toLowerCase()}`);
+    return out;
+  };
+
+  /**
+   * Явная пометка «это не повтор»: по одному и тому же решению Мастера можно
+   * спросить второй раз, если вопрос правда другой. Без пометки повтор про
+   * уже решённый ADR не создаётся и не будит Мастера.
+   */
+  const followUpOf = (text) => /(уточнени|ещ[её] вопрос|новый вопрос|дополнительн|вдогонку)/i.test(String(text || ""));
+
+  /**
+   * Такой вопрос уже есть в базе? Возвращает `{ row, why }` или null.
+   *
+   * 25.10 Мастер заметил: уведомления приходят о том, на что он уже ответил.
+   * Причин было две — повторная запись того же вопроса (старый ход Координатора
+   * применён второй раз) и другой текст про уже решённое решение («как решить
+   * открытый ADR NAR-2.14.md?» при готовом ответе «принять F3–F5»). Поэтому
+   * сравниваются и нормализованный текст, и ссылки на ADR.
+   */
+  async function sameQuestionRow(text) {
+    const wanted = norm(text);
+    if (!wanted) return null;
+    const refs = adrRefsOf(text);
+    try {
+      const rows = await questionRows([Q.wait, Q.done, Q.byDefault]);
+      for (const row of rows) {
+        const raw = rt(row.properties["Вопрос"]);
+        const got = norm(raw);
+        if (!got) continue;
+        if (got === wanted) return { row, why: "text" };
+        const long = wanted.length >= 60 && got.length >= 60;
+        if (long && (got.startsWith(wanted.slice(0, 60)) || wanted.startsWith(got.slice(0, 60)))) return { row, why: "text" };
+        // Тот же вопрос другими словами: 25.10 про открытый ADR 2.14 спросили
+        // второй раз («как решить…» вместо «принять или отклонить»), и Мастер
+        // получил уведомление о том, на что уже ответил. Ссылка на решение —
+        // достаточный признак: вопрос про тот же ADR уже задан.
+        if (refs.size && !followUpOf(text)) {
+          const seen = adrRefsOf(raw);
+          const shared = [...refs].find((ref) => seen.has(ref));
+          if (shared) return { row, why: "adr", ref: shared.replace(/^(adr|file):/, "") };
+        }
+      }
+    } catch (e) {
+      dbg("вопросы: дубль не проверен", e.message);
+    }
+    return null;
+  }
+
   async function askQuestion(q, ctx = {}) {
     const key = `cfn-asked:${ctx.key || q.text}`;
     if (GM_getValue(key, false)) return null;
+    const same = await sameQuestionRow(q.text);
+    if (same) {
+      const status = sel(same.row.properties?.["Статус"]);
+      const answer = rt(same.row.properties?.["Ответ"]).replace(/\s+/g, " ").trim();
+      GM_setValue(key, Date.now());
+      const fact =
+        status === Q.wait
+          ? "вопрос уже ждёт ответа"
+          : `Мастер уже ответил${answer ? `: «${answer.slice(0, 140)}»` : ""}`;
+      const where = same.why === "adr" ? `По решению «${String(same.ref).toUpperCase()}»` : "Такой вопрос уже задан:";
+      log(`${where} ${fact} — второй раз не записываю и не уведомляю.`, false, { ntfy: false });
+      return null;
+    }
     try {
       const row = await notion("POST", "pages", {
         parent: { type: "data_source_id", data_source_id: C.questions },
         properties: questionProps(q, ctx),
       });
       GM_setValue(key, Date.now());
+      // Счётчик на панели и громкий пуш: вопрос в Notion иначе теряется.
+      noteQuestionAsked(row, q);
       log(`Вопрос к Мастеру записан: «${q.text}». По умолчанию: ${q.fallback} — работа идёт дальше.`, false, {
-        ntfy: "quiet",
-        title: "Narthex: вопрос к Мастеру",
+        ntfy: "loud",
+        title: "Narthex: новый вопрос к Мастеру",
       });
       return row;
     } catch (e) {
+      // Запись, которая уже не повторится, — потерянный вопрос: Мастер увидит
+      // его только в маркере. Поэтому строка ждёт в очереди и повторяется.
+      queueQuestion(q, ctx);
       log(
-        `Вопрос к Мастеру в базу не записался (${e.message}). Агент идёт по варианту по умолчанию: ${q.fallback}.`,
+        `Вопрос к Мастеру в базу не записался (${e.message}). Строка отложена и повторится сама; ` +
+          `пока агент идёт по варианту по умолчанию: ${q.fallback}.`,
         true,
       );
       return null;
@@ -5754,11 +6713,11 @@
     const rows = await query(C.questions, {
       or: statuses.map((name) => ({ property: "Статус", select: { equals: name } })),
     });
-    const wanted = mission ? norm(rt(mission.properties["Миссия"])) : "";
+    const wanted = mission ? rt(mission.properties["Миссия"]).trim() : "";
     if (!wanted) return rows;
     return rows.filter((row) => {
-      const value = norm(rt(row.properties["Миссия"]));
-      return !value || value === wanted || value.includes(wanted) || wanted.includes(value);
+      const value = rt(row.properties["Миссия"]).trim();
+      return !value || missionSame(value, wanted);
     });
   }
 
@@ -5780,6 +6739,184 @@
       log(`База «Вопросы» не читается: ${e.message}`, true);
       return { fresh: [], openLine: "", answersLine: "" };
     }
+  }
+
+  // ─────────────────────────── решения на Мастере (ADR) ───────────────────────
+  /**
+   * Предложение живёт в репозитории, а не в Notion: `docs/decisions/<X>.md` со
+   * строкой `Статус: proposed`.
+   *
+   * 25.10 Мастер спросил: «предложено — это кто предложил?» Оказалось, что
+   * механизм предложения работает наполовину: агент законно пишет ADR и должен
+   * остановиться, но остановки не происходит, а сам файл никто не читает — из
+   * 21 журнала поле `Статус:` было у двух. Счётчик вопросов тут не спасает:
+   * вопрос — отдельная запись, а ADR мог появиться и без вопроса.
+   *
+   * Поэтому счётчик решений читает репозиторий напрямую: имена файлов и их
+   * `Статус:` из `docs/decisions` в main. Содержимое кэшируется по sha: за
+   * проверку уходит один запрос на каталог, а файл перечитывается только когда
+   * его sha изменился. Ошибка чтения — не пауза: без счётчика цикл работает.
+   */
+  const ADR_FOLDER = "docs/decisions";
+  const ADR_PROPOSED = "proposed";
+
+  /**
+   * Имена решений, по которым Мастер уже ответил в «Вопросах».
+   *
+   * ADR остаётся `proposed`, пока решение не записано в репозиторий. Но само
+   * решение может быть уже принято — ответ лежит в базе. Держать такой ADR в
+   * счётчике «ждёт Мастера» значит звать человека туда, где его больше нет:
+   * осталась работа агентов. 25.10 именно так висели NAR-2.14 и NAR-2.15.
+   */
+  async function decidedAdrNames() {
+    const names = new Set();
+    try {
+      const rows = await questionRows([Q.done, Q.byDefault]);
+      for (const row of rows) {
+        const answer = rt(row.properties?.["Ответ"]).trim();
+        if (!answer) continue;
+        const text = `${rt(row.properties?.["Вопрос"])} ${answer}`;
+        for (const hit of text.matchAll(/NAR-\d+(?:\.\d+)?(?:-[\wа-яё]+)?/gi)) {
+          names.add(hit[0].toLowerCase());
+        }
+      }
+    } catch (e) {
+      // `null` — «не знаю», а не «решений нет»: иначе сбой чтения вернул бы в
+      // счётчик уже принятые решения и разбудил Мастера зря.
+      dbg("решения: ответы Мастера не прочитаны", e.message);
+      return null;
+    }
+    return names;
+  }
+
+  /** `Статус:` из шапки ADR; пусто — поля нет. */
+  const adrStatusOf = (text) => {
+    const m = String(text || "").match(/^\s*Статус:\s*(.+?)\s*$/m);
+    return m ? m[1].replace(/[`*]/g, "").trim().toLowerCase() : "";
+  };
+
+  function openDecisions() {
+    const cache = GM_getValue("cfn-adr-open", null);
+    return cache && Array.isArray(cache.rows) ? cache : { at: 0, rows: [], known: null };
+  }
+
+  /** Содержимое файла из ответа GitHub: base64 → UTF-8, без устаревших API. */
+  function b64Text(value) {
+    const clean = String(value || "").replace(/\s+/g, "");
+    if (!clean) return "";
+    try {
+      const bytes = Uint8Array.from(atob(clean), (ch) => ch.charCodeAt(0));
+      return new TextDecoder().decode(bytes);
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function paintDecisions(rows, settled = []) {
+    if (typeof document === "undefined") return;
+    const list = rows || [];
+    const waiting = (settled || []).map((row) => row.file);
+    const badge = document.getElementById(ui.adrBadge);
+    if (badge) {
+      badge.textContent = list.length ? String(list.length) : "";
+      badge.style.display = list.length ? "inline-block" : "none";
+    }
+    const button = document.getElementById(ui.adr);
+    if (!button) return;
+    const decidedHint = waiting.length
+      ? ` Решение уже принято, ждёт записи в репозиторий (это работа агентов): ${waiting.slice(0, 4).join(", ")}.`
+      : "";
+    button.title = list.length
+      ? `Решений на Мастере: ${list.length} — ${list
+          .slice(0, 4)
+          .map((row) => row.file)
+          .join(", ")}${list.length > 4 ? "…" : ""}. Нажмите, чтобы открыть ${ADR_FOLDER}.${decidedHint}`
+      : `Решений, ждущих Мастера, нет — ${ADR_FOLDER} в main.${decidedHint}`;
+    button.style.background = list.length ? "#3a3320" : "#242833";
+    button.style.borderColor = list.length ? "#8a6b2a" : "#343a46";
+  }
+
+  /**
+   * Новое предложение — громкий пуш. Первый запуск молчит и только запоминает,
+   * что уже висит: иначе Мастер получает пачку из старых решений и перестаёт
+   * верить каналу (ровно та же ошибка, что была с вопросами).
+   */
+  function announceDecisions(rows) {
+    const cache = openDecisions();
+    const names = (rows || []).map((row) => row.file);
+    const before = Array.isArray(cache.known) ? cache.known : null;
+    GM_setValue("cfn-adr-open", { at: Date.now(), rows: rows || [], known: names });
+    if (!before) {
+      if (names.length)
+        log(`Решений на Мастере: ${names.length} (${names.join(", ")}).`, false, { ntfy: false });
+      return 0;
+    }
+    const fresh = names.filter((name) => !before.includes(name));
+    if (!fresh.length) return 0;
+    log(`Новое решение ждёт Мастера: ${fresh.join(", ")} — ${ADR_FOLDER} в main.`, false, {
+      ntfy: "loud",
+      title: "Narthex: новое решение (ADR)",
+    });
+    return fresh.length;
+  }
+
+  async function refreshDecisions(force = false) {
+    const cache = openDecisions();
+    if (!force && Date.now() - cache.at < C.adrCheckMs) return cache.rows;
+    const token = GM_getValue(K.ghToken, "");
+    try {
+      const list = await request(
+        "GET",
+        `https://api.github.com/repos/${C.repo}/contents/${ADR_FOLDER}?ref=main`,
+        githubHeaders(token),
+      );
+      if (!Array.isArray(list)) throw new Error("GitHub вернул не список файлов");
+      const texts = GM_getValue("cfn-adr-text", {}) || {};
+      const rows = [];
+      for (const item of list) {
+        if (!item || item.type !== "file" || !/\.md$/i.test(item.name || "")) continue;
+        const cached = texts[item.name];
+        let status = cached && cached.sha === item.sha ? cached.status : "";
+        if (!status) {
+          const file = await request("GET", item.url, githubHeaders(token));
+          status = adrStatusOf(b64Text(file && file.content)) || "нет";
+          texts[item.name] = { sha: item.sha, status };
+        }
+        if (status === ADR_PROPOSED)
+          rows.push({ file: item.name, sha: item.sha, url: item.html_url || "" });
+      }
+      GM_setValue("cfn-adr-text", texts);
+      const answered = await decidedAdrNames();
+      if (answered === null) {
+        // Список ответов не прочитан — показываем прежний счётчик и молчим:
+        // лучше не обновить цифру, чем позвать Мастера к решённому.
+        paintDecisions(cache.rows);
+        return cache.rows;
+      }
+      const settled = rows.filter((row) => answered.has(String(row.file).replace(/\.md$/i, "").toLowerCase()));
+      const pending = rows.filter((row) => !settled.includes(row));
+      paintDecisions(pending, settled);
+      announceDecisions(pending);
+      if (settled.length) {
+        logThrottled(
+          "adr-settled",
+          `Решение Мастера уже принято в «Вопросах», но в репозитории ADR ещё proposed: ` +
+            `${settled.map((row) => row.file).join(", ")}. Это работа агентов, а не Мастера — в счётчик «⚖» не входит.`,
+        );
+      }
+      return pending;
+    } catch (e) {
+      dbg("решения: список не обновлён", e.message);
+      paintDecisions(cache.rows);
+      return cache.rows;
+    }
+  }
+
+  let decisionsWatch = 0;
+  function watchDecisions() {
+    if (decisionsWatch) return;
+    decisionsWatch = window.setInterval(() => refreshDecisions().catch(() => {}), C.adrCheckMs);
+    refreshDecisions().catch(() => {});
   }
 
   /** Свежие счётчики очереди: после решения Координатора старые уже неверны. */
@@ -5859,6 +6996,20 @@
    * строке «Очередь» видно только число: Координатор не знал, чья она, и мог
    * назвать в next не ту роль — или создать дубликат «на всякий случай».
    */
+  /**
+   * Отпечаток Ready: id карточки и её Sequence.
+   *
+   * По нему видно, та ли это очередь, по которой Координатор принимал решение.
+   * 25.10 план пришёл по одной очереди, а применился к другой: Мастер вернул
+   * зависшую карточку в Ready уже после запроса плана — и вместо неё ушла
+   * следующая по порядку.
+   */
+  const readyKeyOf = (cards) =>
+    (cards || [])
+      .map((card) => `${card.id}:${card.properties?.["Sequence"]?.number ?? ""}`)
+      .sort()
+      .join(",");
+
   function readyLine(cards) {
     const rows = [...(cards || [])].sort((a, b) => {
       const sa = Number(a.properties?.["Sequence"]?.number ?? 0);
@@ -5880,6 +7031,103 @@
     });
     const more = rows.length > shown.length ? `; и ещё ${rows.length - shown.length}` : "";
     return `Готовы к выдаче: ${shown.join("; ")}${more}.`;
+  }
+
+  /**
+   * Почему Координатор встал и что именно сделать Мастеру.
+   *
+   * 25.10 (пауза 19:43) он вернул `next:"blocked"` без `need`, и транспорт
+   * написал «нужна роль, которой нет в «Ролях»» — при том что роль Tools в
+   * базе есть, просто «Статус» = «Ждёт» и «Agent URL» пуст. Мастер по такой
+   * строке пошёл бы создавать нового агента вместо того, чтобы дозаполнить
+   * существующую роль. Поэтому текст паузы собирается по фактам: имя роли,
+   * её настоящий статус, очередь и уже открытый вопрос.
+   */
+  function blockedReason({ need = "", directory = [], queue = null, open = [], ask = "", asked = false } = {}) {
+    const rows = directory || [];
+    const find = (name) => rows.find((r) => norm(r.name) === norm(name));
+    const lacks = (row) => {
+      if (!row) return "";
+      const bits = [];
+      if ((row.status || "") !== "Активна") bits.push(`«Статус» = «${row.status || "пуст"}»`);
+      if (!row.url) bits.push("«Agent URL» пуст");
+      return bits.join(", ");
+    };
+    const parts = [];
+    const name = String(need || "").trim();
+    if (name) {
+      const row = find(name);
+      const gap = lacks(row);
+      parts.push(`Координатор остановил цикл: нужна роль «${name}».`);
+      if (!row) {
+        parts.push(
+          `Роли «${name}» в базе «Роли» нет — создайте агента в Arena, заполните «Agent URL» и поставьте «Статус» = «Активна».`,
+        );
+      } else if (!gap) {
+        parts.push(
+          `Роль «${name}» активна и «Agent URL» заполнен — значит, Координатор её не увидел: проверьте «Функцию» и «Зону записи».`,
+        );
+      } else {
+        parts.push(
+          `Роль «${name}» в «Ролях» есть, но ${gap} — создавать агента не нужно: заполните «Agent URL» и поставьте «Статус» = «Активна».`,
+        );
+      }
+    } else {
+      // Роль не названа — показываем очередь: по ней видно, чья это работа.
+      parts.push("Координатор остановил цикл, но роль не назвал.");
+      const waiting = ((queue && queue.draft) || [])
+        .map((card) => ({ card, role: taskRole(card) }))
+        .filter(({ role }) => role && !find(role)?.url)
+        .map(
+          ({ card, role }) =>
+            `черновик «${taskTitle(card)}» ждёт роль ${role} — ${lacks(find(role)) || "роли нет в «Ролях»"}`,
+        );
+      if (waiting.length) {
+        parts.push(`По очереди видно: ${waiting.join("; ")}. Новый агент нужен только если роли правда нет.`);
+      } else if (queue) {
+        parts.push(
+          (queue.rework || []).length
+            ? "Черновиков, которым не хватает роли, нет — значит, причина другая: смотрите «Ответ» карточек в Rework."
+            : "Черновиков, которым не хватает роли, нет, и Rework пуст — по очереди причину не видно.",
+        );
+      }
+    }
+    if (queue && queue.summary) parts.push(`Очередь: ${queue.summary}.`);
+    if (queue && (queue.rework || []).length) {
+      parts.push(
+        "Rework — это не «нет роли»: Координатор разбирает причину из «Ответа» карточки и сам решает, выдавать снова или править карточку.",
+      );
+    }
+    if (ask) {
+      parts.push(
+        `Координатор спрашивает: «${ask}». ` +
+          (asked
+            ? "Вопрос записан в базу «Вопросы» — он виден там и счётчиком на панели."
+            : "Вопрос в «Вопросы» не записался — он есть только в этом сообщении, запишите его сами."),
+      );
+    }
+    const first = (open || [])[0];
+    if (first) {
+      const due = first.properties?.["Срок"]?.date?.start || "";
+      const when = due
+        ? `, срок ${new Date(due).toLocaleString("ru-RU", {
+            timeZone: "Europe/Moscow",
+            day: "2-digit",
+            month: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}`
+        : "";
+      parts.push(
+        `Вопрос об этом уже задан: «${rt(first.properties?.["Вопрос"])}» (по умолчанию: ${rt(
+          first.properties?.["По умолчанию"],
+        )}${when}) — он ждёт ответа в базе «Вопросы».`,
+      );
+    }
+    parts.push(
+      "Право на остановку у Координатора одно — роль, которая не может взять работу; пустую очередь, Rework и спорный Scope он разбирает сам.",
+    );
+    return parts.join(" ");
   }
 
   /**
@@ -5997,6 +7245,70 @@
         .at(-1);
       if (!decision) return markerMissing(role, expect, "CF_COORDINATOR_RESULT", manual);
 
+      // Решение по устаревшей очереди не применяется.
+      //
+      // 25.10, 21:36–21:42. Карточка NAR-2.16 висела в Running после съеденной
+      // отправки; Мастер вернул её в Ready. Скрипт в это время дочитывал ответ
+      // Координатора, полученный ДО правки, — в нём стояло next: "Tools", и
+      // ушла NAR-2.17, хотя в Ready уже лежала NAR-2.16 с меньшим Sequence.
+      // Транспорт не выбирает за Координатора, но и применять его решение к
+      // другой очереди не имеет права: план посчитан по снимку, снимок устарел.
+      if (expect.kind === "plan" && typeof expect.readyKey === "string") {
+        const was = new Map(
+          expect.readyKey
+            .split(",")
+            .filter(Boolean)
+            .map((part) => {
+              const [id, seq] = part.split(":");
+              return [id, seq || ""];
+            }),
+        );
+        const now = new Map(ready.map((card) => [card.id, String(card.properties?.["Sequence"]?.number ?? "")]));
+        // Ушла из Ready, сменился её Sequence, или карточка, которая в момент
+        // вопроса была в работе, снова стала Ready — всё это чужие правки:
+        // план считался по другому снимку. Появление новой карточки само по
+        // себе не признак: её в этом же ответе мог создать Координатор.
+        const left = [...was.keys()].filter((id) => !now.has(id));
+        const moved = [...was.keys()].filter((id) => now.has(id) && now.get(id) !== was.get(id));
+        const returned = (Array.isArray(expect.runningIds) ? expect.runningIds : []).filter((id) => now.has(id));
+        if (left.length || moved.length || returned.length) {
+          const what = [
+            left.length ? `ушли из Ready: ${left.join(", ")}` : "",
+            moved.length ? `сменился Sequence у ${moved.join(", ")}` : "",
+            returned.length ? `вернулись в Ready из работы: ${returned.join(", ")}` : "",
+          ]
+            .filter(Boolean)
+            .join("; ");
+          const shifts = (Number(GM_getValue("cfn-plan-shift", 0)) || 0) + 1;
+          GM_setValue("cfn-plan-shift", shifts);
+          GM_setValue(K.expect, null);
+          GM_setValue("cfn-plan-at", 0);
+          if (shifts > 2) {
+            pause(
+              `План Координатора не совпадает с очередью уже ${shifts}-й раз (${what}). ` +
+                "Решение по устаревшей очереди не применяю: проверьте карточки и нажмите «Продолжить».",
+              { kind: "plan-shift", ref: mission.id },
+            );
+            return true;
+          }
+          log(
+            `Пока ждали план, очередь изменилась (${what}). Решение «${decision.next}» относится к прежней очереди — ` +
+              "не применяю, прошу новый план: иначе уйдёт не та карточка.",
+            true,
+            { ntfy: "quiet", title: "Narthex: план по устаревшей очереди" },
+          );
+          await requestPlan(
+            mission,
+            role,
+            await queueOf(mission),
+            `Пока ты отвечал, очередь изменилась: ${what}. Пересчитай план по текущей очереди.`,
+            { force: true },
+          );
+          return true;
+        }
+        GM_setValue("cfn-plan-shift", 0);
+      }
+
       // Миссия в маркере — проверка по существу: решение чужой миссии
       // применять нельзя, тут пауза оправдана.
       //
@@ -6037,20 +7349,25 @@
       log(`Маркер Координатора найден: дальше «${decision.next}» (turn ${decision.turn_id || expect.turnId}).`);
       // Вопрос не останавливает цикл: он живёт строкой в базе «Вопросы», а
       // работа идёт по варианту, который агент назвал сам.
-      if (decision.question !== undefined) {
-        const asked = parseQuestion(decision.question);
-        if (asked) {
-          await askQuestion(asked, {
+      if (norm(decision.next) !== "blocked") {
+        // Та же история, что у исполнителя: `"question":null` — не вопрос, а
+        // вопрос без варианта по умолчанию записывается с честным вариантом
+        // «работа идёт по решению Координатора» — по next он и так идёт.
+        const asked = questionInMarker(decision.question, "Работа идёт по решению Координатора");
+        if (asked.kind === "text") {
+          log(
+            `Вопрос Координатора пришёл без варианта по умолчанию — записан с вариантом «${asked.question.fallback}»: дальше идём по next.`,
+            false,
+            { ntfy: "quiet", title: "Narthex: вопрос без варианта по умолчанию" },
+          );
+        }
+        if (asked.kind !== "none") {
+          await askQuestion(asked.question, {
             roleName: role.name,
             card: "",
             mission: rt(mission.properties["Миссия"]),
             key: `${mission.id}:${decision.turn_id || expect.turnId}`,
           });
-        } else {
-          log(
-            "Вопрос в маркере без варианта по умолчанию — не принят: это не вопрос, а просьба остановиться. Ход идёт дальше.",
-            true,
-          );
         }
       }
       if (norm(decision.next) === "blocked") {
@@ -6058,13 +7375,48 @@
         // нет, и заменить её некем — агента в Arena создаёт Мастер. Всё
         // остальное (пустая очередь, спорный Scope, неясное ТЗ) Координатор
         // решает сам, иначе «остановлю, когда мне неудобно» съедает цикл.
+        //
+        // 25.10 в 19:43 он вернул next:"blocked" без need, и пауза сказала
+        // «нужна роль, которой нет в «Ролях»» — при том что Tools в базе была,
+        // просто «Ждёт». Поэтому текст собирается по фактам (blockedReason), а
+        // не по шаблону: Мастер должен видеть, что дозаполнить, а что создать.
         const need = String(decision.need || "").trim();
-        pause(
-          `Координатор остановил цикл: ${need ? `нужна роль «${need}»` : "нужна роль, которой нет в «Ролях»"}. ` +
-            "Создайте агента в Arena, заполните «Agent URL», поставьте «Статус» = «Активна» и нажмите «Продолжить». " +
-            "Других поводов останавливать цикл у Координатора нет.",
-          { kind: "blocked-role", ref: mission.id, need, notifyTitle: "Narthex: нужна роль" },
-        );
+        // Вопрос при остановке раньше выбрасывался: у него нет варианта по
+        // умолчанию (цикл и так стоит), а `parseQuestion` такие не принимает.
+        // Мастер видел только «нужна роль», а суть вопроса оставалась в чате.
+        // Теперь он записывается в «Вопросы» с прямым вариантом по умолчанию —
+        // «ждать ответа Мастера» — и попадает в текст паузы.
+        const rawAsk = decision.question;
+        const askText = rawAsk === undefined ? "" : oneLine(typeof rawAsk === "object" && rawAsk ? rawAsk.text : rawAsk, C.questionTextMax);
+        let askRow = null;
+        if (askText) {
+          const ask = typeof rawAsk === "object" && rawAsk ? rawAsk : {};
+          const asked = parseQuestion({
+            ...ask,
+            text: askText,
+            default: oneLine(ask.default, C.questionDefaultMax) || "Ответ Мастера: цикл уже остановлен и ждёт его",
+            hours: Number(ask.hours) || 168,
+          });
+          if (asked) {
+            askRow = await askQuestion(asked, {
+              roleName: role.name,
+              card: "",
+              mission: rt(mission.properties["Миссия"]),
+              key: `${mission.id}:${decision.turn_id || expect.turnId}:blocked`,
+            });
+          }
+        }
+        const [directory, fresh, open] = await Promise.all([
+          roleRows().catch(() => []),
+          queueOf(mission).catch(() => null),
+          questionRows([Q.wait], mission).catch(() => []),
+        ]);
+        pause(blockedReason({ need, directory, queue: fresh, open, ask: askText, asked: Boolean(askRow) }), {
+          kind: "blocked-role",
+          ref: mission.id,
+          need,
+          notifyTitle: "Narthex: нужна роль",
+        });
         return true;
       }
       if (decision.next === "done") {
@@ -6209,7 +7561,14 @@
       ),
       "plan",
       mission.id,
-      { missionId: mission.id, turnId, title: "план Координатора" },
+      {
+        missionId: mission.id,
+        turnId,
+        title: "план Координатора",
+        // Снимок очереди на момент вопроса: по нему видно, устарел ли ответ.
+        readyKey: readyKeyOf(queue.ready),
+        runningIds: (queue.running || []).map((card) => card.id),
+      },
     );
     if (sent) await markDelivered(briefing.fresh);
     return true;
@@ -6321,6 +7680,8 @@
       runId,
       logId,
       title: taskTitle(card),
+      // Ссылка нужна минимальному повтору: «прочитай карточку сам».
+      url: card.url || "",
     }));
   }
 
@@ -6495,17 +7856,8 @@
         return;
       }
     }
-    // Сроки вопросов к Мастеру проверяются редко: каждый тик — лишний запрос
-    // в Notion, а вопрос, закрытый на десять минут позже, ничего не меняет.
-    if (Date.now() - (Number(GM_getValue("cfn-q-check-at", 0)) || 0) > C.questionCheckMs) {
-      GM_setValue("cfn-q-check-at", Date.now());
-      try {
-        const active = await activeMission();
-        if (active) await closeExpired(expiredQuestions(await questionRows([Q.wait], active)));
-      } catch (e) {
-        dbg("вопросы: срок не проверен", e.message);
-      }
-    }
+    // Вопросы к Мастеру живут отдельным сторожем (`watchQuestions`): они видны
+    // и на паузе, а тик до паузы не доходит.
     busy = true;
     busyAt = Date.now();
     try {
@@ -6640,6 +7992,21 @@
       }
       GM_setValue("cfn-me", me.name);
       setStatus();
+
+      // Страница не догружена — шаг ничего не делает. Ни вставки, ни кликов,
+      // ни закрытия панелей: на недорисованной странице любое действие либо
+      // уходит в пустоту, либо бьёт по чужому элементу.
+      const shell = appReady();
+      if (!shell.ok) {
+        logThrottled(
+          "app-ready",
+          `Страница ещё грузится (${shell.why}) — ничего не делаю, жду.`,
+          false,
+          C.tickMs * 4,
+        );
+        return;
+      }
+
       const working = fromToggle ? await busySettled() : busyReason();
       if (working) {
         if (fromToggle) {
@@ -6730,15 +8097,74 @@
       // Но молчание и работа — разные вещи. Задача может идти часами: пока
       // виден Stop или плашка «думает», ход живой, и снимать передачу нельзя —
       // иначе агент останется без ответа, а карточка вернётся в Ready.
+      //
+      // И третья разница, из-за которой этот блок переписан 25.10: отсутствие
+      // ответа на ещё не отрисованной странице — не молчание, а загрузка.
       if (expect) {
         const since = Number(expect.sentAt || expect.at) || 0;
         const waited = Date.now() - since;
+
+        // Отсчёт наблюдения — с того момента, когда страница адресата открылась
+        // в этой попытке, а не с отправки: после обрыва связи и «Продолжить»
+        // скрипт заходит на страницу, которой ещё секунду назад не видел.
+        const path = location.pathname || "/";
+        if (expect.seenPath !== path || !Number(expect.seenAt)) {
+          expect = { ...expect, seenPath: path, seenAt: Date.now(), readyAt: 0, pageReloaded: false };
+          GM_setValue(K.expect, expect);
+        }
+        const watched = Date.now() - Number(expect.seenAt || Date.now());
+
+        // Пока транскрипт не отрисован, о молчании агента не судим: пустая
+        // страница — это загрузка или сеть, а не «задание не дошло».
+        const page = pageReady(expect);
+        if (page.ok && !Number(expect.readyAt)) {
+          // Дальше короткая выдержка: сразу после отрисовки ответ может ещё
+          // доезжать, и «пусто» в этот момент ничего не доказывает.
+          expect = { ...expect, readyAt: Date.now() };
+          GM_setValue(K.expect, expect);
+        }
+        if (!page.ok) {
+          if (watched > C.pageWaitMs) {
+            // Ожидание НЕ снимаем и карточку НЕ трогаем: работа могла быть
+            // сделана, а ответ — лежать в чате. Это пауза про связь, а не про
+            // исполнителя, поэтому после «Продолжить» всё перечитывается.
+            expect = { ...expect, seenAt: 0, readyAt: 0, pageReloaded: false };
+            GM_setValue(K.expect, expect);
+            pause(
+              `Страница «${me.name}» не открылась за ${Math.round(watched / 1000)} с (${page.why}). ` +
+                "Это не молчание агента: ожидание, очередь и карточка на месте. " +
+                "Проверьте связь и нажмите «Продолжить» — скрипт перечитает страницу и заберёт ответ.",
+              { kind: "offline", ref: me.id, runId: expect.runId || "" },
+            );
+            return;
+          }
+          if (watched > C.pageReloadMs && !expect.pageReloaded) {
+            expect = { ...expect, pageReloaded: true };
+            GM_setValue(K.expect, expect);
+            log(
+              `Страница «${me.name}» не отрисовалась за ${Math.round(watched / 1000)} с (${page.why}) — ` +
+                "перечитываю её. Ожидание не снимаю: ответ агента остаётся в чате.",
+            );
+            location.reload();
+            return;
+          }
+          logThrottled(
+            `page-render:${me.id}`,
+            `Страница «${me.name}» ещё не отрисовалась (${page.why}) — жду, ответ не снимаю.`,
+            false,
+            C.tickMs,
+          );
+          return;
+        }
+
+        const observed = Number(expect.readyAt) ? Date.now() - Number(expect.readyAt) : 0;
         const fresh = messagesAfter(expect.watermark || "").length;
         const working = stillWorking();
-        if (waited > C.replyWaitMs && !fresh && !working) {
+        if (waited > C.replyWaitMs && observed > C.observeGraceMs && !fresh && !working) {
           const stuck = expect;
           dropHandoff(
-            `${me.name} не ответил ни одним сообщением за ${Math.round(waited / 60000)} мин и ничего не делает: похоже, задание до него не дошло. ` +
+            `${me.name} не ответил ни одним сообщением за ${Math.round(waited / 60000)} мин и ничего не делает: ` +
+              `страница открыта и видна, ответа в ней нет — похоже, задание до него не дошло. ` +
               `Очередь и ожидание сняты — нажмите «Продолжить» и пройдите шаг заново.`,
           );
           await releaseUndelivered(stuck, "агент не ответил и ничего не делает");
@@ -6792,8 +8218,12 @@
         ? "Notion не принял адрес записи: в нём оказался битый id — обычно это " +
           "опечатка в строке-маркере ответа."
         : e && e.narthex === "gateway"
-          ? "Шлюз Drive не ответил, ответ агента в журнал не записан. Проверьте, что " +
-            "развёртывание Apps Script открыто «любому, у кого есть ссылка», и что ссылка в ⚙ та же."
+          ? e.refused
+            ? `Шлюз Drive ответил отказом: ${e.reason} Запись не сделана, в Диске ничего не менялось. ` +
+              "Если отказ про папку — в карточке указан не журнал: «Output Drive File ID» должен " +
+              "указывать на файл из Arena/logs; скрипт вернёт его сам после обновления."
+            : "Шлюз Drive не ответил, ответ агента в журнал не записан. Проверьте, что " +
+              "развёртывание Apps Script открыто «любому, у кого есть ссылка», и что ссылка в ⚙ та же."
           : e && e.narthex === "notion" || networkish(raw)
             ? "Notion не ответил: сеть или блокировка запроса. Запись не сделана."
             : "Шаг прервался на записи в Notion.";

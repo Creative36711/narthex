@@ -1,4 +1,4 @@
-// Проба 1.4.58: вопрос к Мастеру — поле в базе «Вопросы», а не остановка.
+// Проба 1.4.63: вопрос к Мастеру — поле в базе «Вопросы», а не остановка.
 //
 // 25.10 фаза 2 дала два вопроса, и оба потерялись: один остался строкой в поле
 // «Ответ» карточки, второй — предложением выбрать вариант в конце хода.
@@ -17,7 +17,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-assert.match(src, /@version\s+1\.4\.58/, 'версия 1.4.58');
+assert.match(src, /@version\s+1\.4\.74/, 'версия 1.4.74');
 
 const sliceBetween = (startMarker, endMarker) => {
   const from = src.indexOf(startMarker);
@@ -34,7 +34,7 @@ const patched = [];
 const lines = [];
 
 const api = new Function(
-  'C', 'rt', 'sel', 'norm', 'GM_getValue', 'GM_setValue', 'notion', 'patch', 'log',
+  'C', 'rt', 'sel', 'norm', 'GM_getValue', 'GM_setValue', 'notion', 'patch', 'log', 'K', 'noteQuestionAsked', 'dbg',
   `${block}
    return { Q, parseQuestion, questionDeadline, expiredQuestions, openQuestionsLine, answersLine, questionProps, askQuestion, markDelivered, closeExpired };`,
 )(
@@ -50,6 +50,9 @@ const api = new Function(
   },
   async (id, properties) => patched.push({ id, properties }),
   (text) => lines.push(text),
+  { qQueue: 'cfn-q-queue' },
+  () => {},
+  () => {},
 );
 
 const props = (over = {}) => ({
@@ -161,7 +164,7 @@ const run = async () => {
 
   // Ошибка Notion не срывает ход.
   const failing = new Function(
-    'C', 'rt', 'sel', 'norm', 'GM_getValue', 'GM_setValue', 'notion', 'patch', 'log',
+    'C', 'rt', 'sel', 'norm', 'GM_getValue', 'GM_setValue', 'notion', 'patch', 'log', 'K', 'noteQuestionAsked', 'dbg',
     `${block}
      return { parseQuestion, askQuestion };`,
   )(
@@ -176,6 +179,9 @@ const run = async () => {
     },
     async () => {},
     (text) => lines.push(text),
+    { qQueue: 'cfn-q-queue' },
+    () => {},
+    () => {},
   );
   const none = await failing.askQuestion(failing.parseQuestion({ text: 'q', default: 'a' }), { key: 'turn-x' });
   assert.equal(none, null, 'ошибка записи не возвращает строку');
@@ -198,18 +204,20 @@ const run = async () => {
   assert.match(lines.find((line) => /ждал дольше срока/.test(line)), /принят вариант по умолчанию/, 'закрытие не молчит');
 
   // ── 7. Подключение к ходу ────────────────────────────────────────────────
-  assert.match(src, /if \(decision\.question !== undefined\)/, 'вопрос Координатора разбирается из маркера');
-  assert.match(src, /if \(result\.question !== undefined\)/, 'вопрос исполнителя разбирается из маркера');
+  assert.match(src, /questionInMarker\(decision\.question, "Работа идёт по решению Координатора"\)/, 'вопрос Координатора разбирается из маркера');
+  assert.match(src, /if \(askText\)/, 'вопрос при остановке не выбрасывается');
+  assert.match(src, /Ответ Мастера: цикл уже остановлен и ждёт его/, 'у вопроса при остановке есть прямой вариант по умолчанию');
+  assert.match(src, /questionInMarker\(result\.question, "Работа идёт по решению исполнителя"\)/, 'вопрос исполнителя разбирается из маркера: null — не вопрос');
   assert.match(src, /await questionBriefing\(mission\)/, 'перед планом читаются вопросы и ответы');
   assert.match(src, /if \(sent\) await markDelivered\(briefing\.fresh\)/, 'ответ доставляется только после отправки');
-  assert.match(src, /Вопрос в маркере без варианта по умолчанию — не принят/, 'вопрос без дефолта не принимается');
+  assert.match(src, /kind === "text"/, 'вопрос без варианта по умолчанию не выбрасывается');
   assert.doesNotMatch(
     src,
     /Не задавай вопросов, не создавай опросов/,
     'полный запрет вопросов убран: он и приводил к потерянным вопросам',
   );
 
-  console.log('OK: narthex 1.4.58 — вопрос к Мастеру живёт в базе «Вопросы», а цикл идёт по варианту по умолчанию');
+  console.log('OK: narthex 1.4.63 — вопрос к Мастеру живёт в базе «Вопросы», а цикл идёт по варианту по умолчанию');
 };
 
 run().catch((error) => {

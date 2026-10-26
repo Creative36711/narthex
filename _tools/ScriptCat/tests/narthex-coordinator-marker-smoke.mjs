@@ -1,4 +1,4 @@
-// Проба 1.4.58: чужой turn_id в маркере Координатора не останавливает цикл.
+// Проба 1.4.63: чужой turn_id в маркере Координатора не останавливает цикл.
 //
 // 25.10, ход 41. Transport запросил план и положил в промпт готовую строку с
 // turn_id 8453c8ac. Coordinator ответил на этот самый вопрос, но вписал id
@@ -18,7 +18,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-assert.match(src, /@version\s+1\.4\.58/, 'версия 1.4.58');
+assert.match(src, /@version\s+1\.4\.74/, 'версия 1.4.74');
 
 const from = src.indexOf('      const sameMission = !decision.mission_id');
 const to = src.indexOf('      log(`Маркер Координатора найден', from);
@@ -48,7 +48,7 @@ assert.doesNotMatch(src, /не совпал с ожидающим ходом/, '
 // Свой id подставляется до того, как решение применяется: иначе вопрос
 // Мастеру ушёл бы с ключом чужого хода.
 assert.ok(
-  src.indexOf('decision.turn_id = expect.turnId;') < src.indexOf('if (decision.question !== undefined) {'),
+  src.indexOf('decision.turn_id = expect.turnId;') < src.indexOf('if (norm(decision.next) !== "blocked")'),
   'подмена идёт до применения решения',
 );
 
@@ -73,4 +73,4 @@ assert.match(
 );
 assert.match(src, /if \(route\.kind === "pause"\) \{/, 'роли и статусы проверяются до выдачи');
 
-console.log('OK: narthex 1.4.58 — чужой turn_id в маркере Координатора не останавливает цикл, а виден в журнале');
+console.log('OK: narthex 1.4.63 — чужой turn_id в маркере Координатора не останавливает цикл, а виден в журнале');

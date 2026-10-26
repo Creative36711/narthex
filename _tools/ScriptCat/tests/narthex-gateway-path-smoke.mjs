@@ -103,14 +103,42 @@ const load = ({ gm, fetchImpl }) => {
   );
 }
 
-// 5. Отказ шлюза (неверный ключ) не повторяется.
+// 5. Отказ шлюза (неверный ключ) не повторяется и не выдаёт себя за молчание.
 {
   const { api, calls } = load({
     gm: () => ({ body: { ok: false, error: 'Неверный ключ шлюза.' } }),
     fetchImpl: () => ({ body: { ok: false, error: 'Неверный ключ шлюза.' } }),
   });
-  await assert.rejects(() => api.gateway('append', 'file-1', {}), /Неверный ключ шлюза/);
+  await assert.rejects(
+    () => api.gateway('append', 'file-1', {}),
+    (e) => {
+      assert.match(e.message, /Неверный ключ шлюза/, 'причина сохранена');
+      assert.match(e.message, /отказал/, 'отказ назван отказом');
+      assert.doesNotMatch(e.message, /не ответил/, 'молчанием это не называется');
+      assert.equal(e.refused, true, 'видно, что шлюз ответил');
+      assert.equal(e.narthex, 'gateway', 'источник помечен');
+      return true;
+    },
+  );
   assert.equal(calls.gm, 1, 'на отказе повторов нет');
+  assert.equal(calls.fetch, 0, 'второй путь на отказе не нужен: ответ будет тот же');
+}
+
+// 5б. Отказ про папку — единственный случай, в котором скрипт возвращает
+//     журнал выдачи: так было на NAR-2.13 (D-071).
+{
+  const { api } = load({
+    gm: () => ({ body: { ok: false, error: 'Запись разрешена только в текстовые файлы Arena/logs.' } }),
+    fetchImpl: () => ({ error: 'не должен вызываться' }),
+  });
+  await assert.rejects(
+    () => api.gateway('append', '1rt913-отчёт', {}),
+    (e) => {
+      assert.equal(e.refused, true, 'отказ помечен');
+      assert.match(e.reason, /Arena\/logs/, 'причина отказа видна отдельным полем');
+      return true;
+    },
+  );
 }
 
 // 6. request: сетевой сбой повторяется, HTTP 400 — нет.
@@ -182,6 +210,16 @@ const load = ({ gm, fetchImpl }) => {
   assert.match(submit, /Ответ уже был в журнале Drive/, 'и объясняет, почему второго блока нет');
   assert.match(submit, /повторная запись не нужна, ожидание снято/, 'оформленная карточка снимает ожидание');
   assert.match(submit, /GM_setValue\(K\.expect, null\)/, 'ожидание действительно снимается');
+  assert.match(
+    submit,
+    /const \{ wrote, logId \} = await appendToJournal\(/,
+    'журнал берётся из выдачи, а не из поля карточки',
+  );
+  assert.doesNotMatch(
+    submit,
+    /gateway\("append",\s*declaredLog/,
+    'ответ не пишется в id из карточки напрямую: его мог переписать агент',
+  );
 }
 
-console.log('OK: narthex 1.4.58 — шлюз Drive идёт через расширение, сеть повторяется, ошибка называет источник');
+console.log('OK: narthex 1.4.63 — шлюз Drive идёт через расширение, сеть повторяется, ошибка называет источник');

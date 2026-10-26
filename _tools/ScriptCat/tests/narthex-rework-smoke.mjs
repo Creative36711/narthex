@@ -1,4 +1,4 @@
-// Проба 1.4.58: у Rework есть путь назад.
+// Проба 1.4.63: у Rework есть путь назад.
 //
 // 25.10 Координатор поставил NAR-2.5 в Rework за форму ответа: код уже лежал в
 // main, а в отчёте не хватало цитат. Транспорт выдаёт только Ready, поэтому из
@@ -18,7 +18,7 @@ import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
-assert.match(src, /@version\s+1\.4\.58/, 'версия 1.4.58');
+assert.match(src, /@version\s+1\.4\.74/, 'версия 1.4.74');
 
 const sliceBetween = (startMarker, endMarker) => {
   const from = src.indexOf(startMarker);
@@ -100,7 +100,9 @@ assert.equal(api.reworkLine(null), '', 'null тоже пустой');
 }
 
 // ── 6. Промпт: Rework возвращается, Accepted — нет ─────────────────────────
-assert.match(src, /Rework — не выдача: карточка с этим статусом исполнителю не уходит/, 'правило Rework в промпте');
+assert.match(src, /Rework — не выдача и не приговор: разбираешь его ты, а не Мастер/, 'правило Rework в промпте');
+assert.match(src, /\(б\) Карточка была сформулирована с ошибкой — перепиши её Намерение, Инварианты, Acceptance и Scope/, 'ошибочную карточку правит Координатор');
+assert.match(src, /Acceptance карточки — не оракул миссии/, 'карточка и оракул миссии разведены');
 assert.match(
   src,
   /верни её в Ready: следы прошлого ответа \(«Submitted At», «PR», «Run ID»\) снимет транспорт/,
@@ -115,4 +117,4 @@ assert.match(src, /reworkLine\(queue\.rework\)/, 'reworkLine вызываетс�
 assert.match(src, /function coordinatorPrompt\([\s\S]*?ready = "",\n\s*rework = "",/, 'промпт принимает строку Rework');
 assert.match(src, /^\s+ready,\n\s+rework,/m, 'и ставит её сразу после Ready');
 
-console.log('OK: narthex 1.4.58 — Rework не запирает карточку: причина в промпте, путь назад назван, следы снимает транспорт');
+console.log('OK: narthex 1.4.63 — Rework не запирает карточку: причина в промпте, путь назад назван, следы снимает транспорт');

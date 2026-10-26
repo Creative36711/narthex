@@ -167,4 +167,4 @@ const sendBlock = src.slice(sendFrom, src.indexOf('async function submitExecutor
 assert.match(sendBlock, /const busy = await busySettled\(\);/, 'состояние проверяется, а не один кадр');
 assert.match(sendBlock, /Агент ещё отвечает/, 'в журнале есть причина ожидания');
 
-console.log('OK: narthex 1.4.58 — ответ находится по месту и по маркеру, ложного «нет сообщений» и ложной занятости нет');
+console.log('OK: narthex 1.4.63 — ответ находится по месту и по маркеру, ложного «нет сообщений» и ложной занятости нет');
