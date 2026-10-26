@@ -7585,8 +7585,8 @@ var init_engine = __esm({
 var import_seedrandom3 = __toESM(require_seedrandom2(), 1);
 import { createHash } from "node:crypto";
 import { existsSync as existsSync2 } from "node:fs";
-import { mkdir, readFile as readFile3, readdir, writeFile } from "node:fs/promises";
-import { basename, dirname, extname, join as join3, relative, resolve as resolve2, sep } from "node:path";
+import { mkdir, readFile as readFile4, readdir, writeFile } from "node:fs/promises";
+import { basename, dirname, extname, join as join4, relative, resolve as resolve2, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // src/core/loader.ts
@@ -19601,9 +19601,420 @@ async function resolveProjectPackForCheck(projectDir, registryOverride) {
   return resolveProjectPack(project, contracts.kinds, contracts.packs, installed);
 }
 
-// packs/narrative/runtime.ts
-import { readFile as readFile2 } from "node:fs/promises";
-import { join as join2 } from "node:path";
+// scripts/playkit/adventure-runtime.ts
+init_host();
+import { readFile as readFile3 } from "node:fs/promises";
+import { join as join3 } from "node:path";
+
+// packs/adventure/pack.json
+var pack_default2 = {
+  id: "adventure",
+  title: "Point-and-click \u043F\u0440\u0438\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435",
+  version: "0.1.0",
+  runtime: "turn",
+  provides: {
+    kind: true,
+    schema: "schema/adventure.schema.json",
+    panels: [
+      {
+        id: "adventure-stage",
+        title: "\u0421\u0446\u0435\u043D\u0430 \u043F\u0440\u0438\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u044F",
+        slot: "center",
+        schema: "schema/adventure.schema.json",
+        caps: ["adventure", "scenes"],
+        order: 10
+      },
+      {
+        id: "adventure-combinations",
+        title: "\u0421\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u044F \u043F\u0440\u0435\u0434\u043C\u0435\u0442\u043E\u0432",
+        slot: "right",
+        schema: "schema/adventure.schema.json",
+        caps: ["adventure", "inventory"],
+        order: 20
+      },
+      {
+        id: "adventure-riddle",
+        title: "\u041A\u0440\u0443\u043F\u043D\u044B\u0439 \u043F\u043B\u0430\u043D-\u0437\u0430\u0433\u0430\u0434\u043A\u0430",
+        slot: "modal",
+        schema: "schema/adventure.schema.json",
+        caps: ["adventure"],
+        order: 30
+      }
+    ],
+    validators: [
+      {
+        id: "walk-target",
+        title: "\u041F\u0443\u0442\u044C \u0430\u0432\u0430\u0442\u0430\u0440\u0430 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u0435\u0442",
+        severity: "error",
+        description: "\u0421\u0442\u0430\u0440\u0442\u043E\u0432\u044B\u0439 \u0443\u0437\u0435\u043B \u0438 \u043E\u0431\u0430 \u043A\u043E\u043D\u0446\u0430 \u043A\u0430\u0436\u0434\u043E\u0433\u043E \u0440\u0435\u0431\u0440\u0430 \u043E\u0431\u044A\u044F\u0432\u043B\u0435\u043D\u044B \u0432 \u0441\u0446\u0435\u043D\u0435.",
+        caps: ["adventure"]
+      },
+      {
+        id: "hotspot-action",
+        title: "\u0413\u043E\u0440\u044F\u0447\u0430\u044F \u0442\u043E\u0447\u043A\u0430 \u0438\u043C\u0435\u0435\u0442 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435",
+        severity: "error",
+        description: "\u0422\u043E\u0447\u043A\u0430 \u0438\u043C\u0435\u0435\u0442 \u043E\u0441\u043C\u043E\u0442\u0440, \u043F\u0440\u0435\u0434\u043C\u0435\u0442 \u0438\u043B\u0438 \u0434\u0438\u0430\u043B\u043E\u0433 \u0438 \u0443\u043D\u0438\u043A\u0430\u043B\u044C\u043D\u044B\u0439 id \u0432 \u0441\u0446\u0435\u043D\u0435.",
+        caps: ["adventure", "scenes"]
+      },
+      {
+        id: "combination-recipe",
+        title: "\u0420\u0435\u0446\u0435\u043F\u0442 \u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u044F \u043A\u043E\u0440\u0440\u0435\u043A\u0442\u0435\u043D",
+        severity: "error",
+        description: "\u041F\u0430\u0440\u0430 \u0432\u0445\u043E\u0434\u043E\u0432 \u0438 \u0440\u0435\u0437\u0443\u043B\u044C\u0442\u0430\u0442 \u0437\u0430\u0434\u0430\u043D\u044B \u043D\u0435\u043F\u0443\u0441\u0442\u044B\u043C\u0438 id, \u0440\u0435\u0446\u0435\u043F\u0442\u044B \u043D\u0435 \u043F\u043E\u0432\u0442\u043E\u0440\u044F\u044E\u0442\u0441\u044F.",
+        caps: ["adventure", "inventory"]
+      },
+      {
+        id: "riddle-solution",
+        title: "\u0417\u0430\u0433\u0430\u0434\u043A\u0430 \u0432\u0435\u0434\u0451\u0442 \u043A \u0440\u0430\u0437\u0432\u044F\u0437\u043A\u0435",
+        severity: "error",
+        description: "\u041A\u0440\u0443\u043F\u043D\u044B\u0439 \u043F\u043B\u0430\u043D \u0438\u043C\u0435\u0435\u0442 \u0441\u0446\u0435\u043D\u0443, \u0444\u043E\u043D, \u0440\u0435\u0448\u0435\u043D\u0438\u0435 \u0438 \u043E\u0431\u044A\u044F\u0432\u043B\u0435\u043D\u043D\u0443\u044E \u0440\u0430\u0437\u0432\u044F\u0437\u043A\u0443.",
+        caps: ["adventure"]
+      }
+    ],
+    probes: [
+      {
+        id: "adventure-mechanics",
+        title: "\u041C\u0435\u0445\u0430\u043D\u0438\u043A\u0438, \u043C\u0430\u0440\u0448\u0440\u0443\u0442 \u0438 \u0441\u043E\u0432\u043C\u0435\u0441\u0442\u0438\u043C\u043E\u0441\u0442\u044C \u0441\u0435\u0439\u0432\u043E\u0432",
+        kind: "run",
+        budget_ms: 6e4,
+        checks: [
+          "\u043A\u043B\u0438\u043A \u043F\u0435\u0440\u0435\u043C\u0435\u0449\u0430\u0435\u0442 \u0430\u0432\u0430\u0442\u0430\u0440\u0430 \u043F\u043E \u043A\u043E\u043E\u0440\u0434\u0438\u043D\u0430\u0442\u0430\u043C \u0438 \u0432\u044B\u0434\u0430\u0451\u0442 \u0434\u043B\u0438\u043D\u0443 \u043F\u0443\u0442\u0438",
+          "\u043A\u0443\u0440\u0441\u043E\u0440 \u043F\u0435\u0440\u0435\u043A\u043B\u044E\u0447\u0430\u0435\u0442\u0441\u044F \u043C\u0435\u0436\u0434\u0443 walk, look, take \u0438 talk",
+          "\u043F\u0430\u0440\u0430 \u043F\u0440\u0435\u0434\u043C\u0435\u0442\u043E\u0432 \u0441\u043E\u0437\u0434\u0430\u0451\u0442 \u043E\u0431\u044A\u044F\u0432\u043B\u0435\u043D\u043D\u044B\u0439 \u0440\u0435\u0437\u0443\u043B\u044C\u0442\u0430\u0442",
+          "\u043A\u0440\u0443\u043F\u043D\u044B\u0439 \u043F\u043B\u0430\u043D \u043F\u0440\u0438\u043D\u0438\u043C\u0430\u0435\u0442 \u0440\u0435\u0448\u0435\u043D\u0438\u0435 \u0438 \u043E\u0442\u043A\u0440\u044B\u0432\u0430\u0435\u0442 \u0440\u0430\u0437\u0432\u044F\u0437\u043A\u0443",
+          "20 \u043F\u0440\u043E\u0433\u043E\u043D\u043E\u0432 \u0438\u0437 20 \u0441 \u043E\u0434\u043D\u0438\u043C seed \u0434\u0430\u044E\u0442 \u043E\u0434\u0438\u043D sha256 \u043F\u0440\u0438 \u0432\u043A\u043B\u044E\u0447\u0451\u043D\u043D\u043E\u043C \u0438 \u0432\u044B\u043A\u043B\u044E\u0447\u0435\u043D\u043D\u043E\u043C view",
+          "\u043C\u0430\u0440\u0448\u0440\u0443\u0442 \u043E\u0442 \u0441\u0442\u0430\u0440\u0442\u043E\u0432\u043E\u0439 \u0441\u0446\u0435\u043D\u044B \u0434\u043E\u0441\u0442\u0438\u0433\u0430\u0435\u0442 \u0440\u0430\u0437\u0432\u044F\u0437\u043A\u0438",
+          "\u0441\u0435\u0439\u0432\u044B narrative \u0438 adventure \u043E\u0442\u043A\u0440\u044B\u0432\u0430\u044E\u0442\u0441\u044F \u0432 \u043E\u0431\u043E\u0438\u0445 \u043D\u0430\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F\u0445",
+          "\u0437\u0430\u043F\u0438\u0441\u044C \u0438\u0437 view \u043E\u0442\u043A\u043B\u043E\u043D\u044F\u0435\u0442\u0441\u044F \u0445\u043E\u0441\u0442\u043E\u043C"
+        ],
+        caps: ["adventure", "narrative", "scenes", "dialogue", "inventory"]
+      }
+    ],
+    seams: [
+      {
+        id: "adventure.sim",
+        kind: "sim",
+        signature: "(ctx: PackSimContext<AdventureState, AdventureEvent>) => AdventureState",
+        description: "\u0427\u0438\u0441\u0442\u044B\u0439 \u043F\u0435\u0440\u0435\u0445\u043E\u0434 \u0430\u0432\u0430\u0442\u0430\u0440\u0430, \u043A\u0443\u0440\u0441\u043E\u0440\u0430, \u043F\u0440\u0435\u0434\u043C\u0435\u0442\u043E\u0432 \u0438 \u0437\u0430\u0433\u0430\u0434\u043E\u043A; narrative-\u0441\u043E\u0431\u044B\u0442\u0438\u044F \u0434\u0435\u043B\u0435\u0433\u0438\u0440\u0443\u044E\u0442\u0441\u044F \u0432\u043D\u0435\u0434\u0440\u0451\u043D\u043D\u043E\u0439 \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u0438.",
+        caps: ["adventure", "narrative"]
+      },
+      {
+        id: "adventure.view",
+        kind: "view",
+        signature: "(ctx: PackViewContext<AdventureState, AdventureFrame>) => void",
+        description: "\u041F\u0440\u043E\u0435\u043A\u0446\u0438\u044F \u0430\u0432\u0430\u0442\u0430\u0440\u0430, \u043A\u0443\u0440\u0441\u043E\u0440\u0430, \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F, \u043A\u0440\u0443\u043F\u043D\u043E\u0433\u043E \u043F\u043B\u0430\u043D\u0430 \u0438 \u0440\u0430\u0437\u0432\u044F\u0437\u043A\u0438 \u0442\u043E\u043B\u044C\u043A\u043E \u0432 draw-\u043F\u043E\u0440\u0442.",
+        caps: ["adventure"]
+      }
+    ]
+  },
+  saves: {
+    namespace: "adventure",
+    version: 1,
+    migrations: 0
+  },
+  requires: {
+    core: ">=1.0.0",
+    packs: [],
+    caps: ["narrative", "scenes", "dialogue", "inventory", "map", "quests"]
+  },
+  caps: ["adventure"]
+};
+
+// packs/adventure/state.ts
+function copyNarrativeState(state) {
+  return {
+    scene: state.scene,
+    location: state.location,
+    flags: { ...state.flags },
+    inventory: { ...state.inventory },
+    quests: Object.fromEntries(Object.entries(state.quests).map(([id, quest]) => [
+      id,
+      { ...quest, journal: [...quest.journal] }
+    ])),
+    dialogue: state.dialogue ? { ...state.dialogue } : null,
+    usedChoices: [...state.usedChoices],
+    visitedScenes: [...state.visitedScenes],
+    journal: [...state.journal]
+  };
+}
+function copyAdventureRuntime(runtime) {
+  return {
+    avatar: {
+      ...runtime.avatar,
+      path: runtime.avatar.path.map((point) => ({ ...point }))
+    },
+    cursor: runtime.cursor,
+    takenHotspots: [...runtime.takenHotspots],
+    activeRiddle: runtime.activeRiddle,
+    solvedRiddles: [...runtime.solvedRiddles],
+    ending: runtime.ending,
+    message: runtime.message
+  };
+}
+function copyAdventureState(state) {
+  return {
+    ...copyNarrativeState(state),
+    adventure: copyAdventureRuntime(state.adventure)
+  };
+}
+function initialRuntime(content, sceneId) {
+  const scene = content.scenes[sceneId];
+  const startScene = content.scenes[content.startScene];
+  if (!startScene) throw new Error(`Unknown adventure start scene ${content.startScene}`);
+  const startNode = startScene.walk.nodes.find((node2) => node2.id === content.startNode);
+  if (!startNode) throw new Error(`Unknown adventure start node ${content.startNode}`);
+  const node = scene?.walk.nodes[0] ?? (sceneId === content.startScene ? startNode : null);
+  return {
+    avatar: node ? { node: node.id, x: node.x, y: node.y, path: [], distance: 0 } : { node: "narrative", x: 0, y: 0, path: [], distance: 0 },
+    cursor: "walk",
+    takenHotspots: [],
+    activeRiddle: null,
+    solvedRiddles: [],
+    ending: null,
+    message: null
+  };
+}
+function openNarrativeSave(content, save) {
+  return {
+    ...copyNarrativeState(save),
+    adventure: initialRuntime(content, save.scene)
+  };
+}
+function createAdventureState(content, narrative) {
+  return openNarrativeSave(content, narrative);
+}
+
+// packs/adventure/sim.ts
+function distance(a2, b2) {
+  return Math.hypot(a2.x - b2.x, a2.y - b2.y);
+}
+function nodeById(scene, id) {
+  const node = scene.walk.nodes.find((candidate) => candidate.id === id);
+  if (!node) throw new Error(`Unknown walk node ${id}`);
+  return node;
+}
+function nearestNode(scene, point) {
+  return [...scene.walk.nodes].sort(
+    (a2, b2) => distance(a2, point) - distance(b2, point) || (a2.id < b2.id ? -1 : a2.id > b2.id ? 1 : 0)
+  )[0] ?? (() => {
+    throw new Error("Adventure scene has no walk nodes");
+  })();
+}
+function walkPath(scene, startId, targetId) {
+  const distances = /* @__PURE__ */ new Map([[startId, 0]]);
+  const previous = /* @__PURE__ */ new Map();
+  const pending = new Set(scene.walk.nodes.map((node) => node.id));
+  while (pending.size) {
+    const current = [...pending].sort(
+      (a2, b2) => (distances.get(a2) ?? Infinity) - (distances.get(b2) ?? Infinity) || (a2 < b2 ? -1 : a2 > b2 ? 1 : 0)
+    )[0];
+    const currentDistance = distances.get(current) ?? Infinity;
+    if (!Number.isFinite(currentDistance)) throw new Error(`No walk path from ${startId} to ${targetId}`);
+    pending.delete(current);
+    if (current === targetId) break;
+    for (const [from, to] of scene.walk.edges) {
+      const neighbor = from === current ? to : to === current ? from : null;
+      if (!neighbor || !pending.has(neighbor)) continue;
+      const candidate = currentDistance + distance(nodeById(scene, current), nodeById(scene, neighbor));
+      if (candidate < (distances.get(neighbor) ?? Infinity)) {
+        distances.set(neighbor, candidate);
+        previous.set(neighbor, current);
+      }
+    }
+  }
+  if (!distances.has(targetId)) throw new Error(`No walk path from ${startId} to ${targetId}`);
+  const ids = [targetId];
+  while (ids[0] !== startId) {
+    const parent = previous.get(ids[0]);
+    if (!parent) throw new Error(`Broken walk path from ${startId} to ${targetId}`);
+    ids.unshift(parent);
+  }
+  return {
+    points: ids.map((id) => {
+      const node = nodeById(scene, id);
+      return { x: node.x, y: node.y };
+    }),
+    length: distances.get(targetId)
+  };
+}
+function walkTo(state, content, point) {
+  const scene = content.scenes[state.scene];
+  if (!scene) throw new Error(`Scene ${state.scene} has no adventure walk data`);
+  const target = nearestNode(scene, point);
+  const route = walkPath(scene, state.adventure.avatar.node, target.id);
+  const points = route.points.map((value) => ({ ...value }));
+  const last = points[points.length - 1];
+  let extra = 0;
+  if (last.x !== point.x || last.y !== point.y) {
+    extra = distance(last, point);
+    points.push({ ...point });
+  }
+  state.adventure.avatar = {
+    node: target.id,
+    x: point.x,
+    y: point.y,
+    path: points,
+    distance: route.length + extra
+  };
+  state.adventure.message = null;
+}
+function hotspotAt(scene, point) {
+  const hotspot = scene.hotspots.find(
+    (candidate) => point.x >= candidate.x && point.x <= candidate.x + candidate.w && point.y >= candidate.y && point.y <= candidate.y + candidate.h
+  );
+  if (!hotspot) throw new Error(`No adventure hotspot at ${point.x},${point.y}`);
+  return hotspot;
+}
+function changeItem(state, item, delta) {
+  const quantity = (state.inventory[item] ?? 0) + delta;
+  if (quantity < 0) throw new Error(`Not enough ${item}`);
+  if (quantity === 0) delete state.inventory[item];
+  else state.inventory[item] = quantity;
+}
+function combine(state, content, first, second) {
+  const wanted = [first, second].sort();
+  const recipe = content.combinations.find(
+    (candidate) => [...candidate.inputs].sort().every((item, index) => item === wanted[index])
+  );
+  if (!recipe) throw new Error(`No combination for ${first} + ${second}`);
+  const required2 = /* @__PURE__ */ new Map();
+  for (const item of recipe.inputs) required2.set(item, (required2.get(item) ?? 0) + 1);
+  for (const [item, count] of required2) {
+    if ((state.inventory[item] ?? 0) < count) throw new Error(`Combination ${recipe.id} needs ${item} \xD7${count}`);
+  }
+  for (const item of recipe.inputs) changeItem(state, item, -1);
+  changeItem(state, recipe.output, 1);
+  state.adventure.message = recipe.message;
+}
+function delegate(state, event, narrative, seed) {
+  const narrativeState = copyNarrativeState(state);
+  const result = narrative({ state: narrativeState, event, seed });
+  return {
+    ...result ?? narrativeState,
+    adventure: copyAdventureRuntime(state.adventure)
+  };
+}
+function click(state, content, narrative, point, seed) {
+  if (state.adventure.cursor === "walk") {
+    walkTo(state, content, point);
+    return state;
+  }
+  const scene = content.scenes[state.scene];
+  if (!scene) throw new Error(`Scene ${state.scene} has no adventure hotspots`);
+  const hotspot = hotspotAt(scene, point);
+  if (state.adventure.cursor === "look") {
+    state.adventure.message = `${hotspot.label}: ${hotspot.message}`;
+    return state;
+  }
+  if (state.adventure.cursor === "take") {
+    if (!hotspot.item) throw new Error(`${hotspot.id} cannot be taken`);
+    if (state.adventure.takenHotspots.includes(hotspot.id)) throw new Error(`${hotspot.id} was already taken`);
+    changeItem(state, hotspot.item, 1);
+    state.adventure.takenHotspots.push(hotspot.id);
+    state.adventure.message = `${hotspot.label}: \u043F\u043E\u043B\u0443\u0447\u0435\u043D\u043E ${hotspot.item}`;
+    return state;
+  }
+  if (!hotspot.dialogue) throw new Error(`${hotspot.id} has no dialogue`);
+  state.adventure.message = `${hotspot.label}: ${hotspot.dialogue}`;
+  return delegate(state, {
+    type: "start_dialogue",
+    dialogue: hotspot.dialogue,
+    node: hotspot.node
+  }, narrative, seed);
+}
+function reduceAdventure(content, narrative, state, event, seed) {
+  switch (event.type) {
+    case "adventure_cursor": {
+      const next = copyAdventureState(state);
+      next.adventure.cursor = event.mode;
+      next.adventure.message = null;
+      return next;
+    }
+    case "adventure_click":
+      return click(copyAdventureState(state), content, narrative, { x: event.x, y: event.y }, seed);
+    case "adventure_combine": {
+      const next = copyAdventureState(state);
+      combine(next, content, event.first, event.second);
+      return next;
+    }
+    case "adventure_open_riddle": {
+      const riddle = content.riddles.find((candidate) => candidate.id === event.riddle);
+      if (!riddle) throw new Error(`Unknown adventure riddle ${event.riddle}`);
+      const moved = state.scene === riddle.scene ? copyAdventureState(state) : delegate(state, { type: "goto", scene: riddle.scene }, narrative, seed);
+      moved.adventure.activeRiddle = riddle.id;
+      moved.adventure.message = riddle.message;
+      return moved;
+    }
+    case "adventure_solve_riddle": {
+      const next = copyAdventureState(state);
+      const riddle = content.riddles.find((candidate) => candidate.id === event.riddle);
+      if (!riddle || next.adventure.activeRiddle !== riddle.id) throw new Error(`Riddle ${event.riddle} is not active`);
+      if (riddle.solution.length !== event.solution.length || riddle.solution.some((value, index) => value !== event.solution[index])) {
+        next.adventure.message = `${riddle.id}: \u043F\u043E\u0441\u043B\u0435\u0434\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u043D\u043E\u0441\u0442\u044C \u043D\u0435 \u0441\u043E\u0432\u043F\u0430\u043B\u0430`;
+        return next;
+      }
+      if (!next.adventure.solvedRiddles.includes(riddle.id)) next.adventure.solvedRiddles.push(riddle.id);
+      next.adventure.activeRiddle = null;
+      next.adventure.ending = riddle.ending;
+      next.adventure.message = `${riddle.id}: ${riddle.ending}`;
+      return next;
+    }
+    default:
+      return delegate(state, event, narrative, seed);
+  }
+}
+function createAdventureSim(content, narrative) {
+  return (context) => reduceAdventure(content, narrative, context.state, context.event, context.seed);
+}
+
+// packs/adventure/view.ts
+var adventureView = ({ state, frame, draw }) => {
+  draw({
+    type: "adventure.avatar",
+    frame: frame.frame,
+    scene: state.scene,
+    node: state.adventure.avatar.node,
+    x: state.adventure.avatar.x,
+    y: state.adventure.avatar.y,
+    path: state.adventure.avatar.path.map((point) => ({ x: point.x, y: point.y })),
+    distance: state.adventure.avatar.distance
+  });
+  draw({
+    type: "adventure.cursor",
+    frame: frame.frame,
+    mode: state.adventure.cursor
+  });
+  if (state.adventure.message) {
+    draw({
+      type: "adventure.message",
+      frame: frame.frame,
+      text: state.adventure.message
+    });
+  }
+  if (state.adventure.activeRiddle) {
+    draw({
+      type: "adventure.closeup",
+      frame: frame.frame,
+      scene: state.scene,
+      riddle: state.adventure.activeRiddle
+    });
+  }
+  if (state.adventure.ending) {
+    draw({
+      type: "adventure.ending",
+      frame: frame.frame,
+      ending: state.adventure.ending
+    });
+  }
+};
+
+// packs/adventure/hooks.ts
+function createAdventureHooks(content, narrative) {
+  return {
+    sim: createAdventureSim(content, narrative),
+    view: adventureView
+  };
+}
 
 // packs/narrative/fmv.ts
 function copyFmvState(state) {
@@ -19889,7 +20300,7 @@ function advanceQuests(state) {
   }
   throw new Error("Quest transition limit exceeded");
 }
-function changeItem(state, itemId, delta) {
+function changeItem2(state, itemId, delta) {
   const quantity = (state.inventory[itemId] ?? 0) + delta;
   if (quantity < 0) throw new Error(`Not enough ${itemId}`);
   if (quantity === 0) delete state.inventory[itemId];
@@ -19904,10 +20315,10 @@ function applyEffect2(state, effect) {
       startQuest(state, required(effect.quest, "quest effect id"));
       return;
     case "add_item":
-      changeItem(state, required(effect.item, "item effect id"), effect.qty ?? 1);
+      changeItem2(state, required(effect.item, "item effect id"), effect.qty ?? 1);
       return;
     case "remove_item":
-      changeItem(state, required(effect.item, "item effect id"), -(effect.qty ?? 1));
+      changeItem2(state, required(effect.item, "item effect id"), -(effect.qty ?? 1));
       return;
     case "journal_update":
       writeJournal(state, required(effect.quest, "journal quest id"), required(effect.text_key, "journal text key"));
@@ -20039,7 +20450,7 @@ function reduceNarrative(content, readonlyState, event) {
       state.flags[event.flag] = event.value ?? true;
       break;
     case "add_item":
-      changeItem(state, event.item, event.quantity ?? 1);
+      changeItem2(state, event.item, event.quantity ?? 1);
       break;
   }
   advanceQuests(state);
@@ -20048,6 +20459,10 @@ function reduceNarrative(content, readonlyState, event) {
 function createNarrativeSim(content) {
   return ({ state, event }) => reduceNarrative(content, state, event);
 }
+
+// packs/narrative/runtime.ts
+import { readFile as readFile2 } from "node:fs/promises";
+import { join as join2 } from "node:path";
 
 // packs/narrative/view.ts
 function createNarrativeView(content) {
@@ -20156,6 +20571,122 @@ function narrativeEntryEvent(content, state) {
   throw new Error(`PACK_RUNTIME_NO_ENTRY: ${state.scene} has no FMV, scene navigation, or travel event`);
 }
 
+// scripts/playkit/adventure-runtime.ts
+var adventureManifest = pack_default2;
+var narrativeManifest = pack_default;
+async function readJson3(path) {
+  return JSON.parse(await readFile3(path, "utf8"));
+}
+function narrativeStateFromEngine(engine) {
+  const state = engine.state;
+  return {
+    scene: String(state.scene),
+    location: String(state.location),
+    flags: { ...state.flags ?? {} },
+    inventory: Object.fromEntries((state.player?.inventory ?? []).map((entry) => [
+      String(entry.item),
+      Number(entry.quantity ?? 1)
+    ])),
+    quests: Object.fromEntries(Object.entries(state.quests ?? {}).map(([id, quest]) => [id, {
+      stage: String(quest.stage ?? ""),
+      status: quest.status,
+      journal: [...quest.journal ?? []]
+    }])),
+    dialogue: null,
+    usedChoices: [],
+    visitedScenes: [String(state.scene)],
+    journal: [...state.log ?? []]
+  };
+}
+function eventOf(action) {
+  switch (action.do) {
+    case "adventure_cursor":
+      return { type: "adventure_cursor", mode: action.mode };
+    case "adventure_click":
+      return { type: "adventure_click", x: Number(action.x), y: Number(action.y) };
+    case "adventure_combine":
+      return { type: "adventure_combine", first: String(action.first), second: String(action.second) };
+    case "adventure_open_riddle":
+      return { type: "adventure_open_riddle", riddle: String(action.riddle) };
+    case "adventure_solve_riddle":
+      return {
+        type: "adventure_solve_riddle",
+        riddle: String(action.riddle),
+        solution: Array.isArray(action.solution) ? action.solution.map(String) : []
+      };
+    default:
+      throw new Error(`Unsupported adventure action: ${String(action.do)}`);
+  }
+}
+async function createAdventureSession(campaignDir, engine, manifest) {
+  const schemaFile = manifest.provides.schema.split("/").at(-1) ?? "";
+  const contentFile = schemaFile.replace(/\.schema\.json$/, ".json");
+  if (!contentFile.endsWith(".json")) throw new Error(`Pack ${manifest.id} has no schema-derived data filename`);
+  const [content, narrativeContent] = await Promise.all([
+    readJson3(join3(campaignDir, contentFile)),
+    loadNarrativeContent(campaignDir)
+  ]);
+  const initial = createAdventureState(content, narrativeStateFromEngine(engine));
+  const narrative = createNarrativeSim(narrativeContent);
+  const host = new PackHost([narrativeManifest, manifest]);
+  if (!host.register(manifest.id, createAdventureHooks(content, narrative))) {
+    throw new Error(`Pack ${manifest.id} registration failed: ${host.paused?.reason ?? "unknown reason"}`);
+  }
+  let state = initial;
+  let frame = 0;
+  return {
+    get state() {
+      return state;
+    },
+    act(currentEngine, action) {
+      const cursor = state.adventure.cursor;
+      const event = eventOf(action);
+      const result = host.runSim({ state, event, seed: Number(currentEngine.state.seed) || 0 });
+      if (result.paused) throw new Error(`Pack ${result.paused.packId} paused: ${result.paused.reason}`);
+      state = result.state;
+      if (event.type === "adventure_click" && cursor === "talk" && state.dialogue) {
+        const dialogueRef = state.dialogue.dialogue.replaceAll("\\", "/");
+        const npc = Object.values(currentEngine.campaign.entities).find((entity) => {
+          if (entity.type !== "npc" || !entity.dialogue) return false;
+          const ref = String(entity.dialogue).replaceAll("\\", "/");
+          return ref === dialogueRef || ref.endsWith(`/${dialogueRef}.ink`) || ref === `${dialogueRef}.ink`;
+        });
+        if (npc) currentEngine.startDialogue(npc.id, state.dialogue.node);
+      }
+      if (event.type === "adventure_open_riddle" && state.scene !== currentEngine.state.scene) {
+        currentEngine.goToScene(state.scene);
+      }
+      return `${event.type}${event.type === "adventure_click" ? ` (${event.x},${event.y})` : ""}`;
+    },
+    observe() {
+      return {
+        scene: state.scene,
+        cursor: state.adventure.cursor,
+        avatar: { ...state.adventure.avatar, path: state.adventure.avatar.path.map((point) => ({ ...point })) },
+        inventory: { ...state.inventory },
+        message: state.adventure.message,
+        activeRiddle: state.adventure.activeRiddle,
+        ending: state.adventure.ending
+      };
+    },
+    draw() {
+      const commands = [];
+      const paused = host.runView({ state, frame: { frame: frame++ }, draw: (command) => commands.push(command) });
+      if (paused) throw new Error(`Pack ${paused.packId} view paused: ${paused.reason}`);
+      return commands;
+    }
+  };
+}
+var factories = /* @__PURE__ */ new Map([
+  [adventureManifest.id, createAdventureSession]
+]);
+async function createPlaykitAdventureSession(campaignDir, engine) {
+  const resolution = await resolveProjectPackForCheck(campaignDir);
+  if (!resolution || resolution.status !== "ready") return null;
+  const factory = factories.get(resolution.manifest.id);
+  return factory ? factory(campaignDir, engine, resolution.manifest) : null;
+}
+
 // scripts/playkit/cli.mts
 var PLAYKIT_VERSION = "0.1.0";
 var CLI_DIR = dirname(fileURLToPath(import.meta.url));
@@ -20215,7 +20746,7 @@ function flagText(flags, key) {
 }
 async function walk(dir, acc = []) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
-    const full = join3(dir, entry.name);
+    const full = join4(dir, entry.name);
     if (entry.isDirectory()) {
       if (entry.name === "node_modules" || entry.name === ".git") continue;
       await walk(full, acc);
@@ -20232,7 +20763,7 @@ async function logicDigest(dir) {
   for (const file of files) {
     hash.update(relative(dir, file).split(sep).join("/"));
     hash.update("\0");
-    hash.update(await readFile3(file));
+    hash.update(await readFile4(file));
     hash.update("\0");
   }
   return "sha256:" + hash.digest("hex");
@@ -20255,14 +20786,14 @@ function installShims(campaignDir) {
     const rel = decodeURIComponent(new URL(url).pathname).replace(/^\/+/, "");
     const target = resolve2(campaignDir, rel);
     if (!target.startsWith(resolve2(campaignDir))) throw new Error(`cf-play: \u043F\u0443\u0442\u044C \u0432\u043D\u0435 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 (${rel})`);
-    return new Response(await readFile3(target), { status: 200 });
+    return new Response(await readFile4(target), { status: 200 });
   };
 }
 function entityLabel2(entity) {
   if (!entity) return "\u2014";
   return String(entity.label ?? entity.name ?? entity.id ?? "\u2014");
 }
-function makeObserver(engine, campaign2) {
+function makeObserver(engine, campaign2, adventure) {
   let logSeen = 0;
   let combatLogSeen = 0;
   const errorsSeen = /* @__PURE__ */ new Set();
@@ -20368,7 +20899,8 @@ function makeObserver(engine, campaign2) {
       },
       over: state.game_over ? { type: String(state.game_over.type), reason: String(state.game_over.reason ?? ""), ending: state.game_over.ending } : null,
       log: fresh,
-      errors
+      errors,
+      ...adventure ? { adventure: adventure.observe() } : {}
     };
   };
 }
@@ -20437,8 +20969,16 @@ function fight(engine) {
   }
   return { ok: false, detail: `\u0431\u043E\u0439 \u043D\u0435 \u0437\u0430\u0432\u0435\u0440\u0448\u0438\u043B\u0441\u044F \u0437\u0430 ${MAX_FIGHT_STEPS} \u0448\u0430\u0433\u043E\u0432` };
 }
-function act(engine, campaign2, action) {
+function act(engine, campaign2, action, adventure) {
   const kind = String(action.do ?? "");
+  if (kind.startsWith("adventure_")) {
+    if (!adventure) return { ok: false, detail: "\u043F\u0440\u043E\u0435\u043A\u0442 \u043D\u0435 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0438\u043B adventure runtime \u0447\u0435\u0440\u0435\u0437 registry" };
+    try {
+      return { ok: true, detail: adventure.act(engine, action) };
+    } catch (error) {
+      return { ok: false, detail: String(error?.message ?? error) };
+    }
+  }
   if (kind === "fight") return fight(engine);
   if (kind.startsWith("combat_")) return combatAct(engine, action);
   if (kind === "interact") {
@@ -20459,6 +20999,10 @@ function act(engine, campaign2, action) {
         };
     }
     return { ok: !!done, detail: done ? `\u0432\u0437\u0430\u0438\u043C\u043E\u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435 \u0441 ${entityLabel2(target.entity)}` : `\u043D\u0435\u0442 \u0440\u0435\u0430\u043A\u0446\u0438\u0438 (${action.entity})` };
+  }
+  if (kind === "dialogue_close") {
+    if (engine.dialogue) engine.endDialogue();
+    return { ok: true, detail: "\u0434\u0438\u0430\u043B\u043E\u0433 \u0437\u0430\u043A\u0440\u044B\u0442" };
   }
   if (kind === "choose") {
     const ui = engine.dialogue;
@@ -20508,8 +21052,38 @@ function act(engine, campaign2, action) {
   }
   return { ok: false, detail: `\u043D\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043D\u043E\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435 \xAB${kind}\xBB` };
 }
-function checkExpectation(engine, expectation) {
+function checkExpectation(engine, expectation, adventure) {
   const state = engine.state;
+  if (expectation.adventure_ending !== void 0) {
+    const actual = adventure?.state.adventure.ending ?? null;
+    const ok = actual === expectation.adventure_ending;
+    return { name: `adventure_ending=${expectation.adventure_ending}`, ok, detail: ok ? "" : `\u0441\u0435\u0439\u0447\u0430\u0441 ${String(actual)}` };
+  }
+  if (expectation.adventure_scene !== void 0) {
+    const actual = adventure?.state.scene ?? null;
+    const ok = actual === expectation.adventure_scene;
+    return { name: `adventure_scene=${expectation.adventure_scene}`, ok, detail: ok ? "" : `\u0441\u0435\u0439\u0447\u0430\u0441 ${String(actual)}` };
+  }
+  if (expectation.adventure_cursor !== void 0) {
+    const actual = adventure?.state.adventure.cursor ?? null;
+    const ok = actual === expectation.adventure_cursor;
+    return { name: `adventure_cursor=${expectation.adventure_cursor}`, ok, detail: ok ? "" : `\u0441\u0435\u0439\u0447\u0430\u0441 ${String(actual)}` };
+  }
+  if (expectation.adventure_item !== void 0) {
+    const { item, quantity = 1 } = expectation.adventure_item;
+    const actual = adventure?.state.inventory?.[item] ?? 0;
+    const ok = actual >= quantity;
+    return { name: `adventure_item=${item}\xD7${quantity}`, ok, detail: ok ? "" : `\u0441\u0435\u0439\u0447\u0430\u0441 ${actual}` };
+  }
+  if (expectation.adventure_message_contains !== void 0) {
+    const actual = adventure?.state.adventure.message ?? "";
+    const ok = actual.includes(String(expectation.adventure_message_contains));
+    return { name: `adventure_message_contains=${expectation.adventure_message_contains}`, ok, detail: ok ? "" : `\u0441\u0435\u0439\u0447\u0430\u0441 ${actual || "(\u043F\u0443\u0441\u0442\u043E)"}` };
+  }
+  if (expectation.dialogue_open !== void 0) {
+    const ok = !!engine.dialogue === Boolean(expectation.dialogue_open);
+    return { name: `dialogue_open=${expectation.dialogue_open}`, ok, detail: ok ? "" : `\u0441\u0435\u0439\u0447\u0430\u0441 ${engine.dialogue ? "\u043E\u0442\u043A\u0440\u044B\u0442" : "\u0437\u0430\u043A\u0440\u044B\u0442"}` };
+  }
   if (expectation.scene !== void 0) {
     const ok = state.scene === expectation.scene;
     return { name: `scene=${expectation.scene}`, ok, detail: ok ? "" : `\u0441\u0435\u0439\u0447\u0430\u0441 ${state.scene}` };
@@ -20700,6 +21274,14 @@ function renderTranscript(config, campaign2, engineVersion, digest, steps) {
     lines.push(`## ${obs.step}. \u0442\u0438\u043A ${obs.tick} \xB7 ${obs.sceneLabel || obs.scene}`);
     lines.push("");
     if (step.action) lines.push(`**\u0414\u0435\u0439\u0441\u0442\u0432\u0438\u0435:** ${step.action.detail}`);
+    if (obs.adventure) {
+      const avatar = obs.adventure.avatar;
+      lines.push(`**\u041F\u0440\u0438\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435:** \u043A\u0443\u0440\u0441\u043E\u0440 ${obs.adventure.cursor}; \u0430\u0432\u0430\u0442\u0430\u0440 ${avatar?.x},${avatar?.y}; \u0441\u0446\u0435\u043D\u0430 ${obs.adventure.scene}`);
+      const inventory2 = Object.entries(obs.adventure.inventory ?? {}).map(([id, quantity]) => `${id}\xD7${quantity}`).join(", ");
+      if (inventory2) lines.push(`**\u0418\u043D\u0432\u0435\u043D\u0442\u0430\u0440\u044C \u043F\u0430\u043A\u0430:** ${inventory2}`);
+      if (obs.adventure.message) lines.push(`**\u0421\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435:** ${obs.adventure.message}`);
+      if (obs.adventure.ending) lines.push(`**\u0420\u0430\u0437\u0432\u044F\u0437\u043A\u0430:** ${obs.adventure.ending}`);
+    }
     if (obs.dialogue) {
       lines.push("");
       lines.push(`**\u0414\u0438\u0430\u043B\u043E\u0433 \u0441 ${obs.dialogue.npcLabel}:**`);
@@ -20748,10 +21330,10 @@ async function writeRun(config, result, steps, engine, campaign2, debug) {
   }
   if (config.outDir) {
     await mkdir(config.outDir, { recursive: true });
-    await writeFile(join3(config.outDir, "transcript.md"), transcript, "utf8");
-    await writeFile(join3(config.outDir, "run.json"), runJson, "utf8");
-    await writeFile(join3(config.outDir, "result.json"), JSON.stringify(result, null, 2), "utf8");
-    if (debug) await writeFile(join3(config.outDir, "state.final.json"), JSON.stringify(engine.state, null, 2), "utf8");
+    await writeFile(join4(config.outDir, "transcript.md"), transcript, "utf8");
+    await writeFile(join4(config.outDir, "run.json"), runJson, "utf8");
+    await writeFile(join4(config.outDir, "result.json"), JSON.stringify(result, null, 2), "utf8");
+    if (debug) await writeFile(join4(config.outDir, "state.final.json"), JSON.stringify(engine.state, null, 2), "utf8");
   }
   return transcript;
 }
@@ -20772,7 +21354,8 @@ function collectCoverage(engine, campaign2, seen) {
 }
 async function cmdRun(config, script) {
   const { campaign: campaign2, engine, engineVersion } = await loadEngine(config.campaignDir, config.seed, config.debug, config.injection);
-  const observe = makeObserver(engine, campaign2);
+  const adventure = await createPlaykitAdventureSession(config.campaignDir, engine);
+  const observe = makeObserver(engine, campaign2, adventure);
   const steps = [];
   const assertions = [];
   const seen = { scenes: /* @__PURE__ */ new Set(), locations: /* @__PURE__ */ new Set(), dialogues: /* @__PURE__ */ new Set(), choices: /* @__PURE__ */ new Set(), endings: /* @__PURE__ */ new Set() };
@@ -20791,7 +21374,7 @@ async function cmdRun(config, script) {
   const actions = Array.isArray(script.steps) ? script.steps : Array.isArray(script) ? script : [];
   for (const action of actions) {
     if (action.do === "expect") {
-      const check = checkExpectation(engine, action);
+      const check = checkExpectation(engine, action, adventure);
       assertions.push(check);
       if (!check.ok) status = "failed";
       continue;
@@ -20800,7 +21383,7 @@ async function cmdRun(config, script) {
       record(steps.length, action, `\u0441\u043D\u0438\u043C\u043E\u043A: ${action.label ?? ""}`);
       continue;
     }
-    const outcome = act(engine, campaign2, action);
+    const outcome = act(engine, campaign2, action, adventure);
     if (!outcome.ok && !outcome.menu) {
       assertions.push({ name: `action:${action.do}`, ok: false, detail: outcome.detail });
       status = "failed";
@@ -20966,20 +21549,20 @@ async function cmdCheck(config, seeds, stepsLimit, routesDir, packRegistryPath =
     };
   }
   const routeFiles = [];
-  const dir = routesDir ?? join3(config.campaignDir, "routes");
+  const dir = routesDir ?? join4(config.campaignDir, "routes");
   if (existsSync2(dir)) {
-    for (const name of await readdir(dir)) if (name.endsWith(".json")) routeFiles.push(join3(dir, name));
+    for (const name of await readdir(dir)) if (name.endsWith(".json")) routeFiles.push(join4(dir, name));
   }
   const routeRuns = [];
   for (const file of routeFiles.sort()) {
-    const script = JSON.parse(await readFile3(file, "utf8"));
-    const out = config.outDir ? join3(config.outDir, "routes", basename(file, ".json")) : null;
+    const script = JSON.parse(await readFile4(file, "utf8"));
+    const out = config.outDir ? join4(config.outDir, "routes", basename(file, ".json")) : null;
     const routeSeed = script.seed === void 0 ? config.seed : String(script.seed);
     const run = await cmdRun({ ...config, seed: routeSeed, outDir: out, routeName: file }, script);
     routeRuns.push({ file, status: run.status, steps: run.steps, assertions: run.assertions, transcript: run.hashes.transcript });
   }
   const sweep = await cmdSweep(
-    { ...config, quiet: true, outDir: config.outDir ? join3(config.outDir, "sweep") : null },
+    { ...config, quiet: true, outDir: config.outDir ? join4(config.outDir, "sweep") : null },
     seeds,
     stepsLimit
   );
@@ -21042,10 +21625,10 @@ async function cmdCheck(config, seeds, stepsLimit, routesDir, packRegistryPath =
   if (uncovered.length) text.push(`\u043D\u0435 \u043F\u043E\u043A\u0440\u044B\u0442\u043E: ${uncovered.slice(0, 15).join(", ")}${uncovered.length > 15 ? ` \u2026 \u0435\u0449\u0451 ${uncovered.length - 15}` : ""}`);
   if (config.outDir) {
     await mkdir(config.outDir, { recursive: true });
-    await writeFile(join3(config.outDir, "report.json"), JSON.stringify(result, null, 2), "utf8");
-    await writeFile(join3(config.outDir, "report.md"), text.join("\n") + "\n", "utf8");
-    await writeFile(join3(config.outDir, "graph.json"), JSON.stringify(graph, null, 2), "utf8");
-    await writeFile(join3(config.outDir, "graph.md"), formatGraphReport(graph), "utf8");
+    await writeFile(join4(config.outDir, "report.json"), JSON.stringify(result, null, 2), "utf8");
+    await writeFile(join4(config.outDir, "report.md"), text.join("\n") + "\n", "utf8");
+    await writeFile(join4(config.outDir, "graph.json"), JSON.stringify(graph, null, 2), "utf8");
+    await writeFile(join4(config.outDir, "graph.md"), formatGraphReport(graph), "utf8");
   }
   return { result, text: text.join("\n") + "\n" };
 }
@@ -21191,7 +21774,7 @@ async function cmdSweep(config, seeds, stepsLimit) {
   const finals = {};
   for (let seed = seeds[0]; seed <= seeds[1]; seed++) {
     const one = await cmdSearch(
-      { ...config, seed: String(seed), outDir: config.outDir ? join3(config.outDir, `seed-${seed}`) : null },
+      { ...config, seed: String(seed), outDir: config.outDir ? join4(config.outDir, `seed-${seed}`) : null },
       "explore",
       stepsLimit
     );
@@ -21243,15 +21826,15 @@ async function cmdSweep(config, seeds, stepsLimit) {
   }
   if (config.outDir) {
     await mkdir(config.outDir, { recursive: true });
-    await writeFile(join3(config.outDir, "sweep.json"), JSON.stringify(result, null, 2), "utf8");
-    await writeFile(join3(config.outDir, "sweep.md"), lines.join("\n") + "\n", "utf8");
+    await writeFile(join4(config.outDir, "sweep.json"), JSON.stringify(result, null, 2), "utf8");
+    await writeFile(join4(config.outDir, "sweep.md"), lines.join("\n") + "\n", "utf8");
   }
   return { result, text: lines.join("\n") + "\n" };
 }
 async function cmdVerify(dir, expectEngine, honestOnly) {
-  const resultRaw = await readFile3(join3(dir, "result.json"), "utf8");
-  const transcript = await readFile3(join3(dir, "transcript.md"), "utf8");
-  const runRaw = await readFile3(join3(dir, "run.json"), "utf8");
+  const resultRaw = await readFile4(join4(dir, "result.json"), "utf8");
+  const transcript = await readFile4(join4(dir, "transcript.md"), "utf8");
+  const runRaw = await readFile4(join4(dir, "run.json"), "utf8");
   const result = JSON.parse(resultRaw);
   const failures = [];
   if (sha256(transcript) !== result.hashes.transcript) failures.push("transcript.md \u043D\u0435 \u0441\u043E\u0432\u043F\u0430\u0434\u0430\u0435\u0442 \u0441 \u0445\u0435\u0448\u0435\u043C \u0432 result.json");
@@ -21306,14 +21889,14 @@ function cmdExplainCode(code) {
 }
 async function cmdExample() {
   const candidates = [
-    join3(CLI_DIR, "examples", "narrative"),
-    join3(CLI_DIR, "examples", "ash-of-caerden"),
+    join4(CLI_DIR, "examples", "narrative"),
+    join4(CLI_DIR, "examples", "ash-of-caerden"),
     resolve2(process.cwd(), "public/campaigns/ash-of-caerden"),
     resolve2(process.cwd(), "packs/narrative/data/ash-of-caerden"),
     resolve2(CLI_DIR, "../../public/campaigns/ash-of-caerden"),
     resolve2(CLI_DIR, "../../packs/narrative/data/ash-of-caerden")
   ];
-  const campaignDir = candidates.find((candidate) => existsSync2(join3(candidate, "campaign.json")));
+  const campaignDir = candidates.find((candidate) => existsSync2(join4(candidate, "campaign.json")));
   if (!campaignDir) {
     die("example: \u044D\u0442\u0430\u043B\u043E\u043D narrative \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D; \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0439\u0442\u0435 \u043A\u0438\u0442 \u0441 examples/narrative \u0438\u043B\u0438 \u0437\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u0435 \u0438\u0437 \u043A\u043B\u043E\u043D\u0430 Narthex");
   }
@@ -21384,7 +21967,7 @@ async function main() {
     );
   }
   const CAMPAIGN_COMMANDS = ["check", "graph", "dialogue", "run", "fuzz", "explore", "sweep"];
-  if (CAMPAIGN_COMMANDS.includes(command) && campaignDir && !existsSync2(join3(campaignDir, "campaign.json"))) {
+  if (CAMPAIGN_COMMANDS.includes(command) && campaignDir && !existsSync2(join4(campaignDir, "campaign.json"))) {
     die(`${command}: \u0432 \xAB${campaignDir}\xBB \u043D\u0435\u0442 campaign.json \u2014 \u044D\u0442\u043E \u043D\u0435 \u043F\u0430\u043F\u043A\u0430 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438`);
   }
   if (command === "check") {
@@ -21394,7 +21977,7 @@ async function main() {
     const config2 = {
       campaignDir,
       seed,
-      outDir: outDir ?? resolve2(join3(campaignDir, ".cf-play", "check")),
+      outDir: outDir ?? resolve2(join4(campaignDir, ".cf-play", "check")),
       debug,
       quiet: asJson,
       injection: emptyInjection(),
@@ -21418,8 +22001,8 @@ async function main() {
     const text = formatGraphReport(report);
     if (outDir) {
       await mkdir(outDir, { recursive: true });
-      await writeFile(join3(outDir, "graph.json"), JSON.stringify(report, null, 2), "utf8");
-      await writeFile(join3(outDir, "graph.md"), text, "utf8");
+      await writeFile(join4(outDir, "graph.json"), JSON.stringify(report, null, 2), "utf8");
+      await writeFile(join4(outDir, "graph.md"), text, "utf8");
     }
     if (asJson) console.log(JSON.stringify(report, null, 2));
     else console.log(text);
@@ -21449,8 +22032,8 @@ async function main() {
     );
     if (outDir) {
       await mkdir(outDir, { recursive: true });
-      await writeFile(join3(outDir, "dialogue.json"), JSON.stringify(report, null, 2), "utf8");
-      await writeFile(join3(outDir, "dialogue.md"), text, "utf8");
+      await writeFile(join4(outDir, "dialogue.json"), JSON.stringify(report, null, 2), "utf8");
+      await writeFile(join4(outDir, "dialogue.md"), text, "utf8");
     }
     if (asJson) console.log(JSON.stringify(report, null, 2));
     else console.log(text);
@@ -21471,7 +22054,7 @@ async function main() {
   if (command === "run") {
     const scriptPath = flagText(flags, "script");
     if (!scriptPath) die("run: \u043D\u0443\u0436\u0435\u043D --script route.json");
-    const script = JSON.parse(await readFile3(resolve2(scriptPath), "utf8"));
+    const script = JSON.parse(await readFile4(resolve2(scriptPath), "utf8"));
     result = await cmdRun(config, script);
   } else if (command === "explore") {
     result = await cmdSearch(config, "explore", Number(flagText(flags, "steps") ?? 300));
@@ -21481,7 +22064,7 @@ async function main() {
     const runs = [];
     for (let current = from; current <= to; current++) {
       const one = await cmdSearch(
-        { ...config, seed: String(current), outDir: outDir ? join3(outDir, `seed-${current}`) : null },
+        { ...config, seed: String(current), outDir: outDir ? join4(outDir, `seed-${current}`) : null },
         "fuzz",
         Number(flagText(flags, "steps") ?? 400)
       );
@@ -21500,7 +22083,7 @@ async function main() {
     };
     if (outDir) {
       await mkdir(outDir, { recursive: true });
-      await writeFile(join3(outDir, "result.json"), JSON.stringify(result, null, 2), "utf8");
+      await writeFile(join4(outDir, "result.json"), JSON.stringify(result, null, 2), "utf8");
     }
   }
   if (asJson) {
@@ -21525,7 +22108,7 @@ async function main() {
     console.log(`
 ${result.status === "ok" ? "\u2713" : "\u2717"} ${result.campaign.title}: ${result.status}, \u0448\u0430\u0433\u043E\u0432 ${result.steps}, seed ${result.seed}`);
     if (result.evidence === "injected") console.log(`  ! \u043F\u0440\u043E\u0433\u043E\u043D \u0441 \u043E\u0442\u043B\u0430\u0434\u043E\u0447\u043D\u044B\u043C\u0438 \u043F\u0440\u0430\u0432\u043A\u0430\u043C\u0438: ${result.injected.join("; ")}`);
-    if (config.outDir) console.log(`  transcript: ${join3(config.outDir, "transcript.md")}`);
+    if (config.outDir) console.log(`  transcript: ${join4(config.outDir, "transcript.md")}`);
     const scenes = result.coverage.scenes;
     if (scenes?.missing?.length) console.log(`  \u043D\u0435 \u043F\u043E\u0441\u0435\u0449\u0435\u043D\u043E \u0441\u0446\u0435\u043D: ${scenes.missing.length} \u0438\u0437 ${scenes.missing.length + scenes.seen.length}`);
   }

@@ -10,6 +10,7 @@
     "build:playkit-bundle": "esbuild scripts/playkit/cli.mts --bundle --platform=node --format=esm --target=node20 --legal-comments=none --define:__CF_ENGINE_VERSION__=\\\"$npm_package_version\\\" --outfile=public/ai/cf-play.mjs",
     "play": "tsx scripts/playkit/cli.mts",
     "playthrough": "node scripts/visual/playthrough.mjs",
+    "playthrough:adventure": "node scripts/visual/playthrough.mjs --adventure",
     "generate:campaign-schema": "tsx scripts/gen-schema.mts",
     "audit:campaign-formats": "tsx scripts/audit-campaign-formats.mts",
     "lint": "oxlint",

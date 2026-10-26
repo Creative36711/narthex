@@ -37,6 +37,7 @@ import { ENGINE_VERSION } from '../../src/shared/versions'
 import { analyzeCampaign, formatGraphReport } from './analyze'
 import { findNarrativeCode, NARRATIVE_CODE_LIST } from './narrative-codes'
 import { readInstalledPackCatalogue, resolveProjectCapabilityModesForCheck, resolveProjectPackForCheck } from './project-pack'
+import { createPlaykitAdventureSession, type PlaykitAdventureSession } from './adventure-runtime'
 import {
   createNarrativePackBinding,
   loadNarrativeContent,
@@ -234,6 +235,8 @@ interface Observation {
   log: string[]
   /** ошибки открытия диалога (битый узел и т.п.) */
   errors: string[]
+  /** состояние подключённого adventure-пака, если проект объявил его в registry */
+  adventure?: Record<string, unknown>
 }
 
 function entityLabel(entity: AnyObj | null | undefined): string {
@@ -241,7 +244,7 @@ function entityLabel(entity: AnyObj | null | undefined): string {
   return String(entity.label ?? entity.name ?? entity.id ?? '—')
 }
 
-function makeObserver(engine: AnyObj, campaign: AnyObj) {
+function makeObserver(engine: AnyObj, campaign: AnyObj, adventure?: PlaykitAdventureSession | null) {
   let logSeen = 0
   let combatLogSeen = 0
   const errorsSeen = new Set<string>()
@@ -368,6 +371,7 @@ function makeObserver(engine: AnyObj, campaign: AnyObj) {
         : null,
       log: fresh,
       errors,
+      ...(adventure ? { adventure: adventure.observe() } : {}),
     }
   }
 }
@@ -450,8 +454,17 @@ function fight(engine: AnyObj): ActionResult {
   return { ok: false, detail: `бой не завершился за ${MAX_FIGHT_STEPS} шагов` }
 }
 
-function act(engine: AnyObj, campaign: AnyObj, action: AnyObj): ActionResult {
+function act(engine: AnyObj, campaign: AnyObj, action: AnyObj, adventure?: PlaykitAdventureSession | null): ActionResult {
   const kind = String(action.do ?? '')
+
+  if (kind.startsWith('adventure_')) {
+    if (!adventure) return { ok: false, detail: 'проект не подключил adventure runtime через registry' }
+    try {
+      return { ok: true, detail: adventure.act(engine, action) }
+    } catch (error) {
+      return { ok: false, detail: String((error as Error)?.message ?? error) }
+    }
+  }
 
   if (kind === 'fight') return fight(engine)
   if (kind.startsWith('combat_')) return combatAct(engine, action)
@@ -476,6 +489,11 @@ function act(engine: AnyObj, campaign: AnyObj, action: AnyObj): ActionResult {
         }
     }
     return { ok: !!done, detail: done ? `взаимодействие с ${entityLabel(target.entity)}` : `нет реакции (${action.entity})` }
+  }
+
+  if (kind === 'dialogue_close') {
+    if (engine.dialogue) engine.endDialogue()
+    return { ok: true, detail: 'диалог закрыт' }
   }
 
   if (kind === 'choose') {
@@ -533,8 +551,38 @@ function act(engine: AnyObj, campaign: AnyObj, action: AnyObj): ActionResult {
   return { ok: false, detail: `неизвестное действие «${kind}»` }
 }
 
-function checkExpectation(engine: AnyObj, expectation: AnyObj): { name: string; ok: boolean; detail: string } {
+function checkExpectation(engine: AnyObj, expectation: AnyObj, adventure?: PlaykitAdventureSession | null): { name: string; ok: boolean; detail: string } {
   const state = engine.state
+  if (expectation.adventure_ending !== undefined) {
+    const actual = adventure?.state.adventure.ending ?? null
+    const ok = actual === expectation.adventure_ending
+    return { name: `adventure_ending=${expectation.adventure_ending}`, ok, detail: ok ? '' : `сейчас ${String(actual)}` }
+  }
+  if (expectation.adventure_scene !== undefined) {
+    const actual = adventure?.state.scene ?? null
+    const ok = actual === expectation.adventure_scene
+    return { name: `adventure_scene=${expectation.adventure_scene}`, ok, detail: ok ? '' : `сейчас ${String(actual)}` }
+  }
+  if (expectation.adventure_cursor !== undefined) {
+    const actual = adventure?.state.adventure.cursor ?? null
+    const ok = actual === expectation.adventure_cursor
+    return { name: `adventure_cursor=${expectation.adventure_cursor}`, ok, detail: ok ? '' : `сейчас ${String(actual)}` }
+  }
+  if (expectation.adventure_item !== undefined) {
+    const { item, quantity = 1 } = expectation.adventure_item
+    const actual = adventure?.state.inventory?.[item] ?? 0
+    const ok = actual >= quantity
+    return { name: `adventure_item=${item}×${quantity}`, ok, detail: ok ? '' : `сейчас ${actual}` }
+  }
+  if (expectation.adventure_message_contains !== undefined) {
+    const actual = adventure?.state.adventure.message ?? ''
+    const ok = actual.includes(String(expectation.adventure_message_contains))
+    return { name: `adventure_message_contains=${expectation.adventure_message_contains}`, ok, detail: ok ? '' : `сейчас ${actual || '(пусто)'}` }
+  }
+  if (expectation.dialogue_open !== undefined) {
+    const ok = !!engine.dialogue === Boolean(expectation.dialogue_open)
+    return { name: `dialogue_open=${expectation.dialogue_open}`, ok, detail: ok ? '' : `сейчас ${engine.dialogue ? 'открыт' : 'закрыт'}` }
+  }
   if (expectation.scene !== undefined) {
     const ok = state.scene === expectation.scene
     return { name: `scene=${expectation.scene}`, ok, detail: ok ? '' : `сейчас ${state.scene}` }
@@ -796,6 +844,14 @@ function renderTranscript(config: RunConfig, campaign: AnyObj, engineVersion: st
     lines.push(`## ${obs.step}. тик ${obs.tick} · ${obs.sceneLabel || obs.scene}`)
     lines.push('')
     if (step.action) lines.push(`**Действие:** ${step.action.detail}`)
+    if (obs.adventure) {
+      const avatar = obs.adventure.avatar as AnyObj
+      lines.push(`**Приключение:** курсор ${obs.adventure.cursor}; аватар ${avatar?.x},${avatar?.y}; сцена ${obs.adventure.scene}`)
+      const inventory = Object.entries((obs.adventure.inventory ?? {}) as Record<string, number>).map(([id, quantity]) => `${id}×${quantity}`).join(', ')
+      if (inventory) lines.push(`**Инвентарь пака:** ${inventory}`)
+      if (obs.adventure.message) lines.push(`**Сообщение:** ${obs.adventure.message}`)
+      if (obs.adventure.ending) lines.push(`**Развязка:** ${obs.adventure.ending}`)
+    }
     if (obs.dialogue) {
       lines.push('')
       lines.push(`**Диалог с ${obs.dialogue.npcLabel}:**`)
@@ -881,7 +937,8 @@ function collectCoverage(engine: AnyObj, campaign: AnyObj, seen: { scenes: Set<s
 
 async function cmdRun(config: RunConfig, script: AnyObj): Promise<RunResult> {
   const { campaign, engine, engineVersion } = await loadEngine(config.campaignDir, config.seed, config.debug, config.injection)
-  const observe = makeObserver(engine, campaign)
+  const adventure = await createPlaykitAdventureSession(config.campaignDir, engine)
+  const observe = makeObserver(engine, campaign, adventure)
   const steps: AnyObj[] = []
   const assertions: Array<{ name: string; ok: boolean; detail: string }> = []
   const seen = { scenes: new Set<string>(), locations: new Set<string>(), dialogues: new Set<string>(), choices: new Set<string>(), endings: new Set<string>() }
@@ -902,7 +959,7 @@ async function cmdRun(config: RunConfig, script: AnyObj): Promise<RunResult> {
   const actions: AnyObj[] = Array.isArray(script.steps) ? script.steps : Array.isArray(script) ? script : []
   for (const action of actions) {
     if (action.do === 'expect') {
-      const check = checkExpectation(engine, action)
+      const check = checkExpectation(engine, action, adventure)
       assertions.push(check)
       if (!check.ok) status = 'failed'
       continue
@@ -911,7 +968,7 @@ async function cmdRun(config: RunConfig, script: AnyObj): Promise<RunResult> {
       record(steps.length, action, `снимок: ${action.label ?? ''}`)
       continue
     }
-    const outcome = act(engine, campaign, action)
+    const outcome = act(engine, campaign, action, adventure)
     if (!outcome.ok && !outcome.menu) {
       assertions.push({ name: `action:${action.do}`, ok: false, detail: outcome.detail })
       status = 'failed'
