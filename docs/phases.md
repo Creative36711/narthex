@@ -235,6 +235,38 @@ node public/ai/cf-play.mjs check public/campaigns/ash-of-caerden
 20 шагов, 0 находок, exit code 0. Новый строгий экзамен запускается отдельно
 как `npm run playthrough:exam` и добавлен в `visual.yml`.
 
+### Повторный контрольный экзамен и закрытие — 26.10.2026
+
+**Фаза 2 закрыта по NAR-3.7.** Повторный строгий browser exam завершился
+`check = 0`: Ash — 8 шагов и `ending_ashes`, Adventure — 12 шагов и
+`ending_gate_unlocked`; в обоих маршрутах 0 pageerrors, экранов ошибки,
+битых/пустых `<img>`, сырых NPC ID и 0 findings, стартовый каталог непустой.
+Шесть согласованных отсутствий напечатаны отдельно как path/status; никаких
+других невалидных image resources не было. Fallback не подавляет console.error.
+Старый маршрут по-прежнему даёт 20 шагов, 0 находок, exit code 0.
+
+Детерминированный Ash-маршрут использует реальную форму создания героя и
+штатную однократную засаду; игровой seed и минимум CON/SIZ/DEX делают смерть
+до монтирования боевого экрана воспроизводимой, не затрагивая кампанию или
+ассеты. Изолированная mutation probe на временной копии вернула `1` для
+несогласованного `nar37-missing-probe.png`, напечатала URL; копия удалена,
+рабочее дерево до/после probe совпало.
+
+- Полный отчёт, literal stdout, результаты baseline `cf-play check` и
+  распакованного kit: [`_tools/reports/NAR-3.7.md`](../_tools/reports/NAR-3.7.md),
+  [strict stdout](../_tools/reports/NAR-3.7-strict.stdout.txt),
+  [mutation stdout](../_tools/reports/NAR-3.7-mutation.stdout.txt).
+- PNG evidence: [Ash home](../_tools/reports/NAR-3.7-ash-home.png),
+  [Ash ending](../_tools/reports/NAR-3.7-ash-ending.png),
+  [Adventure dialogue](../_tools/reports/NAR-3.7-adventure-dialogue.png),
+  [Adventure ending](../_tools/reports/NAR-3.7-adventure-ending.png).
+- PR [#79](https://github.com/Creative36711/narthex/pull/79); CI
+  [run 40390859527](https://github.com/Creative36711/narthex/actions/runs/40390859527)
+  зелёный (`screenshots: pass`), artifact
+  [`visual-report`](https://github.com/Creative36711/narthex/actions/runs/40390859527/artifacts/12684830910).
+
+Фаза 3 не открывалась и остаётся закрытой.
+
 ---
 
 ## Фаза 3. Второй рантайм — настоящий realtime

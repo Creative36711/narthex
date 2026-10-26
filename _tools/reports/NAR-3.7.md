@@ -4,7 +4,8 @@
 - **Проверка:** `npm run playthrough:exam -- http://localhost:4173 out/nar37-followup`
 - **Браузер:** Chromium 131.0.6778.0
 - **Локальный итог:** **PASS**, exit code `0`; 2 пакета, 20 шагов, 0 находок.
-- **PR:** [#79](https://github.com/Creative36711/narthex/pull/79), target `main`. CI artifact link will be added after the updated PR check finishes.
+- **PR:** [#79](https://github.com/Creative36711/narthex/pull/79), target `main`.
+- **CI:** [visual run 40390859527](https://github.com/Creative36711/narthex/actions/runs/40390859527) — `screenshots: pass`; artifact [`visual-report`](https://github.com/Creative36711/narthex/actions/runs/40390859527/artifacts/12684830910).
 
 ## Результаты
 
@@ -77,4 +78,6 @@ exit code: 0
 
 ## CI и закрытие фазы 2
 
-Workflow [`.github/workflows/visual.yml`](../../.github/workflows/visual.yml) запускает обе браузерные проверки и сохраняет `out/visual` в CI artifact `visual-report`. После завершения обновлённого PR #79 сюда и в [`docs/phases.md`](../../docs/phases.md) будет добавлена ссылка на успешный run/artifact; фаза 3 остаётся закрытой.
+Workflow [`.github/workflows/visual.yml`](../../.github/workflows/visual.yml) запускает обе браузерные проверки и сохраняет `out/visual` в CI artifact `visual-report`. Run [40390859527](https://github.com/Creative36711/narthex/actions/runs/40390859527) для commit `5bb6c766ba43433b0a8f3b020571a37f64556b19` завершился `success`; job `screenshots` — `pass`; артефакт: [`visual-report`](https://github.com/Creative36711/narthex/actions/runs/40390859527/artifacts/12684830910).
+
+Dated closure фазы 2 со ссылками на отчёт, кадры и CI artifact внесён в [`docs/phases.md`](../../docs/phases.md). Фаза 3 не открывается и остаётся закрытой.
