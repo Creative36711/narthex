@@ -9,6 +9,8 @@ Date: 2026-10-26. Baseline tree: `cfd94af963eb1f0f44227fd9d878a9dcf6a36329` (`or
 - Made each mission gate and smoke-suite invocation explicit in `.github/workflows/visual.yml`. CI checks the audit bundle both before and after `npm run build`; the mission command set includes `check:core-graph`, `check:guide`, `check:narrative-codes`, and `npm run smoke:mission` (the 55 NAR-2.15 smoke scripts), plus the section-1 commands.
 - Added this report. No schema, oracle, threshold, smoke-list, campaign-index, campaign-data, or `cf-play` bundle changes were made. The 27 missing-image fixtures in each Ash campaign were left intact.
 
+Initial PR head `387b345` passed the `screenshots` Actions job, run `40351238004` (4m34s). This run included the complete 55-smoke list and visual playthrough.
+
 ## Freshness gate and mutation evidence
 
 Clean bundle gate:
