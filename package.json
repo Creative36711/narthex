@@ -9,6 +9,7 @@
     "build:ai-bundle": "esbuild scripts/campaign-audit.mts --bundle --platform=node --format=esm --target=node18 --outfile=public/ai/campaign-audit.mjs",
     "build:playkit-bundle": "esbuild scripts/playkit/cli.mts --bundle --platform=node --format=esm --target=node20 --legal-comments=none --define:__CF_ENGINE_VERSION__=\\\"$npm_package_version\\\" --outfile=public/ai/cf-play.mjs",
     "play": "tsx scripts/playkit/cli.mts",
+    "playthrough": "node scripts/visual/playthrough.mjs",
     "generate:campaign-schema": "tsx scripts/gen-schema.mts",
     "audit:campaign-formats": "tsx scripts/audit-campaign-formats.mts",
     "lint": "oxlint",
@@ -53,6 +54,7 @@
     "smoke:ai-diff": "tsx scripts/ai-diff-smoke.mts",
     "smoke:view-write": "tsx scripts/view-write-smoke.mts",
     "smoke:core": "tsx scripts/core-semantics-smoke.mts",
+    "smoke:navigation-area": "tsx scripts/smoke-navigation-area.mts",
     "smoke:saves-compat": "tsx scripts/saves-compat-smoke.mts",
     "smoke:pack-missing": "tsx --tsconfig tsconfig.app.json scripts/smoke/pack-missing-smoke.mts",
     "smoke:pack-panels": "tsx --tsconfig tsconfig.app.json scripts/pack-panels-smoke.mts",
@@ -92,12 +94,15 @@
     "check:module-size": "tsx scripts/check-module-size.mts",
     "check:campaigns": "tsx scripts/campaign-copies.mts",
     "publish:campaigns": "tsx scripts/campaign-copies.mts --write",
-    "check:contracts": "tsx scripts/contracts-check.mts && npm run check:packs && npm run check:pack-boundary && npm run check:decisions && npm run check:module-size",
+    "check:contracts": "tsx scripts/contracts-check.mts && npm run check:packs && npm run check:pack-boundary && npm run check:decisions && npm run check:module-size && npm run check:browser-gate && npm run check:dev-campaigns && npm run check:campaign-formats",
     "check:brand": "tsx scripts/brand-guard.mts",
     "check:version": "tsx scripts/version.mts check",
     "version:bump": "tsx scripts/version.mts bump",
     "shot": "node scripts/visual/shot.mjs",
-    "visual:shots": "node scripts/visual/shots.mjs"
+    "visual:shots": "node scripts/visual/shots.mjs",
+    "check:browser-gate": "tsx scripts/check-browser-gate.mts",
+    "check:dev-campaigns": "tsx scripts/check-dev-campaigns.mts",
+    "check:campaign-formats": "tsx scripts/audit-campaign-formats.mts"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

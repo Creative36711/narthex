@@ -46,6 +46,15 @@
 `check = 0`. Если фаза не даёт играбельного проекта — она не закончена,
 сколько бы кода ни было написано.
 
+**«Играбельный» проверяется в настоящем браузере, а не по исходникам.** С 26.10
+(ADR D-072, `docs/decisions/NAR-2.md`) сквозной гейт включает
+`npm run playthrough`: Chromium открывает собранное приложение и проходит путь
+игрока — меню, создание героя, сцена, диалог, выбор реплики, переход. CLI,
+`cf-play explore`, прямой вызов симуляции или «посмотрел код» заменой не
+являются. Фраза «браузера в песочнице нет» запрещена стражем
+`check:browser-gate`. Подробности — [`agents/browser.md`](./agents/browser.md)
+и [`agents/visual.md`](./agents/visual.md).
+
 ## Оракул фазы
 
 У каждой фазы есть **оракул** — то, что отвечает «готово» без человека:
@@ -74,6 +83,8 @@ npm run check:contracts
 npm run check:brand
 npm run check:version
 npm run smoke:core
+npm run check:browser-gate
+npm run playthrough        # нужен собранный билд + vite preview на :4173
 node public/ai/cf-play.mjs check public/campaigns/ash-of-caerden
 ```
 

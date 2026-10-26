@@ -8,12 +8,18 @@
         {
           "id": "loc_crossing",
           "label": "Перекрёсток огней",
-          "position": { "x": 512, "y": 360 },
+          "position": {
+            "x": 512,
+            "y": 360
+          },
           "travel_connections": [],
-          "scenes": ["scene_fmv_crossing"],
+          "scenes": [
+            "scene_fmv_crossing"
+          ],
           "arrival_scene": "scene_fmv_crossing"
         }
-      ]
+      ],
+      "map_image": ""
     }
   ]
 }

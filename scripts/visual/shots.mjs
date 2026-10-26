@@ -4,10 +4,18 @@
  * Запуск (нужен браузер):
  *   node scripts/visual/shots.mjs http://localhost:4173 out/visual
  *
- * В песочнице агента браузер не запускается (нет libnss3/libnspr4, нет root),
- * поэтому этот скрипт рассчитан на CI: .github/workflows/visual.yml поднимает
- * Playwright с зависимостями и складывает снимки в артефакты. Локально он
- * честно падает с кодом 2 и объясняет, чего не хватает, — а не молча врёт.
+ * БРАУЗЕР В ПЕСОЧНИЦЕ АГЕНТА ЕСТЬ И РАБОТАЕТ. Проверено: Chromium 131.0.6778.0
+ * поднимается без root через @sparticuz/chromium + playwright-core, снимаются
+ * экраны, работают клики, evaluate, console. Инструкция — docs/agents/browser.md,
+ * команда установки — в шаге «Два способа» ниже. Утверждения вида «браузера в
+ * песочнице нет», «браузер не запускается», «проверю без браузера» считаются
+ * ложью и основанием для возврата карточки (docs/agents/browser.md, §«Запрет»).
+ *
+ * CI (.github/workflows/visual.yml) нужен не потому, что локально нельзя, а как
+ * независимый свидетель: прогон остаётся в истории, снимки видны в PR. Оба пути
+ * рабочие; код 2 возвращается только если не сработал ни один — и тогда это
+ * дефект установки, который чинится командой из browser.md, а не повод
+ * заменить проверку текстовым прогоном.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -42,7 +50,7 @@ try {
     browser = await launchChromium();
     engine = chromiumVersion();
   } catch (second) {
-    console.error('Браузера нет ни одним из двух способов.');
+    console.error('Не удалось поднять браузер ни одним из двух рабочих способов.');
     console.error('  CI:        npm i --no-save playwright && npx playwright install --with-deps chromium');
     console.error('  песочница: npm i --no-save @sparticuz/chromium@131 playwright-core@1.49.1');
     console.error('Причины:', String(first.message).split('\n')[0], '/', String(second.message).split('\n')[0]);

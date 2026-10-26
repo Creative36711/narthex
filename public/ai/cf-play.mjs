@@ -804,6 +804,10 @@ function migrateMusicRules(music) {
 function migrateNavigation(scene, world2) {
   let changed = false;
   const out = scene.navigation.map((nav) => {
+    if (!nav.area) {
+      changed = true;
+      return { ...nav, area: { x: 0, y: 0, w: 640, h: 360 } };
+    }
     const legacy = nav.go_to_location;
     if (!legacy) return nav;
     changed = true;
@@ -2554,7 +2558,7 @@ var require_react_production = __commonJS({
     exports.useTransition = function() {
       return ReactSharedInternals.H.useTransition();
     };
-    exports.version = "19.3.0";
+    exports.version = "19.3.1";
   }
 });
 
@@ -3549,7 +3553,7 @@ var require_react_development = __commonJS({
       exports.useTransition = function() {
         return resolveDispatcher().useTransition();
       };
-      exports.version = "19.3.0";
+      exports.version = "19.3.1";
       "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(Error());
     })();
   }

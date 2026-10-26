@@ -58,9 +58,15 @@ jobs:
             exit 1
           fi
           node scripts/visual/shots.mjs http://127.0.0.1:4173 out/visual
-          STATUS=$?
+          SHOTS=$?
+          # Проверка игрой: не только главная страница и редактор, но и путь
+          # игрока — меню → герой → сцена → диалог → переход, плюс FMV-проект.
+          # Браузер уже стоит выше (playwright install --with-deps chromium).
+          node scripts/visual/playthrough.mjs http://127.0.0.1:4173 out/visual/play
+          PLAY=$?
           kill "$SERVER_PID" 2>/dev/null
-          exit "$STATUS"
+          if [ "$SHOTS" -ne 0 ]; then exit "$SHOTS"; fi
+          exit "$PLAY"
 
       - name: Сохранить снимки и отчёт
         if: always()
