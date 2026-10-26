@@ -57,6 +57,7 @@
     "smoke:core": "tsx scripts/core-semantics-smoke.mts",
     "smoke:mission": "tsx scripts/mission-smokes.mts",
     "smoke:navigation-area": "tsx scripts/smoke-navigation-area.mts",
+    "smoke:fmv-area": "tsx scripts/fmv-area-smoke.mts",
     "smoke:saves-compat": "tsx scripts/saves-compat-smoke.mts",
     "smoke:pack-missing": "tsx --tsconfig tsconfig.app.json scripts/smoke/pack-missing-smoke.mts",
     "smoke:pack-panels": "tsx --tsconfig tsconfig.app.json scripts/pack-panels-smoke.mts",
