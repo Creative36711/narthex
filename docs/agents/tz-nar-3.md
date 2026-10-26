@@ -87,7 +87,7 @@ node public/ai/cf-play.mjs check public/campaigns/ash-of-caerden-adventure
   красных плашек. `npm run audit:campaign` для демо-проекта обязан дать
   внятный результат (0 или явно помеченный fixture-режим), а не 27 ERROR.
 
-### Карточка 3.4 — Долги приёмки NAR-2
+### Карточка 3.4 — Долги приёмки NAR-2 (вбирается карточкой 3.0)
 
 - F1: пересобрать `public/ai/campaign-audit.mjs`, добавить гейт свежести
   бандла.
