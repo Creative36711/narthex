@@ -38,45 +38,35 @@ function evaluateSize(path: string, contents: string): SizeResult {
   }
 }
 
-function runGit(args: string[]): string {
+interface ChangedModuleResult {
+  available: boolean
+  paths: string[]
+}
+
+function runGit(args: string[]): { ok: boolean; stdout: string } {
   const result = spawnSync('git', args, { cwd: repoRoot, encoding: 'utf8' })
-  if (result.error) throw result.error
-  if (result.status !== 0) {
-    throw new Error(`git ${args.join(' ')} failed (rc=${result.status}): ${result.stderr || result.stdout}`)
-  }
-  return result.stdout
+  return { ok: !result.error && result.status === 0, stdout: result.stdout ?? '' }
 }
 
-function ensureBaseRef(): void {
-  const verify = spawnSync('git', ['rev-parse', '--verify', 'origin/main^{commit}'], {
-    cwd: repoRoot,
-    encoding: 'utf8',
-  })
-  if (verify.status === 0) return
-  const fetch = spawnSync('git', [
-    'fetch', '--quiet', '--no-tags', 'origin', 'main:refs/remotes/origin/main',
-  ], { cwd: repoRoot, encoding: 'utf8' })
-  if (fetch.error) throw fetch.error
-  if (fetch.status !== 0) {
-    throw new Error(`origin/main is unavailable and could not be fetched: ${fetch.stderr || fetch.stdout}`)
-  }
-}
+function changedSourceModules(): ChangedModuleResult {
+  // Do not fetch: the check must also work in a git archive and in offline CI.
+  if (!runGit(['rev-parse', '--is-inside-work-tree']).ok) return { available: false, paths: [] }
+  if (!runGit(['rev-parse', '--verify', 'origin/main^{commit}']).ok) return { available: false, paths: [] }
 
-function changedSourceModules(): string[] {
-  ensureBaseRef()
-  const changed = new Set<string>()
   const diff = runGit(['diff', '--name-status', '--no-renames', 'origin/main', '--', 'src', 'packs'])
-  for (const line of diff.split(/\r?\n/).filter(Boolean)) {
+  const untracked = runGit(['ls-files', '--others', '--exclude-standard', '--', 'src', 'packs'])
+  if (!diff.ok || !untracked.ok) return { available: false, paths: [] }
+
+  const changed = new Set<string>()
+  for (const line of diff.stdout.split(/\r?\n/).filter(Boolean)) {
     const [status, path] = line.split('\t')
     if (!path || status === 'D' || !sourceExtensions.test(path)) continue
     changed.add(path.replaceAll('\\', '/'))
   }
-
-  const untracked = runGit(['ls-files', '--others', '--exclude-standard', '--', 'src', 'packs'])
-  for (const path of untracked.split(/\r?\n/).filter(Boolean)) {
+  for (const path of untracked.stdout.split(/\r?\n/).filter(Boolean)) {
     if (sourceExtensions.test(path)) changed.add(path.replaceAll('\\', '/'))
   }
-  return [...changed].sort()
+  return { available: true, paths: [...changed].sort() }
 }
 
 function assertFixture(name: string, path: string, lines: number, expectedRc: number): void {
@@ -105,7 +95,8 @@ async function readResult(path: string): Promise<SizeResult> {
 async function main(): Promise<void> {
   verifyFixtures()
 
-  const changedModules = changedSourceModules()
+  const changed = changedSourceModules()
+  const changedModules = changed.paths
   const checkedPaths = new Set(changedModules)
   // The engine facade is a global architecture invariant, not external debt.
   checkedPaths.add(ENGINE_PATH)
@@ -116,7 +107,8 @@ async function main(): Promise<void> {
   for (const path of EXTERNAL_DEBT) debtResults.push(await readResult(path))
 
   console.log(`limit=${MODULE_LIMIT} facade=${FACADE_LIMIT}`)
-  console.log(`changed source modules=${changedModules.length}`)
+  if (changed.available) console.log(`changed source modules=${changedModules.length}`)
+  else console.log('changed modules: unavailable, checked facade')
   for (const result of results) {
     console.log(`module ${result.path}: ${result.lines}/${result.limit} lines${changedModules.includes(result.path) ? ' (changed)' : ' (facade)'}`)
   }
