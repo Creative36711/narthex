@@ -33,6 +33,9 @@ jobs:
       - name: TypeScript
         run: npx tsc -b
 
+      - name: Детерминизм циклов
+        run: npm run check:determinism
+
       - name: Контракты и browser gate
         run: npm run check:contracts
 
