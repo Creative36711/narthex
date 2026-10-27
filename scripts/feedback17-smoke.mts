@@ -85,7 +85,9 @@ const demo = await loadCampaign(base)
   // место сборки класса и то, что сцена отдаёт ему погоду кампании
   const atmos = readFileSync('src/player/Atmosphere.tsx', 'utf8')
   const player = scenePlayerSource()
-  check('3 плеер рисует класс по имени оверлея', atmos.includes('weather-${overlay}') && player.includes('<AtmosphereLayer') && player.includes('weather?.overlay'))
+  check('3 плеер передаёт погодный оверлей в слой атмосферы',
+    player.includes('weather?.overlay') && player.includes('overlay={weather.overlay}') &&
+      atmos.includes('const type = config.type') && atmos.includes('BUILTIN_CANVAS_TYPES.includes(type)'))
 }
 
 // ── 4. JSON-окна до низа ──

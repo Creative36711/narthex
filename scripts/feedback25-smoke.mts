@@ -33,12 +33,14 @@ const f = (p: string) => (p.endsWith('src/player/SceneScreen.tsx') ? scenePlayer
 // ── 1. тосты предметов ──
 {
   const engine = f('src/core/engine.ts')
+  const inventory = f('src/core/inventory.ts')
+  const party = f('src/core/party.ts')
   const view = f('src/player/GameView.tsx')
   const css = f('src/index.css')
   check('1 движок умеет pushToast с видом (get/lose/info)', /pushToast\(text: string, kind: 'get' \| 'lose' \| 'info'/.test(engine))
-  check('1 addItem тостит «Получено» (не в тихом режиме)', /if \(!opts\.silent\) this\.pushToast\(`Получено:/.test(engine))
-  check('1 removeItem тостит «Потеряно»', /opts\.verb \?\? \(lost >= quantity \? 'Потеряно' : 'Частично потеряно'\)/.test(engine))
-  check('1 использовать-предмет тостит «Использовано»', engine.includes("verb: 'Использовано'"))
+  check('1 addItem тостит «Получено» (не в тихом режиме)', /if \(!opts\.silent\) ctx\.pushToast\(`Получено:/.test(inventory))
+  check('1 removeItem тостит «Потеряно»', /opts\.verb \?\? \(lost >= quantity \? 'Потеряно' : 'Частично потеряно'\)/.test(inventory))
+  check('1 использовать-предмет тостит «Использовано»', party.includes("verb: 'Использовано'"))
   check('1 стек тостов отрисовывается', view.includes('toast-stack'))
   check('1 стили тостов есть', /\.toast-stack\s*\{/.test(css) && /\.toast\s*\{/.test(css))
   check('1 звук «выдали»/«потеряли»', engine.includes('item_get') && engine.includes('item_lose'))
@@ -106,6 +108,7 @@ const f = (p: string) => (p.endsWith('src/player/SceneScreen.tsx') ? scenePlayer
   const types = f('src/shared/types.ts')
   const frames = f('src/player/frames.tsx')
   const scene = f('src/player/SceneScreen.tsx')
+  const foreground = f('src/player/SceneForeground.tsx')
   const combat = f('src/player/CombatScreen.tsx')
   const fields = f('src/editor/Fields.tsx')
   const demo = f('public/campaigns/ash-of-caerden/scenes/scene_gates_front.json')
@@ -114,7 +117,7 @@ const f = (p: string) => (p.endsWith('src/player/SceneScreen.tsx') ? scenePlayer
   // реальный сторож в frames.tsx: пустой кадр/одиночный кадр — таймер не поднимаем
   check('6в статика без таймера (один кадр)', frames.includes('if (!info || total < 2) return') && frames.includes('setInterval'))
   check('6в сценовый фон через LiveImg', scene.includes('LiveImg') && scene.includes('state.image'))
-  check('6в спрайт слота через LiveImg', scene.includes('className="slot-sprite"'))
+  check('6в спрайт слота через LiveImg', foreground.includes('<LiveImg') && /className=\{`slot-sprite/.test(foreground))
   check('6в фигурка боя через LiveImg', combat.includes('LiveImg') && combat.includes('figureSrc'))
   check('6в редактор: AnimImageEditor', fields.includes('AnimImageEditor') && fields.includes('Оживить'))
   check('6в демо на полигоне: живой фон ворот', demo.includes('"frames"') && demo.includes('gates_front_night'))
@@ -123,12 +126,13 @@ const f = (p: string) => (p.endsWith('src/player/SceneScreen.tsx') ? scenePlayer
 // ── 6г. ИЛИ-группы условий правил ──
 {
   const types = f('src/shared/types.ts')
-  const engine = f('src/core/engine.ts')
+  const effects = f('src/core/effects.ts')
+  const encounters = f('packs/narrative/encounters.ts')
   const ruleEd = f('src/editor/RuleEditor.tsx')
   const demo = f('public/campaigns/ash-of-caerden/rules/gen_whisper_protest.json')
   check('6г RuleDef.conditions_any — Condition[][]', /conditions_any\?:\s*Condition\[\]\[\]/.test(types))
-  check('6г движок: ИЛИ в tryFireRule', engine.includes('ruleConditionsOk') && /groups\.some\(\(g\)\s*=>\s*!g\.length \|\| g\.every/.test(engine))
-  check('6г движок: ИЛИ в таблицах событий', /rollEventTable[\s\S]*ruleConditionsOk\(rule\)/.test(engine))
+  check('6г движок: ИЛИ в tryFireRule', effects.includes('ruleConditionsOk') && /groups\.some\(\(g\)\s*=>\s*!g\.length \|\| g\.every/.test(effects))
+  check('6г движок: ИЛИ в таблицах событий', /rollEventTable[\s\S]*effects\.ruleConditionsOk\.call\(this,\s*rule\)/.test(encounters))
   check('6г редактор правил: «+ Группа»', ruleEd.includes('Группы «или»') && ruleEd.includes('Группа «или» №'))
   check('6г демо-правило на полигоне', demo.includes('conditions_any') && demo.includes('shrine_offended'))
 }
