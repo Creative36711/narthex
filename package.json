@@ -70,6 +70,7 @@
     "smoke:capability-modes": "tsx scripts/smoke/capability-modes-smoke.mts",
     "probe:capability-modes": "tsx scripts/probe-capability-modes.mts",
     "check:core-graph": "tsx scripts/core-graph.mts",
+    "check:determinism": "tsx scripts/check-determinism.mts",
     "check:mission": "tsx scripts/check-mission.mts",
     "audit:campaign": "tsx scripts/campaign-audit.mts",
     "smoke:dlg-script": "tsx scripts/dlg-script-smoke.mts",
