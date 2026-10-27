@@ -18,9 +18,9 @@ import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const V = '1.4.76';
+const V = '1.4.77';
 
-assert.match(src, /@version\s+1\.4\.76/, `версия ${V}`);
+assert.match(src, /@version\s+1\.4\.77/, `версия ${V}`);
 
 // ── 1. Панель: отдельная кнопка решений ────────────────────────────────────
 const has = (needle) => assert.ok(src.includes(needle), `в скрипте нет: ${needle}`);

@@ -16,7 +16,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.76/, 'версия 1.4.76');
+assert.match(src, /@version\s+1\.4\.77/, 'версия 1.4.77');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
@@ -53,6 +53,22 @@ assert.match(src, /GM_setValue\(K\.step, false\);/, 'шаг одноразовы
 const sendStart = src.indexOf('// ───────────────────────────── отправка');
 const sendEnd = src.indexOf('// ───────────────────────────── PR', sendStart);
 const sendBlock = src.slice(sendStart, sendEnd);
+
+// 1.4.77: `consumePending` перед вставкой текста нажимает Continue, если ветка
+// прошлого хода слита. Функции берём из настоящего исходника, чтобы проба
+// проверяла их, а не заглушки.
+function sliceToBrace(from) {
+  assert.ok(from > 0, 'блок Continue на месте');
+  return src.slice(from, src.indexOf('\n  }\n', from) + 4);
+}
+const contBlock = [
+  src.slice(
+    src.indexOf('const isContinueLabel ='),
+    src.indexOf('\n', src.indexOf(';', src.indexOf('const isContinueLabel ='))) + 1,
+  ),
+  sliceToBrace(src.indexOf('function continueButton()')),
+  sliceToBrace(src.indexOf('async function ensureFreshBranch(')),
+].join('\n');
 assert.match(sendBlock, /\.editor-content\[contenteditable\]/, 'редактор Arena первым');
 assert.match(sendBlock, /\[contenteditable\]:not\(\[contenteditable='false'\]\)/, 'plaintext-only тоже contenteditable');
 assert.match(sendBlock, /\.ProseMirror/, 'ProseMirror');
@@ -276,7 +292,9 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     "getComputedStyle", "Date", "setTimeout", "HTMLTextAreaElement", "HTMLInputElement", "InputEvent",
     "busySettled", "busyLabel", "messages", "nodeId", "C", "dbg", "debugSendButton", "describe", "autoOn", "flat", "ui",
     "appReady",
-    `${sendBlock}\nreturn { consumePending, closeCompletionPlaque, ensureComposer };`,
+    // 1.4.77: проверка Continue перед отправкой.
+    "waitFor", "patience", "mergedFlag",
+    `${sendBlock}\n${contBlock}\nreturn { consumePending, closeCompletionPlaque, ensureComposer };`,
   );
   const api = fn(
     (k, d) => (k === "cfn-pending" ? pending : k === "cfn-expect" ? expect : d),
@@ -319,6 +337,10 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     { panel: "cfn-panel" },
     // 1.4.63: шаг начинается с проверки, что страница отрисована.
     () => ({ ok: true, why: "" }),
+    // 1.4.77: на фейковой странице Continue нет — проверка проходит вхолостую.
+    async (check) => (check() || null),
+    (ms) => ms,
+    () => false,
   );
   return { api, out };
 };
