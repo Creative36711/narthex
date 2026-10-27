@@ -38,6 +38,17 @@ import { analyzeCampaign, formatGraphReport } from './analyze'
 import { findNarrativeCode, NARRATIVE_CODE_LIST } from './narrative-codes'
 import { readInstalledPackCatalogue, resolveProjectCapabilityModesForCheck, resolveProjectPackForCheck } from './project-pack'
 import { createPlaykitAdventureSession, type PlaykitAdventureSession } from './adventure-runtime'
+import { TurnExecutor } from '../../src/core/turn'
+import {
+  formatCycleReport,
+  loadCycleProject,
+  runCycleProjects,
+  type CycleAdapter,
+  type CycleAssertion,
+  type CycleProject,
+  type CycleSetup,
+} from './cycle-check'
+import { createRealtimeProjectSetup } from './realtime-project'
 import {
   createNarrativePackBinding,
   loadNarrativeContent,
@@ -1582,12 +1593,46 @@ async function cmdExample(): Promise<number> {
   return result.verdict === 'ok' ? 0 : 1
 }
 
+async function cmdCycles() {
+  const repositoryRoot = resolve(CLI_DIR, '../..')
+  const projects: CycleProject[] = await Promise.all([
+    loadCycleProject(join(repositoryRoot, 'public/campaigns/ash-of-caerden')),
+    loadCycleProject(join(repositoryRoot, '_tools/projects/realtime-wall')),
+  ])
+  const adapters: Readonly<Record<string, CycleAdapter>> = {
+    turn: async (project) => {
+      const { campaign, engine } = await loadEngine(project.directory, 'NAR-4.5-cycle-check', false, emptyInjection())
+      const ticksPerDay = Number(campaign.meta.ticks_per_day)
+      if (!Number.isFinite(ticksPerDay) || ticksPerDay <= 0) {
+        throw new TypeError(`CF_PLAY_TURN_TICKS_INVALID: ${ticksPerDay}`)
+      }
+      const initialTick = Number(engine.state.tick)
+      const assertions: CycleAssertion[] = [{
+        name: 'the turn executor advances exactly one campaign tick',
+        path: 'tick',
+        op: 'equals',
+        expected: initialTick + 1,
+      }]
+      const setup: CycleSetup = {
+        executor: new TurnExecutor(engine),
+        steps: [{ dt: (24 * 60 * 60 * 1000) / ticksPerDay, input: [] }],
+        assertions,
+        summaryPaths: ['tick', 'scene', 'location'],
+      }
+      return setup
+    },
+    realtime: createRealtimeProjectSetup,
+  }
+  return runCycleProjects(projects, adapters)
+}
+
 // ──────────────────────────────── main ──────────────────────────────────────
 
 const USAGE = [
-  'команды: check | graph | dialogue | run | explore | sweep | verify | explain | example',
+  'команды: check | cycles | graph | dialogue | run | explore | sweep | verify | explain | example',
   '',
   '  node cf-play.mjs example [narrative]',
+  '  node cf-play.mjs cycles [--json]  # общая проверка turn и realtime проектов',
   '  node cf-play.mjs explain <код> | --catalogue',
   '  node cf-play.mjs check    <папка кампании> [--seeds 1-5] [--steps 300] [--routes dir] [--pack-registry file] [--out runs/check]',
   '',
@@ -1631,6 +1676,14 @@ async function main(): Promise<void> {
     process.exit(
       await cmdVerify(campaignDir, flagText(flags, 'expect-engine'), !!flags.honest),
     )
+  }
+
+  if (command === 'cycles') {
+    if (positional.length) die('cycles: проектный набор задаётся внутренними манифестами, дополнительные пути не нужны')
+    const report = await cmdCycles()
+    if (asJson) console.log(JSON.stringify(report, null, 2))
+    else process.stdout.write(formatCycleReport(report))
+    process.exit(report.ok ? 0 : 1)
   }
 
   const CAMPAIGN_COMMANDS = ['check', 'graph', 'dialogue', 'run', 'fuzz', 'explore', 'sweep']

@@ -1,0 +1,15 @@
+{
+  "steps": [
+    { "dt": 20, "input": [{ "action": "move", "value": 1 }] },
+    { "dt": 20, "input": [{ "action": "move", "value": 1 }] },
+    { "dt": 20, "input": [{ "action": "move", "value": 1 }] },
+    { "dt": 20, "input": [{ "action": "move", "value": 1 }] },
+    { "dt": 20, "input": [{ "action": "move", "value": 1 }] },
+    { "dt": 20, "input": [{ "action": "move", "value": 1 }] },
+    { "dt": 20, "input": [{ "action": "move", "value": -1 }] },
+    { "dt": 20, "input": [{ "action": "move", "value": -1 }] },
+    { "dt": 20, "input": [{ "action": "move", "value": -1 }] },
+    { "dt": 20, "input": [{ "action": "move", "value": -1 }] },
+    { "dt": 20, "input": [{ "action": "move", "value": 1 }] }
+  ]
+}

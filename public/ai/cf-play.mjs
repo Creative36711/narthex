@@ -2908,8 +2908,8 @@ var require_react_development = __commonJS({
       function lazyInitializer(payload) {
         if (-1 === payload._status) {
           var resolveDebugValue = null, rejectDebugValue = null, ioInfo = payload._ioInfo;
-          null != ioInfo && (ioInfo.start = ioInfo.end = performance.now(), ioInfo.value = new Promise(function(resolve3, reject) {
-            resolveDebugValue = resolve3;
+          null != ioInfo && (ioInfo.start = ioInfo.end = performance.now(), ioInfo.value = new Promise(function(resolve4, reject) {
+            resolveDebugValue = resolve4;
             rejectDebugValue = reject;
           }));
           ioInfo = payload._result;
@@ -3025,21 +3025,21 @@ var require_react_development = __commonJS({
         );
         actScopeDepth = prevActScopeDepth;
       }
-      function recursivelyFlushAsyncActWork(returnValue, resolve3, reject) {
+      function recursivelyFlushAsyncActWork(returnValue, resolve4, reject) {
         var queue2 = ReactSharedInternals.actQueue;
         if (null !== queue2)
           if (0 !== queue2.length)
             try {
               flushActQueue(queue2);
               enqueueTask(function() {
-                return recursivelyFlushAsyncActWork(returnValue, resolve3, reject);
+                return recursivelyFlushAsyncActWork(returnValue, resolve4, reject);
               });
               return;
             } catch (error) {
               ReactSharedInternals.thrownErrors.push(error);
             }
           else ReactSharedInternals.actQueue = null;
-        0 < ReactSharedInternals.thrownErrors.length ? (queue2 = aggregateErrors(ReactSharedInternals.thrownErrors), ReactSharedInternals.thrownErrors.length = 0, reject(queue2)) : resolve3(returnValue);
+        0 < ReactSharedInternals.thrownErrors.length ? (queue2 = aggregateErrors(ReactSharedInternals.thrownErrors), ReactSharedInternals.thrownErrors.length = 0, reject(queue2)) : resolve4(returnValue);
       }
       function flushActQueue(queue2) {
         if (!isFlushing) {
@@ -3227,7 +3227,7 @@ var require_react_development = __commonJS({
             ));
           });
           return {
-            then: function(resolve3, reject) {
+            then: function(resolve4, reject) {
               didAwaitActCall = true;
               thenable.then(
                 function(returnValue) {
@@ -3237,7 +3237,7 @@ var require_react_development = __commonJS({
                       flushActQueue(queue2), enqueueTask(function() {
                         return recursivelyFlushAsyncActWork(
                           returnValue,
-                          resolve3,
+                          resolve4,
                           reject
                         );
                       });
@@ -3251,7 +3251,7 @@ var require_react_development = __commonJS({
                       ReactSharedInternals.thrownErrors.length = 0;
                       reject(_thrownError);
                     }
-                  } else resolve3(returnValue);
+                  } else resolve4(returnValue);
                 },
                 function(error) {
                   popActScope(prevActQueue, prevActScopeDepth);
@@ -3273,15 +3273,15 @@ var require_react_development = __commonJS({
         if (0 < ReactSharedInternals.thrownErrors.length)
           throw callback = aggregateErrors(ReactSharedInternals.thrownErrors), ReactSharedInternals.thrownErrors.length = 0, callback;
         return {
-          then: function(resolve3, reject) {
+          then: function(resolve4, reject) {
             didAwaitActCall = true;
             0 === prevActScopeDepth ? (ReactSharedInternals.actQueue = queue2, enqueueTask(function() {
               return recursivelyFlushAsyncActWork(
                 returnValue$jscomp$0,
-                resolve3,
+                resolve4,
                 reject
               );
-            })) : resolve3(returnValue$jscomp$0);
+            })) : resolve4(returnValue$jscomp$0);
           }
         };
       };
@@ -7584,9 +7584,9 @@ var init_engine = __esm({
 // scripts/playkit/cli.mts
 var import_seedrandom3 = __toESM(require_seedrandom2(), 1);
 import { createHash } from "node:crypto";
-import { existsSync as existsSync2 } from "node:fs";
-import { mkdir, readFile as readFile4, readdir, writeFile } from "node:fs/promises";
-import { basename, dirname, extname, join as join4, relative, resolve as resolve2, sep } from "node:path";
+import { existsSync as existsSync3 } from "node:fs";
+import { mkdir, readFile as readFile5, readdir, writeFile } from "node:fs/promises";
+import { basename as basename2, dirname, extname, join as join5, relative, resolve as resolve3, sep as sep2 } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // src/core/loader.ts
@@ -20687,6 +20687,636 @@ async function createPlaykitAdventureSession(campaignDir, engine) {
   return factory ? factory(campaignDir, engine, resolution.manifest) : null;
 }
 
+// src/core/fingerprint.ts
+function canonicalJson(value) {
+  return encode(value, "(root)");
+}
+function encode(value, path) {
+  if (value === null) return "null";
+  if (typeof value === "string") return JSON.stringify(value);
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "number") return encodeNumber(value);
+  if (typeof value === "undefined") return "undefined";
+  if (Array.isArray(value)) {
+    return `[${value.map((item, index) => encode(item, `${path}[${index}]`)).join(",")}]`;
+  }
+  if (typeof value === "object") {
+    const record = value;
+    const keys = Object.keys(record).filter((key) => record[key] !== void 0).sort();
+    const parts = keys.map((key) => `${JSON.stringify(key)}:${encode(record[key], `${path}.${key}`)}`);
+    return `{${parts.join(",")}}`;
+  }
+  throw new TypeError(`canonicalJson: ${typeof value} \u043D\u0435 \u0432\u0445\u043E\u0434\u0438\u0442 \u0432 \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u0435 (${path})`);
+}
+function encodeNumber(value) {
+  if (Number.isNaN(value)) return "nan";
+  if (value === Infinity) return "inf";
+  if (value === -Infinity) return "-inf";
+  if (Object.is(value, -0)) return "-0";
+  return JSON.stringify(value);
+}
+var FNV_PRIME = 16777619;
+var FNV_OFFSET = 2166136261;
+var SECOND_OFFSET = 2654435769;
+var SECOND_PRIME = 2246822507;
+function stableHash(text) {
+  let low = FNV_OFFSET;
+  let high = SECOND_OFFSET;
+  for (const char of text) {
+    const code = char.codePointAt(0);
+    low = Math.imul(low ^ code, FNV_PRIME) >>> 0;
+    high = Math.imul(high ^ code, SECOND_PRIME) >>> 0;
+  }
+  return low.toString(16).padStart(8, "0") + high.toString(16).padStart(8, "0");
+}
+function stateFingerprint(state) {
+  return stableHash(canonicalJson(state));
+}
+
+// src/core/executor.ts
+function fingerprintOf(state) {
+  return stateFingerprint(state);
+}
+
+// src/core/turn/index.ts
+init_prng();
+var DAY_MS = 24 * 60 * 60 * 1e3;
+var TurnExecutor = class {
+  engine;
+  pausedValue = false;
+  remainderMs = 0;
+  constructor(engine) {
+    const ticksPerDay = engine.campaign.meta.ticks_per_day;
+    if (!Number.isFinite(ticksPerDay) || ticksPerDay <= 0) {
+      throw new RangeError(`TURN_TICKS_PER_DAY_INVALID: ${ticksPerDay}`);
+    }
+    this.engine = engine;
+  }
+  get state() {
+    return this.engine.state;
+  }
+  get paused() {
+    return this.pausedValue;
+  }
+  get clock() {
+    return this.engine.state.tick * this.tickMs();
+  }
+  step(dt2, input = []) {
+    if (this.paused) return { changed: false, clock: this.clock };
+    if (!Number.isFinite(dt2) || dt2 < 0) {
+      throw new RangeError(`TURN_DT_INVALID: ${dt2}`);
+    }
+    const events = this.orderedInput(dt2, input);
+    const before = this.fingerprint();
+    let cursor = 0;
+    for (const event of events) {
+      const at2 = event.at ?? 0;
+      this.advanceTime(at2 - cursor);
+      this.applyInput(event);
+      cursor = at2;
+    }
+    this.advanceTime(dt2 - cursor);
+    return { changed: before !== this.fingerprint(), clock: this.clock };
+  }
+  pause() {
+    this.pausedValue = true;
+  }
+  resume() {
+    this.pausedValue = false;
+  }
+  setSeed(seed) {
+    const rng = new PRNG(seed);
+    this.engine.rng = rng;
+    this.engine.state.seed = rng.seed;
+  }
+  fingerprint() {
+    return fingerprintOf(this.state);
+  }
+  tickMs() {
+    return DAY_MS / this.engine.campaign.meta.ticks_per_day;
+  }
+  /** Preserve sub-tick time between calls; only complete ticks reach the engine. */
+  advanceTime(ms) {
+    if (ms === 0) return;
+    const total = this.remainderMs + ms;
+    const ticks = Math.floor(total / this.tickMs());
+    if (ticks === 0) {
+      this.remainderMs = total;
+      return;
+    }
+    this.remainderMs = Math.max(0, total - ticks * this.tickMs());
+    this.engine.advanceTicks(ticks);
+  }
+  orderedInput(dt2, input) {
+    return input.map((event, index) => ({ event, index })).sort((a2, b2) => (a2.event.at ?? 0) - (b2.event.at ?? 0) || a2.index - b2.index).map(({ event }) => {
+      const at2 = event.at ?? 0;
+      if (!event.action || !Number.isFinite(at2) || at2 < 0 || at2 > dt2) {
+        throw new RangeError(`TURN_INPUT_INVALID: ${event.action} at ${event.at}`);
+      }
+      return event;
+    });
+  }
+  applyInput(event) {
+    const { action, value } = event;
+    switch (action) {
+      case "wait":
+        return;
+      case "move": {
+        const scene = typeof value === "string" ? this.engine.currentScene().navigation.find((nav) => nav.go_to_scene === value) : void 0;
+        if (scene) {
+          this.engine.navigate(scene);
+          return;
+        }
+        break;
+      }
+      case "travel":
+        this.engine.travelTo(requiredId(value, action));
+        return;
+      case "interact": {
+        const slotId = requiredId(value, action);
+        const occupant = this.engine.slotOccupants(this.engine.currentScene()).find((candidate) => candidate.slot.id === slotId);
+        if (occupant) {
+          this.engine.interactWithSlot(occupant);
+          return;
+        }
+        break;
+      }
+      case "use":
+        this.engine.useItem(requiredId(value, action));
+        return;
+      case "choose": {
+        if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+          throw new TypeError(`TURN_CHOOSE_INVALID: ${value}`);
+        }
+        this.engine.chooseDialogueOption(value);
+        return;
+      }
+      default:
+        break;
+    }
+    if (!this.engine.hasPackOperation(action)) {
+      throw new Error(`TURN_INPUT_UNKNOWN: ${action}`);
+    }
+    if (value === void 0) this.engine.runPackOperation(action);
+    else this.engine.runPackOperation(action, value);
+  }
+};
+function requiredId(value, action) {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new TypeError(`TURN_${action.toUpperCase()}_ID_INVALID: ${value}`);
+  }
+  return value;
+}
+
+// scripts/playkit/cycle-check.ts
+import { existsSync as existsSync2 } from "node:fs";
+import { readFile as readFile4 } from "node:fs/promises";
+import { basename, resolve as resolve2, sep, join as join4 } from "node:path";
+async function readJson4(path) {
+  return JSON.parse(await readFile4(path, "utf8"));
+}
+function projectFile(directory, relativePath, field) {
+  if (typeof relativePath !== "string" || !relativePath.trim()) {
+    throw new TypeError(`CF_PLAY_CYCLE_MANIFEST_INVALID: ${field} must be a relative path`);
+  }
+  const root = resolve2(directory);
+  const file = resolve2(root, relativePath);
+  if (file === root || !file.startsWith(`${root}${sep}`)) {
+    throw new TypeError(`CF_PLAY_CYCLE_MANIFEST_INVALID: ${field} escapes the project directory`);
+  }
+  return file;
+}
+async function loadCycleProject(directory) {
+  const root = resolve2(directory);
+  const projectPath = join4(root, "project.json");
+  if (existsSync2(projectPath)) {
+    const raw = await readJson4(projectPath);
+    if (typeof raw.runtime === "string" && raw.runtime.trim()) {
+      const manifest = raw;
+      const world2 = await readJson4(projectFile(root, raw.world, "world"));
+      const route = await readJson4(projectFile(root, raw.route, "route"));
+      if (!Array.isArray(route.steps) || !route.steps.length) {
+        throw new TypeError(`CF_PLAY_CYCLE_ROUTE_INVALID: ${root}`);
+      }
+      for (const [index, step] of route.steps.entries()) {
+        if (!Number.isFinite(step.dt) || step.dt < 0 || step.input !== void 0 && !Array.isArray(step.input)) {
+          throw new TypeError(`CF_PLAY_CYCLE_ROUTE_INVALID: ${root} step ${index}`);
+        }
+      }
+      if (!Array.isArray(manifest.assertions) || !manifest.assertions.length) {
+        throw new TypeError(`CF_PLAY_CYCLE_MANIFEST_INVALID: ${root} must declare assertions`);
+      }
+      if (!Array.isArray(manifest.summary_paths)) {
+        throw new TypeError(`CF_PLAY_CYCLE_MANIFEST_INVALID: ${root} must declare summary_paths`);
+      }
+      return {
+        directory: root,
+        id: typeof raw.id === "string" && raw.id.trim() ? raw.id : basename(root),
+        title: typeof raw.title === "string" && raw.title.trim() ? raw.title : basename(root),
+        runtime: raw.runtime,
+        manifest,
+        world: world2,
+        route
+      };
+    }
+  }
+  const resolution = await resolveProjectPackForCheck(root);
+  if (!resolution) throw new Error(`CF_PLAY_CYCLE_PROJECT_UNAVAILABLE: ${root}`);
+  if (resolution.status === "missing") throw new Error(resolution.diagnostic.message);
+  const campaign2 = await readJson4(join4(root, "campaign.json"));
+  return {
+    directory: root,
+    id: campaign2.id ?? basename(root),
+    title: campaign2.title ?? campaign2.id ?? basename(root),
+    runtime: resolution.manifest.runtime,
+    manifest: null,
+    world: null,
+    route: null
+  };
+}
+function valueAt(value, path) {
+  let current = value;
+  for (const part of path.split(".")) {
+    if (current === null || typeof current !== "object") return void 0;
+    current = current[part];
+  }
+  return current;
+}
+function evaluateAssertion(assertion, before, after) {
+  const previous = valueAt(before, assertion.path);
+  const actual = valueAt(after, assertion.path);
+  let ok = false;
+  switch (assertion.op) {
+    case "equals":
+      ok = Object.is(actual, assertion.expected);
+      break;
+    case "changed":
+      ok = !Object.is(previous, actual);
+      break;
+    case "less_than_or_equal":
+      ok = typeof actual === "number" && typeof assertion.expected === "number" && actual <= assertion.expected;
+      break;
+    case "greater_than":
+      ok = typeof actual === "number" && typeof assertion.expected === "number" && actual > assertion.expected;
+      break;
+  }
+  return { ...assertion, ok, actual: actual ?? null, previous: previous ?? null };
+}
+async function runCycleProjects(projects, adapters) {
+  if (!projects.length) throw new Error("CF_PLAY_CYCLE_SUITE_EMPTY");
+  const configuredRuntimes = Object.keys(adapters).sort();
+  const used = /* @__PURE__ */ new Set();
+  const results = [];
+  for (const project of projects) {
+    used.add(project.runtime);
+    const adapter = adapters[project.runtime];
+    if (!adapter) throw new Error(`CF_PLAY_CYCLE_ADAPTER_MISSING: ${project.runtime}`);
+    const setup = await adapter(project);
+    if (!setup.steps.length || !setup.assertions.length) {
+      throw new Error(`CF_PLAY_CYCLE_SETUP_INCOMPLETE: ${project.id}`);
+    }
+    const initialState = structuredClone(setup.executor.state);
+    const initialFingerprint = setup.executor.fingerprint();
+    const clockBefore = setup.executor.clock;
+    for (const step of setup.steps) setup.executor.step(step.dt, step.input ?? []);
+    const finalState = setup.executor.state;
+    const assertions = setup.assertions.map((assertion) => evaluateAssertion(assertion, initialState, finalState));
+    const summary = Object.fromEntries(setup.summaryPaths.map((path) => [path, valueAt(finalState, path) ?? null]));
+    results.push({
+      id: project.id,
+      title: project.title,
+      runtime: project.runtime,
+      stepCalls: setup.steps.length,
+      clockBefore,
+      clockAfter: setup.executor.clock,
+      initialFingerprint,
+      finalFingerprint: setup.executor.fingerprint(),
+      summary,
+      assertions,
+      ok: assertions.every((assertion) => assertion.ok)
+    });
+  }
+  const usedRuntimes = [...used].sort();
+  const missingRuntimes = configuredRuntimes.filter((runtime) => !used.has(runtime));
+  return {
+    projects: results,
+    configuredRuntimes,
+    usedRuntimes,
+    missingRuntimes,
+    ok: missingRuntimes.length === 0 && results.every((result) => result.ok)
+  };
+}
+function jsonValue(value) {
+  const result = JSON.stringify(value);
+  return result === void 0 ? String(value) : result;
+}
+function formatCycleReport(report) {
+  const passed = report.projects.filter((project) => project.ok).length;
+  const lines = ["cf-play cycles", ""];
+  for (const project of report.projects) {
+    lines.push(
+      `${project.ok ? "\u2713" : "\u2717"} ${project.id} [${project.runtime}]: ${project.stepCalls} step calls, clock ${project.clockBefore} \u2192 ${project.clockAfter} ms, state ${jsonValue(project.summary)}`
+    );
+    for (const assertion of project.assertions) {
+      lines.push(`  ${assertion.ok ? "\u2713" : "\u2717"} ${assertion.name}: ${jsonValue(assertion.actual)}`);
+    }
+  }
+  lines.push("");
+  lines.push(
+    `Coverage: ${report.usedRuntimes.length}/${report.configuredRuntimes.length} runtimes; ${passed}/${report.projects.length} projects passed; ${report.missingRuntimes.length} runtimes missing.`
+  );
+  return lines.join("\n") + "\n";
+}
+
+// src/core/realtime/index.ts
+var RealtimeExecutor = class {
+  stepMs;
+  simulation;
+  originClock;
+  ticks = 0;
+  elapsedMs = 0;
+  timeError = 0;
+  previous;
+  current;
+  pending = [];
+  constructor(simulation, options = {}) {
+    const stepMs = options.stepMs ?? 20;
+    if (!Number.isSafeInteger(stepMs) || stepMs <= 0) {
+      throw new RangeError(`REALTIME_STEP_INVALID: ${stepMs}`);
+    }
+    this.stepMs = stepMs;
+    this.simulation = simulation;
+    this.originClock = simulation.clock;
+    this.current = structuredClone(simulation.state);
+    this.previous = this.current;
+  }
+  get state() {
+    return this.simulation.state;
+  }
+  get paused() {
+    return this.simulation.paused;
+  }
+  /** Fixed-step timeline, independent of action costs / coarse campaign ticks. */
+  get clock() {
+    return this.originClock + this.ticks * this.stepMs;
+  }
+  get accumulatorMs() {
+    return this.elapsedMs - this.ticks * this.stepMs;
+  }
+  get alpha() {
+    return this.accumulatorMs / this.stepMs;
+  }
+  /** Defensive copies: a renderer cannot mutate the simulation or snapshots. */
+  get frame() {
+    return {
+      previous: structuredClone(this.previous),
+      current: structuredClone(this.current),
+      alpha: this.alpha,
+      clock: this.clock
+    };
+  }
+  /**
+   * Interpolate only presentation fields (e.g. position), never ids, inventory,
+   * seed or HP by guessing their meaning. Standard interpolation is one fixed
+   * step behind the simulation, with no extrapolation into unknown state.
+   * The projection receives isolated snapshots and may return any view type.
+   */
+  interpolate(project) {
+    const { previous, current, alpha } = this.frame;
+    return project(previous, current, alpha);
+  }
+  step(dt2, input = []) {
+    if (this.paused) return { changed: false, clock: this.clock };
+    if (!Number.isFinite(dt2) || dt2 < 0) {
+      throw new RangeError(`REALTIME_DT_INVALID: ${dt2}`);
+    }
+    const start = this.elapsedMs;
+    const increment = dt2 - this.timeError;
+    const end = start + increment;
+    if (!Number.isFinite(end) || end > Number.MAX_SAFE_INTEGER) {
+      throw new RangeError(`REALTIME_TIME_OVERFLOW: ${end}`);
+    }
+    let lastAt = 0;
+    const queued = input.map((event) => {
+      const at2 = event.at ?? 0;
+      if (!event.action || !Number.isFinite(at2) || at2 < lastAt || at2 > dt2) {
+        throw new RangeError(`REALTIME_INPUT_INVALID: ${event.action} at ${at2}`);
+      }
+      lastAt = at2;
+      return { time: start + at2, event: { ...event } };
+    });
+    for (const event of queued) this.pending.push(event);
+    this.timeError = end - start - increment;
+    this.elapsedMs = end;
+    let changed = false;
+    let consumed = 0;
+    while ((this.ticks + 1) * this.stepMs <= this.elapsedMs) {
+      const tickStart = this.ticks * this.stepMs;
+      const tickEnd = tickStart + this.stepMs;
+      const events = [];
+      let next = consumed;
+      while (next < this.pending.length && this.pending[next].time < tickEnd) {
+        const { time, event } = this.pending[next++];
+        events.push({ ...event, at: time - tickStart });
+      }
+      const result = this.simulation.step(this.stepMs, events);
+      consumed = next;
+      this.ticks += 1;
+      changed = changed || result.changed;
+      this.previous = this.current;
+      this.current = structuredClone(this.state);
+    }
+    this.pending = this.pending.slice(consumed);
+    return { changed, clock: this.clock };
+  }
+  /** Paused calls consume neither real time nor input; fractional time survives. */
+  pause() {
+    this.simulation.pause();
+  }
+  resume() {
+    this.simulation.resume();
+  }
+  /** Like Executor.setSeed, reseeds; it does not restart the world or timeline. */
+  setSeed(seed) {
+    this.simulation.setSeed(seed);
+    this.current = structuredClone(this.state);
+    this.previous = this.current;
+  }
+  /** Authoritative state only, never interpolated presentation. */
+  fingerprint() {
+    return this.simulation.fingerprint();
+  }
+};
+function createRealtimeExecutorFactory(simulationFactory, options = {}) {
+  const configuration = { ...options };
+  return (initial = {}) => new RealtimeExecutor(simulationFactory(initial), configuration);
+}
+
+// scripts/playkit/realtime-project.ts
+function requireObject(value, label) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new TypeError(`CF_PLAY_REALTIME_PROJECT_INVALID: ${label} must be an object`);
+  }
+  return value;
+}
+function requireNumber(value, label) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new TypeError(`CF_PLAY_REALTIME_PROJECT_INVALID: ${label} must be finite`);
+  }
+  return value;
+}
+function requireRectangle(value, label) {
+  const rectangle = requireObject(value, label);
+  if (typeof rectangle.id !== "string" || !rectangle.id) {
+    throw new TypeError(`CF_PLAY_REALTIME_PROJECT_INVALID: ${label}.id is required`);
+  }
+  const width = requireNumber(rectangle.width, `${label}.width`);
+  const height = requireNumber(rectangle.height, `${label}.height`);
+  if (width <= 0 || height <= 0) {
+    throw new TypeError(`CF_PLAY_REALTIME_PROJECT_INVALID: ${label} dimensions must be positive`);
+  }
+  return {
+    id: rectangle.id,
+    x: requireNumber(rectangle.x, `${label}.x`),
+    y: requireNumber(rectangle.y, `${label}.y`),
+    width,
+    height
+  };
+}
+function requireWorld(value) {
+  const raw = requireObject(value, "world");
+  const bounds = requireObject(raw.bounds, "world.bounds");
+  const spawn = requireObject(raw.spawn, "world.spawn");
+  if (!Array.isArray(raw.walls) || !Array.isArray(raw.zones)) {
+    throw new TypeError("CF_PLAY_REALTIME_PROJECT_INVALID: world walls and zones must be arrays");
+  }
+  const zones = raw.zones.map((item, index) => {
+    const zone = requireRectangle(item, `world.zones[${index}]`);
+    const state = requireObject(item, `world.zones[${index}]`).state;
+    if (typeof state !== "string" || !state) {
+      throw new TypeError(`CF_PLAY_REALTIME_PROJECT_INVALID: world.zones[${index}].state is required`);
+    }
+    return { ...zone, state };
+  });
+  const minX = requireNumber(bounds.min_x, "world.bounds.min_x");
+  const minY = requireNumber(bounds.min_y, "world.bounds.min_y");
+  const maxX = requireNumber(bounds.max_x, "world.bounds.max_x");
+  const maxY = requireNumber(bounds.max_y, "world.bounds.max_y");
+  if (minX >= maxX || minY >= maxY) {
+    throw new TypeError("CF_PLAY_REALTIME_PROJECT_INVALID: world bounds must have positive area");
+  }
+  const world2 = {
+    bounds: { min_x: minX, min_y: minY, max_x: maxX, max_y: maxY },
+    spawn: {
+      x: requireNumber(spawn.x, "world.spawn.x"),
+      y: requireNumber(spawn.y, "world.spawn.y")
+    },
+    movement_speed: requireNumber(raw.movement_speed, "world.movement_speed"),
+    player_radius: requireNumber(raw.player_radius, "world.player_radius"),
+    walls: raw.walls.map((item, index) => requireRectangle(item, `world.walls[${index}]`)),
+    zones
+  };
+  if (world2.movement_speed <= 0 || world2.player_radius <= 0) {
+    throw new TypeError("CF_PLAY_REALTIME_PROJECT_INVALID: speed and player radius must be positive");
+  }
+  return world2;
+}
+var RealtimeWorldSimulation = class {
+  constructor(world2, seed, initial) {
+    this.world = world2;
+    this.current = initial ? structuredClone(initial) : {
+      seed,
+      position: { ...world2.spawn },
+      max_x: world2.spawn.x,
+      wall_contact: false,
+      wall_contacts: 0,
+      zone_trigger_count: 0,
+      triggered_zones: {},
+      world_state: null
+    };
+  }
+  world;
+  pausedValue = false;
+  clockMs = 0;
+  current;
+  get state() {
+    return this.current;
+  }
+  get paused() {
+    return this.pausedValue;
+  }
+  get clock() {
+    return this.clockMs;
+  }
+  step(dt2, input = []) {
+    if (this.paused) return { changed: false, clock: this.clock };
+    if (!Number.isFinite(dt2) || dt2 < 0) throw new RangeError(`REALTIME_PROJECT_DT_INVALID: ${dt2}`);
+    const before = this.fingerprint();
+    let direction = 0;
+    for (const event of input) {
+      if (event.action !== "move") throw new RangeError(`REALTIME_PROJECT_INPUT_INVALID: ${event.action}`);
+      if (typeof event.value !== "number" || ![-1, 0, 1].includes(event.value)) {
+        throw new RangeError(`REALTIME_PROJECT_MOVE_INVALID: ${String(event.value)}`);
+      }
+      direction = event.value;
+    }
+    if (direction !== 0) {
+      const nextX = this.current.position.x + direction * this.world.movement_speed * dt2 / 1e3;
+      const outsideBounds = nextX - this.world.player_radius < this.world.bounds.min_x || nextX + this.world.player_radius > this.world.bounds.max_x || this.current.position.y - this.world.player_radius < this.world.bounds.min_y || this.current.position.y + this.world.player_radius > this.world.bounds.max_y;
+      const wallHit = this.world.walls.some(
+        (wall) => nextX + this.world.player_radius > wall.x && nextX - this.world.player_radius < wall.x + wall.width && this.current.position.y + this.world.player_radius > wall.y && this.current.position.y - this.world.player_radius < wall.y + wall.height
+      );
+      if (wallHit) {
+        this.current.wall_contact = true;
+        this.current.wall_contacts += 1;
+      } else if (!outsideBounds) {
+        this.current.position.x = nextX;
+      }
+    }
+    this.current.max_x = Math.max(this.current.max_x, this.current.position.x);
+    for (const zone of this.world.zones) {
+      const overlaps = this.current.position.x + this.world.player_radius > zone.x && this.current.position.x - this.world.player_radius < zone.x + zone.width && this.current.position.y + this.world.player_radius > zone.y && this.current.position.y - this.world.player_radius < zone.y + zone.height;
+      if (overlaps && !this.current.triggered_zones[zone.id]) {
+        this.current.triggered_zones[zone.id] = true;
+        this.current.zone_trigger_count += 1;
+        this.current.world_state = zone.state;
+      }
+    }
+    this.clockMs += dt2;
+    return { changed: before !== this.fingerprint(), clock: this.clock };
+  }
+  pause() {
+    this.pausedValue = true;
+  }
+  resume() {
+    this.pausedValue = false;
+  }
+  setSeed(seed) {
+    this.current.seed = seed;
+  }
+  fingerprint() {
+    return fingerprintOf(this.current);
+  }
+};
+function createRealtimeProjectSetup(project) {
+  const manifest = project.manifest;
+  const route = project.route;
+  if (!manifest || !route) throw new Error(`CF_PLAY_REALTIME_PROJECT_DATA_MISSING: ${project.directory}`);
+  if (!Number.isSafeInteger(manifest.step_ms) || manifest.step_ms <= 0) {
+    throw new RangeError(`CF_PLAY_REALTIME_STEP_INVALID: ${manifest.step_ms}`);
+  }
+  const world2 = requireWorld(project.world);
+  const simulationFactory = (options = {}) => new RealtimeWorldSimulation(world2, options.seed ?? project.id, options.state);
+  const realtimeFactory = createRealtimeExecutorFactory(simulationFactory, { stepMs: manifest.step_ms });
+  const executor = realtimeFactory({ seed: `${project.id}:NAR-4.5` });
+  return {
+    executor,
+    steps: route.steps,
+    assertions: manifest.assertions,
+    summaryPaths: manifest.summary_paths
+  };
+}
+
 // scripts/playkit/cli.mts
 var PLAYKIT_VERSION = "0.1.0";
 var CLI_DIR = dirname(fileURLToPath(import.meta.url));
@@ -20746,7 +21376,7 @@ function flagText(flags, key) {
 }
 async function walk(dir, acc = []) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
-    const full = join4(dir, entry.name);
+    const full = join5(dir, entry.name);
     if (entry.isDirectory()) {
       if (entry.name === "node_modules" || entry.name === ".git") continue;
       await walk(full, acc);
@@ -20761,9 +21391,9 @@ async function logicDigest(dir) {
   files.sort();
   const hash = createHash("sha256");
   for (const file of files) {
-    hash.update(relative(dir, file).split(sep).join("/"));
+    hash.update(relative(dir, file).split(sep2).join("/"));
     hash.update("\0");
-    hash.update(await readFile4(file));
+    hash.update(await readFile5(file));
     hash.update("\0");
   }
   return "sha256:" + hash.digest("hex");
@@ -20784,9 +21414,9 @@ function installShims(campaignDir) {
     const url = String(input);
     if (!url.startsWith(DEFAULT_ORIGIN)) throw new Error(`cf-play: \u0432\u043D\u0435\u0448\u043D\u044F\u044F \u0441\u0435\u0442\u044C \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u0430 (${url})`);
     const rel = decodeURIComponent(new URL(url).pathname).replace(/^\/+/, "");
-    const target = resolve2(campaignDir, rel);
-    if (!target.startsWith(resolve2(campaignDir))) throw new Error(`cf-play: \u043F\u0443\u0442\u044C \u0432\u043D\u0435 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 (${rel})`);
-    return new Response(await readFile4(target), { status: 200 });
+    const target = resolve3(campaignDir, rel);
+    if (!target.startsWith(resolve3(campaignDir))) throw new Error(`cf-play: \u043F\u0443\u0442\u044C \u0432\u043D\u0435 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 (${rel})`);
+    return new Response(await readFile5(target), { status: 200 });
   };
 }
 function entityLabel2(entity) {
@@ -21325,15 +21955,15 @@ async function writeRun(config, result, steps, engine, campaign2, debug) {
       return rest;
     });
     const route = { name: `${result.campaign.id} / \u0437\u0430\u043F\u0438\u0441\u0430\u043D\u043E ${result.mode} seed ${result.seed}`, steps: actions };
-    await mkdir(dirname(resolve2(config.record)), { recursive: true });
-    await writeFile(resolve2(config.record), JSON.stringify(route, null, 2) + "\n", "utf8");
+    await mkdir(dirname(resolve3(config.record)), { recursive: true });
+    await writeFile(resolve3(config.record), JSON.stringify(route, null, 2) + "\n", "utf8");
   }
   if (config.outDir) {
     await mkdir(config.outDir, { recursive: true });
-    await writeFile(join4(config.outDir, "transcript.md"), transcript, "utf8");
-    await writeFile(join4(config.outDir, "run.json"), runJson, "utf8");
-    await writeFile(join4(config.outDir, "result.json"), JSON.stringify(result, null, 2), "utf8");
-    if (debug) await writeFile(join4(config.outDir, "state.final.json"), JSON.stringify(engine.state, null, 2), "utf8");
+    await writeFile(join5(config.outDir, "transcript.md"), transcript, "utf8");
+    await writeFile(join5(config.outDir, "run.json"), runJson, "utf8");
+    await writeFile(join5(config.outDir, "result.json"), JSON.stringify(result, null, 2), "utf8");
+    if (debug) await writeFile(join5(config.outDir, "state.final.json"), JSON.stringify(engine.state, null, 2), "utf8");
   }
   return transcript;
 }
@@ -21518,7 +22148,7 @@ async function cmdCheck(config, seeds, stepsLimit, routesDir, packRegistryPath =
     const diagnostic = packResolution.diagnostic;
     return {
       result: {
-        campaign: { id: basename(config.campaignDir), title: basename(config.campaignDir) },
+        campaign: { id: basename2(config.campaignDir), title: basename2(config.campaignDir) },
         verdict: "failed",
         problems: [diagnostic.message],
         error: diagnostic
@@ -21549,20 +22179,20 @@ async function cmdCheck(config, seeds, stepsLimit, routesDir, packRegistryPath =
     };
   }
   const routeFiles = [];
-  const dir = routesDir ?? join4(config.campaignDir, "routes");
-  if (existsSync2(dir)) {
-    for (const name of await readdir(dir)) if (name.endsWith(".json")) routeFiles.push(join4(dir, name));
+  const dir = routesDir ?? join5(config.campaignDir, "routes");
+  if (existsSync3(dir)) {
+    for (const name of await readdir(dir)) if (name.endsWith(".json")) routeFiles.push(join5(dir, name));
   }
   const routeRuns = [];
   for (const file of routeFiles.sort()) {
-    const script = JSON.parse(await readFile4(file, "utf8"));
-    const out = config.outDir ? join4(config.outDir, "routes", basename(file, ".json")) : null;
+    const script = JSON.parse(await readFile5(file, "utf8"));
+    const out = config.outDir ? join5(config.outDir, "routes", basename2(file, ".json")) : null;
     const routeSeed = script.seed === void 0 ? config.seed : String(script.seed);
     const run = await cmdRun({ ...config, seed: routeSeed, outDir: out, routeName: file }, script);
     routeRuns.push({ file, status: run.status, steps: run.steps, assertions: run.assertions, transcript: run.hashes.transcript });
   }
   const sweep = await cmdSweep(
-    { ...config, quiet: true, outDir: config.outDir ? join4(config.outDir, "sweep") : null },
+    { ...config, quiet: true, outDir: config.outDir ? join5(config.outDir, "sweep") : null },
     seeds,
     stepsLimit
   );
@@ -21612,7 +22242,7 @@ async function cmdCheck(config, seeds, stepsLimit, routesDir, packRegistryPath =
   text.push("");
   text.push("## \u041C\u0430\u0440\u0448\u0440\u0443\u0442\u044B");
   if (!routeFiles.length) text.push(`\u043C\u0430\u0440\u0448\u0440\u0443\u0442\u043E\u0432 \u043D\u0435\u0442 (${dir}) \u2014 \u043F\u0440\u043E\u0433\u043E\u043D \u0442\u043E\u043B\u044C\u043A\u043E \u043F\u043E seed'\u0430\u043C`);
-  for (const run of routeRuns) text.push(`- ${basename(run.file)}: ${run.status}, \u0448\u0430\u0433\u043E\u0432 ${run.steps}`);
+  for (const run of routeRuns) text.push(`- ${basename2(run.file)}: ${run.status}, \u0448\u0430\u0433\u043E\u0432 ${run.steps}`);
   text.push("");
   text.push("## \u041C\u0430\u0442\u0440\u0438\u0446\u0430 seed'\u043E\u0432");
   text.push(`seed'\u043E\u0432 ${sweepResult.stats?.seeds ?? 0} \xB7 \u0438\u0441\u0445\u043E\u0434\u044B ${JSON.stringify(sweepResult.stats?.finals ?? {})}`);
@@ -21625,10 +22255,10 @@ async function cmdCheck(config, seeds, stepsLimit, routesDir, packRegistryPath =
   if (uncovered.length) text.push(`\u043D\u0435 \u043F\u043E\u043A\u0440\u044B\u0442\u043E: ${uncovered.slice(0, 15).join(", ")}${uncovered.length > 15 ? ` \u2026 \u0435\u0449\u0451 ${uncovered.length - 15}` : ""}`);
   if (config.outDir) {
     await mkdir(config.outDir, { recursive: true });
-    await writeFile(join4(config.outDir, "report.json"), JSON.stringify(result, null, 2), "utf8");
-    await writeFile(join4(config.outDir, "report.md"), text.join("\n") + "\n", "utf8");
-    await writeFile(join4(config.outDir, "graph.json"), JSON.stringify(graph, null, 2), "utf8");
-    await writeFile(join4(config.outDir, "graph.md"), formatGraphReport(graph), "utf8");
+    await writeFile(join5(config.outDir, "report.json"), JSON.stringify(result, null, 2), "utf8");
+    await writeFile(join5(config.outDir, "report.md"), text.join("\n") + "\n", "utf8");
+    await writeFile(join5(config.outDir, "graph.json"), JSON.stringify(graph, null, 2), "utf8");
+    await writeFile(join5(config.outDir, "graph.md"), formatGraphReport(graph), "utf8");
   }
   return { result, text: text.join("\n") + "\n" };
 }
@@ -21774,7 +22404,7 @@ async function cmdSweep(config, seeds, stepsLimit) {
   const finals = {};
   for (let seed = seeds[0]; seed <= seeds[1]; seed++) {
     const one = await cmdSearch(
-      { ...config, seed: String(seed), outDir: config.outDir ? join4(config.outDir, `seed-${seed}`) : null },
+      { ...config, seed: String(seed), outDir: config.outDir ? join5(config.outDir, `seed-${seed}`) : null },
       "explore",
       stepsLimit
     );
@@ -21826,15 +22456,15 @@ async function cmdSweep(config, seeds, stepsLimit) {
   }
   if (config.outDir) {
     await mkdir(config.outDir, { recursive: true });
-    await writeFile(join4(config.outDir, "sweep.json"), JSON.stringify(result, null, 2), "utf8");
-    await writeFile(join4(config.outDir, "sweep.md"), lines.join("\n") + "\n", "utf8");
+    await writeFile(join5(config.outDir, "sweep.json"), JSON.stringify(result, null, 2), "utf8");
+    await writeFile(join5(config.outDir, "sweep.md"), lines.join("\n") + "\n", "utf8");
   }
   return { result, text: lines.join("\n") + "\n" };
 }
 async function cmdVerify(dir, expectEngine, honestOnly) {
-  const resultRaw = await readFile4(join4(dir, "result.json"), "utf8");
-  const transcript = await readFile4(join4(dir, "transcript.md"), "utf8");
-  const runRaw = await readFile4(join4(dir, "run.json"), "utf8");
+  const resultRaw = await readFile5(join5(dir, "result.json"), "utf8");
+  const transcript = await readFile5(join5(dir, "transcript.md"), "utf8");
+  const runRaw = await readFile5(join5(dir, "run.json"), "utf8");
   const result = JSON.parse(resultRaw);
   const failures = [];
   if (sha256(transcript) !== result.hashes.transcript) failures.push("transcript.md \u043D\u0435 \u0441\u043E\u0432\u043F\u0430\u0434\u0430\u0435\u0442 \u0441 \u0445\u0435\u0448\u0435\u043C \u0432 result.json");
@@ -21889,14 +22519,14 @@ function cmdExplainCode(code) {
 }
 async function cmdExample() {
   const candidates = [
-    join4(CLI_DIR, "examples", "narrative"),
-    join4(CLI_DIR, "examples", "ash-of-caerden"),
-    resolve2(process.cwd(), "public/campaigns/ash-of-caerden"),
-    resolve2(process.cwd(), "packs/narrative/data/ash-of-caerden"),
-    resolve2(CLI_DIR, "../../public/campaigns/ash-of-caerden"),
-    resolve2(CLI_DIR, "../../packs/narrative/data/ash-of-caerden")
+    join5(CLI_DIR, "examples", "narrative"),
+    join5(CLI_DIR, "examples", "ash-of-caerden"),
+    resolve3(process.cwd(), "public/campaigns/ash-of-caerden"),
+    resolve3(process.cwd(), "packs/narrative/data/ash-of-caerden"),
+    resolve3(CLI_DIR, "../../public/campaigns/ash-of-caerden"),
+    resolve3(CLI_DIR, "../../packs/narrative/data/ash-of-caerden")
   ];
-  const campaignDir = candidates.find((candidate) => existsSync2(join4(candidate, "campaign.json")));
+  const campaignDir = candidates.find((candidate) => existsSync3(join5(candidate, "campaign.json")));
   if (!campaignDir) {
     die("example: \u044D\u0442\u0430\u043B\u043E\u043D narrative \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D; \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0439\u0442\u0435 \u043A\u0438\u0442 \u0441 examples/narrative \u0438\u043B\u0438 \u0437\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u0435 \u0438\u0437 \u043A\u043B\u043E\u043D\u0430 Narthex");
   }
@@ -21922,10 +22552,43 @@ async function cmdExample() {
   );
   return result.verdict === "ok" ? 0 : 1;
 }
+async function cmdCycles() {
+  const repositoryRoot = resolve3(CLI_DIR, "../..");
+  const projects = await Promise.all([
+    loadCycleProject(join5(repositoryRoot, "public/campaigns/ash-of-caerden")),
+    loadCycleProject(join5(repositoryRoot, "_tools/projects/realtime-wall"))
+  ]);
+  const adapters = {
+    turn: async (project) => {
+      const { campaign: campaign2, engine } = await loadEngine(project.directory, "NAR-4.5-cycle-check", false, emptyInjection());
+      const ticksPerDay = Number(campaign2.meta.ticks_per_day);
+      if (!Number.isFinite(ticksPerDay) || ticksPerDay <= 0) {
+        throw new TypeError(`CF_PLAY_TURN_TICKS_INVALID: ${ticksPerDay}`);
+      }
+      const initialTick = Number(engine.state.tick);
+      const assertions = [{
+        name: "the turn executor advances exactly one campaign tick",
+        path: "tick",
+        op: "equals",
+        expected: initialTick + 1
+      }];
+      const setup = {
+        executor: new TurnExecutor(engine),
+        steps: [{ dt: 24 * 60 * 60 * 1e3 / ticksPerDay, input: [] }],
+        assertions,
+        summaryPaths: ["tick", "scene", "location"]
+      };
+      return setup;
+    },
+    realtime: createRealtimeProjectSetup
+  };
+  return runCycleProjects(projects, adapters);
+}
 var USAGE = [
-  "\u043A\u043E\u043C\u0430\u043D\u0434\u044B: check | graph | dialogue | run | explore | sweep | verify | explain | example",
+  "\u043A\u043E\u043C\u0430\u043D\u0434\u044B: check | cycles | graph | dialogue | run | explore | sweep | verify | explain | example",
   "",
   "  node cf-play.mjs example [narrative]",
+  "  node cf-play.mjs cycles [--json]  # \u043E\u0431\u0449\u0430\u044F \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 turn \u0438 realtime \u043F\u0440\u043E\u0435\u043A\u0442\u043E\u0432",
   "  node cf-play.mjs explain <\u043A\u043E\u0434> | --catalogue",
   "  node cf-play.mjs check    <\u043F\u0430\u043F\u043A\u0430 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438> [--seeds 1-5] [--steps 300] [--routes dir] [--pack-registry file] [--out runs/check]",
   "",
@@ -21944,9 +22607,9 @@ var USAGE = [
 ].join("\n");
 async function main() {
   const { command, positional, flags } = parseArgs(process.argv.slice(2));
-  const campaignDir = positional[0] ? resolve2(positional[0]) : "";
+  const campaignDir = positional[0] ? resolve3(positional[0]) : "";
   const seed = String(flags.seed ?? "1");
-  const outDir = flagText(flags, "out") ? resolve2(String(flagText(flags, "out"))) : null;
+  const outDir = flagText(flags, "out") ? resolve3(String(flagText(flags, "out"))) : null;
   const debug = !!flags.debug;
   const asJson = !!flags.json;
   if (command === "explain") {
@@ -21966,8 +22629,15 @@ async function main() {
       await cmdVerify(campaignDir, flagText(flags, "expect-engine"), !!flags.honest)
     );
   }
+  if (command === "cycles") {
+    if (positional.length) die("cycles: \u043F\u0440\u043E\u0435\u043A\u0442\u043D\u044B\u0439 \u043D\u0430\u0431\u043E\u0440 \u0437\u0430\u0434\u0430\u0451\u0442\u0441\u044F \u0432\u043D\u0443\u0442\u0440\u0435\u043D\u043D\u0438\u043C\u0438 \u043C\u0430\u043D\u0438\u0444\u0435\u0441\u0442\u0430\u043C\u0438, \u0434\u043E\u043F\u043E\u043B\u043D\u0438\u0442\u0435\u043B\u044C\u043D\u044B\u0435 \u043F\u0443\u0442\u0438 \u043D\u0435 \u043D\u0443\u0436\u043D\u044B");
+    const report = await cmdCycles();
+    if (asJson) console.log(JSON.stringify(report, null, 2));
+    else process.stdout.write(formatCycleReport(report));
+    process.exit(report.ok ? 0 : 1);
+  }
   const CAMPAIGN_COMMANDS = ["check", "graph", "dialogue", "run", "fuzz", "explore", "sweep"];
-  if (CAMPAIGN_COMMANDS.includes(command) && campaignDir && !existsSync2(join4(campaignDir, "campaign.json"))) {
+  if (CAMPAIGN_COMMANDS.includes(command) && campaignDir && !existsSync3(join5(campaignDir, "campaign.json"))) {
     die(`${command}: \u0432 \xAB${campaignDir}\xBB \u043D\u0435\u0442 campaign.json \u2014 \u044D\u0442\u043E \u043D\u0435 \u043F\u0430\u043F\u043A\u0430 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438`);
   }
   if (command === "check") {
@@ -21977,7 +22647,7 @@ async function main() {
     const config2 = {
       campaignDir,
       seed,
-      outDir: outDir ?? resolve2(join4(campaignDir, ".cf-play", "check")),
+      outDir: outDir ?? resolve3(join5(campaignDir, ".cf-play", "check")),
       debug,
       quiet: asJson,
       injection: emptyInjection(),
@@ -21987,8 +22657,8 @@ async function main() {
       config2,
       [from, to],
       Number(flagText(flags, "steps") ?? 300),
-      flagText(flags, "routes") ? resolve2(String(flagText(flags, "routes"))) : null,
-      flagText(flags, "pack-registry") ? resolve2(String(flagText(flags, "pack-registry"))) : null
+      flagText(flags, "routes") ? resolve3(String(flagText(flags, "routes"))) : null,
+      flagText(flags, "pack-registry") ? resolve3(String(flagText(flags, "pack-registry"))) : null
     );
     if (asJson) console.log(JSON.stringify(result2, null, 2));
     else console.log(text);
@@ -22001,8 +22671,8 @@ async function main() {
     const text = formatGraphReport(report);
     if (outDir) {
       await mkdir(outDir, { recursive: true });
-      await writeFile(join4(outDir, "graph.json"), JSON.stringify(report, null, 2), "utf8");
-      await writeFile(join4(outDir, "graph.md"), text, "utf8");
+      await writeFile(join5(outDir, "graph.json"), JSON.stringify(report, null, 2), "utf8");
+      await writeFile(join5(outDir, "graph.md"), text, "utf8");
     }
     if (asJson) console.log(JSON.stringify(report, null, 2));
     else console.log(text);
@@ -22019,7 +22689,7 @@ async function main() {
     quiet: asJson,
     routeName: flagText(flags, "route") ?? void 0,
     injection: parseInjection(flags),
-    record: flagText(flags, "record") ? resolve2(String(flagText(flags, "record"))) : null
+    record: flagText(flags, "record") ? resolve3(String(flagText(flags, "record"))) : null
   };
   if (command === "dialogue") {
     const target = positional[1];
@@ -22032,8 +22702,8 @@ async function main() {
     );
     if (outDir) {
       await mkdir(outDir, { recursive: true });
-      await writeFile(join4(outDir, "dialogue.json"), JSON.stringify(report, null, 2), "utf8");
-      await writeFile(join4(outDir, "dialogue.md"), text, "utf8");
+      await writeFile(join5(outDir, "dialogue.json"), JSON.stringify(report, null, 2), "utf8");
+      await writeFile(join5(outDir, "dialogue.md"), text, "utf8");
     }
     if (asJson) console.log(JSON.stringify(report, null, 2));
     else console.log(text);
@@ -22054,7 +22724,7 @@ async function main() {
   if (command === "run") {
     const scriptPath = flagText(flags, "script");
     if (!scriptPath) die("run: \u043D\u0443\u0436\u0435\u043D --script route.json");
-    const script = JSON.parse(await readFile4(resolve2(scriptPath), "utf8"));
+    const script = JSON.parse(await readFile5(resolve3(scriptPath), "utf8"));
     result = await cmdRun(config, script);
   } else if (command === "explore") {
     result = await cmdSearch(config, "explore", Number(flagText(flags, "steps") ?? 300));
@@ -22064,7 +22734,7 @@ async function main() {
     const runs = [];
     for (let current = from; current <= to; current++) {
       const one = await cmdSearch(
-        { ...config, seed: String(current), outDir: outDir ? join4(outDir, `seed-${current}`) : null },
+        { ...config, seed: String(current), outDir: outDir ? join5(outDir, `seed-${current}`) : null },
         "fuzz",
         Number(flagText(flags, "steps") ?? 400)
       );
@@ -22083,7 +22753,7 @@ async function main() {
     };
     if (outDir) {
       await mkdir(outDir, { recursive: true });
-      await writeFile(join4(outDir, "result.json"), JSON.stringify(result, null, 2), "utf8");
+      await writeFile(join5(outDir, "result.json"), JSON.stringify(result, null, 2), "utf8");
     }
   }
   if (asJson) {
@@ -22108,7 +22778,7 @@ async function main() {
     console.log(`
 ${result.status === "ok" ? "\u2713" : "\u2717"} ${result.campaign.title}: ${result.status}, \u0448\u0430\u0433\u043E\u0432 ${result.steps}, seed ${result.seed}`);
     if (result.evidence === "injected") console.log(`  ! \u043F\u0440\u043E\u0433\u043E\u043D \u0441 \u043E\u0442\u043B\u0430\u0434\u043E\u0447\u043D\u044B\u043C\u0438 \u043F\u0440\u0430\u0432\u043A\u0430\u043C\u0438: ${result.injected.join("; ")}`);
-    if (config.outDir) console.log(`  transcript: ${join4(config.outDir, "transcript.md")}`);
+    if (config.outDir) console.log(`  transcript: ${join5(config.outDir, "transcript.md")}`);
     const scenes = result.coverage.scenes;
     if (scenes?.missing?.length) console.log(`  \u043D\u0435 \u043F\u043E\u0441\u0435\u0449\u0435\u043D\u043E \u0441\u0446\u0435\u043D: ${scenes.missing.length} \u0438\u0437 ${scenes.missing.length + scenes.seen.length}`);
   }
