@@ -17,7 +17,7 @@
 [отчёте NAR-4.9](../../_tools/reports/NAR-4.9.md).
 
 Источники CI привязаны к командам, которые действительно есть в workflow:
-[visual run #40537871691](https://github.com/Creative36711/narthex/actions/runs/40537871691)
+[visual run #40553785519](https://github.com/Creative36711/narthex/actions/runs/40553785519)
 прошёл шаги TypeScript, детерминизма, контрактов/browser gate, 55 smoke-проверок
 и оба `cf-play check`. Пробы `check:mission`, `cf-play cycles`, `playthrough:exam`,
 lint и budget выполнены локально, с их фактическими результатами и средой в
