@@ -355,28 +355,29 @@ node public/ai/cf-play.mjs check public/campaigns/ash-of-caerden
 рантайма) — [`debts.md`](./debts.md). Карточки нарезает Координатор; фаза
 закрывается по `check = 0` на двух эталонах, без третьей «добивочной» миссии.
 
-### Вердикт NAR-4.9 — проверка закрытия, 27.10.2026
+### Вердикт NAR-4.9 — 27.10.2026
 
-**Фаза 3 НЕ закрыта.** 27.10.2026 — дата сверки доказательств, не дата
-закрытия. Критерии выше сохранены без изменений. Детальная матрица источников
-и пробелов — в [отчёте NAR-4.9](../_tools/reports/NAR-4.9.md).
+**Фаза 3 закрыта. Дата закрытия: 2026-10-27.** Каждый пункт оракула
+подтверждён источником своего типа; критерии выше сохранены без изменений.
+Принятое датированное решение: [NAR-4.9](./decisions/NAR-4.9.md). Полная
+таблица и оба вывода `cf-play cycles` — в
+[отчёте NAR-4.9](../_tools/reports/NAR-4.9.md).
 
-| Пункт оракула | Проверенное доказательство и источник | Вердикт |
-|---|---|---|
-| Два эталонных проекта — по одному на рантайм — детерминированы по seed | Локальные отчёты фиксируют повторы на Ash/stress и `cf-play cycles` для Ash + `realtime-wall-zone` ([NAR-4.3](../_tools/reports/NAR-4.3.md), [NAR-4.5](../_tools/reports/NAR-4.5.md)). CI [run #40537871691](https://github.com/Creative36711/narthex/actions/runs/40537871691) проверяет Ash и Adventure, оба `turn`; `cf-play cycles` и повторяемость именно пары эталонов в CI отсутствуют. | Не подтверждено в CI |
-| Равенство браузера и `cf-play` — 10/10 | Шаг `Детерминизм циклов` в visual CI run #40537871691 завершился успешно; gate сравнивает десять строк parity по двум рантаймам. Матрица — [NAR-4.6](../_tools/reports/NAR-4.6.md). | Подтверждено в CI |
-| `cf-play` проходит оба проекта без ветвлений по рантайму | [ADR 0014](./contracts/adr/0014-realtime-project-fixture.md) и [NAR-4.5](../_tools/reports/NAR-4.5.md) фиксируют общий путь и локальную проверку без runtime-ветвей; CI run #40537871691 не запускает `cf-play cycles`/эту проверку. | Не подтверждено в CI |
-| Бюджет кадра: медиана и p95, с машиной | В [NAR-4.3](../_tools/reports/NAR-4.3.md) указаны локальные замеры: `real-campaign` 0.158527/0.227084 мс и `real-engine-20ms-ticks` 0.186985/0.251383 мс; Linux x64, Intel Xeon @ 2.60 GHz, 2 CPU, Node 22.22.3. Эти нагрузки не являются более поздней fixture `realtime-wall-zone`; CI-замера нет. | Не подтверждено в CI |
-| `npm run lint` — rc 0 | Локальная запись NAR-4.8: 1505 warnings, 0 errors; повторная проверка этого дерева также rc 0. Точная среда повторной проверки указана в отчёте; шага lint в visual CI нет. | Подтверждено локально |
-| `check:mission` для двух рантаймов; удалённых проверок 0 | [NAR-4.6](../_tools/reports/NAR-4.6.md) фиксирует локальный `check:mission` rc 0 и 55/55. В `.github/workflows/visual.yml` вызываются `smoke:mission` и `check:determinism`, но не `npm run check:mission` и не `cf-play cycles`; 55/55 подтверждены CI, удалённых проверок 0. | Полный критерий не подтверждён в CI |
+| Пункт оракула | Доказательство и источник |
+|---|---|
+| Два эталонных проекта, по одному на рантайм, детерминированы по seed | `node public/ai/cf-play.mjs cycles` запущен дважды подряд: оба раза rc=0, строки/состояния совпали, `diff -u` rc=0; оба вывода в отчёте. Дополнительные парные `cycles --json` rc=0 дали одинаковые fingerprints на обоих запусках: Ash `ed2cd114d72ab278 → 3e183cbc9ce9a358`; realtime `9910f683b96eba27 → c585e2c26d21ed7e`. Visual CI не вызывает `cycles`; источник — локальный прогон. Подробности: [NAR-4.3](../_tools/reports/NAR-4.3.md), [NAR-4.4](../_tools/reports/NAR-4.4.md), [NAR-4.5](../_tools/reports/NAR-4.5.md), [отчёт NAR-4.9](../_tools/reports/NAR-4.9.md). |
+| Равенство браузера и `cf-play` | 10/10 parity, ноль mismatches и стабильные повторы: локальный `npm run check:determinism` rc=0 и visual CI [run #40553785519](https://github.com/Creative36711/narthex/actions/runs/40553785519), шаг «Детерминизм циклов». Матрица — [NAR-4.6](../_tools/reports/NAR-4.6.md). |
+| `cf-play` проходит оба проекта без ветвлений по рантайму | Локальный scan трёх файлов runner/adapter на runtime-specific `if`/`switch` дал `[]`; общий `runCycleProjects()` выбирает adapter по данным проекта. Это подтверждают [ADR 0014](./contracts/adr/0014-realtime-project-fixture.md), [NAR-4.5](../_tools/reports/NAR-4.5.md) и локальный отчёт NAR-4.9. |
+| Пошаговый эталон не сдвинут; браузерный экзамен проходит | CI run #40553785519 подтверждает оба `cf-play check` и `playthrough:exam`; локально оба проекта дали 10/8/6/21, errors=0, warnings=8, 5 seeds → 5 смертей, coverage 6/10 — прежние числа NAR-4.2. `npm run playthrough:exam` rc=0, 2 пака, 20 шагов, findings=0; Ash → `ending_ashes`, Adventure → `ending_gate_unlocked`. |
+| Бюджет кадра: медиана и p95 на realtime-эталоне, машина указана | Свежий локальный замер `_tools/projects/realtime-wall` (`realtime-wall-zone`, шаг 20 мс, 3000 прогревочных + 3000 измеренных route-шагов): median **0.035293 мс**, p95 **0.098034 мс**, max 1.878296 мс. Linux `6.1.158+` x86_64, Intel Xeon @ 2.60 GHz, 2 CPU, Node v22.22.3; lock: React/React DOM 19.3.0, Oxlint 1.86.0, TypeScript 6.0.3. Полный method/stdout — [NAR-4.9](../_tools/reports/NAR-4.9.md); frame-budget шага в visual.yml нет, результат локальный. |
+| `npm run lint` — 0 ошибок | Локально rc=0, 1505 warnings, 0 errors; Linux `6.1.158+` x86_64, Intel Xeon @ 2.60 GHz, 2 CPU, Node 22.22.3; lock: React/React DOM 19.3.0, Oxlint 1.86.0, TypeScript 6.0.3. В visual CI шага lint нет; источник — локальный прогон, как задано в оракуле. |
 
-В visual run #40537871691 шаги TypeScript (`npx tsc -b`), детерминизма,
-контрактов, 55 smoke-проверок и обоих существующих `cf-play check` прошли.
-Однако отдельные успешные шаги не подтверждают отсутствующие CI-вызовы
-`check:mission` и `cf-play cycles`, а бюджет кадра зафиксирован только локально.
-Поэтому закрывать фазу сейчас нельзя. В этом ходе проверки/пороги и текст
-критериев не менялись; **удалённых проверок 0**. Фаза 2 не переписывалась,
-Фаза 4 не объявляется начатой.
+Дополнительные гейты: `npm run check:mission` локально rc=0, 55/55 smoke и
+проверка обоих рантаймов; `npm run check:contracts` — rc=0, 42 контрактные
+проверки и все подгейты; `npx tsc -b` — rc=0. В visual run #40553785519
+успешны `npx tsc -b`, `check:determinism`, `check:contracts`, `smoke:mission`
+и оба `cf-play check`. **Удалённых проверок 0**, пороги не менялись. Фаза 2
+и её вердикт не переписывались; Фаза 4 не объявляется начатой.
 
 ---
 

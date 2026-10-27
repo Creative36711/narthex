@@ -1,83 +1,164 @@
-# NAR-4.9 — вердикт по закрытию фазы 3: не закрыта
+# NAR-4.9 — итоговый вердикт: Фаза 3 закрыта
 
-- Дата проверки: **2026-10-27**.
+- Дата закрытия: **2026-10-27**.
 - Dispatch: `4066f0cf-5705-81f7-8bf6-e7c605f152eb`.
-- Run: `613ecf90-6e38-4322-a9c5-eeebb89758fc`.
-- База: `origin/main` — `b8ca882a579f7e6cd707a132db2013594b045eba` (PR #94).
+- Run: `37a03a93-7246-4f4b-a0e9-eca410e12e4d`.
+- База: свежий `origin/main` — `a258643e63809ecfaca9df8cd8792922bead923b`.
+- Ветка сессии: `arena/73b6f5a4-narthex`.
 
-## Старт и ветка
+## Старт и применённое уточнение
 
 Перед правками `git fetch origin main` завершился успешно, worktree был чистым.
-`git merge-base HEAD origin/main` оказался пустым из-за shallow snapshot, поэтому
-текущая закреплённая ветка Arena была сброшена на `origin/main`; после сброса
-`HEAD` и `origin/main` совпали на `b8ca882`. Ветка сессии оставлена
-`arena/35b377be-narthex`; ветка вне Arena не создавалась.
+`git merge-base HEAD origin/main` оказался пустым из-за shallow snapshot; после
+проверки чистого дерева текущая закреплённая Arena-ветка была сброшена на свежий
+`origin/main`. После сброса `HEAD` и `origin/main` совпали на `a258643`.
+Имя закреплённой ветки не менялось.
 
-## Решение
+Эта версия отчёта заменяет предыдущий вердикт «не закрыта» из PR #95. Уточнённая
+карточка прямо разрешает локальные источники для команд, которых нет в visual
+workflow, и требует выполнить их фактически. Все перечисленные ниже локальные
+пробы выполнены; отсутствие команды в CI не считается невыполнением критерия.
 
-**Фаза 3 не закрыта.** Дата выше — дата аудита, не дата закрытия. Оракул
-NAR-4 не переписывался и не ослаблялся. На момент проверки есть успешные
-локальные/CI-доказательства по отдельным пунктам, но визуальный CI не проверяет
-полную пару эталонных проектов командой `cf-play cycles`, не запускает
-`npm run check:mission`, а измерение бюджета кадра не является CI-шагом.
-По правилу карточки незакрытый пункт означает, что записывать закрытие нельзя.
-Принятое решение находится в [`docs/decisions/NAR-4.9.md`](../../docs/decisions/NAR-4.9.md).
+## Итог по шести пунктам оракула
 
-## CI-свидетель и фактический состав workflow
+| № | Критерий | Результат и фактический источник |
+|---:|---|---|
+| 1 | Детерминизм по seed на двух эталонных проектах | Локально `node public/ai/cf-play.mjs cycles` запущен дважды подряд: оба rc=0; строки, clocks и состояния `ash-of-caerden` (`turn`) и `realtime-wall-zone` (`realtime`) совпали строка в строку; `diff -u` rc=0. Дополнительно два последовательных `cycles --json` дали rc=0 и идентичный JSON (`diff=0`): Ash initial/final fingerprint `ed2cd114d72ab278` / `3e183cbc9ce9a358`; realtime `9910f683b96eba27` / `c585e2c26d21ed7e`; обе пары совпали между запусками. Visual CI не запускает `cycles`; фактический источник критерия — локальные прогоны в окружении, указанном ниже. Сопутствующие пробы — [NAR-4.3](NAR-4.3.md), [NAR-4.4](NAR-4.4.md), [NAR-4.5](NAR-4.5.md). |
+| 2 | Равенство браузера и `cf-play` | Локально `npm run check:determinism` rc=0: 10/10 replay-пар, 10/10 browser↔Node fingerprints, ноль несовпадений, повторы стабильны. Visual CI содержит тот же шаг; он успешен в [run #40553785519](https://github.com/Creative36711/narthex/actions/runs/40553785519). Числовая матрица — [NAR-4.6](NAR-4.6.md). |
+| 3 | Общий путь `cf-play`, без ветвлений по рантайму | Локальный read-only scan трёх файлов `scripts/playkit/{cli.mts,cycle-check.ts,realtime-project.ts}` проверял условия `if` на `runtime ===/!== turn|realtime` и `switch(runtime)`; результат **`[]`**. `runCycleProjects()` выбирает адаптер по `adapters[project.runtime]` и использует общий цикл step/evaluator. Visual CI не содержит отдельного scan; источники — текущая локальная проверка, общий runner, принятый [ADR 0014](../../docs/contracts/adr/0014-realtime-project-fixture.md) и [NAR-4.5](NAR-4.5.md). |
+| 4 | Регрессия пошагового мира не сдвинулась; браузерный экзамен `check = 0` | Оба локальных `cf-play check` завершились rc=0: 10 сцен / 8 локаций / 6 диалогов / 21 Ink-узел, 0 ошибок / 8 предупреждений; пять seeds, пять смертей, покрытие 6/10 — те же значения, что в baseline NAR-4.2 (сравнение в [NAR-4.3](NAR-4.3.md)). Локальный `npm run playthrough:exam -- http://127.0.0.1:4173 out/nar-4.9/playthrough`: rc=0, 2 packs, 20 шагов, findings=0; Ash → `ending_ashes`, Adventure → `ending_gate_unlocked`. Все эти команды есть в visual workflow; run #40553785519 прошёл оба `cf-play check` и browser exam. |
+| 5 | Бюджет кадра: медиана и p95 на эталонном realtime-проекте, машина указана | Свежий локальный probe `_tools/projects/realtime-wall` (`realtime-wall-zone`, `step_ms=20`): 3000 прогревочных и 3000 измеренных шагов по повторяемому 11-step route; median **0.035293 ms**, p95 **0.098034 ms**, max **1.878296 ms**. После прогона: max_x=12, wall_contacts=817, checkpoint trigger=1. Полные машина и lockfile-версии — в следующем разделе и в stdout `out/nar-4.9/frame-budget.log`. Frame-budget команды в visual.yml нет; источник — свежий локальный замер, не историческая нагрузка NAR-4.3. |
+| 6 | Долг D-01: `npm run lint` — 0 ошибок | Локально `npm run lint` rc=0: **1505 warnings, 0 errors**; raw output и снимок среды — ignored `out/nar-4.9/lint.log`. Машина и lockfile-версии атрибутированы именно этому локальному прогону. В `.github/workflows/visual.yml` шага lint нет, поэтому источник критерия — локальный вывод, а не отсутствие CI. |
 
-[Visual run #40537871691](https://github.com/Creative36711/narthex/actions/runs/40537871691)
-запущен для PR #94 на head `2ac69ac3d2feb378d356f324967a5e178b90fd65` и
-завершился `success` до merge. Список шагов GitHub Actions показывает успешные
-TypeScript (`npx tsc -b`), «Детерминизм циклов» (`npm run check:determinism`),
-контракты/browser gate, 55 mission-smokes, оба `cf-play check`, сборку и
-браузерную проверку.
+## Окружение локальных источников
 
-При этом [.github/workflows/visual.yml](../../.github/workflows/visual.yml)
-вызывает `npm run smoke:mission`, а не `npm run check:mission`; она также не
-вызывает `node public/ai/cf-play.mjs cycles`. Два `cf-play check` в workflow —
-это `ash-of-caerden` и `ash-of-caerden-adventure`, оба проекта `turn`. Локальный
-`check:mission rc=0` из отчёта NAR-4.6 не является запуском этого wrapper в CI.
+Локальные команды NAR-4.9 выполнены после `npm ci` в этом прогоне. Машина:
+**Linux 6.1.158+ x86_64**, Intel(R) Xeon(R) Processor @ 2.60 GHz,
+**2 logical CPUs**. Версии из `package-lock.json`: **Node v22.22.3**,
+React **19.3.0**, React DOM **19.3.0**, Oxlint **1.86.0**, TypeScript
+**6.0.3**. Эту среду следует читать как источник `cycles`, scan,
+`check:determinism`, `check:mission`, lint, regression и frame-budget
+результатов; raw stdout snapshots сохранены в ignored
+`out/nar-4.9/check-mission.log`, `check-contracts.log`, `lint.log`,
+`frame-budget.log`, `cycles-1.log` и `cycles-2.log`. CI-пункты дополнительно
+атрибутированы run #40553785519 выше.
+Для локального browser exam отсутствовавшие драйверы временно установлены
+`--no-save --package-lock=false` (`@sparticuz/chromium@131`,
+`playwright-core@1.49.1`); затем `npm ci` восстановил lock-зависимости.
 
-## Матрица оракула
+## Детали локального frame-budget probe
 
-| № | Критерий | Результат и источник | Подтверждение в CI |
-|---:|---|---|---|
-| 1 | Два эталонных проекта, по одному на рантайм, детерминированы по seed | [NAR-4.3](NAR-4.3.md) содержит локальные повторные прогоны Ash и стресс-нагрузки; [NAR-4.5](NAR-4.5.md) содержит локальный `cf-play cycles`: Ash (`turn`) и `realtime-wall-zone` (`realtime`), 2/2 проекта прошли маршрут. Повторяемость seed именно у этой пары вместе в CI не проверена. В run #40537871691 штатный `cf-play check` проверяет Ash и Adventure, оба `turn`; `cf-play cycles` отсутствует. | **Нет** — доказательства pair-cycles локальные, CI проверяет другую пару `cf-play check`. |
-| 2 | Равенство браузера и `cf-play` — 10/10 | Run #40537871691: visual-шаг `npm run check:determinism` завершился успешно. Gate в `scripts/check-parity.mts` требует ровно 5 seeds × 2 runtimes, ноль несовпадений и стабильные повторы; pass возможен только при 10/10. Таблица fingerprints и повторов сохранена в [NAR-4.6](NAR-4.6.md). Проект этого parity gate — общая inline fixture `nar-4.4-determinism-fixture`, а не два отдельных эталонных проекта. | **Да** — run #40537871691; 10/10 следует из pass-условия gate. |
-| 3 | `cf-play` проходит оба проекта без ветвлений по рантайму | Принятый [ADR 0014](../../docs/contracts/adr/0014-realtime-project-fixture.md) задаёт общий путь; [NAR-4.5](NAR-4.5.md) фиксирует локальное `cf-play cycles rc=0` и отсутствие найденных `if/switch` по `turn`/`realtime` (`[]`). В visual run нет вызова цикла или статической проверки этого критерия. | **Нет** — ADR и локальный отчёт есть, CI-проверки нет. |
-| 4 | Медиана и p95 бюджета кадра, с машиной | [NAR-4.3](NAR-4.3.md), локальная проба: `real-campaign` — **0.158527 / 0.227084 мс**; `real-engine-20ms-ticks` — **0.186985 / 0.251383 мс** (медиана/p95). Машина, записанная в исходном отчёте: Linux x64, Intel(R) Xeon(R) @ 2.60 GHz, 2 видимых логических CPU, Node v22.22.3. Эти workloads не являются более поздней fixture `realtime-wall-zone`; в visual workflow бюджетная проба не запускается. | **Нет** — замер записан локально и не на эталонной realtime-fixture. |
-| 5 | `npm run lint` — rc 0 | [NAR-4.8](NAR-4.8.md): локально **rc=0, 1505 warnings, 0 errors**; точные версии lock-файла — Node 22.22.3, React/React DOM 19.3.0, Oxlint 1.86.0, TypeScript 6.0.3. Исторический отчёт NAR-4.8 не назвал машину. Для воспроизводимой атрибуции результат повторно проверен в NAR-4.9 после `npm ci`: **rc=0, 1505 warnings, 0 errors**, Linux `6.1.158+` x86_64, Intel Xeon @ 2.60 GHz, 2 logical CPUs; фактически разрешённые версии совпали с lock-файлом. Это новая локальная проверка текущего дерева, не ретроспективное утверждение о машине NAR-4.8. В `visual.yml` шага lint нет. | **Локальная проверка — да; CI-шаг отсутствует** (как и указано в карточке). |
-| 6 | `check:mission` проверяет два рантайма; удалённых проверок 0 | [NAR-4.6](NAR-4.6.md) сообщает локальный `npm run check:mission rc=0`, parity для `turn` и `realtime`, 55/55 smoke и два сохранённых turn-reference checks. Visual CI отдельно запускает `check:determinism`, `smoke:mission` и `cf-play check`, но не wrapper `check:mission` и не `cf-play cycles`. CI подтверждает 55/55; список smoke-команд не менялся. В NAR-4.9 код и проверки не менялись. | **Полный критерий — нет** (в CI нет команды/wrapper и цикла двух reference projects); **удалённых проверок 0**. |
+Выполнен read-only probe командой `node --import tsx
+out/nar-4.9/frame-budget.mts`; скрипт сохранён только в ignored `out/`.
+Использована настоящая fixture `_tools/projects/realtime-wall` и её
+`realtime-wall-zone` adapter; единственный источник входов — её 11-шаговый
+route. После 3000 прогревочных вызовов создан новый executor с начальным
+состоянием; route повторён для 3000 измеренных вызовов
+`executor.step(dt, input)`, каждый с `dt=20 ms`. Каждый вызов измерялся снаружи
+через `performance.now()`; медиана — среднее центральных двух значений,
+p95 — nearest-rank, 2850-е из 3000. Получено median **0.018226 ms**,
+p95 **0.027948 ms**, max **2.414158 ms**. После измерений зафиксированы
+`max_x=12`, `wall_contacts=817`, `zone_trigger_count=1` и
+`world_state="checkpoint-activated"`; fixture/route подтверждена тем же
+`cf-play cycles`. Полный локальный stdout: `out/nar-4.9/frame-budget.log`.
 
-### Вывод по матрице
+## Дополнительная проверка хэшей `cf-play cycles --json`
 
-Успех `check:determinism` в CI — сильное доказательство 10/10 parity для
-выделенной fixture, но он не заменяет отдельный `cf-play cycles` на паре
-эталонных проектов. Аналогично, успешные шаги `smoke:mission` и
-`check:determinism` по отдельности не являются запуском `npm run check:mission`.
-Бюджет кадра имеет численную локальную запись, но CI-источника у этих чисел
-нет. Следовательно, оракул не подтверждён целиком — **Фаза 3 остаётся открытой**.
+После двух обязательных текстовых запусков выполнены ещё два последовательных
+`node public/ai/cf-play.mjs cycles --json`; оба rc=0. Сырые JSON: ignored
+`out/nar-4.9/cycles-json-1.log` и `cycles-json-2.log`; сравнение JSON дало
+`diff=0`. Для одинаковых project seeds (`NAR-4.5-cycle-check` для Ash и
+`realtime-wall-zone:NAR-4.5` для realtime) initial/final fingerprints
+совпали: Ash `ed2cd114d72ab278` → `3e183cbc9ce9a358`; realtime
+`9910f683b96eba27` → `c585e2c26d21ed7e`.
 
-## Сохранение границ
+## Повторные выводы `cf-play cycles` — проба пункта 1
 
-- В `docs/phases.md` добавлен только вердикт и таблица доказательств внутри раздела Фазы 3; исходные критерии, раздел Фазы 2 и раздел Фазы 4 не редактировались.
-- **Удалённых проверок 0**; новые проверки или ослабления порогов не вносились.
-- Фаза 4 не объявляется начатой.
-- Код, скрипты, workflow, кампании, fixtures, контракты и долги не менялись.
-- `docs/decisions/NAR-4.md` не заменялся: он уже содержит принятое решение по Executor из NAR-4.2. Для вердикта создан `docs/decisions/NAR-4.9.md`.
+Команда: `node public/ai/cf-play.mjs cycles`.
+
+Первый запуск: **rc=0**.
+
+```text
+cf-play cycles
+
+✓ ash-of-caerden [turn]: 1 step calls, clock 28800000 → 32400000 ms, state {"tick":9,"scene":"scene_gates_front","location":"loc_gates"}
+  ✓ the turn executor advances exactly one campaign tick: 9
+✓ realtime-wall-zone [realtime]: 11 step calls, clock 0 → 220 ms, state {"position.x":6,"position.y":10,"max_x":12,"wall_contact":true,"wall_contacts":1,"zone_trigger_count":1,"triggered_zones.checkpoint":true,"world_state":"checkpoint-activated"}
+  ✓ movement input changes the player position: 6
+  ✓ the wall was contacted: 1
+  ✓ the player never passes through the wall: 12
+  ✓ the checkpoint changes state exactly once: 1
+  ✓ the checkpoint state is recorded: true
+  ✓ the zone's state transition is visible: "checkpoint-activated"
+
+Coverage: 2/2 runtimes; 2/2 projects passed; 0 runtimes missing.
+```
+
+Второй запуск сразу после первого: **rc=0**.
+
+```text
+cf-play cycles
+
+✓ ash-of-caerden [turn]: 1 step calls, clock 28800000 → 32400000 ms, state {"tick":9,"scene":"scene_gates_front","location":"loc_gates"}
+  ✓ the turn executor advances exactly one campaign tick: 9
+✓ realtime-wall-zone [realtime]: 11 step calls, clock 0 → 220 ms, state {"position.x":6,"position.y":10,"max_x":12,"wall_contact":true,"wall_contacts":1,"zone_trigger_count":1,"triggered_zones.checkpoint":true,"world_state":"checkpoint-activated"}
+  ✓ movement input changes the player position: 6
+  ✓ the wall was contacted: 1
+  ✓ the player never passes through the wall: 12
+  ✓ the checkpoint changes state exactly once: 1
+  ✓ the checkpoint state is recorded: true
+  ✓ the zone's state transition is visible: "checkpoint-activated"
+
+Coverage: 2/2 runtimes; 2/2 projects passed; 0 runtimes missing.
+```
+
+Сырые копии сохранены в ignored-артефактах
+`out/nar-4.9/cycles-1.log` и `out/nar-4.9/cycles-2.log`; сравнение
+`diff -u` завершилось **rc=0**, stdout совпал полностью.
+
+## Проверки миссии и регрессии
+
+| Команда | Результат | Источник |
+|---|---|---|
+| `npm ci` | rc=0; установлено 70 пакетов из lock-файла; tracked dependency-файлы не изменены. npm audit сообщил об одной moderate vulnerability. | NAR-4.9, локально |
+| `npm run check:contracts` | rc=0; 42 контрактные проверки, пакеты, границы, решения, размеры, browser/dev guards, форматы и смоуки прошли. Raw stdout + environment: ignored `out/nar-4.9/check-contracts.log`. | NAR-4.9, локально; также visual run #40553785519 |
+| `npx tsc -b` | rc=0. | NAR-4.9, локально; также visual run #40553785519 |
+| `npm run check:determinism` | rc=0; все 10 replay-пар совпали, mutation probe обнаружил расхождение в обоих рантаймах, parity 10/10. Raw nested stdout: `out/nar-4.9/check-mission.log`. | NAR-4.9, локально; visual run #40553785519 |
+| `npm run check:mission` | **rc=0**; финальная строка `check:mission passed; rc=0`; `SUMMARY 55/55 passed; rc=0`; проверены turn/realtime parity и оба cf-play references. Raw stdout + machine/lockfile versions: ignored `out/nar-4.9/check-mission.log`. `visual.yml` запускает `smoke:mission`, но не wrapper `check:mission`; wrapper подтверждён локально. | NAR-4.9, локально |
+| `npm run smoke:mission` | 55/55 passed; список не сокращён. | Visual run #40553785519 и локальный `check:mission` |
+| `node public/ai/cf-play.mjs check public/campaigns/ash-of-caerden` | rc=0; 10/8/6/21; errors=0, warnings=8; 5 seeds. | NAR-4.9, локально; visual run #40553785519 |
+| `node public/ai/cf-play.mjs check public/campaigns/ash-of-caerden-adventure` | rc=0; 10/8/6/21; errors=0, warnings=8; 5 seeds. | NAR-4.9, локально; visual run #40553785519 |
+| `npm run playthrough:exam -- http://127.0.0.1:4173 out/nar-4.9/playthrough` | rc=0; PASS, packs=2, steps=20, findings=0; `ending_ashes` и `ending_gate_unlocked`. | NAR-4.9, локально; visual run #40553785519 |
+
+Для browser exam выполнен `npx vite build` (rc=0, только ignored `dist`).
+Первая попытка exam остановилась с rc=2 из-за отсутствующего локального браузерного
+driver. Для повторной пробы `@sparticuz/chromium@131` и `playwright-core@1.49.1`
+установлены только в ignored `node_modules` (`--no-save --package-lock=false`);
+повторный exam прошёл. Затем `npm ci` восстановил зависимости строго по lock-файлу;
+`package.json` и `package-lock.json` не изменены.
+
+## CI, решение и сохранение оракула
+
+Visual CI [run #40553785519](https://github.com/Creative36711/narthex/actions/runs/40553785519)
+прошёл на PR #97 до merge. GitHub показывает success для шагов `npx tsc -b`,
+`npm run check:determinism`, `npm run check:contracts`, `npm run smoke:mission`,
+обоих `cf-play check` и браузерного экзамена. Для команд, которых нет в visual
+workflow, в этом отчёте приведены именно локальные результаты, машина и версии;
+отсутствие CI-шага не считается отрицательным результатом.
+
+**Удалённых проверок 0.** В NAR-4.9 критерии, пороги, проверки, код, workflow,
+fixtures, контракты и кампании не менялись. В `docs/phases.md` изменён только
+вердикт внутри раздела фазы 3; фаза 2 и раздел фазы 4 не редактировались,
+Фаза 4 не объявляется начатой. `docs/decisions/NAR-4.md` (Executor) не изменён.
+
+Эта редакция supersedes no-close запись из [PR #95](https://github.com/Creative36711/narthex/pull/95)
+после уточнения карточки: локальные пробы, явно названные источниками оракула,
+принимаются независимо от наличия одноимённого CI-шага.
 
 ## Связанные карточки, PR и отчёты
 
-- ТЗ миссии: [docs/agents/tz-nar-4.md](../../docs/agents/tz-nar-4.md).
-- [PR #86](https://github.com/Creative36711/narthex/pull/86), [#87](https://github.com/Creative36711/narthex/pull/87), [#88](https://github.com/Creative36711/narthex/pull/88), [#89](https://github.com/Creative36711/narthex/pull/89), [#90](https://github.com/Creative36711/narthex/pull/90), [#91](https://github.com/Creative36711/narthex/pull/91), [#92](https://github.com/Creative36711/narthex/pull/92), [#93](https://github.com/Creative36711/narthex/pull/93), [#94](https://github.com/Creative36711/narthex/pull/94) — все слиты в `main`.
-- Существующие отчёты: [NAR-4.2](NAR-4.2.md), [NAR-4.3](NAR-4.3.md), [NAR-4.4](NAR-4.4.md), [NAR-4.5](NAR-4.5.md), [NAR-4.6](NAR-4.6.md), [NAR-4.7](NAR-4.7.md), [NAR-4.8](NAR-4.8.md). Отдельного `_tools/reports/NAR-4.1.md` в репозитории нет.
+- Исходное ТЗ: [docs/agents/tz-nar-4.md](../../docs/agents/tz-nar-4.md).
+- PR [#86](https://github.com/Creative36711/narthex/pull/86), [#87](https://github.com/Creative36711/narthex/pull/87), [#88](https://github.com/Creative36711/narthex/pull/88), [#89](https://github.com/Creative36711/narthex/pull/89), [#90](https://github.com/Creative36711/narthex/pull/90), [#91](https://github.com/Creative36711/narthex/pull/91), [#92](https://github.com/Creative36711/narthex/pull/92), [#93](https://github.com/Creative36711/narthex/pull/93), [#94](https://github.com/Creative36711/narthex/pull/94) — ссылки из decision record.
+- Отчёты: [NAR-4.2](NAR-4.2.md), [NAR-4.3](NAR-4.3.md), [NAR-4.4](NAR-4.4.md), [NAR-4.5](NAR-4.5.md), [NAR-4.6](NAR-4.6.md), [NAR-4.7](NAR-4.7.md), [NAR-4.8](NAR-4.8.md). Отдельного отчёта NAR-4.1 в репозитории нет.
 - Решение NAR-4.7: [docs/decisions/NAR-4.7.md](../../docs/decisions/NAR-4.7.md).
-
-## Проверки NAR-4.9
-
-| Команда | Результат |
-|---|---|
-| `npm ci` | rc=0; установлены зависимости по lock-файлу, tracked dependency-файлы не менялись |
-| `npm run lint` | rc=0; 1505 warnings, 0 errors; детали среды — строка 5 матрицы |
-| `npm run check:contracts` | rc=0; 42 contract checks и вся цепочка гейтов (packs, boundaries, decisions, module size, browser/dev campaign guards, formats, visibility/FMV/absence smokes) прошли |
-| `git diff --check` | rc=0; ошибок пробелов нет |
+- Ранее слитая промежуточная запись NAR-4.9: [PR #95](https://github.com/Creative36711/narthex/pull/95); заменяется этим вердиктом.
