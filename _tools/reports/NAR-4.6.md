@@ -55,4 +55,6 @@ The kit was packed, unzipped to a temporary directory, and checked using only th
 
 ## Scope and debt status
 
-Changes are limited to the determinism/parity and mission-check scripts, their shared fixture/browser entry, and this report. No workflow, engine/player source, published AI bundle, dependencies, lockfile, oracle composition, or unrelated debt row was changed. D-05 remains **open** until the two-runtime parity check is green in GitHub CI; it will be closed with the date and PR link only after that CI result is observed. D-01, D-02, and D-03 remain unchanged.
+The two-runtime check passed in GitHub CI before D-05 was changed: PR #92 run [`visual` / `screenshots`](https://github.com/Creative36711/narthex/actions/runs/40521458326), head `bfa449d3f8c09455cfb960df391739f16cd05794`, concluded success on 2026-10-27; its “Детерминизм циклов” step passed. D-05 is now marked paid in `docs/debts.md` with date 2026-10-27 and [PR #92](https://github.com/Creative36711/narthex/pull/92). The report/debt update will be revalidated by CI before merge.
+
+Changes are limited to the determinism/parity and mission-check scripts, their shared fixture/browser entry, this report, and only the D-05 row in `docs/debts.md`. No workflow, engine/player source, published AI bundle, dependencies, lockfile, oracle composition, or unrelated debt row was changed. D-01, D-02, and D-03 remain unchanged.
