@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.76
+// @version      1.4.77
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -302,7 +302,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.76";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.77";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -2750,6 +2750,73 @@
   }
 
   /**
+   * Отказ из-за уже слитой ветки.
+   *
+   * 27.10 Архитектор получил новый прогон на ветке со статусом `pr_merged`
+   * (PR #97 той же карточки) и ответил честно: «не могу выполнить прогон на
+   * слитой ветке; нажмите Continue рядом со статусом PR». Это не ответ на
+   * задание и не «агент молчит»: работа не начиналась, маркера не будет,
+   * напоминания бесполезны — они уйдут в ту же мёртвую ветку.
+   *
+   * Признак требует сразу четырёх вещей: отказ, слово о ветке, слово о мерже
+   * и подсказку про Continue. Обычный отчёт («PR #97 слит, ветка …») без
+   * отказа под него не попадает — и он всё равно приходит с маркером.
+   */
+  function staleBranchRefusal(raw) {
+    const text = String(raw || "");
+    if (!text) return false;
+    const refusal = /не могу|не получается|невозможно|cannot|can'?t|unable/i;
+    // Границы слова `\b` в JavaScript считаются по ASCII, поэтому на кириллице
+    // они не срабатывают: «ветка» — это не слово для регулярки. Берём основу.
+    const branch = /pr_merged|\bbranch\b|ветк[а-яё]/iu;
+    const merged = /слит|merged|pr_merged/i;
+    const hint = /continue|продолж/i;
+    return refusal.test(text) && branch.test(text) && merged.test(text) && hint.test(text);
+  }
+
+  /**
+   * Повторить выдачу в чистую ветку, если агент отказался из-за `pr_merged`.
+   *
+   * Карточка остаётся Running с тем же Run ID: работа по ней не начиналась,
+   * новый ход Координатора не нужен, откат в Ready только запутал бы очередь.
+   * Повтор один: второй такой отказ — пауза с точной причиной, а не цикл.
+   */
+  function retryStaleBranchHandoff(expect) {
+    if (!expect || !expect.roleId || !expect.sentAt) return false;
+    const done = Number(expect.branchResend) || 0;
+    if (done >= 1) return false;
+    // Наша реплика с заданием — последняя в чате. Без этой отметки `deliver`
+    // увидит её и решит, что сообщение уже отправлено, — повтор молча не уйдёт.
+    const mine = messages().filter(isUserNode).at(-1);
+    GM_setValue(K.deadSend, mine ? nodeId(mine) : "");
+    GM_setValue(K.pending, {
+      roleId: expect.roleId,
+      roleName: expect.roleName,
+      roleUrl: expect.roleUrl,
+      text: expect.text,
+      at: Date.now(),
+      sendTries: 0,
+    });
+    GM_setValue(K.expect, {
+      ...expect,
+      sentAt: null,
+      verified: false,
+      branchResend: done + 1,
+      tries: 0,
+      lastReplySig: "",
+      lastReplyAt: 0,
+    });
+    log(
+      `${expect.roleName || "Агент"} отказался начинать ход: его ветка уже слита (pr_merged). ` +
+        "Это не ответ на задание — работы не было. Нажимаю Continue и отправляю задание заново, " +
+        "в чистую ветку.",
+      true,
+      { ntfy: "quiet", title: "Narthex: ветка слита, повторяю выдачу" },
+    );
+    return true;
+  }
+
+  /**
    * Ждём ответ без маркера. Возвращает true, если ход уже обработан
    * (напоминание ушло или цикл поставлен на паузу).
    *
@@ -4596,6 +4663,17 @@
       return true;
     }
 
+    // Ветка прошлого хода слита — сначала Continue, потом текст.
+    //
+    // 27.10 в 21:15 Архитектор слил PR #97 и записал ответ; Continue после
+    // этого не нажалась (память о мерже была на карточку, а не на выдачу).
+    // В 21:18 Координатор вернул ту же карточку в работу, задание ушло в чат со
+    // старой веткой `arena/73b6f5a4-narthex` — статус `pr_merged`. Агент
+    // отказался работать («нажмите Continue»), маркера не прислал, и цикл встал
+    // на маркер-паузу. Проверяем страницу сами: пока Continue видна, задание
+    // отправлять некуда.
+    await ensureFreshBranch("Задание в очереди");
+
     // Плашка «Эта задача была выполнена успешно?» закрывает поле ввода. Мастер
     // просит убирать её скриптом: человек не должен щёлкать по опросу, чтобы
     // цикл поехал дальше.
@@ -4899,6 +4977,52 @@
     }) || null;
   }
 
+  /**
+   * Свежая ветка перед выдачей хода.
+   *
+   * Continue на странице агента означает ровно одно: прошлый ход закончился
+   * слитым (или закрытым) PR, и сессия стоит на ветке, работать в которой уже
+   * нельзя. Агент это видит как `pr_merged` и отказывается: «нажмите Continue
+   * рядом со статусом PR». Пока Continue не нажата, любое задание в этот чат
+   * уходит в мёртвую ветку — работа не начинается, маркера нет, цикл встаёт
+   * (27.10, NAR-4.9, ветка `arena/73b6f5a4-narthex` после PR #97).
+   *
+   * Клик по Continue — это не реплика агенту и не команда в репозиторий: Arena
+   * просто выдаёт новую ветку от последней базовой версии. Поэтому проверка
+   * стоит перед КАЖДОЙ отправкой из очереди, а не только в конце хода: пропуск
+   * в одном месте (память о мерже, потерянный клик, ручная правка карточки)
+   * больше не превращается в паузу.
+   */
+  async function ensureFreshBranch(why = "перед выдачей") {
+    let cont = continueButton();
+    if (!cont && mergedFlag()) {
+      // Бейдж «Pull request merged» уже есть, а кнопка ещё не дорисовалась.
+      // Ждать дешевле, чем отправить задание в слитую ветку.
+      cont = await waitFor(() => continueButton(), patience(4000), 400);
+    }
+    if (!cont) return "none";
+    cont.click();
+    log(
+      `${why}: на странице видна Continue — ветка прошлого хода слита, работать в ней агент не может. ` +
+        "Нажал Continue: Arena выдаст чистую ветку.",
+      false,
+      { tone: "ok" },
+    );
+    const gone = await waitFor(() => !continueButton(), patience(8000), 500);
+    if (!gone) {
+      const again = continueButton();
+      if (again) {
+        again.click();
+        log("Continue осталась на месте — нажал ещё раз.", true);
+        await waitFor(() => !continueButton(), patience(6000), 500);
+      }
+    }
+    // После Continue страница перерисовывается: поле ввода и водяной знак
+    // читаются уже в новой сессии, поэтому ждём дорисовку до вставки.
+    await sleep(1200);
+    return continueButton() ? "stuck" : "pressed";
+  }
+
   /** Что из PR-интерфейса видно прямо сейчас. */
   const prSurface = () => ({
     merged: mergedFlag(),
@@ -4974,7 +5098,17 @@
    * вернёт карточку в Rework.
    */
   async function ensureMerged(task, result) {
-    const key = `${K.merged}${task.id}`;
+    // Память о мерже — на выдачу, а не на карточку.
+    //
+    // 27.10 NAR-4.9 ответили дважды: PR #95 в 16:41 и PR #97 в 21:15. Ключ был
+    // один на карточку, поэтому после второго мержа `ensureMerged` сразу
+    // отвечал «already»: ни бейджа, ни Continue скрипт не искал, Continue не
+    // нажималась, и сессия Архитектора осталась на ветке
+    // `arena/73b6f5a4-narthex` со статусом `pr_merged`. Следующая выдача ушла
+    // в мёртвую ветку, агент отказался работать, маркера не было, и цикл встал.
+    // Повторная работа по той же карточке — это новая выдача, у неё свой run.
+    const runId = String(result.run_id || rt(task.properties?.["Run ID"]) || "").trim();
+    const key = `${K.merged}${task.id}:${runId || "run"}`;
     if (GM_getValue(key, false)) return "already";
 
     // Карточка PR может отрисоваться на пару секунд позже ответа. Без неё мы не
@@ -5988,7 +6122,31 @@
         hit = { ...last, result: loose };
       }
     }
-    if (!hit) return markerMissing(role, expect, "CF_AGENT_RESULT", manual);
+    if (!hit) {
+      // Отказ среды, а не молчание агента: ветка прошлого хода слита, и новый
+      // прогон в ней невозможен. Напоминания и пауза «нет маркера» здесь
+      // бессмысленны — сначала Continue и одна повторная выдача (27.10, NAR-4.9).
+      const lastReply = messagesAfter(expect.watermark || "").at(-1);
+      if (
+        lastReply &&
+        !stillWorking() &&
+        staleBranchRefusal(lastReply.raw) &&
+        retryStaleBranchHandoff(expect)
+      ) {
+        // Отправляем прямо здесь: шаг уже выполняется, отложенный тик съел бы
+        // сторож блокировки (та же причина, что у переотправки после ошибки).
+        const again = await consumePending(true);
+        if (!again) {
+          log(
+            "Повторная выдача не началась на этой странице — задание в очереди и уйдёт следующим шагом.",
+            true,
+            { ntfy: "quiet" },
+          );
+        }
+        return true;
+      }
+      return markerMissing(role, expect, "CF_AGENT_RESULT", manual);
+    }
 
     const { result, stray } = adoptIds(hit.result, expect);
     if (stray.length) {

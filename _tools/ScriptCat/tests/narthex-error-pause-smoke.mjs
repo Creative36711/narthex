@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и новый адрес ntfy.
-assert.match(src, /@version\s+1\.4\.76/, 'версия 1.4.76');
+assert.match(src, /@version\s+1\.4\.77/, 'версия 1.4.77');
 assert.match(src, /@connect\s+ntfy\.sh/, 'ntfy.sh разрешён в @connect');
 
 // 2. Журнал: ограничен, очищается, счётчик виден.
@@ -67,7 +67,15 @@ assert.equal(markerStep(3, 2), 'pause', 'лимит не превышается 
 
 assert.match(src, /markerIdleMs:\s*20000/, 'напоминание ждёт, пока ответ перестанет расти');
 assert.match(src, /markerReminders:\s*2/, 'лимит напоминаний — два');
-assert.match(src, /if \(!hit\) return markerMissing\(role, expect, "CF_AGENT_RESULT", manual\)/, 'исполнитель без маркера идёт в лестницу');
+// 1.4.77: перед лестницей маркера проверяется отказ из-за слитой ветки —
+// напоминания в мёртвую ветку ушли бы в никуда.
+assert.match(
+  src,
+  /if \(!hit\) \{[\s\S]{0,1200}?return markerMissing\(role, expect, "CF_AGENT_RESULT", manual\);/,
+  'исполнитель без маркера доходит до лестницы после проверки отказа pr_merged',
+);
+assert.match(src, /staleBranchRefusal\(lastReply\.raw\)/, 'отказ «ветка слита» распознаётся по тексту');
+assert.match(src, /retryStaleBranchHandoff\(expect\)/, 'после отказа — одна повторная выдача в чистую ветку');
 assert.match(src, /if \(!decision\) return markerMissing\(role, expect, "CF_COORDINATOR_RESULT", manual\)/, 'Координатор без маркера идёт в ту же лестницу');
 assert.ok(!src.includes('Координатор ответил без маркера — ждём следующего хода'), 'старая тихая реакция удалена');
 const missingFn = src.slice(src.indexOf('async function markerMissing('), src.indexOf('// ───────────────────────── ошибка на экране'));

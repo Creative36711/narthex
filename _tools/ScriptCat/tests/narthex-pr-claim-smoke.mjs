@@ -33,6 +33,8 @@ function make({ ui = false, createOnly = false, store = new Map() } = {}) {
     'K', 'GM_getValue', 'GM_setValue', 'C', 'log', 'hasMergedClaim',
     'mergedFlag', 'closedFlag', 'continueButton', 'createPr', 'mergePr', 'finishMerge', 'finishClosed',
     'hasPrUi', 'waitFor', 'prLabelOf', 'sleep', 'verifyMergeClaim', 'ghToken',
+    // 1.4.77: память о мерже ведётся по выдаче, поэтому нужен разбор «Run ID».
+    'rt',
     // Проба идёт в видимой вкладке: ожидание не растягивается.
     `const patience = (ms) => ms;\n${block}\n${claimBlock}\nreturn ensureMerged;`,
   );
@@ -69,6 +71,7 @@ function make({ ui = false, createOnly = false, store = new Map() } = {}) {
     // GitHub подтверждает заявку: проба про поведение страницы, не про проверку.
     async () => ({ status: 'merged', why: 'PR #35 слит' }),
     () => 'ghp_test',
+    (p) => (p?.rich_text || p?.title || []).map((x) => x.plain_text || x.text?.content || '').join(''),
   );
   return { ensureMerged, logs, calls, store };
 }
@@ -78,7 +81,10 @@ function make({ ui = false, createOnly = false, store = new Map() } = {}) {
   const { ensureMerged, logs, store } = make();
   const state = await ensureMerged({ id: 'card-1' }, { dispatch_id: 'card-1', pr: 25, merged: true, status: 'submitted', check: 0 });
   assert.equal(state, 'claimed', 'мерж принят по маркеру, а не повисает на бейдже');
-  assert.equal(store.get('cfn-merged:card-1'), true, 'мерж запомнен: повторно не спрашиваем');
+  // 1.4.77: ключ включает выдачу. В маркере прогона нет, поэтому «run».
+  // 27.10 вторая работа по той же карточке из-за ключа на карточку не нажала
+  // Continue и встала на слитой ветке.
+  assert.equal(store.get('cfn-merged:card-1:run'), true, 'мерж запомнен: повторно не спрашиваем');
   assert.equal(logs.length, 1, 'ровно одна запись в журнале');
   assert.match(logs[0].t, /PR #25 слит: принято по маркеру агента/, 'видно, на чём основано решение');
   assert.match(logs[0].t, /PR-интерфейс живёт на странице PR/, 'объяснено, почему бейджа нет');
@@ -115,7 +121,7 @@ function make({ ui = false, createOnly = false, store = new Map() } = {}) {
   assert.equal(state, 'unconfirmed', 'без заявки о мерже результат не принимается');
   assert.equal(logs[0].e, true, 'в журнале это ошибка');
   assert.match(logs[0].t, /работа в main не попала/, 'сказано, чем это плохо');
-  assert.equal(store.get('cfn-merged:card-3'), undefined, 'мерж не запомнен');
+  assert.equal(store.get('cfn-merged:card-3:run'), undefined, 'мерж не запомнен');
 }
 
 // 4. Если Мастер открыл страницу PR, работает прежняя проверка бейджа ───────
