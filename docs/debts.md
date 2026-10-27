@@ -30,7 +30,7 @@
 
 | ID | Долг | Где | Сейчас | Предел | Почему это важно | Фаза | Проверка | Статус |
 |---|---|---|---|---|---|---|---|---|
-| **D-01** | `npm run lint` — 5 ошибок `react-hooks` | `public/ai/campaign-audit.mjs` (2), `src/player/DialogueOverlay.tsx` (3) | 5 ошибок | 0 | красный линт маскирует новые: «и так красное» | **3** (NAR-4: карточки 4.7 Tools + 4.8 Player UI) | `npm run lint` → rc 0 | открыт |
+| **D-01** | `npm run lint` — 3 оставшиеся ошибки `react-hooks` | `public/ai/campaign-audit.mjs` (2 — оплачены NAR-4.7), `src/player/DialogueOverlay.tsx` (3 — NAR-4.8) | 3 ошибки | 0 | красный линт маскирует новые: «и так красное» | **3** (NAR-4: карточки 4.7 Tools + 4.8 Player UI) | `npm run lint` → rc 0 после 4.8 | частично оплачено — public/ai: 2026-10-27, [PR #93](https://github.com/Creative36711/narthex/pull/93); 3 ошибки src/player остаются для NAR-4.8 |
 | **D-02** | `savemigrate.ts` — 788 строк | `src/core/savemigrate.ts` | 788 | 450 | миграции сейвов — самая опасная часть при заморозке формата | **4** | `check:module-size` + `smoke:saves-compat` | открыт |
 | **D-03** | `combat.ts` — 1765 строк | `src/core/combat.ts` | 1765 | 450 | бой тянет за собой сетку и ИИ; резать до пака `grid-strategy` | **6** | `check:module-size` + прогон боя | открыт |
 | **D-04** | `SceneScreen.tsx` — 414 строк | `src/player/SceneScreen.tsx` | 414 | 450 | запас 36 строк; baseline зафиксирован PR #82, расти нельзя | **5**, если перевалит | `check:module-size` | наблюдение |

@@ -4,6 +4,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
+import { renameAjvHelper } from './rename-audit-ajv-helper.mts'
 
 const root = resolve(import.meta.dirname, '..')
 const source = 'scripts/campaign-audit.mts'
@@ -29,10 +30,11 @@ try {
     `esbuild exited with rc=${build.status ?? 1}\n${build.stdout ?? ''}${build.stderr ?? ''}`,
   )
 
-  const [actual, generated] = await Promise.all([
+  const [actual, rawGenerated] = await Promise.all([
     readFile(join(root, committedBundle)),
     readFile(generatedPath),
   ])
+  const generated = Buffer.from(renameAjvHelper(rawGenerated.toString('utf8')))
   if (!actual.equals(generated)) {
     const commonLength = Math.min(actual.length, generated.length)
     let firstDifference = 0
