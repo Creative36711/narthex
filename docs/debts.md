@@ -34,7 +34,7 @@
 | **D-02** | `savemigrate.ts` — 788 строк | `src/core/savemigrate.ts` | 788 | 450 | миграции сейвов — самая опасная часть при заморозке формата | **4** | `check:module-size` + `smoke:saves-compat` | открыт |
 | **D-03** | `combat.ts` — 1765 строк | `src/core/combat.ts` | 1765 | 450 | бой тянет за собой сетку и ИИ; резать до пака `grid-strategy` | **6** | `check:module-size` + прогон боя | открыт |
 | **D-04** | `SceneScreen.tsx` — 414 строк | `src/player/SceneScreen.tsx` | 414 | 450 | запас 36 строк; baseline зафиксирован PR #82, расти нельзя | **5**, если перевалит | `check:module-size` | наблюдение |
-| **D-05** | `check:mission` собран под NAR-3 | `scripts/`, `package.json` | экзамен фазы 2 | экзамен фазы 3 | иначе новая миссия «сдаёт» экзамен прошлой | **3** (NAR-4, карточка 4.6) | `npm run check:mission` проверяет два рантайма | открыт |
+| **D-05** | `check:mission` собран под NAR-3 | `scripts/`, `package.json` | экзамен фазы 2 | экзамен фазы 3 | иначе новая миссия «сдаёт» экзамен прошлой | **3** (NAR-4, карточка 4.6) | `npm run check:mission` проверяет два рантайма | оплачен — 2026-10-27, [PR #92](https://github.com/Creative36711/narthex/pull/92); CI green (`screenshots`, `bfa449d`) |
 | — | guide 268 683 байта | `docs/ai-campaign-guide.md` | 268 683 | 524 288 | **не долг**: запас, предел поднят решением NAR-2.15 | — | `check:guide` | запас |
 
 ## Как это работает на практике

@@ -23,6 +23,11 @@ const steps: MissionStep[] = [
   { command: 'npm run smoke:core', executable: npm, args: ['run', 'smoke:core'] },
   { command: 'npm run smoke:mission (55 scripts)', executable: npm, args: ['run', 'smoke:mission'] },
   {
+    command: 'npm run check:determinism (NAR-4.4 + NAR-4.6 browser/cf-play)',
+    executable: npm,
+    args: ['run', 'check:determinism'],
+  },
+  {
     command: 'node public/ai/cf-play.mjs check public/campaigns/ash-of-caerden',
     executable: node,
     args: ['public/ai/cf-play.mjs', 'check', 'public/campaigns/ash-of-caerden'],
@@ -51,6 +56,9 @@ for (const step of steps) {
 }
 
 const width = Math.max('command'.length, ...results.map((result) => result.command.length))
+console.log('\nAdded NAR-4.6 second-runtime parity checks (Chromium vs cf-play Node; each repeated):')
+console.log('- Chromium turn executor: five seed cases against the cf-play turn executor')
+console.log('- Chromium realtime executor: five seed cases against the cf-play realtime executor')
 console.log('\nMission check results')
 console.log(`${'command'.padEnd(width)}  rc`)
 for (const result of results) console.log(`${result.command.padEnd(width)}  ${result.rc}`)
