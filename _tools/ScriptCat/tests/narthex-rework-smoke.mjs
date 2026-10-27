@@ -18,7 +18,7 @@ import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
-assert.match(src, /@version\s+1\.4\.75/, 'версия 1.4.75');
+assert.match(src, /@version\s+1\.4\.76/, 'версия 1.4.76');
 
 const sliceBetween = (startMarker, endMarker) => {
   const from = src.indexOf(startMarker);
@@ -95,8 +95,9 @@ assert.equal(api.reworkLine(null), '', 'null тоже пустой');
 {
   const readyBlock = sliceBetween('  function readyLine(cards) {', '  /**\n   * Rework — статус');
   assert.match(readyBlock, /остались \$\{stale\.join/, 'readyLine называет следы');
-  assert.match(readyBlock, /транспорт снимет их сам/, 'и что вернувшимся из Rework займётся транспорт');
-  assert.match(readyBlock, /повторно её не выдавай/, 'а забытую в Ready отвеченную — не выдавать');
+  assert.match(readyBlock, /следы прошлого ответа снимет транспорт/, 'и что следы снимет транспорт');
+  assert.match(readyBlock, /это повторная работа/, 'отвеченная карточка в Ready названа повторной работой');
+  assert.match(readyBlock, /убери карточку из Ready/, 'а если повторять не надо — её убирают');
 }
 
 // ── 6. Промпт: Rework возвращается, Accepted — нет ─────────────────────────
@@ -105,7 +106,7 @@ assert.match(src, /\(б\) Карточка была сформулирована
 assert.match(src, /Acceptance карточки — не оракул миссии/, 'карточка и оракул миссии разведены');
 assert.match(
   src,
-  /верни её в Ready: следы прошлого ответа \(«Submitted At», «PR», «Run ID»\) снимет транспорт/,
+  /верни её в Ready и в том же ответе направь ход роли из карточки: следы прошлого ответа \(«Submitted At», «PR», «Run ID»\) снимет транспорт на выдаче/,
   'путь назад в промпте: Ready ставит Координатор, следы снимает транспорт',
 );
 assert.doesNotMatch(src, /чисти «Submitted At», «PR», «Run ID», иначе выдача откажет/, 'прежняя просьба чистить коннектором убрана');

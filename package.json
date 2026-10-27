@@ -86,6 +86,8 @@
     "smoke:narthex-tech": "node _tools/ScriptCat/tests/narthex-tech-info-smoke.mjs",
     "smoke:narthex-question": "node _tools/ScriptCat/tests/narthex-question-fulltext-smoke.mjs",
     "smoke:drive-gateway": "node _tools/ScriptCat/tests/drive-gateway-arena-smoke.mjs",
+    "smoke:narthex-redispatch": "node _tools/ScriptCat/tests/narthex-rework-return-smoke.mjs",
+    "smoke:narthex-notion-retry": "node _tools/ScriptCat/tests/narthex-notion-retry-smoke.mjs",
     "pack:ai-kit": "tsx scripts/pack-ai-kit.mts",
     "sync:ai-kit": "tsx scripts/pack-ai-kit.mts --copy",
     "check:packs": "tsx scripts/check-packs.mts",
