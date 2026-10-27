@@ -16,7 +16,7 @@ import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
-const reqFrom = src.indexOf('  /** Сбой на уровне сети: запрос не дошёл. Повторять имеет смысл. */');
+const reqFrom = src.indexOf('  const networkish = (text) =>');
 const reqTo = src.indexOf('  async function notion(method, path, body) {');
 assert.ok(reqFrom > 0 && reqTo > reqFrom, 'блок запросов на месте');
 const reqBlock = src.slice(reqFrom, reqTo);

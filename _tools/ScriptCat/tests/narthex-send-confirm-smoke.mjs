@@ -117,10 +117,14 @@ assert.equal(readyCount, 1, 'определение waitForSendReady одно: �
 // ── 5. Повторная выдача ───────────────────────────────────────────────────
 const dispatchSrc = cut('  async function dispatchTask(card, roleName) {', '  // ───────────────────────────── цикл');
 assert.match(dispatchSrc, /notion\("GET", `pages\/\$\{card\.id\}`\)/, 'карточка перечитывается перед выдачей');
-assert.match(dispatchSrc, /state !== "Ready" \|\| submittedAt \|\| prLink/, 'отвеченная карточка не выдаётся повторно');
-assert.match(dispatchSrc, /cfn-answered-miss/, 'повторы считаются, второй — пауза');
+assert.match(dispatchSrc, /state !== "Ready" \|\| submittedAt \|\| prLink/, 'карточка не выдаётся, если она не в Ready');
+assert.match(dispatchSrc, /redispatchClearProps\(fresh\)/, 'следы прошлого ответа снимаются перед выдачей');
+assert.match(dispatchSrc, /noteRedispatch\(fresh\.id\)/, 'повторные выдачи одной карточки считаются');
 assert.ok(!/ready\[0\]/.test(src), 'чужую карточку из Ready больше не подставляем');
-assert.match(src, /norm\(taskRole\(t\)\) === norm\(route\.roleName\)/, 'карточка выбирается строго по роли');
+const pickSrc = cut('  function pickReadyForRole(', '  /**\n   * Счётчик повторных выдач');
+assert.match(pickSrc, /norm\(taskRole\(t\)\) === norm\(roleName\)/, 'карточка выбирается строго по роли');
+assert.match(pickSrc, /find\(\(t\) => !answeredCard\(t\)\)/, 'свежая карточка идёт впереди отвеченной');
+assert.match(src, /const card = pickReadyForRole\(ready, route\.roleName\)/, 'выдача берёт карточку через выбор по роли');
 
 // ── 6. Ответ без литерала маркера ─────────────────────────────────────────
 const looseSrc = cut('  function looseResult(raw, role, expect) {', '  /**\n   * Ждём ответ без маркера');

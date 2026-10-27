@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.75
+// @version      1.4.76
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -302,7 +302,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.74";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.76";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -699,15 +699,31 @@
   }
 
   /**
-   * Право на повторную выдачу: карточку видели в Rework.
+   * Признаки прошлого ответа на карточке: дата, ссылка на PR и номер прогона.
    *
-   * 25.10 Координатор не смог вернуть NAR-2.3 в Ready: коннектор Notion
-   * отвечал validation_error на очистку «Submitted At», «PR» и «Run ID», а без
-   * очистки выдача отказывает — и карточка запирается. Поля эти ставит
-   * транспорт, поэтому снимать их должен он, а не Координатор через коннектор.
+   * Поля эти ставит транспорт, поэтому снимает их тоже он, а не Координатор
+   * через коннектор: 25.10 коннектор отвечал `validation_error` на очистку, и
+   * карточка запиралась (NAR-2.3).
+   */
+  const answeredMarks = (card) => {
+    const props = (card && card.properties) || {};
+    return {
+      "Submitted At": Boolean(props["Submitted At"]?.date?.start),
+      "PR": Boolean(props["PR"]?.url),
+      "Run ID": Boolean(rt(props["Run ID"])),
+    };
+  };
+  const answeredCard = (card) => Object.values(answeredMarks(card)).some(Boolean);
+
+  /**
+   * Память о Rework — только для объяснения в журнале, не для разрешения.
    *
-   * Память о Rework оставляет защиту от дубля (NAR-1.7): карточка, которую в
-   * Rework не видели, но она уже отвечена, по-прежнему не выдаётся.
+   * Раньше без этой памяти выдача отказывала, и карточка запиралась. 27.10 на
+   * NAR-4.9 это и случилось: Координатор одним ходом перевёл карточку в Rework
+   * и тут же вернул в Ready (Check=fail, Инварианты переписаны). Состояние
+   * Rework продержалось меньше одного тика, в очередь не попало — памяти нет,
+   * выдача отказала, цикл встал на паузе. Rework, который длился секунды, —
+   * всё равно Rework; ждать, пока транспорт «увидит» его в опросе, нельзя.
    */
   const reworkKey = (id) => `cfn-rework:${id}`;
   const reworkSeen = (id) =>
@@ -719,24 +735,97 @@
   }
 
   /**
-   * Что снять с карточки, вернувшейся из Rework, — или null, если снимать
-   * нечего или права на повторную выдачу нет.
+   * Отметка «вот в таком виде страницу оставил ответ».
+   *
+   * «Submitted At» пишет браузер, «last_edited_time» — Notion: часы у них
+   * разные, сравнивать эти два времени напрямую нельзя. Поэтому запоминаем
+   * ровно то время, которое Notion вернул на записи ответа: любая правка после
+   * него — чужая, то есть карточку трогали уже после вердикта.
+   */
+  const answerStampKey = (id) => `cfn-answer-stamp:${id}`;
+  function rememberAnswerStamp(id, page) {
+    const at = page && page.last_edited_time;
+    if (id && at && typeof GM_setValue === "function") GM_setValue(answerStampKey(id), String(at));
+  }
+  function editedSinceAnswer(card) {
+    const stamp = card && card.id && GM_getValue(answerStampKey(card.id), "");
+    if (!stamp || !card.last_edited_time) return false;
+    return String(card.last_edited_time) !== String(stamp);
+  }
+
+  /**
+   * Почему карточка снова идёт в работу — для журнала.
+   *
+   * Ни один из этих признаков не обязателен: право на повторную выдачу даёт
+   * указание Координатора (см. `redispatchClearProps`). Признаки нужны, чтобы
+   * Мастер видел причину, а не догадывался по логу Notion.
+   */
+  function redispatchWhy(card) {
+    if (reworkSeen(card && card.id)) return "её видели в Rework";
+    if (card?.properties?.["Check"]?.select?.name === "fail") return "проверка ответа не прошла (Check=fail)";
+    if (editedSinceAnswer(card)) return "карточку правили после ответа";
+    return "Координатор направил её в работу снова";
+  }
+
+  /**
+   * Что снять с карточки, которую Координатор снова направил в работу.
+   *
+   * Ход в Ready направляет только Координатор — транспорт сам из Ready ничего
+   * не берёт. Поэтому если он назвал эту карточку, значит работа нужна заново,
+   * и следы прошлого ответа снимаются: без этого выдача отказывала и цикл
+   * вставал (NAR-4.9, 27.10).
+   *
+   * Осторожность сохранена там, где она нужна: если у роли в Ready есть и
+   * свежая карточка, и отвеченная, берётся свежая (см. `pickReadyForRole`), —
+   * повторная работа не подменяет новую.
    *
    * Чистка идёт одной записью: «Submitted At» (date), «PR» (url) и «Run ID»
    * (rich_text) снимаются пустыми значениями Notion — `null` и `[]`.
    */
-  function reworkClearProps(card) {
+  function redispatchClearProps(card) {
     const props = card && card.properties;
     if (!props) return null;
     if (props["Dispatch State"]?.select?.name !== "Ready") return null;
-    const marks =
-      Boolean(props["Submitted At"]?.date?.start) || Boolean(props["PR"]?.url) || Boolean(rt(props["Run ID"]));
-    if (!marks || !reworkSeen(card.id)) return null;
+    if (!answeredCard(card)) return null;
     return {
       "Submitted At": { date: null },
       "PR": { url: null },
       "Run ID": { rich_text: [] },
     };
+  }
+
+  /**
+   * Карточка этой роли из Ready: свежая вперёд.
+   *
+   * Отвеченная карточка — это Rework, а не новая работа. Если Координатор
+   * направил ход роли, а у неё в Ready лежат обе, выдавать надо ту, которую ещё
+   * не отвечали: иначе повторная работа подменит новую и Мастер получит две
+   * копии одного задания.
+   */
+  function pickReadyForRole(ready, roleName) {
+    const mine = (ready || []).filter((t) => norm(taskRole(t)) === norm(roleName));
+    if (!mine.length) return null;
+    return mine.find((t) => !answeredCard(t)) || mine[0];
+  }
+
+  /**
+   * Счётчик повторных выдач одной карточки.
+   *
+   * Одна повторная выдача — нормальный Rework. Третья подряд за шесть часов —
+   * это уже зацикливание: Координатор и исполнитель гоняют одну и ту же работу
+   * и не замечают этого. Такую петлю показываем Мастеру, а счётчик обнуляем,
+   * чтобы «Продолжить» действительно продолжало, а не упиралось в тот же
+   * порог.
+   */
+  const redispatchKey = (id) => `cfn-redispatch:${id}`;
+  const REDISPATCH_WINDOW = 6 * 3600 * 1000;
+  const REDISPATCH_LIMIT = 3;
+  function noteRedispatch(id) {
+    const now = Date.now();
+    const kept = (GM_getValue(redispatchKey(id), []) || []).map(Number).filter((at) => now - at < REDISPATCH_WINDOW);
+    kept.push(now);
+    GM_setValue(redispatchKey(id), kept);
+    return kept.length;
   }
 
   /**
@@ -1316,8 +1405,17 @@
   }
 
   // ───────────────────────────── HTTP ─────────────────────────────
-  /** Сбой на уровне сети: запрос не дошёл. Повторять имеет смысл. */
-  const networkish = (text) => /сеть|таймаут|failed to fetch|network|load failed/i.test(String(text || ""));
+  /**
+   * Сбой, который имеет смысл повторить: запрос не дошёл или чужая сторона
+   * ответила своей ошибкой.
+   *
+   * 27.10 в 19:23 POST `data_sources/…/query` получил от Notion HTTP 502 —
+   * ответ на стороне Notion, карточка и ход целы. Раньше такой ответ считался
+   * отказом по существу, повтора не было, и цикл вставал на паузу из-за
+   * чужой пятиминутной аварии.
+   */
+  const networkish = (text) =>
+    /сеть|таймаут|failed to fetch|network|load failed|HTTP (?:429|5\d\d)/i.test(String(text || ""));
 
   function requestOnce(method, url, headers, body) {
     return new Promise((resolve, reject) => {
@@ -1421,17 +1519,30 @@
     const segment = String(path).match(/^(?:pages|blocks|data_sources)\/([^/?#]+)/);
     if (segment && !isUuid(segment[1]))
       throw new Error(`в адресе записи битый id «${segment[1]}» — запрос не отправлен`);
-    try {
-      return await request(method, `https://api.notion.com/v1/${path}`, {
-        Authorization: `Bearer ${token}`,
-        "Notion-Version": C.notionV,
-        "Content-Type": "application/json",
-      }, body);
-    } catch (e) {
-      e.narthex = "notion";
-      e.message = `Notion не ответил на ${method} ${path}: ${e.message}`;
-      throw e;
+    // Повторяем только то, что безопасно повторить: чтение, правку свойств и
+    // запрос очереди. Создание страниц (`POST pages`) не повторяем никогда —
+    // на 502 запрос мог уже пройти, и повтор сделал бы вторую карточку.
+    const safeToRepeat = method !== "POST" || /\/query$/.test(String(path));
+    const url = `https://api.notion.com/v1/${path}`;
+    let last = null;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        return await request(method, url, {
+          Authorization: `Bearer ${token}`,
+          "Notion-Version": C.notionV,
+          "Content-Type": "application/json",
+        }, body);
+      } catch (e) {
+        last = e;
+        // Короткая пауза Notion (429/5xx) проходит сама: две попытки с
+        // выдержкой дешевле, чем остановка цикла и Мастер у экрана.
+        if (!safeToRepeat || !/HTTP (?:429|5\d\d)/i.test(String(e && e.message)) || attempt === 2) break;
+        await sleep(attempt === 0 ? 800 : 2500);
+      }
     }
+    last.narthex = "notion";
+    last.message = `Notion не ответил на ${method} ${path}: ${last.message}`;
+    throw last;
   }
 
   /**
@@ -5769,7 +5880,7 @@
       "ОЧЕРЕДЬ — ТВОЯ",
       "Движок ставит Running и Submitted; Accepted, Rework и Ready ставишь ты. Нарезка, порядок, Кому, Sequence, число Ready, выдача черновика (Draft → Ready), правка его полей и архив лишнего — твои действия. Код, ветки и PR — не твоя зона.",
       "Мастер и Архитектор пишут только черновики: это твой задел, а не приказ — правь под оракул миссии и выдавай сам, не дожидаясь Мастера. В архив — только если черновик дублирует уже выданное.",
-      "Rework — не выдача и не приговор: разбираешь его ты, а не Мастер. (а) Нужна переделка — верни её в Ready: следы прошлого ответа («Submitted At», «PR», «Run ID») снимет транспорт на выдаче. (б) Карточка была сформулирована с ошибкой — перепиши её Намерение, Инварианты, Acceptance и Scope; это правка карточки, а не смена оракула миссии. (в) Работа уже сделана другими карточками — поставь Accepted с пометкой «остаток разбит на …» или убери её. Принятую (Accepted) обратно в Ready не возвращай. Держать Rework «на всякий случай» нельзя: он висит в очереди и мешает закрыть миссию.",
+      "Rework — не выдача и не приговор: разбираешь его ты, а не Мастер. (а) Нужна переделка — верни её в Ready и в том же ответе направь ход роли из карточки: следы прошлого ответа («Submitted At», «PR», «Run ID») снимет транспорт на выдаче, даже если Rework и Ready проставлены одним ходом. Чистить поля коннектором не надо и не пытайся. (б) Карточка была сформулирована с ошибкой — перепиши её Намерение, Инварианты, Acceptance и Scope; это правка карточки, а не смена оракула миссии. (в) Работа уже сделана другими карточками — поставь Accepted с пометкой «остаток разбит на …» или убери её. Принятую (Accepted) обратно в Ready не возвращай. Держать Rework «на всякий случай» нельзя: он висит в очереди и мешает закрыть миссию.",
       "Ready-карточку с меньшим Sequence не обходи молча. Выдаёшь не её — назови в ответе причину (ждёт решения Мастера, зависит от другой карточки, сформулирована неверно) и поправь ей Sequence или убери в Draft. Молчаливый обход выглядит как потерянная работа: карточка остаётся Ready и ждёт следующего круга.",
       "Scope карточки обязан покрывать артефакты её Оракула: пробу, npm-скрипт и запись решения перечисляй в Scope прямо — иначе исполнитель встанет на границе зоны.",
       "Если роль не может получить работу («Ждёт», пустой Agent URL, нет в «Ролях») — назначь в «Кому» активную роль или оставь Draft и назови, кого он ждёт. Статус роли и Agent URL — зона Мастера, не меняй их.",
@@ -6060,7 +6171,10 @@
     if (result.report) props["Report SHA"] = { rich_text: [{ type: "text", text: { content: String(result.report).slice(0, 200) } }] };
     const link = prUrl(result.pr);
     if (link) props["PR"] = { url: link };
-    await patch(result.dispatch_id, props);
+    // Время записи ответа глазами Notion: по нему потом видно, трогал ли
+    // карточку кто-то ещё (Rework → Ready). Часы браузера и Notion разные,
+    // поэтому запоминаем именно ответ сервера.
+    rememberAnswerStamp(result.dispatch_id, await patch(result.dispatch_id, props));
     GM_setValue(`cfn-done:${result.dispatch_id}:${result.run_id}`, true);
     log(
       `Ответ ${role.name} записан, PR ${merged === "claimed" ? "слит (по маркеру)" : "слит"}, задача → Submitted.` +
@@ -6985,8 +7099,9 @@
       tasks("Rework", mission),
       tasks("Draft", mission),
     ]);
-    // Карточка в Rework получает право на повторную выдачу: следы прошлого
-    // ответа снимет `dispatchTask`, а не Координатор (см. `reworkClearProps`).
+    // Rework запоминается ради причины в журнале: право на повторную выдачу
+    // даёт указание Координатора, а следы прошлого ответа снимает `dispatchTask`
+    // (см. `redispatchClearProps`).
     rememberRework(rework);
     return {
       submitted,
@@ -7074,15 +7189,16 @@
       return sa - sb;
     });
     if (!rows.length) return "Готовы к выдаче: ничего — Ready пуст.";
-    // Ready со следами прошлого ответа выглядит готовой, но выдача по ней
-    // откажет: движок не знает, новая это работа или забытая старая. Скажем
-    // это здесь, а не паузой через две попытки.
+    // Ready со следами прошлого ответа — это не «готова», а «нужна заново»:
+    // работа уже была и не принята. Транспорт снимет следы на выдаче сам, но
+    // Координатор должен понимать, что он берёт в работу отвеченную карточку,
+    // а не новую.
     const shown = rows.slice(0, C.readyLineMax).map((card) => {
       const seq = card.properties?.["Sequence"]?.number;
       const stale = staleMarks(card);
       const warn = stale.length
-        ? ` — остались ${stale.join(", ")}: если карточка вернулась из Rework, транспорт снимет их сам; ` +
-          "если это забытая в Ready отвеченная карточка — выдача откажет, повторно её не выдавай"
+        ? ` — остались ${stale.join(", ")}: это повторная работа, следы прошлого ответа снимет транспорт. ` +
+          "Если повторять её не надо — убери карточку из Ready"
         : "";
       return `${taskTitle(card)} (${taskRole(card) || "роль не задана"}, Sequence ${seq ?? "—"})${warn}`;
     });
@@ -7195,7 +7311,9 @@
    * уходит — транспорт выдаёт только Ready, — а в промпте стояло «карточку с
    * ответом обратно в Ready не возвращай». Два правила вместе запирали карточку
    * навсегда. Теперь причина и путь назад названы прямо: вернуть в Ready можно,
-   * но сначала надо снять следы прошлого ответа.
+   * а следы прошлого ответа снимает транспорт на выдаче (1.4.76 — без опоры на
+   * память о Rework: 27.10 NAR-4.9 прошла Rework → Ready за один ход, и память
+   * о нём не успела появиться).
    */
   const reworkCause = (card) => {
     const answer = rt(card.properties?.["Ответ"]).replace(/\s+/g, " ").trim();
@@ -7542,7 +7660,9 @@
         // Только карточка этой роли. Прежний запасной вариант «или первая из
         // Ready» отдавал исполнителю чужое задание, если роль в карточке
         // записана иначе (регистр, пробелы) — и работа уходила не туда.
-        const card = ready.find((t) => norm(taskRole(t)) === norm(route.roleName));
+        // Среди карточек роли свежая идёт впереди отвеченной: возврат в работу
+        // не должен подменять новую работу.
+        const card = pickReadyForRole(ready, route.roleName);
         if (!card) {
           pause(
             `Координатор направил ход в «${route.roleName}», но карточки этой роли в Ready нет: ` +
@@ -7551,7 +7671,34 @@
           );
           return true;
         }
-        return dispatchTask(card, route.roleName);
+        const problem = await dispatchTask(card, route.roleName);
+        if (problem === true) {
+          GM_setValue("cfn-dispatch-miss", 0);
+          return true;
+        }
+        // Выдача не состоялась: названная карточка не в Ready или её не удалось
+        // очистить. Это не повод будить Мастера с первого раза — ход остаётся у
+        // Координатора, и он получает точную причину. Пауза будет, только если
+        // он трижды подряд назовёт карточку, которой нет в очереди.
+        const misses = (Number(GM_getValue("cfn-dispatch-miss", 0)) || 0) + 1;
+        GM_setValue("cfn-dispatch-miss", misses);
+        const why = `карточка «${taskTitle(card)}» не выдана: ${problem}`;
+        if (misses >= 3) {
+          GM_setValue("cfn-dispatch-miss", 0);
+          pause(
+            `Координатор третий раз подряд направляет ход в «${route.roleName}», но ${why}. ` +
+              "Работа не потеряна, очередь на месте: посмотрите карточку в Notion, поправьте её состояние " +
+              "(работа должна стоять в Ready) и нажмите «Продолжить».",
+            { kind: "redispatch", ref: card.id },
+          );
+          return true;
+        }
+        log(`Ход не передан: ${why}. Возвращаю Координатору.`, true, { ntfy: "quiet" });
+        const fresh = await queueOf(mission);
+        await requestPlan(mission, role, fresh, `Карточку выдать не удалось — ${problem}. Поправь её состояние.`, {
+          force: true,
+        });
+        return true;
       }
 
       // ask: ход возвращается Координатору — это его следующий ход, а не
@@ -7643,49 +7790,62 @@
     const state = taskState(fresh);
     let prLink = fresh.properties["PR"]?.url || "";
     let submittedAt = fresh.properties["Submitted At"]?.date?.start || "";
-    // Карточка вернулась из Rework: следы прошлого ответа снимает транспорт.
-    // Координатор их не трогает — коннектор отвечает validation_error, и это не
-    // его поля: «Submitted At», «PR» и «Run ID» ставит выдача.
-    const clearing = reworkClearProps(fresh);
+    // Карточку, которую Координатор снова направил в работу, транспорт чистит
+    // сам: следы прошлого ответа («Submitted At», «PR», «Run ID») ставит выдача,
+    // и только она имеет право их снять. Координатор их не трогает — коннектор
+    // отвечает validation_error, а ждать, пока Rework попадёт в опрос, нельзя:
+    // 27.10 на NAR-4.9 он длился меньше одного тика и выдача отказала.
+    const clearing = redispatchClearProps(fresh);
     if (clearing) {
+      const why = redispatchWhy(fresh);
       try {
         await patch(fresh.id, clearing);
+        // Ответа на карточке больше нет — и отметка о нём тоже: следующий
+        // ответ поставит новую.
+        GM_setValue(answerStampKey(fresh.id), "");
       } catch (e) {
         log(
-          `«${taskTitle(fresh)}» вернулась из Rework, но следы прошлого ответа не снялись (${e.message}) — выдача отменена.`,
+          `«${taskTitle(fresh)}» вернулась в работу (${why}), но следы прошлого ответа не снялись (${e.message}) — выдача отменена.`,
           true,
         );
-        return false;
+        return `следы прошлого ответа не снялись: ${e.message}`;
       }
       GM_setValue(reworkKey(fresh.id), 0);
       submittedAt = "";
       prLink = "";
-      log(`«${taskTitle(fresh)}» вернулась из Rework — снял «Submitted At», «PR» и «Run ID», выдаю заново.`, false, {
+      log(`«${taskTitle(fresh)}» снова в работе — ${why}: снял «Submitted At», «PR» и «Run ID», выдаю заново.`, false, {
         tone: "ok",
       });
+      const times = noteRedispatch(fresh.id);
+      if (times >= REDISPATCH_LIMIT) {
+        GM_setValue(redispatchKey(fresh.id), []);
+        pause(
+          `«${taskTitle(fresh)}» перевыдали ${times} раз за шесть часов — похоже, Координатор и исполнитель ` +
+            "гоняют одну и ту же карточку и не замечают этого. Очередь и карточка на месте: посмотрите «Ответ» " +
+            "и журнал, поправьте постановку и нажмите «Продолжить».",
+          { kind: "redispatch", ref: fresh.id },
+        );
+        return true;
+      }
     }
     if (state !== "Ready" || submittedAt || prLink) {
       const why =
         state !== "Ready"
           ? `уже ${state || "не в Ready"}`
           : `уже отвечена${prLink ? ` (${prLink})` : ""}`;
-      const misses = (Number(GM_getValue("cfn-answered-miss", 0)) || 0) + 1;
-      GM_setValue("cfn-answered-miss", misses);
       log(`«${taskTitle(fresh)}» ${why} — повторно не выдаю.`, true, {
         ntfy: "quiet",
         title: "Narthex: повторная выдача отменена",
       });
-      if (misses >= 2) {
-        pause(
-          `«${taskTitle(fresh)}» ${why}, но Координатор снова направил ход в «${roleName}». ` +
-            "Похоже, карточку вернули в Ready вручную. Уберите её из Ready (или очистите «Submitted At» " +
-            "и «PR», если работу правда надо повторить) и нажмите «Продолжить».",
-          { kind: "redispatch", ref: fresh.id },
-        );
-      }
-      return false;
+      // Карточка не в Ready — значит Координатор назвал работой ту, которую сам
+      // же не вернул в очередь. Это его ход, а не сбой сети: пауза ставится
+      // только на третьем повторе (см. ветку `dispatch` в `coordinatorStep`),
+      // а до тех пор ход возвращается Координатору с точной причиной.
+      return state !== "Ready"
+        ? `сейчас она в «${state || "неизвестном состоянии"}», а не в Ready`
+        : "на ней остались следы прошлого ответа";
     }
-    GM_setValue("cfn-answered-miss", 0);
+    GM_setValue("cfn-dispatch-miss", 0);
 
     // Карточку выдали заново — прошлое неотправленное задание к ней больше не
     // относится: иначе оно ушло бы вторым сообщением уже после новой выдачи.
@@ -7733,13 +7893,18 @@
       `Выдан ход ${roleName}: «${taskTitle(card)}»` +
         (payload.trim() ? "." : " (отдельного файла с заданием нет — текст собран из карточки)."),
     );
-    return Boolean(await sendToRole(role, executorPrompt(card, role, payload, logId, runId), "dispatch", card.id, {
+    // Карточка уже в Running, задание в очереди: отсюда выдача состоялась, даже
+    // если `sendToRole` не отправил текст (тот же текст уходил минуту назад —
+    // это защита от дубля, а не отказ). Отказ отправки разбирает сторож
+    // неотправленной очереди, а не вызывающий.
+    await sendToRole(role, executorPrompt(card, role, payload, logId, runId), "dispatch", card.id, {
       runId,
       logId,
       title: taskTitle(card),
       // Ссылка нужна минимальному повтору: «прочитай карточку сам».
       url: card.url || "",
-    }));
+    });
+    return true;
   }
 
   // ───────────────────────────── цикл ─────────────────────────────
@@ -8281,9 +8446,12 @@
               "указывать на файл из Arena/logs; скрипт вернёт его сам после обновления."
             : "Шлюз Drive не ответил, ответ агента в журнал не записан. Проверьте, что " +
               "развёртывание Apps Script открыто «любому, у кого есть ссылка», и что ссылка в ⚙ та же."
-          : e && e.narthex === "notion" || networkish(raw)
-            ? "Notion не ответил: сеть или блокировка запроса. Запись не сделана."
-            : "Шаг прервался на записи в Notion.";
+          : /HTTP (?:429|5\d\d)/i.test(raw)
+            ? "Notion ответил сбоем на своей стороне — это не ошибка карточки и не потерянный ход. " +
+              "Скрипт повторил запрос и подождал; Notion не восстановился за это время. Обычно проходит за минуту-другую."
+            : e && e.narthex === "notion" || networkish(raw)
+              ? "Notion не ответил: сеть или блокировка запроса. Запись не сделана."
+              : "Шаг прервался на записи в Notion.";
       pause(
         `Цикл остановлен. ${plain} Ход не потерян: очередь и карточка на месте, ` +
           `после «Продолжить» скрипт перечитает ответ.\nТехнически: ${raw}`,

@@ -38,7 +38,8 @@ function makeHarness({ payloadId = '', fileText = '', readFails = false } = {}) 
     'roles', 'rt', 'gateway', 'patch', 'taskLogEntry', 'executorPrompt',
     'log', 'taskTitle', 'uid', 'nowIso', 'sendToRole',
     'notion', 'taskState', 'GM_getValue', 'GM_setValue', 'pause', 'K',
-    'reworkClearProps', 'reworkKey',
+    'redispatchClearProps', 'redispatchWhy', 'noteRedispatch', 'REDISPATCH_LIMIT',
+    'answerStampKey', 'reworkKey',
     `${src.slice(from, to)}; return dispatchTask;`,
   )(
     async () => [{ id: 'agent-1', name: 'Kernel', fn: 'Executor' }],
@@ -73,9 +74,14 @@ function makeHarness({ payloadId = '', fileText = '', readFails = false } = {}) 
     },
     (text) => calls.push({ action: 'pause', text }),
     { pending: 'cfn-pending', expect: 'cfn-expect' },
-    // 1.4.63: снятие следов Rework проверяется отдельной пробой; здесь важно,
-    // что обычная выдача идёт прежним путём.
+    // 1.4.76: снятие следов повторной работы проверяется отдельной пробой
+    // (narthex-rework-return-smoke.mjs); здесь важно, что обычная выдача идёт
+    // прежним путём.
     () => null,
+    () => "",
+    () => 1,
+    3,
+    (id) => `cfn-answer-stamp:${id}`,
     (id) => `cfn-rework:${id}`,
   );
   return { dispatchTask, card, calls };
