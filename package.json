@@ -83,6 +83,7 @@
     "smoke:dialogue-speaker": "tsx scripts/smoke-dialogue-speaker.mts",
     "smoke:narthex-closed": "node _tools/ScriptCat/tests/narthex-closed-state-smoke.mjs",
     "smoke:narthex-tech": "node _tools/ScriptCat/tests/narthex-tech-info-smoke.mjs",
+    "smoke:narthex-question": "node _tools/ScriptCat/tests/narthex-question-fulltext-smoke.mjs",
     "smoke:drive-gateway": "node _tools/ScriptCat/tests/drive-gateway-arena-smoke.mjs",
     "pack:ai-kit": "tsx scripts/pack-ai-kit.mts",
     "sync:ai-kit": "tsx scripts/pack-ai-kit.mts --copy",

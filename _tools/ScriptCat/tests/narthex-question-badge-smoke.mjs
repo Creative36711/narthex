@@ -17,7 +17,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const V = '1.4.74';
+const V = '1.4.75';
 
 const versionLine = (src.split('\n').find((line) => line.startsWith('// @version')) || '')
   .replace(/\s+/g, ' ')

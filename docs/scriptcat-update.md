@@ -1,5 +1,8 @@
 # ScriptCat: что менять под новую программу
 
+> Историческая записка про версию 0.14.0. Живой транспорт с 27.10.2026 —
+> `_tools/ScriptCat/narthex.user.js`; `dispatch.user.js` удалён.
+
 Userscript — тонкий транспорт: он берёт задачу из Notion, вставляет текст в Arena,
 дожидается маркера, пишет лог в Drive и обновляет статус. Все правила должны
 жить в карточке и регламенте, а не в коде: иначе каждая правка процесса — это
@@ -21,7 +24,7 @@ Userscript — тонкий транспорт: он берёт задачу и�
 
 ```bash
 cd _tools/ScriptCat
-node --check dispatch.user.js
+node --check narthex.user.js
 for t in tests/*.mjs; do node "$t" || exit 1; done
 ```
 
@@ -54,7 +57,7 @@ for t in tests/*.mjs; do node "$t" || exit 1; done
    (из `narthex`), затем коммит `__chronicle_ai__/` в `main`.
 3. В ветке TGD выполнить `git merge main` (или перебазировать), чтобы агент
    увидел новый кит.
-4. В ScriptCat: заменить `dispatch.user.js` на версию `0.14.0`, перезагрузить
+4. В ScriptCat: заменить `narthex.user.js` на актуальную версию, перезагрузить
    вкладку Arena.
 5. Проверка: открыть страницу агента с `?cf-auth-setup=1`, сделать `ping`
    (ключ и URL `/exec` не менялись).
