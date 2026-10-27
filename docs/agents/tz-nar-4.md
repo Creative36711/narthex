@@ -119,7 +119,7 @@ npm run check:mission                # переписан под NAR-4 (D-05): �
   отключать, файлы не исключать.
 - **Acceptance:** `npx oxlint public/ai _tools` — 0 ошибок.
 
-### Карточка 4.8 — Линт в `src/player/` (Kernel, D-01)
+### Карточка 4.8 — Линт в `src/player/` (Player UI, D-01)
 
 - Три ошибки `react-hooks` в `src/player/DialogueOverlay.tsx`.
 - **Acceptance:** `npx oxlint src/player` — 0 ошибок; после обеих карточек
