@@ -81,3 +81,23 @@ exit code: 0
 Workflow [`.github/workflows/visual.yml`](../../.github/workflows/visual.yml) запускает обе браузерные проверки и сохраняет `out/visual` в CI artifact `visual-report`. Run [40390859527](https://github.com/Creative36711/narthex/actions/runs/40390859527) для commit `5bb6c766ba43433b0a8f3b020571a37f64556b19` завершился `success`; job `screenshots` — `pass`; артефакт: [`visual-report`](https://github.com/Creative36711/narthex/actions/runs/40390859527/artifacts/12684830910).
 
 Dated closure фазы 2 со ссылками на отчёт, кадры и CI artifact внесён в [`docs/phases.md`](../../docs/phases.md). Фаза 3 не открывается и остаётся закрытой.
+
+## Обновление после сдачи — D-076 (27.10.2026)
+
+Этот отчёт описывает состояние на момент сдачи задачи: тогда список известных отсутствий жил **внутри** harness (`KNOWN_ABSENT_IMAGES`, ровно шесть путей из 54) и был ограничен только теми путями, которые проходил маршрут. Позже, по решению [D-076](../../docs/decisions/NAR-3.8.md) (PR [#80](https://github.com/Creative36711/narthex/pull/80), merge `959193f`), механизм заменён:
+
+- отсутствия объявляет **кампания** — `known_absent_images` в `dev-fixture.json`, по 27 путей у `ash-of-caerden` и `ash-of-caerden-adventure`;
+- harness больше не содержит ни одного захардкоженного пути: список читается из маркера кампании;
+- техническая плашка «Фон сцены не загрузился» и `MutationObserver`, скрывавший её, удалены: игрок видит нейтральный фон, причина остаётся в `console.error`;
+- добавлена находка «объявленный путь начал отдаваться как `image/*`» — устаревшая декларация больше не проходит молча.
+
+Критерий не ослаблен, а ужесточён: было 6 известных отсутствий, стало 27 + 27. Повторный прогон на `main` после PR #80:
+
+```
+RESULT: PASS; packs=2; steps=20; findings=0
+known-absence: 27 строк на пак (path / status / content-type)
+check:dev-campaigns: 3 полигона; объявленных отсутствий — ash-of-caerden: 27, ash-of-caerden-adventure: 27
+check:mission: 11/11 rc=0 (smoke:mission 55 скриптов)
+```
+
+Исходные числа и вывод этого отчёта не переписывались. Расхождение формулировок («шесть путей», «плашка остаётся в консоли») — следствие более позднего решения, а не дефект задачи NAR-3.7.
