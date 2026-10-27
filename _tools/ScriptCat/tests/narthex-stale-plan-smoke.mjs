@@ -139,14 +139,14 @@ function makeAsk({ rows = [], failQuery = false } = {}) {
   const created = [];
   const fn = new Function(
     'GM_getValue', 'GM_setValue', 'K', 'C', 'Q', 'norm', 'rt', 'sel', 'query', 'questionRows',
-    'noteQuestionAsked', 'queueQuestion', 'log', 'dbg', 'notion', 'questionProps',
+    'noteQuestionAsked', 'appendQuestionBody', 'queueQuestion', 'log', 'dbg', 'notion', 'questionProps',
     `${dedupeSrc}\n${askSrc}\nreturn { askQuestion, sameQuestionRow };`,
   );
   const api = fn(
     (key, def) => (store.has(key) ? store.get(key) : def),
     (key, value) => store.set(key, value),
     { qQueue: 'k-queue' },
-    { questions: 'ds-q', questionTextMax: 180, questionDefaultMax: 200, questionHours: 24 },
+    { questions: 'ds-q', questionTextMax: 180, questionTextFull: 12000, questionDefaultMax: 200, questionHours: 24 },
     { wait: 'Ждёт', done: 'Решено', byDefault: 'Принят дефолт' },
     (v) => String(v || '').trim().toLowerCase(),
     (p) => (p?.rich_text || p?.title || []).map((x) => x.plain_text || x.text?.content || '').join(''),
@@ -156,6 +156,7 @@ function makeAsk({ rows = [], failQuery = false } = {}) {
       if (failQuery) throw new Error('Notion 502');
       return rows;
     },
+    () => {},
     () => {},
     () => {},
     (text, error, opts) => logs.push({ text, error: Boolean(error), ntfy: opts?.ntfy }),

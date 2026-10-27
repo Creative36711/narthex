@@ -26,7 +26,7 @@ function make({ failPost = false, rows = [] } = {}) {
   const posted = [];
   let posts = 0;
   const fn = new Function(
-    'GM_getValue', 'GM_setValue', 'K', 'C', 'notion', 'questionProps', 'noteQuestionAsked', 'log', 'dbg',
+    'GM_getValue', 'GM_setValue', 'K', 'C', 'notion', 'questionProps', 'noteQuestionAsked', 'appendQuestionBody', 'log', 'dbg',
     'norm', 'questionRows', 'Q', 'rt',
     `${block}\nreturn { queueQuestion, flushQuestionQueue };`,
   );
@@ -43,6 +43,7 @@ function make({ failPost = false, rows = [] } = {}) {
     },
     (q) => ({ 'Вопрос': { title: [{ type: 'text', text: { content: q.text } }] } }),
     (row, q) => logs.push({ note: q.text, rowId: row.id }),
+    (row, q) => logs.push({ body: q.fullText || '', rowId: row.id }),
     (text, error, opts) => logs.push({ text, error: Boolean(error), ntfy: opts?.ntfy }),
     () => {},
     (v) => String(v || '').trim().toLowerCase(),
@@ -126,6 +127,6 @@ has('queueQuestion(q, ctx);', 'неудачная запись попадает 
 has('Строка отложена и повторится сама', 'Мастер видит, что вопрос не потерян');
 has('await flushQuestionQueue();', 'повтор запускается при обновлении вопросов');
 has('qQueue: "cfn-q-queue",', 'ключ хранилища очереди');
-has('@version      1.4.74', 'версия 1.4.74');
+has('@version      1.4.75', 'версия 1.4.75');
 
 console.log('question-retry: ok');

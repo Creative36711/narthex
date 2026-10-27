@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.74
+// @version      1.4.75
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -54,7 +54,8 @@
     questionsUrl: "https://app.notion.com/p/e00d99c8b526461ea7e900b9e988e149",
     questionHours: 24, // срок молчания по умолчанию: дальше действует вариант агента
     questionLineMax: 3, // сколько вопросов и ответов видно в одном промпте
-    questionTextMax: 180,
+    questionTextMax: 180, // столько влезает в заголовок «Вопрос» читаемо
+    questionTextFull: 12000, // полный текст — в тело страницы вопроса, его не режем
     questionDefaultMax: 200,
     questionCheckMs: 600000, // как часто проверять сроки вопросов (10 минут)
     adrCheckMs: 600000, // как часто смотреть docs/decisions на proposed (10 минут)
@@ -6392,6 +6393,24 @@
     String(value == null ? "" : value).replace(/\s+/g, " ").trim().slice(0, max);
 
   /**
+   * Заголовок вопроса: 180 символов в таблице «Вопросы» — предел читаемости.
+   *
+   * Раньше текст резался молча (`slice(0, 180)`), и Мастер видел оборванную на
+   * полуслове фразу, не зная, что она короче исходной: 27.10 две карточки имели
+   * ровно 180 символов и обрывались на «…(сейчас это да». Теперь рез идёт по
+   * границе слова, а многоточие прямо говорит, что текст длиннее. Сам текст
+   * целиком уходит в тело страницы (`appendQuestionBody`), а не теряется.
+   */
+  const questionTitle = (value, max) => {
+    const flat = String(value == null ? "" : value).replace(/\s+/g, " ").trim();
+    if (flat.length <= max) return flat;
+    const cut = flat.slice(0, max - 1);
+    const space = cut.lastIndexOf(" ");
+    const head = (space > max * 0.6 ? cut.slice(0, space) : cut).trimEnd();
+    return `${head}…`;
+  };
+
+  /**
    * Разбор поля `question` из маркера. `null` — вопроса нет.
    *
    * Жёстко только необходимое: текст и вариант по умолчанию. Остальное —
@@ -6399,7 +6418,8 @@
    */
   function parseQuestion(raw) {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-    const text = oneLine(raw.text, C.questionTextMax);
+    const text = questionTitle(raw.text, C.questionTextMax);
+    const fullText = oneLine(raw.text, C.questionTextFull);
     const fallback = oneLine(raw.default, C.questionDefaultMax);
     if (!text || !fallback) return null;
     const options = Array.isArray(raw.options)
@@ -6408,6 +6428,7 @@
     const hours = Number(raw.hours);
     return {
       text,
+      fullText,
       fallback,
       options,
       blocks: oneLine(raw.blocks, 200),
@@ -6434,7 +6455,8 @@
   function questionInMarker(raw, fallback) {
     if (raw === undefined || raw === null) return { kind: "none" };
     const obj = typeof raw === "object" && !Array.isArray(raw) ? raw : {};
-    const text = oneLine(typeof raw === "string" ? raw : obj.text, C.questionTextMax);
+    const rawText = typeof raw === "string" ? raw : obj.text;
+    const text = questionTitle(rawText, C.questionTextMax);
     if (!text) return { kind: "none" };
     const asked = parseQuestion(raw);
     if (asked) return { kind: "asked", question: asked };
@@ -6446,6 +6468,7 @@
       kind: "text",
       question: {
         text,
+        fullText: oneLine(rawText, C.questionTextFull),
         options,
         blocks: oneLine(obj.blocks, 200),
         hours: Number.isFinite(hours) && hours >= 1 ? Math.min(hours, 168) : C.questionHours,
@@ -6511,6 +6534,38 @@
   }
 
   /**
+   * Полный текст вопроса — в тело страницы.
+   *
+   * Заголовок «Вопрос» живёт в таблице и режется до 180 символов; тело страницы
+   * ограничено только размером одного rich_text-объекта (2000 знаков), поэтому
+   * длинный вопрос сохраняется целиком. Ошибка этой записи вопрос не отменяет:
+   * строка в базе уже создана, агент уже идёт по варианту по умолчанию.
+   */
+  async function appendQuestionBody(row, q) {
+    const full = String(q?.fullText || "").trim();
+    if (!row?.id || !full || full.length <= String(q?.text || "").length) return;
+    const step = 1900;
+    const chunks = [];
+    for (let i = 0; i < full.length && chunks.length < 100; i += step) {
+      chunks.push({ type: "text", text: { content: full.slice(i, i + step) } });
+    }
+    try {
+      await notion("POST", `blocks/${row.id}/children`, {
+        children: [
+          {
+            object: "block",
+            type: "heading_3",
+            heading_3: { rich_text: [{ type: "text", text: { content: "Полный текст вопроса" } }] },
+          },
+          { object: "block", type: "paragraph", paragraph: { rich_text: chunks } },
+        ],
+      });
+    } catch (e) {
+      dbg("вопросы: полный текст не записался", e.message);
+    }
+  }
+
+  /**
    * Записать вопрос в базу. Ошибка Notion ход не срывает: агент уже идёт по
    * варианту по умолчанию, а строка нужна Мастеру, а не циклу.
    */
@@ -6556,6 +6611,7 @@
           properties: questionProps(item.q, item.ctx || {}),
         });
         noteQuestionAsked(row, item.q);
+        await appendQuestionBody(row, item.q);
         saved += 1;
         log(`Отложенный вопрос к Мастеру записался: «${item.q.text}».`, false, {
           ntfy: "loud",
@@ -6655,6 +6711,7 @@
       GM_setValue(key, Date.now());
       // Счётчик на панели и громкий пуш: вопрос в Notion иначе теряется.
       noteQuestionAsked(row, q);
+      await appendQuestionBody(row, q);
       log(`Вопрос к Мастеру записан: «${q.text}». По умолчанию: ${q.fallback} — работа идёт дальше.`, false, {
         ntfy: "loud",
         title: "Narthex: новый вопрос к Мастеру",
