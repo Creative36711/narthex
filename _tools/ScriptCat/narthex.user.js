@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.78
+// @version      1.4.79
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -25,8 +25,10 @@
  *  - SCRIPT ждёт состояние «PR merged», нажимает Continue и пишет ветку.
  *    Кнопки Create/Merge — только запасной путь, если агент не справился сам:
  *    каждая кнопка порождает ответ агента, то есть новый chat-message.
- *  - РЕШЕНИЯ (какая задача, принята ли работа, конец миссии) принимает только
- *    Координатор. Скрипт исполняет и останавливается по next:"done".
+ *  - РЕШЕНИЯ о работе (какая задача, принята ли карточка) принимает
+ *    Координатор. Конец миссии — не его решение: next:"done" передаёт миссию
+ *    приёмке (роль с функцией Reviewer), и только её `accept` останавливает
+ *    цикл. Больше трёх доработок не бывает: четвёртый возврат будит Мастера.
  *
  * Состояния PR, которые скрипт различает:
  *   Merged   — бейдж «Pull request merged»; мерж подтверждён интерфейсом.
@@ -90,6 +92,7 @@
     stalledMs: 2700000, // 45 минут — и только для карточки, по которой ход потерян
     longWaitNoticeMs: 600000, // раз в 10 минут напоминаем, что долгое ожидание — норма
     pollPauseCount: 3, // столько опросов подряд — уже поломка промпта, а не случайность
+    reworkLimit: 3, // доработок миссии больше этого — стоп и вызов Мастера
   };
 
   const K = {
@@ -302,7 +305,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.78";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.79";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -1777,6 +1780,27 @@
     const returnedAt = closed.properties?.["Возвращена"]?.date?.start || "";
     const key = `cfn-mission-done:${closed.id}:${at}:${returnedAt}`;
     const announced = Boolean(GM_getValue(key, false));
+    // Закрытие в обход приёмки. Миссию закрывает вердикт Reviewer, и только он:
+    // если «Завершена» появилась без отметки `cfn-review:<id>`, значит её
+    // поставил агент (или человек руками). Это не конец работы, а конец
+    // проверки — про такое Мастер должен узнать сразу, а не через неделю.
+    const verdict = String(GM_getValue(`cfn-review:${closed.id}`, "") || "");
+    const ackKey = `cfn-review-ack:${closed.id}:${at}`;
+    // Пауза — только когда закрытие кого-то застало: шёл ход или крутился
+    // автоцикл. Миссию, закрытую Мастером на тихом стенде, будить незачем.
+    if (!announced && !verdict && recent && (waited || running) && !GM_getValue(ackKey, false)) {
+      GM_setValue(ackKey, true);
+      if (waited) GM_setValue(K.expect, null);
+      const name = rt(closed.properties["Миссия"]) || "миссия";
+      pause(
+        `Миссию «${name}» закрыли, но приёмка вердикта не давала: «Завершена» стоит в обход приёмки. ` +
+          "Если работу действительно приняли — нажмите «Продолжить», цикл закроет миссию как обычно. " +
+          "Если нет — верните её в «Возвращена», напишите «Замечания» и нажмите «Продолжить»: " +
+          "Координатор разберёт их карточками.",
+        { kind: "closed-unreviewed", ref: closed.id, notifyTitle: "Narthex: миссия закрыта без приёмки" },
+      );
+      return true;
+    }
     if (waited) GM_setValue(K.expect, null);
     // Автоцикл гасим и при повторном проходе: закрытая миссия означает конец
     // работы, даже если строку с пушем уже печатали (перезагрузка страницы,
@@ -2602,6 +2626,8 @@
     const line =
       expect.kind === "plan"
         ? `CF_COORDINATOR_RESULT {"mission_id":"${expect.missionId || expect.ref}","turn_id":"${expect.turnId || ""}","status":"completed","next":"<роль|done>"}`
+        : expect.kind === "review"
+          ? `CF_REVIEW_RESULT {"mission_id":"${expect.missionId || expect.ref}","turn_id":"${expect.turnId || ""}","verdict":"accept|rework","remarks":"<пункты замечаний>"}`
         : role.fn === "Auditor"
           ? `CF_AGENT_RESULT {"dispatch_id":"${expect.ref}","run_id":"${expect.runId || ""}","status":"submitted","check":0,"report":"<путь к отчёту>"}`
           : `CF_AGENT_RESULT {"dispatch_id":"${expect.ref}","run_id":"${expect.runId || ""}","status":"submitted","check":0,"report":"<путь>","pr":<номер PR|null>,"merged":true}`;
@@ -5797,10 +5823,23 @@
     "в корень Диска не писать. Раскладка и правила — docs/agents/drive.md.",
   ].join("\n");
 
+  /**
+   * Приёмке не нужны git, PR и мерж: её выход — вердикт, а не правка.
+   * Без собственного блока она получила бы исполнительский и пошла бы
+   * «доделывать» то, что должна была вернуть.
+   */
+  const REVIEWER_TECH = [
+    "Репозиторий и «Запросы» тебе не подчиняются: ты не правишь ни код, ни карточки.",
+    "Читать можно всё: карточку миссии («Итог», «Замечания», «Круг»), принятые карточки, документы репозитория.",
+    "Твой выход — один маркер CF_REVIEW_RESULT: verdict accept или rework и замечания по пунктам.",
+    "Нет маркера — хода не было: цикл ждёт ответ, потом напомнит и встанет.",
+  ].join("\n");
+
   const TECH_BY_FN = {
     Executor: EXECUTOR_TECH,
     Auditor: AUDITOR_TECH,
     Coordinator: COORDINATOR_TECH,
+    Reviewer: REVIEWER_TECH,
   };
 
   /**
@@ -5824,6 +5863,13 @@
     }
     if (role.fn === "Coordinator") {
       return "Ты принимаешь решения в Notion; код, ветки и PR — не твоя зона. Нарезка, порядок, Кому, Sequence и число Ready — твои.";
+    }
+    if (role.fn === "Reviewer") {
+      return [
+        "Ты ничего не меняешь: ни в репозитории, ни в карточках — ни «на минутку», ни «чтобы стало зелёным».",
+        "Твой выход — вердикт: accept или rework с проверяемыми замечаниями.",
+        "Чинит исполнитель, разбирает замечания карточками Координатор: чужая работа остаётся чужой.",
+      ].join(" ");
     }
     return [
       "Не меняй чужие зоны: чужая правка — не твоя работа, даже если она кажется мелкой.",
@@ -6053,7 +6099,7 @@
       "ХОД — один ответ:",
       "1) Submitted → проверь по Acceptance, поставь Accepted или Rework (причина в «Ответ»).",
       "2) В этом же ответе выдай работу: новая карточка (Намерение, Инварианты, Acceptance с командой-оракулом, Свободно, Scope, Кому, Sequence, Миссия, Dispatch State = Ready) или Draft → Ready. Пустая очередь после хода — незаконченный ход. В «Миссию» карточки копируй строку «Миссия: …» из этого промпта как есть: по этому полю транспорт отличает очередь миссии от чужой.",
-      '3) Миссия выполнена → «Состояние» = «Завершена» и next = "done".',
+      '3) Миссия выполнена → допиши «Итог» миссии (что сделано, чем проверено, какие долги остались) и поставь next = "done". Поле «Состояние» сам не ставь: «done» — это передача на приёмку, а не закрытие. Миссию закрывает роль с функцией Reviewer своим вердиктом; если она вернёт работу, замечания придут в плане следующего хода.',
       "",
       "next — имя роли той карточки, которую выдаёшь. Своё имя значит «ход снова мне»: это не ошибка, но работу надо выдать в этом же ответе.",
       'Остановить цикл можно только одним способом: next = "blocked" и need = "<роль>" — когда работы для активных ролей нет вовсе. Rework, черновики и спорный Scope — твоя работа, а не повод. Если единственное, что осталось, — решение Мастера по оракулу, остановка законна; тогда объясни её полем question: вопрос без варианта по умолчанию при остановке попадает в «Вопросы» и в текст паузы, чтобы Мастер увидел суть, а не только «нет роли». Иначе — работай дальше.',
@@ -7812,23 +7858,14 @@
         }
         if (fresh.draft.length) {
           log(
-            `Миссия завершена, в черновиках осталось ${fresh.draft.length} — это предложения на будущее, ` +
-              "а не обязательства: очередь закрыта.",
+            `Очередь закрыта, в черновиках осталось ${fresh.draft.length} — это предложения на будущее, ` +
+              "а не обязательства.",
           );
         }
-        await patch(mission.id, {
-          "Состояние": { select: { name: "Завершена" } },
-          "Завершена": { date: { start: nowIso() } },
-        });
-        autoSet(false);
-        log(
-          returned
-            ? "Миссия завершена после возврата: замечания закрыты. Автоцикл остановлен."
-            : "Миссия завершена Координатором. Автоцикл остановлен.",
-          false,
-          { tone: "ok", ntfy: "loud", title: "Narthex: миссия завершена" },
-        );
-        return true;
+        // `done` — не закрытие, а передача на приёмку: миссию закрывает
+        // вердикт `accept`, а не желание Координатора закончить ход.
+        if (returned) log("Миссия возвращена, «Возврат» в «Итоге» есть — передаю на приёмку повторно.");
+        return startReview(mission, fresh);
       }
       const route = decisionRoute(decision.next, {
         roles: await roles(),
@@ -7962,6 +7999,235 @@
       },
     );
     if (sent) await markDelivered(briefing.fresh);
+    return true;
+  }
+
+  // ───────────────────────────── приёмка миссии ─────────────────────────────
+  /**
+   * Конец миссии решает приёмка, а не Координатор.
+   *
+   * До 1.4.79 цикл останавливался по `next: "done"`: Координатор объявлял
+   * миссию выполненной, скрипт ставил «Завершена» и гасил автоцикл. Проверка
+   * была формальной — «в очереди ноль карточек», — и отвечала на вопрос «всё ли
+   * выдано», а не «получилось ли то, о чём миссия». Настоящую ошибку видел
+   * только человек, и только если открывал «Итог».
+   *
+   * Теперь `done` — это передача на приёмку. Роль с функцией `Reviewer`
+   * получает промпт с оракулом, очередью и «Итогом» и отвечает маркером
+   * `CF_REVIEW_RESULT`:
+   *   accept → миссия «Завершена», автоцикл выключен, громкий пуш;
+   *   rework → «Возвращена», круг +1, замечания в карточку миссии, ход
+   *            Координатору — он разбирает их карточками.
+   *
+   * Доработок больше `reworkLimit` не бывает: следующий возврат не запускает
+   * работу, а останавливает цикл и зовёт Мастера. Приёмка, которая возвращает
+   * бесконечно, — не контроль, а вечный цикл.
+   */
+  const reviewerRole = async () => (await roles()).find((r) => r.fn === "Reviewer") || null;
+
+  const missionRound = (mission) => {
+    const n = mission?.properties?.["Круг"]?.number;
+    return Number.isFinite(Number(n)) ? Number(n) : 0;
+  };
+
+  /** Принятые карточки списком: что именно принято, с ответом и PR. */
+  function reviewCards(cards) {
+    const rows = Array.isArray(cards) ? cards : [];
+    if (!rows.length) return "Принятых карточек нет — миссия закрывается без работы?";
+    return rows
+      .slice(0, 20)
+      .map((card) => {
+        const id = taskTitle(card).split("·")[0].trim() || taskTitle(card);
+        const who = taskRole(card) || "—";
+        const pr = card.properties?.["PR"]?.url || "";
+        const answer = rt(card.properties["Ответ"]).replace(/\s+/g, " ").slice(0, 160);
+        return `- ${id} · ${who}${pr ? ` · ${pr}` : ""}${answer ? ` · ответ: ${answer}` : ""}`;
+      })
+      .join("\n");
+  }
+
+  function reviewPrompt(mission, role, turnId, round, queue, accepted) {
+    const name = rt(mission.properties["Миссия"]) || "миссия";
+    const tz = mission.properties["ТЗ URL"]?.url || "не задано";
+    const result = rt(mission.properties["Итог"]).trim();
+    return [
+      technicalInfo(role),
+      "",
+      `Миссия: ${name}`,
+      `ТЗ и оракул: ${tz}`,
+      `Круг: ${round} (доработок было ${round}, предел ${C.reworkLimit})`,
+      `Очередь: ${queue.summary}`,
+      "",
+      "ПРИНЯТЫЕ КАРТОЧКИ (ответ и PR каждой):",
+      reviewCards(accepted),
+      "",
+      result
+        ? `ИТОГ МИССИИ (как его записал Координатор):\n${result}`
+        : "ИТОГ МИССИИ: поле «Итог» пусто — это уже повод не принимать.",
+      "",
+      "ЧТО ОТ ТЕБЯ ТРЕБУЕТСЯ",
+      "Ты — приёмка миссии, а не исполнитель. Ничего не правь: ни карточки, ни код, ни документы. Смотри, выполнено ли то, о чём миссия, а не только «всё ли выдано».",
+      "Проверяй по оракулу из ТЗ: каждый его пункт должен закрываться командой или артефактом, а не фразой. Если команду нельзя запустить — это и есть замечание.",
+      "",
+      "Решай по существу:",
+      "1) Заявленное в «Итоге» совпадает с тем, что реально сделано карточками? Есть ли работа, которой нет в отчёте, и отчёт без работы?",
+      "2) Оракул закрыт целиком? Проверки не ослаблены, не подменены и не «зелёные по договорённости»?",
+      "3) Остались ли долги, обещанные «в следующий раз» без карточки и без записи в реестре?",
+      "Принимаешь — цикл останавливается. Возвращаешь — Координатор получает замечания и разбирает их карточками.",
+      "",
+      "ОТВЕТ — одной строкой в конце:",
+      `CF_REVIEW_RESULT {"mission_id":"${mission.id}","turn_id":"${turnId}","verdict":"accept","summary":"<одна строка: на что опирался>"}`,
+      "или",
+      `CF_REVIEW_RESULT {"mission_id":"${mission.id}","turn_id":"${turnId}","verdict":"rework","remarks":"1) <что не принято и чем это проверяется> 2) …"}`,
+      "Замечания — по пунктам и проверяемо: «не соответствует», «нет команды», «долг без записи». Придирка без проверки вернётся тебе же на четвёртом круге.",
+      `Предел доработок: ${C.reworkLimit}. Следующий возврат не запускает работу, а будит Мастера — возвращай то, без чего миссию нельзя считать сделанной, а не то, что можно доделать следующим ТЗ.`,
+      "",
+      roleContext(role),
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  /** Передать миссию на приёмку. Возвращает true: ход уже не у Координатора. */
+  async function startReview(mission, queue) {
+    const reviewer = await reviewerRole().catch(() => null);
+    if (!reviewer) {
+      // Приёмки нет — закрывать «за компанию» нельзя: миссия без вердикта
+      // ничем не отличается от миссии, которую никто не проверял. Цикл стоит,
+      // Мастер заводит роль (или закрывает миссию сам, зная, что принял её).
+      pause(
+        "Миссия готова к приёмке, но в базе «Роли» нет активной роли с функцией Reviewer: " +
+          "принимать некому. Заведите роль (например, Warden с Agent URL) или закройте миссию сами — " +
+          "без вердикта она не закроется.",
+        { kind: "no-reviewer", ref: mission.id, notifyTitle: "Narthex: приёмка не настроена" },
+      );
+      return true;
+    }
+    const round = missionRound(mission);
+    const accepted = await tasks("Accepted", mission).catch(() => []);
+    const turnId = uid();
+    log(`Миссия готова к приёмке: круг ${round}, принято карточек ${accepted.length}. Передаю «${reviewer.name}».`);
+    await sendToRole(reviewer, reviewPrompt(mission, reviewer, turnId, round, queue, accepted), "review", mission.id, {
+      missionId: mission.id,
+      turnId,
+      round,
+      title: "приёмка миссии",
+    });
+    return true;
+  }
+
+  /** Закрыть миссию. Право на это есть только у приёмки и у Мастера. */
+  async function closeMission(mission, reviewer) {
+    const at = nowIso();
+    const returnedAt = mission.properties?.["Возвращена"]?.date?.start || "";
+    await patch(mission.id, {
+      "Состояние": { select: { name: "Завершена" } },
+      "Завершена": { date: { start: at } },
+    });
+    // Событие объявляем сами и один раз: иначе `missionDoneNotice` следующим
+    // тиком повторит тот же пуш про ту же дату.
+    GM_setValue(`cfn-mission-done:${mission.id}:${at}:${returnedAt}`, true);
+    // Отметка «закрыто приёмкой»: по ней `missionDoneNotice` отличает наше
+    // закрытие от того, что агент поставил «Завершена» своей рукой.
+    GM_setValue(`cfn-review:${mission.id}`, "accept");
+    autoSet(false);
+    const name = rt(mission.properties["Миссия"]) || "миссия";
+    log(
+      `Миссия «${name}» принята «${reviewer.name}»: закрыта, автоцикл остановлен. ` +
+        "Следующая работа — новым ТЗ и новой миссией, а не хвостом этой.",
+      false,
+      { tone: "ok", ntfy: "loud", title: "Narthex: миссия принята" },
+    );
+    return true;
+  }
+
+  /** Вернуть миссию Координатору с замечаниями — или остановиться на пределе. */
+  async function returnMission(mission, verdict, reviewer) {
+    const round = missionRound(mission);
+    const next = round + 1;
+    const remarks = String(verdict.remarks || "").trim();
+    if (!remarks) {
+      pause(
+        `«${reviewer.name}» вернул миссию без замечаний: исправлять нечего. Приёмка без причины — не приёмка: ` +
+          "допишите замечания в карточку миссии и снимите паузу.",
+        { kind: "review-empty", ref: mission.id },
+      );
+      return true;
+    }
+    if (next > C.reworkLimit) {
+      // Предел доработок — не «ещё круг», а вызов Мастера: если три раза не
+      // сошлось, четвёртый не сойдётся тоже. Расходится постановка, а не работа.
+      pause(
+        `Миссия прошла ${round} кругов доработки, и приёмка снова не приняла работу. Дальше решаете вы: ` +
+          "сократить объём миссии, разделить её на две или принять как есть. Последние замечания:\n" +
+          remarks,
+        { kind: "rework-limit", ref: mission.id, notifyTitle: "Narthex: миссия застряла в доработке" },
+      );
+      return true;
+    }
+    await patch(mission.id, {
+      "Состояние": { select: { name: "Возвращена" } },
+      "Возвращена": { date: { start: nowIso() } },
+      "Круг": { number: next },
+      "Замечания": { rich_text: [{ type: "text", text: { content: remarks } }] },
+    });
+    GM_setValue("cfn-plan-at", 0);
+    GM_setValue(`cfn-review:${mission.id}`, "rework");
+    log(
+      `«${reviewer.name}» не принял миссию (круг ${next} из ${C.reworkLimit}): ${firstLine(remarks)}. ` +
+        "Замечания в карточке миссии, ход — Координатору.",
+      false,
+      { tone: "warn", ntfy: "loud", title: "Narthex: миссия возвращена" },
+    );
+    const fresh = await notion("GET", `pages/${mission.id}`).catch(() => mission);
+    const coord = (await roles().catch(() => [])).find((r) => r.fn === "Coordinator");
+    if (!coord) {
+      pause("Миссия возвращена с приёмки, но активного Coordinator нет: ход возвращать некому.", {
+        kind: "review-nocoord",
+        ref: mission.id,
+      });
+      return true;
+    }
+    await requestPlan(fresh, coord, await queueOf(fresh), "Миссия возвращена с приёмки: разбери замечания карточками.", {
+      force: true,
+    });
+    return true;
+  }
+
+  /** Ход приёмки: ждём `CF_REVIEW_RESULT` и применяем вердикт. */
+  async function reviewStep(role, expect, manual = false) {
+    const mission = await activeMission();
+    if (!mission) {
+      pause("Приёмка ждёт ответа, а активной миссии нет: закрывать нечего.", {
+        kind: "review-no-mission",
+        ref: expect.ref || "",
+      });
+      return true;
+    }
+    const decision = messagesAfter(expect.watermark)
+      .map((m) => parseMarker(m.raw, "CF_REVIEW_RESULT"))
+      .filter(Boolean)
+      .at(-1);
+    if (!decision) return markerMissing(role, expect, "CF_REVIEW_RESULT", manual);
+    GM_setValue(K.expect, null);
+    if (decision.mission_id && norm(decision.mission_id) !== norm(mission.id)) {
+      pause(
+        `Маркер приёмки относится к другой миссии (${decision.mission_id}), а ждём ${mission.id}: ничего не меняю.`,
+        { kind: "marker-mismatch", ref: mission.id },
+      );
+      return true;
+    }
+    const verdict = String(decision.verdict || "").trim().toLowerCase();
+    if (verdict === "accept") {
+      if (decision.summary) log(`Приёмка: ${oneLine(decision.summary, 300)}`);
+      return closeMission(mission, role);
+    }
+    if (verdict === "rework") return returnMission(mission, decision, role);
+    pause(
+      `В маркере приёмки нет verdict accept или rework (пришло «${verdict || "пусто"}»): миссию не трогаю. ` +
+        "Поправьте маркер в ответе приёмки и нажмите «Продолжить».",
+      { kind: "review-marker", ref: mission.id },
+    );
     return true;
   }
 
@@ -8452,7 +8718,10 @@
       // него Координатор «не узнавал» свой ход и запрашивал новый план —
       // отсюда вторая и третья отправки подряд. Приводим к исходному виду.
       if (expect && expect.kind === "reminder") {
-        expect = { ...expect, kind: me.fn === "Coordinator" ? "plan" : "dispatch" };
+        expect = {
+          ...expect,
+          kind: me.fn === "Coordinator" ? "plan" : me.fn === "Reviewer" ? "review" : "dispatch",
+        };
         GM_setValue(K.expect, expect);
       }
 
@@ -8593,6 +8862,8 @@
 
       if (me.fn === "Coordinator") {
         await coordinatorStep(me, expect, fromToggle);
+      } else if (me.fn === "Reviewer" && expect) {
+        await reviewStep(me, expect, fromToggle);
       } else if (!expect) {
         // Без ожидания `messagesAfter(expect.watermark)` упал бы в catch,
         // и «Шаг» на странице исполнителя ставил бы паузу вместо ответа.
