@@ -30,6 +30,10 @@
 6. `npm run check:contracts` — **rc=0**; проверки контрактов и вложенные гейты прошли. Статусы `state-machine`, `cards`, `auto-battle` остаются `planned`, их `probe` остаются `null`; `docs/contracts/**` не менялся.
 7. `git diff origin/main...HEAD -- src/core` и `git diff origin/main...HEAD -- docs/contracts` — **rc=0**, оба diff пусты.
 
+## Дополнительная проверка интеграции
+
+`npm run smoke:mission` — **rc=1**, 54/55 смоуков прошли. Сбой — существующее фиксированное ожидание в `scripts/pack-panels-smoke.mts:329–330`: `installedPacks.length === 3` и `livePanels === 12`; с новым зарегистрированным паком реально 4 манифеста. В workflow это шаг «Все 55 смоуков миссии NAR-2.15», поэтому GitHub check `screenshots` завершился failure. Исправление ожиданий потребует правки `scripts/pack-panels-smoke.mts`, файла вне Scope этой карточки; он не менялся. PR оставлен открытым до решения по Scope, мержа при красном CI не выполнял.
+
 ## Шов ядра
 
 Шов ядра не потребовался: переход автомата реализован как чистая функция в паке; данные и тесты не требуют ветвления по `pack === 'state-ui'` в `src/core`. Реальный проигрыватель прошёл контрольный пошаговый прогон без изменений ядра, narrative или adventure.
