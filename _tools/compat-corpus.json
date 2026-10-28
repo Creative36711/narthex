@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "description": "Read-only real-player targets: published campaign directories, their existing pack-data copies, and the realtime reference project.",
+  "references": [
+    {
+      "ref": "narrative-public",
+      "projectId": "ash-of-caerden",
+      "path": "public/campaigns/ash-of-caerden",
+      "runner": "campaign-check"
+    },
+    {
+      "ref": "adventure-public",
+      "projectId": "ash-of-caerden-adventure",
+      "path": "public/campaigns/ash-of-caerden-adventure",
+      "runner": "campaign-check"
+    },
+    {
+      "ref": "fmv-public",
+      "projectId": "fmv-crossing",
+      "path": "public/campaigns/fmv-crossing",
+      "runner": "campaign-check"
+    },
+    {
+      "ref": "narrative-pack-data",
+      "projectId": "ash-of-caerden",
+      "path": "packs/narrative/data/ash-of-caerden",
+      "runner": "campaign-check"
+    },
+    {
+      "ref": "adventure-pack-data",
+      "projectId": "ash-of-caerden-adventure",
+      "path": "packs/adventure/data/ash-of-caerden-adventure",
+      "runner": "campaign-check"
+    },
+    {
+      "ref": "fmv-pack-data",
+      "projectId": "fmv-crossing",
+      "path": "packs/narrative/data/fmv-crossing",
+      "runner": "campaign-check"
+    },
+    {
+      "ref": "realtime-wall",
+      "projectId": "realtime-wall-zone",
+      "path": "_tools/projects/realtime-wall",
+      "runner": "cycles",
+      "runtime": "realtime"
+    }
+  ]
+}

@@ -1074,6 +1074,97 @@ var init_types = __esm({
   }
 });
 
+// src/core/save/migrations.ts
+function migrateState(state, ctx2) {
+  const from = state.save_version ?? OLDEST_SAVE_VERSION;
+  if (from > SAVE_VERSION) return false;
+  let v2 = from;
+  let guard = 0;
+  while (v2 < SAVE_VERSION) {
+    const step = SAVE_MIGRATIONS.find((m2) => m2.from === v2);
+    if (!step) return false;
+    step.apply(state, ctx2);
+    v2 = step.to;
+    state.save_version = v2;
+    if (++guard > 64) return false;
+  }
+  state.save_version = SAVE_VERSION;
+  if (from !== SAVE_VERSION) {
+    ctx2.note("migrated", `\u0424\u043E\u0440\u043C\u0430\u0442 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u044F \u043F\u0435\u0440\u0435\u043D\u0435\u0441\u0451\u043D: \u0432${from} \u2192 \u0432${SAVE_VERSION}.`);
+  }
+  return true;
+}
+var OLDEST_SAVE_VERSION, SAVE_MIGRATIONS;
+var init_migrations = __esm({
+  "src/core/save/migrations.ts"() {
+    init_types();
+    OLDEST_SAVE_VERSION = 1;
+    SAVE_MIGRATIONS = [
+      {
+        from: 1,
+        to: 2,
+        title: "\u0431\u0430\u0437\u043E\u0432\u044B\u0435 \u043F\u043E\u043B\u044F \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u044F",
+        apply(state, ctx2) {
+          const p2 = state.player;
+          if (!p2) return;
+          let touched = false;
+          if (!p2.skills || typeof p2.skills !== "object") {
+            p2.skills = {};
+            touched = true;
+          }
+          if (!p2.skill_marks || typeof p2.skill_marks !== "object") {
+            p2.skill_marks = {};
+            touched = true;
+          }
+          if (!p2.needs || typeof p2.needs !== "object") {
+            p2.needs = {};
+            touched = true;
+          }
+          if (!Array.isArray(state.fired_rules)) {
+            state.fired_rules = [];
+            touched = true;
+          }
+          if (!Array.isArray(state.log)) {
+            state.log = [];
+            touched = true;
+          }
+          if (touched) ctx2.note("migrated", "\u0412\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u044B \u0431\u0430\u0437\u043E\u0432\u044B\u0435 \u043F\u043E\u043B\u044F \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u044F (\u043D\u0430\u0432\u044B\u043A\u0438, \u043F\u043E\u0442\u0440\u0435\u0431\u043D\u043E\u0441\u0442\u0438, \u0436\u0443\u0440\u043D\u0430\u043B).");
+        }
+      },
+      {
+        from: 2,
+        to: 3,
+        title: "\u044D\u043A\u0438\u043F\u0438\u0440\u043E\u0432\u043A\u0430 \u0438 \u0432\u0430\u043B\u044E\u0442\u044B",
+        apply(state, ctx2) {
+          const p2 = state.player;
+          if (!p2) return;
+          if (p2.currencies) {
+            delete p2.currencies;
+            ctx2.note("migrated", "\u0411\u0430\u043B\u0430\u043D\u0441 \u0432\u0430\u043B\u044E\u0442 \u043F\u0435\u0440\u0435\u043D\u0435\u0441\u0451\u043D \u0432 \u0438\u043D\u0432\u0435\u043D\u0442\u0430\u0440\u044C (\u043C\u043E\u043D\u0435\u0442\u044B \u2014 \u043E\u0431\u044B\u0447\u043D\u044B\u0435 \u043F\u0440\u0435\u0434\u043C\u0435\u0442\u044B).");
+          }
+          if (!Array.isArray(p2.inventory)) {
+            p2.inventory = [];
+            ctx2.note("migrated", "\u0418\u043D\u0432\u0435\u043D\u0442\u0430\u0440\u044C \u043F\u0435\u0440\u0435\u0441\u043E\u0437\u0434\u0430\u043D: \u0432 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u0438 \u043D\u0435 \u0431\u044B\u043B\u043E \u0441\u043F\u0438\u0441\u043A\u0430 \u043F\u0440\u0435\u0434\u043C\u0435\u0442\u043E\u0432.");
+          }
+        }
+      },
+      {
+        from: 3,
+        to: 4,
+        title: "\u0441\u043B\u043E\u0442\u044B \u044D\u043A\u0438\u043F\u0438\u0440\u043E\u0432\u043A\u0438",
+        apply(state, ctx2) {
+          const p2 = state.player;
+          if (!p2) return;
+          if (!p2.equipment || typeof p2.equipment !== "object") {
+            p2.equipment = {};
+            ctx2.note("migrated", "\u0421\u043F\u0438\u0441\u043E\u043A \u043D\u0430\u0434\u0435\u0442\u044B\u0445 \u0432\u0435\u0449\u0435\u0439 \u043F\u0435\u0440\u0435\u0441\u043E\u0437\u0434\u0430\u043D (\u0432 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u0438 \u043D\u0435 \u0431\u044B\u043B\u043E \u044D\u043A\u0438\u043F\u0438\u0440\u043E\u0432\u043A\u0438).");
+          }
+        }
+      }
+    ];
+  }
+});
+
 // src/shared/skills.ts
 function skillLabel(id, campaignSkills) {
   const fromCampaign = campaignSkills?.find((s2) => s2.id === id)?.label;
@@ -1215,92 +1306,12 @@ var init_brp = __esm({
   }
 });
 
-// src/core/savemigrate.ts
-function saveKey(campaignId) {
-  return `narthex:save:${campaignId}`;
-}
-function backupKey(campaignId) {
-  return `narthex:save-backup:${campaignId}`;
-}
-function slotKey(campaignId, slot = "auto") {
-  return slot === "auto" ? saveKey(campaignId) : `narthex:save:${campaignId}@${slot}`;
-}
-function slotBackupKey(campaignId, slot = "auto") {
-  return slot === "auto" ? backupKey(campaignId) : `${slotKey(campaignId, slot)}-backup`;
-}
-function listSaveSlots(campaignId, campaign2) {
-  const out = [];
-  const collect = (slot) => {
-    const raw = readRaw(slotKey(campaignId, slot));
-    if (!raw) return;
-    try {
-      const env = parseStored(raw);
-      if (!env) return;
-      const v2 = env.save_version ?? env.state.save_version ?? OLDEST_SAVE_VERSION;
-      if (v2 < OLDEST_SAVE_VERSION || v2 > SAVE_VERSION) return;
-      const st2 = env.state;
-      out.push({
-        slot,
-        envelope: env,
-        scene: (campaign2?.scenes?.[st2.scene]?.label ?? st2.scene) || "",
-        location: (campaign2 ? allLocations(campaign2.world).find((l2) => l2.id === st2.location)?.label ?? st2.location : st2.location) || "",
-        tick: st2.tick ?? 0
-      });
-    } catch {
-    }
-  };
-  collect("auto");
-  for (let n2 = 1; n2 <= MAX_SAVE_SLOTS; n2++) collect(n2);
-  return out;
-}
-function readRaw(key) {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-function writeRaw(key, text) {
-  try {
-    localStorage.setItem(key, text);
-    return true;
-  } catch {
-    return false;
-  }
-}
-function makeCtx() {
-  const notes = [];
-  return {
-    notes,
-    note(kind, text) {
-      if (!notes.some((n2) => n2.kind === kind && n2.text === text)) notes.push({ kind, text });
-    }
-  };
-}
+// src/core/save/repair.ts
 function listShort(labels, max = 3) {
   if (labels.length === 0) return "";
   const quoted = labels.map((l2) => `\xAB${l2}\xBB`);
   if (quoted.length <= max) return quoted.join(", ");
   return `${quoted.slice(0, max).join(", ")} \u0438 \u0435\u0449\u0451 ${quoted.length - max}`;
-}
-function migrateState(state, ctx2) {
-  const from = state.save_version ?? OLDEST_SAVE_VERSION;
-  if (from > SAVE_VERSION) return false;
-  let v2 = from;
-  let guard = 0;
-  while (v2 < SAVE_VERSION) {
-    const step = SAVE_MIGRATIONS.find((m2) => m2.from === v2);
-    if (!step) return false;
-    step.apply(state, ctx2);
-    v2 = step.to;
-    state.save_version = v2;
-    if (++guard > 64) return false;
-  }
-  state.save_version = SAVE_VERSION;
-  if (from !== SAVE_VERSION) {
-    ctx2.note("migrated", `\u0424\u043E\u0440\u043C\u0430\u0442 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u044F \u043F\u0435\u0440\u0435\u043D\u0435\u0441\u0451\u043D: \u0432${from} \u2192 \u0432${SAVE_VERSION}.`);
-  }
-  return true;
 }
 function entityLabel(campaign2, id) {
   const e2 = campaign2.entities[id];
@@ -1540,6 +1551,57 @@ function repairState(state, campaign2, ctx2) {
     if (keys.length) ctx2.note("repaired", "\u0423\u0431\u0440\u0430\u043D\u044B \u043E\u0442\u043D\u043E\u0448\u0435\u043D\u0438\u044F \u0441 \u0444\u0440\u0430\u043A\u0446\u0438\u044F\u043C\u0438 \u0438 \u043F\u0435\u0440\u0441\u043E\u043D\u0430\u0436\u0430\u043C\u0438, \u043A\u043E\u0442\u043E\u0440\u044B\u0445 \u0431\u043E\u043B\u044C\u0448\u0435 \u043D\u0435\u0442 \u0432 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438.");
   }
 }
+var init_repair = __esm({
+  "src/core/save/repair.ts"() {
+    init_types();
+    init_skills();
+    init_migrate();
+    init_brp();
+  }
+});
+
+// src/core/save/keys.ts
+function saveKey(campaignId) {
+  return `narthex:save:${campaignId}`;
+}
+function backupKey(campaignId) {
+  return `narthex:save-backup:${campaignId}`;
+}
+function slotKey(campaignId, slot = "auto") {
+  return slot === "auto" ? saveKey(campaignId) : `narthex:save:${campaignId}@${slot}`;
+}
+function slotBackupKey(campaignId, slot = "auto") {
+  return slot === "auto" ? backupKey(campaignId) : `${slotKey(campaignId, slot)}-backup`;
+}
+var MAX_SAVE_SLOTS;
+var init_keys = __esm({
+  "src/core/save/keys.ts"() {
+    MAX_SAVE_SLOTS = 5;
+  }
+});
+
+// src/core/save/storage.ts
+function readRaw(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+function writeRaw(key, text) {
+  try {
+    localStorage.setItem(key, text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+var init_storage = __esm({
+  "src/core/save/storage.ts"() {
+  }
+});
+
+// src/core/save/envelope.ts
 function parseStored(raw) {
   const data = JSON.parse(raw);
   if (!data || typeof data !== "object") return null;
@@ -1570,6 +1632,61 @@ function makeEnvelope(state, campaignId, campaignVersion, prev) {
     tick: state.tick,
     location: state.location,
     state
+  };
+}
+var init_envelope = __esm({
+  "src/core/save/envelope.ts"() {
+    init_types();
+    init_versions();
+    init_migrations();
+  }
+});
+
+// src/core/save/slots.ts
+function listSaveSlots(campaignId, campaign2) {
+  const out = [];
+  const collect = (slot) => {
+    const raw = readRaw(slotKey(campaignId, slot));
+    if (!raw) return;
+    try {
+      const env = parseStored(raw);
+      if (!env) return;
+      const v2 = env.save_version ?? env.state.save_version ?? OLDEST_SAVE_VERSION;
+      if (v2 < OLDEST_SAVE_VERSION || v2 > SAVE_VERSION) return;
+      const st2 = env.state;
+      out.push({
+        slot,
+        envelope: env,
+        scene: (campaign2?.scenes?.[st2.scene]?.label ?? st2.scene) || "",
+        location: (campaign2 ? allLocations(campaign2.world).find((l2) => l2.id === st2.location)?.label ?? st2.location : st2.location) || "",
+        tick: st2.tick ?? 0
+      });
+    } catch {
+    }
+  };
+  collect("auto");
+  for (let n2 = 1; n2 <= MAX_SAVE_SLOTS; n2++) collect(n2);
+  return out;
+}
+var init_slots = __esm({
+  "src/core/save/slots.ts"() {
+    init_types();
+    init_migrate();
+    init_migrations();
+    init_keys();
+    init_storage();
+    init_envelope();
+  }
+});
+
+// src/core/save/service.ts
+function makeCtx() {
+  const notes = [];
+  return {
+    notes,
+    note(kind, text) {
+      if (!notes.some((n2) => n2.kind === kind && n2.text === text)) notes.push({ kind, text });
+    }
   };
 }
 function checkSaveVersion(saveCampaignVersion, meta2) {
@@ -1696,80 +1813,34 @@ function importSaveText(campaignId, text, slot = "auto") {
     return false;
   }
 }
-var OLDEST_SAVE_VERSION, MAX_SAVE_SLOTS, SAVE_MIGRATIONS;
-var init_savemigrate = __esm({
-  "src/core/savemigrate.ts"() {
+var init_service = __esm({
+  "src/core/save/service.ts"() {
     init_types();
     init_versions();
-    init_skills();
-    init_migrate();
-    init_brp();
-    init_versions();
-    OLDEST_SAVE_VERSION = 1;
-    MAX_SAVE_SLOTS = 5;
-    SAVE_MIGRATIONS = [
-      {
-        from: 1,
-        to: 2,
-        title: "\u0431\u0430\u0437\u043E\u0432\u044B\u0435 \u043F\u043E\u043B\u044F \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u044F",
-        apply(state, ctx2) {
-          const p2 = state.player;
-          if (!p2) return;
-          let touched = false;
-          if (!p2.skills || typeof p2.skills !== "object") {
-            p2.skills = {};
-            touched = true;
-          }
-          if (!p2.skill_marks || typeof p2.skill_marks !== "object") {
-            p2.skill_marks = {};
-            touched = true;
-          }
-          if (!p2.needs || typeof p2.needs !== "object") {
-            p2.needs = {};
-            touched = true;
-          }
-          if (!Array.isArray(state.fired_rules)) {
-            state.fired_rules = [];
-            touched = true;
-          }
-          if (!Array.isArray(state.log)) {
-            state.log = [];
-            touched = true;
-          }
-          if (touched) ctx2.note("migrated", "\u0412\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u044B \u0431\u0430\u0437\u043E\u0432\u044B\u0435 \u043F\u043E\u043B\u044F \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u044F (\u043D\u0430\u0432\u044B\u043A\u0438, \u043F\u043E\u0442\u0440\u0435\u0431\u043D\u043E\u0441\u0442\u0438, \u0436\u0443\u0440\u043D\u0430\u043B).");
-        }
-      },
-      {
-        from: 2,
-        to: 3,
-        title: "\u044D\u043A\u0438\u043F\u0438\u0440\u043E\u0432\u043A\u0430 \u0438 \u0432\u0430\u043B\u044E\u0442\u044B",
-        apply(state, ctx2) {
-          const p2 = state.player;
-          if (!p2) return;
-          if (p2.currencies) {
-            delete p2.currencies;
-            ctx2.note("migrated", "\u0411\u0430\u043B\u0430\u043D\u0441 \u0432\u0430\u043B\u044E\u0442 \u043F\u0435\u0440\u0435\u043D\u0435\u0441\u0451\u043D \u0432 \u0438\u043D\u0432\u0435\u043D\u0442\u0430\u0440\u044C (\u043C\u043E\u043D\u0435\u0442\u044B \u2014 \u043E\u0431\u044B\u0447\u043D\u044B\u0435 \u043F\u0440\u0435\u0434\u043C\u0435\u0442\u044B).");
-          }
-          if (!Array.isArray(p2.inventory)) {
-            p2.inventory = [];
-            ctx2.note("migrated", "\u0418\u043D\u0432\u0435\u043D\u0442\u0430\u0440\u044C \u043F\u0435\u0440\u0435\u0441\u043E\u0437\u0434\u0430\u043D: \u0432 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u0438 \u043D\u0435 \u0431\u044B\u043B\u043E \u0441\u043F\u0438\u0441\u043A\u0430 \u043F\u0440\u0435\u0434\u043C\u0435\u0442\u043E\u0432.");
-          }
-        }
-      },
-      {
-        from: 3,
-        to: 4,
-        title: "\u0441\u043B\u043E\u0442\u044B \u044D\u043A\u0438\u043F\u0438\u0440\u043E\u0432\u043A\u0438",
-        apply(state, ctx2) {
-          const p2 = state.player;
-          if (!p2) return;
-          if (!p2.equipment || typeof p2.equipment !== "object") {
-            p2.equipment = {};
-            ctx2.note("migrated", "\u0421\u043F\u0438\u0441\u043E\u043A \u043D\u0430\u0434\u0435\u0442\u044B\u0445 \u0432\u0435\u0449\u0435\u0439 \u043F\u0435\u0440\u0435\u0441\u043E\u0437\u0434\u0430\u043D (\u0432 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u0438 \u043D\u0435 \u0431\u044B\u043B\u043E \u044D\u043A\u0438\u043F\u0438\u0440\u043E\u0432\u043A\u0438).");
-          }
-        }
-      }
-    ];
+    init_migrations();
+    init_repair();
+    init_keys();
+    init_storage();
+    init_envelope();
+  }
+});
+
+// src/core/save/index.ts
+var init_save = __esm({
+  "src/core/save/index.ts"() {
+    init_migrations();
+    init_repair();
+    init_keys();
+    init_slots();
+    init_envelope();
+    init_service();
+  }
+});
+
+// src/core/savemigrate.ts
+var init_savemigrate = __esm({
+  "src/core/savemigrate.ts"() {
+    init_save();
   }
 });
 
