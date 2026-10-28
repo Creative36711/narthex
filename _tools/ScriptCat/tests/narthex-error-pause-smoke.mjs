@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и новый адрес ntfy.
-assert.match(src, /@version\s+1\.4\.77/, 'версия 1.4.77');
+assert.match(src, /@version\s+1\.4\.78/, 'версия 1.4.78');
 assert.match(src, /@connect\s+ntfy\.sh/, 'ntfy.sh разрешён в @connect');
 
 // 2. Журнал: ограничен, очищается, счётчик виден.
@@ -67,7 +67,7 @@ assert.equal(markerStep(3, 2), 'pause', 'лимит не превышается 
 
 assert.match(src, /markerIdleMs:\s*20000/, 'напоминание ждёт, пока ответ перестанет расти');
 assert.match(src, /markerReminders:\s*2/, 'лимит напоминаний — два');
-// 1.4.77: перед лестницей маркера проверяется отказ из-за слитой ветки —
+// 1.4.78: перед лестницей маркера проверяется отказ из-за слитой ветки —
 // напоминания в мёртвую ветку ушли бы в никуда.
 assert.match(
   src,

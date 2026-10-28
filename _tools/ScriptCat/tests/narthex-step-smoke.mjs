@@ -16,7 +16,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.77/, 'версия 1.4.77');
+assert.match(src, /@version\s+1\.4\.78/, 'версия 1.4.78');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
@@ -54,7 +54,7 @@ const sendStart = src.indexOf('// ───────────────�
 const sendEnd = src.indexOf('// ───────────────────────────── PR', sendStart);
 const sendBlock = src.slice(sendStart, sendEnd);
 
-// 1.4.77: `consumePending` перед вставкой текста нажимает Continue, если ветка
+// 1.4.78: `consumePending` перед вставкой текста нажимает Continue, если ветка
 // прошлого хода слита. Функции берём из настоящего исходника, чтобы проба
 // проверяла их, а не заглушки.
 function sliceToBrace(from) {
@@ -292,7 +292,7 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     "getComputedStyle", "Date", "setTimeout", "HTMLTextAreaElement", "HTMLInputElement", "InputEvent",
     "busySettled", "busyLabel", "messages", "nodeId", "C", "dbg", "debugSendButton", "describe", "autoOn", "flat", "ui",
     "appReady",
-    // 1.4.77: проверка Continue перед отправкой.
+    // 1.4.78: проверка Continue перед отправкой.
     "waitFor", "patience", "mergedFlag",
     `${sendBlock}\n${contBlock}\nreturn { consumePending, closeCompletionPlaque, ensureComposer };`,
   );
@@ -337,7 +337,7 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     { panel: "cfn-panel" },
     // 1.4.63: шаг начинается с проверки, что страница отрисована.
     () => ({ ok: true, why: "" }),
-    // 1.4.77: на фейковой странице Continue нет — проверка проходит вхолостую.
+    // 1.4.78: на фейковой странице Continue нет — проверка проходит вхолостую.
     async (check) => (check() || null),
     (ms) => ms,
     () => false,

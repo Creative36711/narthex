@@ -33,7 +33,7 @@ function make({ ui = false, createOnly = false, store = new Map() } = {}) {
     'K', 'GM_getValue', 'GM_setValue', 'C', 'log', 'hasMergedClaim',
     'mergedFlag', 'closedFlag', 'continueButton', 'createPr', 'mergePr', 'finishMerge', 'finishClosed',
     'hasPrUi', 'waitFor', 'prLabelOf', 'sleep', 'verifyMergeClaim', 'ghToken',
-    // 1.4.77: память о мерже ведётся по выдаче, поэтому нужен разбор «Run ID».
+    // 1.4.78: память о мерже ведётся по выдаче, поэтому нужен разбор «Run ID».
     'rt',
     // Проба идёт в видимой вкладке: ожидание не растягивается.
     `const patience = (ms) => ms;\n${block}\n${claimBlock}\nreturn ensureMerged;`,
@@ -81,7 +81,7 @@ function make({ ui = false, createOnly = false, store = new Map() } = {}) {
   const { ensureMerged, logs, store } = make();
   const state = await ensureMerged({ id: 'card-1' }, { dispatch_id: 'card-1', pr: 25, merged: true, status: 'submitted', check: 0 });
   assert.equal(state, 'claimed', 'мерж принят по маркеру, а не повисает на бейдже');
-  // 1.4.77: ключ включает выдачу. В маркере прогона нет, поэтому «run».
+  // 1.4.78: ключ включает выдачу. В маркере прогона нет, поэтому «run».
   // 27.10 вторая работа по той же карточке из-за ключа на карточку не нажала
   // Continue и встала на слитой ветке.
   assert.equal(store.get('cfn-merged:card-1:run'), true, 'мерж запомнен: повторно не спрашиваем');

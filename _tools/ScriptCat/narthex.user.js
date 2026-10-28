@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.77
+// @version      1.4.78
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -302,7 +302,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.77";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.78";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -1748,16 +1748,44 @@
     }
     if (!closed) return false;
     const at = closed.properties?.["Завершена"]?.date?.start || "";
-    const waited = Boolean(expect && (expect.kind === "plan" || expect.kind === "reminder"));
-    const recent = Boolean(at) && Date.now() - Date.parse(at) < 10 * 60 * 1000;
+    // «Ждали ход» — любое незавершённое ожидание, а не только план или
+    // напоминание. 28.10 NAR-4 закрыли своим ходом, в памяти осталось
+    // ожидание вида «marker» — конец миссии прошёл молча.
+    const waited = Boolean(expect && expect.kind);
+    // «Завершена» — дата без времени, `Date.parse` даёт полночь. Прежние
+    // десять минут означали: закрытие, увиденное через полчаса, уже «старое»,
+    // и о нём не сообщали. Сутки покрывают любую дату закрытия этого дня.
+    const age = at ? Date.now() - Date.parse(at) : Infinity;
+    const recent = Number.isFinite(age) && age < 24 * 60 * 60 * 1000;
+    // Включённый автоцикл сам по себе довод: он крутится, работы нет —
+    // значит, миссия кончилась, и он обязан встать и сказать об этом.
+    const running = autoOn();
     // Обычное «миссии пока нет» остаётся тишиной: закрытая миссия недельной
-    // давности не повод пушить при каждом открытии страницы.
-    if (!waited && !recent) return false;
+    // давности не повод пушить при каждом открытии страницы. Но автоцикл
+    // гасим и здесь — закрытая миссия означает конец работы.
+    if (!waited && !recent && !running) {
+      autoSet(false);
+      setStatus();
+      return false;
+    }
 
-    const key = `cfn-mission-done:${closed.id}`;
+    // Отсчёт закрытия, а не только id: миссию возвращают и закрывают снова,
+    // и второе закрытие — такое же событие, как первое. 28.10 NAR-4 закрыли
+    // повторно после возврата, флаг по одному id остался с 27.10 — Мастер
+    // не получил ни пуша, ни выключенного автоцикла. Поэтому в ключ входит
+    // дата возврата: у каждой пары «возврат → закрытие» свой отсчёт.
+    const returnedAt = closed.properties?.["Возвращена"]?.date?.start || "";
+    const key = `cfn-mission-done:${closed.id}:${at}:${returnedAt}`;
     const announced = Boolean(GM_getValue(key, false));
     if (waited) GM_setValue(K.expect, null);
-    if (announced) return waited;
+    // Автоцикл гасим и при повторном проходе: закрытая миссия означает конец
+    // работы, даже если строку с пушем уже печатали (перезагрузка страницы,
+    // второй «Шаг» по той же очереди).
+    if (announced) {
+      autoSet(false);
+      setStatus();
+      return waited;
+    }
 
     GM_setValue(key, true);
     autoSet(false);
