@@ -27,7 +27,9 @@ Base: `73971f6ae1e825746c1728770ada19539d4e5472` (merged NAR-5.10 / PR #131).
 
 ## Pull-request CI
 
-PR #132 `screenshots` run [`40776654386`](https://github.com/Creative36711/narthex/actions/runs/40776654386) passed. In the job, the browser-package install step took 3 s and `Детерминизм циклов` took 3 s; the complete job took 4m36s. This is a green `pull_request` run, not the requested `workflow_dispatch` run.
+PR #132 `screenshots` run [`40776654386`](https://github.com/Creative36711/narthex/actions/runs/40776654386) passed. The browser-package install step took 3 s and `Детерминизм циклов` took 3 s; the complete job took 4m36s.
+
+A second green PR run [`40777415310`](https://github.com/Creative36711/narthex/actions/runs/40777415310) verified the warm-cache path: `Установить браузерные пакеты для parity` was skipped (exact cache hit), while `Детерминизм циклов` passed in 3 s; the complete job took 5m33s. Both are `pull_request` runs, not the requested `workflow_dispatch` run.
 
 ## GitHub workflow dispatch
 
