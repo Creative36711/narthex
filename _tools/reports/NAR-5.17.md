@@ -39,6 +39,8 @@ The latest pre-trigger-change PR run [`40780151281`](https://github.com/Creative
 
 After adding the main push trigger, PR run [`40781799874`](https://github.com/Creative36711/narthex/actions/runs/40781799874) timed out at the 5-minute determinism step even though the package installer was skipped. Together with `40778228954`, this is treated as a repeated defect, not a flake. The packages were cached but `local-browser.mjs` still unpacked Chromium under the runner's default temporary directory each job. This follow-up caches that extracted runtime too and sets `TMPDIR` for the determinism step to the cached runtime path (new cache key v2). The fresh v2-cache PR run [`40782750401`](https://github.com/Creative36711/narthex/actions/runs/40782750401) passed: cache-miss package installation took 2 s, `Детерминизм циклов` completed in 3 s, and the complete `screenshots` job took 5m25s. This run cached the extracted runtime for the subsequent exact-cache-hit run.
 
+The exact-cache-hit PR run [`40783512116`](https://github.com/Creative36711/narthex/actions/runs/40783512116) passed with the installer skipped, `Детерминизм циклов` in 2 s, and `screenshots` in 5m22s.
+
 ## Main verification strategy
 
 A `workflow_dispatch` API attempt in the previous submission returned HTTP 403, `Resource not accessible by integration`. Per the current card, no manual API dispatch is repeated. The new `push: { branches: [main] }` trigger will run `screenshots` after the merge; `pull_request` and `workflow_dispatch` remain enabled.
