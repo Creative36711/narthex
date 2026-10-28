@@ -48,10 +48,17 @@ assert.match(noticeBlock, /tone: failed \? "warn" : "ok"/, 'успех зелё�
 assert.match(noticeBlock, /cfn-mission-done:/, 'событие объявляется один раз на миссию');
 assert.match(noticeBlock, /GM_setValue\(K\.expect, null\)/, 'ожидание снимается: ход вернуть некуда');
 
-function makeNotice({ closed = null, store = new Map(), expect = null, now = Date.now() } = {}) {
+// verdict — отметка приёмки: `accept` значит, что миссию закрыла роль Reviewer,
+// а не агент своей рукой. По умолчанию она есть: большинство случаев проверяют
+// объявление закрытия, а не его законность.
+function makeNotice({ closed = null, store = new Map(), expect = null, now = Date.now(), verdict = 'accept' } = {}) {
   const logs = [];
+  const pauses = [];
+  // Отметку ставим только при первом построении: иначе второй проход по тому
+  // же store «лечил» бы случай, который проверяет отсутствие вердикта.
+  if (closed && verdict && !store.has(`cfn-review:${closed.id}`)) store.set(`cfn-review:${closed.id}`, verdict);
   const fn = new Function(
-    'GM_getValue', 'GM_setValue', 'K', 'log', 'lastClosedMission', 'autoSet', 'autoOn', 'setStatus', 'rt', 'missionKind', 'Date',
+    'GM_getValue', 'GM_setValue', 'K', 'log', 'lastClosedMission', 'autoSet', 'autoOn', 'setStatus', 'rt', 'missionKind', 'pause', 'Date',
     `${noticeBlock}; return missionDoneNotice;`,
   );
   const call = fn(
@@ -65,6 +72,7 @@ function makeNotice({ closed = null, store = new Map(), expect = null, now = Dat
     () => {},
     (prop) => (prop?.rich_text || []).map((x) => x.text?.content || '').join(''),
     (page) => page?.properties?.['Состояние']?.select?.name || '',
+    (reason, context = {}) => pauses.push({ reason, kind: context.kind }),
     class extends Date {
       constructor(...args) {
         super(...(args.length ? args : [now]));
@@ -74,7 +82,7 @@ function makeNotice({ closed = null, store = new Map(), expect = null, now = Dat
       }
     },
   );
-  return { call, logs, store };
+  return { call, logs, store, pauses };
 }
 
 const closedMission = (state = 'Завершена', at = '2026-10-24') => ({
@@ -205,6 +213,50 @@ const closedMission = (state = 'Завершена', at = '2026-10-24') => ({
   await call({ kind: 'plan' });
   assert.match(logs[0].t, /закрыта как «Провалена»/, 'провал не выдаётся за успех');
   assert.equal(logs[0].o.tone, 'warn', 'строка жёлтая');
+}
+
+// 2e. Миссию закрыли без приёмки — это стоп с объяснением, а не «конец работы».
+// Координатор больше не имеет права ставить «Завершена»: это решение приёмки.
+{
+  const { call, logs, store, pauses } = makeNotice({
+    closed: closedMission('Завершена', '2026-10-28'),
+    expect: { kind: 'plan', ref: 'mission-1' },
+    verdict: '',
+  });
+  const handled = await call({ kind: 'plan', ref: 'mission-1' });
+  assert.equal(handled, true, 'шаг остановлен, а не продолжен');
+  assert.equal(pauses.length, 1, 'ровно одна пауза');
+  assert.equal(pauses[0].kind, 'closed-unreviewed', 'вид паузы — закрытие в обход приёмки');
+  assert.match(pauses[0].reason, /приёмка вердикта не давала/, 'сказано, чего не было');
+  assert.match(pauses[0].reason, /верните её в «Возвращена»/, 'сказано, что делать');
+  assert.equal(logs.length, 0, 'зелёной строки о конце работы нет');
+  assert.equal(store.get('cfn-review-ack:mission-1:2026-10-28'), true, 'второй раз о том же не сообщаем');
+}
+
+// 2f. Тот же случай после «Продолжить»: закрытие принимается и объявляется.
+{
+  const store = new Map();
+  const closed = closedMission('Завершена', '2026-10-28');
+  const first = makeNotice({ closed, store, expect: { kind: 'plan' }, verdict: '' });
+  await first.call({ kind: 'plan' });
+  const second = makeNotice({ closed, store, expect: { kind: 'plan' }, verdict: '' });
+  const handled = await second.call({ kind: 'plan' });
+  assert.equal(handled, true, 'закрытие всё равно останавливает цикл');
+  assert.equal(second.pauses.length, 0, 'второй паузы нет');
+  assert.equal(second.logs.length, 1, 'и теперь сказано о конце работы');
+  assert.equal(second.logs[0].o.ntfy, 'loud', 'громким пушем');
+}
+
+// 2g. Тихий стенд без цикла и без ожидания: закрытие без вердикта не будит.
+{
+  const { call, pauses, logs } = makeNotice({
+    closed: closedMission('Завершена', '2026-10-01'),
+    expect: null,
+    verdict: '',
+  });
+  await call(null);
+  assert.equal(pauses.length, 0, 'старое закрытие не пауза');
+  assert.equal(logs.length, 0, 'и не событие');
 }
 
 // ── 3. Возврат миссии ──────────────────────────────────────────────────────
