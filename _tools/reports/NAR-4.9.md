@@ -33,7 +33,7 @@ snapshot worktree был чистым: `HEAD` — `ab2f484cd768cf9fb911934ed5b4b
 | 2 | Равенство браузера и `cf-play` | Локально в run `db39b16f-fc91-4bf4-b5fd-4a794fb69def` `npm run check:determinism` rc=0: 10/10 replay-пар, 10/10 browser↔Node fingerprints, ноль несовпадений, повторы стабильны. Visual CI содержит тот же шаг; он успешен в [run #40666511377](https://github.com/Creative36711/narthex/actions/runs/40666511377) на PR #105. Числовая матрица — [NAR-4.6](NAR-4.6.md). |
 | 3 | Общий путь `cf-play`, без ветвлений по рантайму | В локальном run `db39b16f-fc91-4bf4-b5fd-4a794fb69def` read-only scan трёх файлов `scripts/playkit/{cli.mts,cycle-check.ts,realtime-project.ts}` проверил условия `if` на `runtime ===/!== turn|realtime` и `switch(runtime)`; результат **`[]`**, stdout и среда в ignored `out/nar-4.9/runtime-branch-scan.log`. `runCycleProjects()` выбирает адаптер по `adapters[project.runtime]` и использует общий цикл step/evaluator. Visual CI не содержит отдельного scan; источники — текущая локальная проверка, общий runner, принятый [ADR 0014](../../docs/contracts/adr/0014-realtime-project-fixture.md) и [NAR-4.5](NAR-4.5.md). |
 | 4 | Регрессия пошагового мира не сдвинулась; браузерный экзамен `check = 0` | В run `db39b16f-fc91-4bf4-b5fd-4a794fb69def` оба локальных `cf-play check` завершились rc=0: 10 сцен / 8 локаций / 6 диалогов / 21 Ink-узел, 0 ошибок / 8 предупреждений; пять seeds, пять смертей, покрытие 6/10 — те же значения, что в baseline NAR-4.2 (сравнение в [NAR-4.3](NAR-4.3.md)). Локальный `npm run playthrough:exam -- http://127.0.0.1:4173 out/nar-4.9/playthrough`: rc=0, PASS, 2 packs, 20 шагов, findings=0; Ash → `ending_ashes`, Adventure → `ending_gate_unlocked`. Visual run #40666511377 прошёл шаги обоих `cf-play check` и экранов/экзамена. |
-| 5 | Бюджет кадра: медиана и p95, машина указана | Единственный используемый источник — сохранённый локальный benchmark из [NAR-4.3](NAR-4.3.md), workload `real-engine-20ms-ticks`: median **0.186985 ms**, p95 **0.251383 ms**, max **2.789207 ms**. Машина из NAR-4.3: Linux x64, Intel(R) Xeon(R) Processor @ 2.60 GHz, 2 видимых логических CPU, Node v22.22.3. Повторный замер не запускался; visual.yml также не запускает бюджетное измерение. |
+| 5 | Бюджет кадра: медиана и p95, машина указана | Свежий reference NAR-4.16 от **2026-10-28**, `_tools/projects/realtime-wall`, Run 1 из 3 (после 3000 warmup ticks; каждый прогон — 6000 ticks): median **0.017197999999964964 мс**, p95 **0.02731499999998732 мс**, max **0.2585380000000157 мс**; Intel(R) Xeon(R) Processor @ 2.60GHz, 2 логических CPU, Debian GNU/Linux 12 (bookworm), Linux `6.1.158+` x86_64, Node `v22.22.3`. Все три прогона и точная команда: [NAR-4.16](NAR-4.16.md); тройка NAR-4.3 больше не является текущим reference. |
 | 6 | Долг D-01: `npm run lint` — 0 ошибок | Локально в run `db39b16f-fc91-4bf4-b5fd-4a794fb69def` `npm run lint` rc=0: **1505 warnings, 0 errors**; raw output и снимок среды — ignored `out/nar-4.9/lint.log`. Машина и lockfile-версии атрибутированы этому локальному прогону. В `.github/workflows/visual.yml` шага lint нет; источник критерия — локальный вывод, а не отсутствие CI. |
 
 ## Окружение локальных источников
@@ -64,16 +64,21 @@ Visual CI источники и точные успешные шаги — run #
 `--no-save --package-lock=false` (`@sparticuz/chromium@131`,
 `playwright-core@1.49.1`); после экзамена восстановлены только lock-зависимости.
 
-## Источник критерия 5: frame budget из NAR-4.3
+## Источник критерия 5: актуальный frame budget NAR-4.16
 
-Для этого пункта использована одна сохранённая realtime-workload тройка из
-[отчёта NAR-4.3](NAR-4.3.md): `real-engine-20ms-ticks`, 3000 × 20 ms;
-median **0.186985 ms**, p95 **0.251383 ms**, max **2.789207 ms**. Машина,
-зафиксированная в NAR-4.3: Linux x64, Intel(R) Xeon(R) Processor @ 2.60 GHz,
-2 видимых логических CPU, Node v22.22.3. В NAR-4.9 перенесена именно эта одна
-тройка; другая workload-строка из NAR-4.3 сюда не дублируется, и свежий замер
-не подменяет зафиксированный источник. В `visual.yml` бюджетного CI-шага нет;
-источник критерия — локальный benchmark и машинная запись NAR-4.3.
+Текущий reference — локальный benchmark NAR-4.16 от **2026-10-28** на
+`_tools/projects/realtime-wall`: Run 1 из трёх после 3000 warmup ticks,
+6000 ticks в каждом прогоне; median **0.017197999999964964 ms**, p95
+**0.02731499999998732 ms**, max **0.2585380000000157 ms**. Машина: Intel(R)
+Xeon(R) Processor @ 2.60GHz, 2 логических CPU, Debian GNU/Linux 12
+(bookworm), Linux `6.1.158+` x86_64, Node `v22.22.3`. Подробные значения всех
+трёх прогонов, oracle и способ воспроизведения: [NAR-4.16](NAR-4.16.md).
+
+Тройка NAR-4.3 — median `0.186985 ms`, p95 `0.251383 ms`, max `2.789207 ms`
+для иного workload `real-engine-20ms-ticks` — **историческая, не reference**;
+она не является измерением realtime-wall и не используется в текущем пункте 5.
+В `visual.yml` бюджетного CI-шага нет; текущий источник — локальный benchmark
+и машинная запись NAR-4.16.
 
 ## Дополнительная проверка хэшей `cf-play cycles --json`
 
