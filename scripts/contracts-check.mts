@@ -298,12 +298,26 @@ check('проходит схему', gridSchemaOk, gridSchemaOk ? undefined : fo
 const gridPackProblems = packProblems(gridPack)
 check('проходит семантику', gridPackProblems.length === 0, gridPackProblems.join('; '))
 
+console.log('\nпример пака state-ui (pack.state-ui.json)')
+const stateUiPack = await readJson('examples/pack.state-ui.json')
+const stateUiPackSchemaOk = validatePack(stateUiPack)
+check('проходит схему', stateUiPackSchemaOk, stateUiPackSchemaOk ? undefined : formatErrors(validatePack.errors))
+const stateUiPackProblems = packProblems(stateUiPack)
+check('проходит семантику', stateUiPackProblems.length === 0, stateUiPackProblems.join('; '))
+
 console.log('\nпример проекта narrative')
 const narrativeProject = await readJson('examples/project.narrative.json')
 const projectSchemaOk = validateProject(narrativeProject)
 check('проходит схему', projectSchemaOk, projectSchemaOk ? undefined : formatErrors(validateProject.errors))
 const projectProblemsList = projectProblems(narrativeProject)
 check('проходит семантику', projectProblemsList.length === 0, projectProblemsList.join('; '))
+
+console.log('\nпример проекта state-ui (project.state-ui.json)')
+const stateUiProject = await readJson('examples/project.state-ui.json')
+const stateUiProjectSchemaOk = validateProject(stateUiProject)
+check('проходит схему', stateUiProjectSchemaOk, stateUiProjectSchemaOk ? undefined : formatErrors(validateProject.errors))
+const stateUiProjectProblems = projectProblems(stateUiProject)
+check('проходит семантику', stateUiProjectProblems.length === 0, stateUiProjectProblems.join('; '))
 
 console.log('\nпример проекта с кодом в швах')
 const codeProject = await readJson('examples/project.code-mode.json')
