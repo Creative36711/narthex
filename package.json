@@ -44,6 +44,7 @@
     "playthrough:exam": "node scripts/visual/playthrough.mjs --exam",
     "preview": "vite preview",
     "probe:adventure": "tsx scripts/adventure-probe.mts",
+    "probe:state-ui": "tsx packs/state-ui/probe.mts",
     "probe:adventure-mechanics": "tsx scripts/adventure-mechanics-probe.mts",
     "probe:capability-modes": "tsx scripts/probe-capability-modes.mts",
     "probe:fmv": "tsx scripts/fmv-probe.mts",

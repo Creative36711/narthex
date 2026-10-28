@@ -3,6 +3,7 @@
   "packs": [
     "narrative",
     "grid-strategy",
-    "adventure"
+    "adventure",
+    "state-ui"
   ]
 }
