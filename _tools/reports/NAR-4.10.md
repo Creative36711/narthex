@@ -112,6 +112,10 @@ MUTATION MISMATCH: runtime=realtime seed=NAR-4.4-seed-01 baseline=ba7e8b854dd56f
 | `npm run pack:ai-kit` | rc=0; 110 files, 2.83 MB; ZIP 0.60 MB |
 | ZIP integrity and post-unpack `cf-play check` | ZIP test passed; 122 ZIP entries extracted to a temporary directory. The extracted kit's `examples/narrative` check returned rc=0 with the same 10/8/6/21, 0 errors/8 warnings, five-seed outcomes, and 6/10 coverage. |
 
+## PR CI
+
+The first GitHub `visual` run for PR #100 ([run 40648189143](https://github.com/Creative36711/narthex/actions/runs/40648189143)) reached the 20-minute job timeout while the `Детерминизм циклов` step was still in progress; that step was cancelled and subsequent steps were skipped. Earlier steps, including dependency installation, bundle freshness, and TypeScript, passed. The run did not report a fingerprint mismatch. The exact `npm run check:determinism` command independently completed locally on this same `origin/main` with rc=0 and the full output above. This timeout is recorded separately from the passing fresh local oracle.
+
 ## Ответ
 
 **Замечание 1 закрыто** — на Ash полный final fingerprint `3e183cbc9ce9a358`; на realtime-wall полный final fingerprint `c585e2c26d21ed7e`. Run 1 and run 2 match exactly on both reference projects; `npm run check:determinism` also reports zero replay or browser/Node mismatches.
