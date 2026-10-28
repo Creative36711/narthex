@@ -38,8 +38,10 @@ jobs:
         id: parity-browser-cache
         uses: actions/cache@v4
         with:
-          path: ${{ runner.temp }}/narthex-parity-browser
-          key: ${{ runner.os }}-${{ runner.arch }}-node22-parity-chromium131-playwright-core1.49.1-v1
+          path: |
+            ${{ runner.temp }}/narthex-parity-browser
+            ${{ runner.temp }}/narthex-parity-runtime
+          key: ${{ runner.os }}-${{ runner.arch }}-node22-parity-chromium131-playwright-core1.49.1-v2
 
       - name: Установить браузерные пакеты для parity
         if: steps.parity-browser-cache.outputs.cache-hit != 'true'
@@ -50,6 +52,7 @@ jobs:
         timeout-minutes: 5
         env:
           NARTHEX_PARITY_BROWSER_PREFIX: ${{ runner.temp }}/narthex-parity-browser
+          TMPDIR: ${{ runner.temp }}/narthex-parity-runtime
         run: npm run check:determinism
 
       - name: Контракты и browser gate

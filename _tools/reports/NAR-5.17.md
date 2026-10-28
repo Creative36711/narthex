@@ -1,14 +1,14 @@
 # NAR-5.17 — bounded browser install for parity
 
 Dispatch: `4076f0cf-5705-8116-baaa-c99f586d33ea`
-Run: `c74f3e61-6412-4f06-87c7-01f3708a21d4`
+Run: `4f76548f-792f-4f1b-b850-ac579a075a1d`
 Base: `73971f6ae1e825746c1728770ada19539d4e5472` (merged NAR-5.10 / PR #131).
 
 ## Change
 
 - `scripts/check-parity.mts` prints the exact npm install command and lets npm output stream to the log (`stdio: 'inherit'`). The fallback `spawnSync` has `timeout: 120000`. Its failure message includes both `@sparticuz/chromium` and `playwright-core`, the timeout/error, and the complete install command.
 - Chromium's displayed version now comes from the already-launched Playwright browser (`browser.version()`), not a second unbounded synchronous browser process; the log label and parity fingerprints are unchanged.
-- `.github/workflows/visual.yml` caches the installed parity package prefix with `actions/cache@v4`; the explicit install step runs only on a cache miss. The determinism step receives that prefix, does not install when the cached packages are present, and has `timeout-minutes: 5`. The install step is also limited to five minutes. The `screenshots` job timeout remains 20 minutes.
+- `.github/workflows/visual.yml` keeps `pull_request` and `workflow_dispatch`, adds `push: { branches: [main] }`, and caches both the installed parity package prefix and extracted Chromium runtime with `actions/cache@v4`. The explicit install step runs only on a cache miss. The determinism step receives the package prefix and sets `TMPDIR` to the cached runtime path, so a cache hit skips reinstall and unpacking. Its timeout is five minutes; the install step also has a five-minute limit. The `screenshots` job timeout remains 20 minutes.
 - `scripts/check-determinism.mts`, parity inputs/results, `package.json`, `src/core/**`, `public/**`, `docs/contracts/**`, and `packs/**` were not changed.
 
 ## Local checks
@@ -20,6 +20,7 @@ Base: `73971f6ae1e825746c1728770ada19539d4e5472` (merged NAR-5.10 / PR #131).
 - `git diff --check` — rc=0.
 - Cold temporary prefix, with `NPM_CONFIG_CACHE` under `/tmp`: `npm run check:determinism` — rc=0 in 7.55 s. The visible install added 20 packages in 4 s; Chromium 131 parity passed 10/10 rows and repeated fingerprints were stable.
 - Warm-prefix simulation: after installing those two packages to a temporary prefix, `NARTHEX_PARITY_BROWSER_PREFIX="$tmp/prefix" npm run check:determinism` — rc=0 in 4.78 s. Log states `using cached packages ...; no install`; 10/10 parity rows passed.
+- Cached extracted-runtime simulation: with `NARTHEX_PARITY_BROWSER_PREFIX` and `TMPDIR` both under a disposable `/tmp` directory, two consecutive `npm run check:determinism` runs passed. The first (unpack/cache fill) took 7 s; the second used the same Chromium runtime and took 1 s. Both preserved the same 10/10 fingerprints.
 
 ## Negative probes
 
@@ -35,6 +36,8 @@ A second green PR run [`40777415310`](https://github.com/Creative36711/narthex/a
 A later PR run [`40778228954`](https://github.com/Creative36711/narthex/actions/runs/40778228954) timed out at the 5-minute `Детерминизм циклов` limit on a cache hit. This was treated as a code defect, not dismissed as a flake. The parity path also made an unnecessary synchronous `chromium --version` call through `local-browser.mjs`; `check-parity.mts` now gets the same `Chromium 131.0.6778.0` label from the already-running Playwright browser, avoiding that extra unbounded process. The updated local warm-prefix run passed in 4.72 s with identical 10/10 fingerprints. Follow-up PR run [`40779434375`](https://github.com/Creative36711/narthex/actions/runs/40779434375) then passed: the parity package install step was skipped on an exact cache hit, `Детерминизм циклов` completed in 4 s, and `screenshots` completed in 5m1s.
 
 The latest pre-trigger-change PR run [`40780151281`](https://github.com/Creative36711/narthex/actions/runs/40780151281) also passed: exact cache hit, installer skipped, `Детерминизм циклов` in 4 s, `screenshots` in 5m21s.
+
+After adding the main push trigger, PR run [`40781799874`](https://github.com/Creative36711/narthex/actions/runs/40781799874) timed out at the 5-minute determinism step even though the package installer was skipped. Together with `40778228954`, this is treated as a repeated defect, not a flake. The packages were cached but `local-browser.mjs` still unpacked Chromium under the runner's default temporary directory each job. This follow-up caches that extracted runtime too and sets `TMPDIR` for the determinism step to the cached runtime path (new cache key v2). A fresh PR run is required before merge.
 
 ## Main verification strategy
 
