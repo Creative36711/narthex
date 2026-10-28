@@ -43,12 +43,12 @@ interface ParityBrowserContext {
 
 interface ParityBrowser {
   newContext(): Promise<ParityBrowserContext>
+  version(): string
   close(): Promise<void>
 }
 
 interface LocalBrowserTools {
   launchChromium(): Promise<ParityBrowser>
-  chromiumVersion(): string
 }
 
 interface ParityRow {
@@ -176,10 +176,13 @@ async function launchBrowserTools(): Promise<{
     }
 
     const browserTools = await import(pathToFileURL(browserToolsPath).href) as unknown as LocalBrowserTools
+    console.log('NAR-4.6 launching Chromium from the prepared browser packages.')
     const browser = await browserTools.launchChromium()
+    const version = `Chromium ${browser.version()}`
+    console.log(`NAR-4.6 Chromium launched: ${version}.`)
     return {
       browser,
-      version: browserTools.chromiumVersion(),
+      version,
       cleanup,
     }
   } catch (error) {
