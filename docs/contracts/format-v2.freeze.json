@@ -1,0 +1,57 @@
+{
+  "format": "narthex-format-freeze/1",
+  "note": "Поля формата v2 на момент заморозки. Добавлять необязательные поля можно; удалять и переименовывать — только миграцией (ADR 0003).",
+  "frozenAt": "2026-10-28",
+  "schemas": {
+    "project": "docs/contracts/project.schema.json",
+    "pack": "docs/contracts/pack.schema.json"
+  },
+  "fields": {
+    "project": [
+      "authors",
+      "authors.name",
+      "authors.url",
+      "cap_options",
+      "caps",
+      "code",
+      "code.entry",
+      "code.sandbox",
+      "default_language",
+      "engine",
+      "engine.min",
+      "engine.tested",
+      "entry",
+      "format",
+      "homepage",
+      "id",
+      "kind",
+      "languages",
+      "license",
+      "locales",
+      "manifest",
+      "title"
+    ],
+    "pack": [
+      "caps",
+      "id",
+      "provides",
+      "provides.kind",
+      "provides.panels",
+      "provides.probes",
+      "provides.schema",
+      "provides.seams",
+      "provides.validators",
+      "requires",
+      "requires.caps",
+      "requires.core",
+      "requires.packs",
+      "runtime",
+      "saves",
+      "saves.migrations",
+      "saves.namespace",
+      "saves.version",
+      "title",
+      "version"
+    ]
+  }
+}
