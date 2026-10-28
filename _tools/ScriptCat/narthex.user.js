@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.82
+// @version      1.4.83
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -308,7 +308,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.82";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.83";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -522,6 +522,46 @@
     /** Снимок, сохранённый при последнем отказе отправки. */
     sendDebug: () => GM_getValue("cfn-send-debug", null),
     sendButton: () => debugSendButton(composer()),
+    /**
+     * Что скрипт видит про отправку прямо сейчас.
+     *
+     * Нужен, когда журнал говорит «отправлено», а глаза видят другое: в снимке
+     * поле ввода, кнопка Send, ключ доставки, свои реплики с id и временем из
+     * id. В консоли: `copy(JSON.stringify(__narthex.send(), null, 2))`.
+     */
+    send: () => {
+      const pending = GM_getValue(K.pending, null);
+      const live = composer();
+      return {
+        version: SCRIPT_VERSION,
+        at: new Date().toISOString(),
+        composer: live
+          ? {
+              found: true,
+              inDocument: composerAlive(live),
+              length: composerText(live).length,
+              head: composerText(live).slice(0, 120),
+            }
+          : { found: false, why: composerDiagnostics() },
+        button: live ? debugSendButton(live) : null,
+        pending: pending
+          ? {
+              role: pending.roleName || pending.roleId,
+              at: pending.at,
+              length: String(pending.text || "").length,
+              undelivered: Boolean(pending.undelivered),
+              captcha: Boolean(pending.captcha),
+            }
+          : null,
+        key: pending ? sendKey(pending.text) || flat(pending.text).slice(0, 60) : "",
+        deadSend: GM_getValue(K.deadSend, ""),
+        own: userMessages().map((node) => {
+          const id = String(node.id || "").replace("chat-message-", "");
+          return { id, at: idTime(id) || 0, head: flat(node.textContent || "").slice(0, 80) };
+        }),
+        lastRefusal: GM_getValue("cfn-send-debug", null),
+      };
+    },
     panels: () => completionPanels().map(describe),
     /** Капча на экране: без человека цикл не пойдёт. */
     captcha: () => Boolean(captchaDialog()),
@@ -4317,13 +4357,30 @@
    * Отличительная строка задания: по ней видно, что в чат ушло именно это
    * сообщение, а не предыдущее. Первые строки промпта у всех заданий
    * одинаковые (технический блок), поэтому ключ берётся из строки с
-   * `dispatch <id>` — она своя у каждой выдачи.
+   * `dispatch <id>` и `run <id>`.
+   *
+   * Ключ обязан быть своим у каждой ВЫДАЧИ, а не у карточки. 28.10 карточку
+   * NAR-5.3 выдали второй раз («проверка ответа не прошла, выдаю заново»);
+   * строка задания у обеих выдач начинается одинаково, а прежний ключ —
+   * первые 90 знаков этой строки — обрезался раньше номера выдачи. Прошлое
+   * сообщение с тем же ключом лежало в чате, проверка «моё сообщение уже в
+   * чате» подтвердила отправку, которой не было (19:38:49: текст остался в
+   * поле ввода). Поэтому в ключ идут оба номера: `dispatch` — карточка,
+   * `run` — выдача; выдача у повторной отправки новая.
    */
   function sendKey(text) {
     const src = String(text || "");
     const lines = src.split("\n");
     const task = lines.find((l) => /Задача .*\(dispatch /.test(l));
-    if (task) return flat(task).slice(0, 90);
+    if (task) {
+      const ids = task.match(/\(dispatch\s+([^,)]+)(?:,\s*run\s*([^)]*))?\)/i);
+      if (ids) {
+        const dispatch = String(ids[1] || "").trim();
+        const run = String(ids[2] || "").trim();
+        if (dispatch) return flat(`dispatch ${dispatch}${run ? `, run ${run}` : ""}`);
+      }
+      return flat(task).slice(0, 90);
+    }
     // Напоминание отличается от задания первой строкой «1 из 2», «2 из 2».
     const reminder = lines.find((l) => /НАПОМИНАНИЕ/.test(l));
     if (reminder) return flat(reminder).slice(0, 90);
@@ -4360,15 +4417,63 @@
     return flat(last.textContent || "").includes(key);
   }
 
-  /** Ждём подтверждение доставки: своё сообщение в чате, а не «поле опустело». */
-  async function waitSent(key, before, timeoutMs) {
-    // 1.4.82: подтверждением больше не считаются ни выросший счётчик
-    // сообщений (`before`), ни пустое поле при работающем агенте. Оба
-    // признака обманывали: счётчик растёт, когда страница догружает старый
-    // транскрипт, а кнопка Stop висит от прошлой генерации. Цена ошибки —
-    // ложное «Задание отправлено» и цикл, который ждёт ответа на
-    // неотправленное сообщение (28.10, 19:08).
-    //
+  /** id «своих» реплик в транскрипте — снимок до отправки. */
+  function userNodeIds() {
+    return userMessages()
+      .map((node) => String(node.id || "").replace("chat-message-", ""))
+      .filter(Boolean);
+  }
+
+  /**
+   * Своё сообщение, которого до попытки отправки не было.
+   *
+   * `lastUserSays` отвечает на вопрос «в чате есть реплика с этой строкой», и
+   * для доставки этого мало: ключ повторной выдачи совпадает с прошлой, а
+   * прошлая реплика из транскрипта никуда не девается. 28.10 в 19:38 именно
+   * так и вышло — проверка нашла СТАРОЕ сообщение, вернула «отправлено» через
+   * секунду после вставки, текст остался в поле ввода, и цикл ждал ответа на
+   * задание, которого агент не получал.
+   *
+   * Поэтому доставкой считается только реплика с id, которого нет в снимке
+   * `known` (снимок снимается перед кликом). Две страховки:
+   *  • сообщение, которое Arena съела ошибкой (`K.deadSend`), не в счёт;
+   *  • реплика с явно старым id-временем не в счёт — так выглядит старый
+   *    транскрипт, который доехал уже после снимка.
+   */
+  function userSaysSince(key, known, since = 0) {
+    if (!key) return null;
+    const seen = known instanceof Set ? known : new Set(known || []);
+    const dead = GM_getValue(K.deadSend, "");
+    const list = userMessages();
+    for (let i = list.length - 1; i >= 0; i -= 1) {
+      const node = list[i];
+      const id = String(node.id || "").replace("chat-message-", "");
+      if (!id || seen.has(id)) continue;
+      if (dead && id === dead) continue;
+      if (!flat(node.textContent || "").includes(key)) continue;
+      // `idTime` — подсказка, а не истина: если генератор id не UUIDv7,
+      // проверка просто не срабатывает. Допуск две минуты — время от вставки
+      // текста до отрисовки сообщения бывает и таким.
+      const at = idTime(id);
+      if (since && at && at < since - 120000) continue;
+      return { id, at };
+    }
+    return null;
+  }
+
+  /**
+   * Ждём подтверждение доставки: новое своё сообщение в чате, а не «поле
+   * опустело».
+   *
+   * Подтверждением не считаются ни выросший счётчик сообщений, ни пустое поле
+   * при работающем агенте (1.4.82: 28.10, 19:08), ни реплика, лежавшая в чате
+   * до попытки (1.4.83: 19:38 — повторная выдача той же карточки дала тот же
+   * ключ, и старая реплика сошла за новую).
+   *
+   * Возвращает `{ id }` — id сообщения, которым подтверждена отправка: по нему
+   * видно в журнале, что именно ушло. Пустая строка — доставка не доказана.
+   */
+  async function waitSent(key, known, timeoutMs, text = "", since = 0) {
     // Ожидание не должно стать бесконечным из-за пустой настройки: без числа
     // deadline был бы NaN, и опрос шёл бы вечно.
     const deadline = Date.now() + (Number(timeoutMs) || 6000);
@@ -4377,7 +4482,12 @@
       // проверки, а до агента она не доходит. Признак «отправлено» в это
       // время — ложь, из-за которой 11:56:47 задание считалось ушедшим.
       if (captchaDialog()) return "";
-      if (!composerHolds(key) && lastUserSays(key)) return "message";
+      // Текст в поле ввода — veto: пока он там, отправки не было, какую бы
+      // реплику ни нашлось в транскрипте.
+      if (!composerHolds(key, text)) {
+        const sent = userSaysSince(key, known, since);
+        if (sent) return sent;
+      }
       if (Date.now() >= deadline) return "";
       await sleep(300);
     }
@@ -4458,11 +4568,40 @@
     // промпт без маркера), берём начало текста: без ключа подтвердить отправку
     // нечем, и «сообщение ушло» пришлось бы брать на веру.
     const key = sendKey(text) || flat(text).slice(0, 60);
+    // Снимок «своих» реплик и время начала попытки. Доставка — это сообщение,
+    // которого в снимке нет: старая реплика с тем же текстом (повторная выдача
+    // той же карточки) доставкой не считается.
+    const known = userNodeIds();
+    const since = Date.now();
     let live = composerAlive(editor) ? editor : composer();
-    dbg("Send: начало", () => ({ messages: before, button: debugSendButton(live), textLength: composerText(live).length }));
+    dbg("Send: начало", () => ({
+      messages: before,
+      own: known.length,
+      button: debugSendButton(live),
+      textLength: composerText(live).length,
+    }));
 
     const why = [];
     let clicked = 0;
+    /**
+     * Доставка доказана новым сообщением. Если поле при этом ещё держит текст,
+     * второй раз не кликаем: Arena не всегда очищает поле сразу, а повторный
+     * клик отправил бы то же задание дважды. Пишем об этом в журнал — пусть
+     * Мастер видит, что поле осталось неубранным.
+     */
+    const accepted = (found) => {
+      const holds = composerHolds(key, text);
+      if (holds) {
+        dbg("Send: новое сообщение есть, а текст ещё в поле", { id: found.id });
+        log(
+          `В чате появилось новое сообщение (${found.id}), но текст остался в поле ввода — повторно не отправляю, ` +
+            "поле можно очистить вручную.",
+          false,
+          { ntfy: false, tone: "warn" },
+        );
+      }
+      return { ok: true, via: "message", msgId: found.id, draftLeft: holds };
+    };
     const blocked = () => ({
       ok: false,
       captcha: true,
@@ -4472,8 +4611,14 @@
     if (captchaDialog()) return blocked();
     for (let attempt = 1; attempt <= 3; attempt += 1) {
       // Сообщение могло уйти с прошлой попытки — проверяем до нового клика.
+      // Только новое сообщение: старая реплика с тем же ключом подтверждала
+      // отправку, которой не было (28.10, 19:38).
       if (captchaDialog()) return blocked();
-      if (lastUserSays(key)) return { ok: true, via: "message" };
+      const already = userSaysSince(key, known, since);
+      if (already) {
+        dbg("Send: сообщение уже в чате до клика", { id: already.id, attempt });
+        return accepted(already);
+      }
 
       // Узел редактора мог смениться при перерисовке чата: тогда и вставка,
       // и клик уходят в копию, которой уже нет в документе.
@@ -4540,7 +4685,11 @@
 
       // Человек не отправляет через миллисекунду после ввода: даём паузу.
       await sleep(500 + Math.floor(Math.random() * 1200));
-      if (lastUserSays(key)) return { ok: true, via: "message" };
+      const meanwhile = userSaysSince(key, known, since);
+      if (meanwhile) {
+        dbg("Send: сообщение появилось до клика", { id: meanwhile.id, attempt });
+        return accepted(meanwhile);
+      }
       if (!composerAlive(live)) {
         why.push(`клик ${attempt}: поле перерисовано`);
         continue;
@@ -4557,12 +4706,12 @@
       btn.click();
       clicked += 1;
 
-      let via = await waitSent(key, before, C.sendVerifyMs);
+      let via = await waitSent(key, known, C.sendVerifyMs, text, since);
       if (!via && attempt === 3) {
         // Последняя попытка: если клик не дошёл, отправляем с клавиатуры.
         dbg("Send: клик не дал сообщения — пробую Enter");
         pressEnter(live);
-        via = await waitSent(key, before, C.sendVerifyMs);
+        via = await waitSent(key, known, C.sendVerifyMs, text, since);
       }
       if (via) {
         // Клик прошёл, но поверх чата висит проверка: сообщение могло не
@@ -4574,14 +4723,22 @@
         // Последняя проверка перед словом «отправлено»: текст задания не
         // должен остаться в поле ввода. 19:08 он там остался, а журнал сказал,
         // что задание ушло (7829 символов) — и цикл ждал ответа впустую.
-        if (composerHolds(key)) {
+        //
+        // Но новое сообщение — сильнее поля: если в чате появилась реплика,
+        // которой до попытки не было, отправка состоялась, а текст в поле —
+        // черновик, который Arena не убрала. Повторный клик отправил бы то же
+        // задание второй раз, поэтому здесь мысль не «нажмём ещё», а «скажем
+        // об этом в журнале».
+        if (composerHolds(key, text)) {
+          const fresh = userSaysSince(key, known, since);
+          if (fresh && fresh.id === via.id) return accepted(fresh);
           why.push(`клик ${attempt}: текст остался в поле ввода`);
           dbg("Send: текст в поле после клика — отправки не было", { attempt });
           await sleep(500);
           continue;
         }
         dbg("Send: сообщение в чате", { via, attempt });
-        return { ok: true, via };
+        return { ok: true, via: "message", msgId: via.id || "" };
       }
       if (captchaDialog()) return blocked();
 
@@ -4854,7 +5011,20 @@
 
     // Сообщение могло уйти, пока человек решал капчу. Тогда повторная
     // отправка была бы дублем: в чате уже есть эта реплика.
-    if (pending.captcha && !captchaDialog() && lastUserSays(sendKey(pending.text))) {
+    // Ключ и снимок — те же, что при обычной отправке: доставкой считается
+    // реплика, которой до выдачи не было, и только если текст не остался в
+    // поле. Прошлая реплика с тем же ключом (повторная выдача карточки) —
+    // по-прежнему не доказательство (28.10, 19:38).
+    const captchaKey = sendKey(pending.text) || flat(pending.text).slice(0, 60);
+    const captchaHandoff = GM_getValue(K.expect, null);
+    const captchaKnown = Array.isArray(captchaHandoff?.seen) ? captchaHandoff.seen : null;
+    const captchaSent =
+      captchaKnown && !composerHolds(captchaKey, pending.text)
+        ? userSaysSince(captchaKey, captchaKnown)
+        : !composerHolds(captchaKey, pending.text) && lastUserSays(captchaKey)
+          ? { id: "message" }
+          : null;
+    if (pending.captcha && !captchaDialog() && captchaSent) {
       const waiting = GM_getValue(K.expect, null);
       // Водяной знак не переписываем: он снят до отправки. Если за время
       // капчи агент успел ответить, последним сообщением окажется уже ответ —
@@ -5036,15 +5206,25 @@
     }
     const expect = GM_getValue(K.expect, null);
     if (expect && norm(expect.roleId) === norm(me)) {
-      GM_setValue(K.expect, { ...expect, watermark, sentAt: Date.now(), verified: true, seen });
-      dbg("Send: доставка подтверждена, отметка внутри чата", { watermark, via: delivery.via || "message" });
+      // Граница «после отправки» — id подтвердившего сообщения, а не последнего
+      // перед отправкой: ответ агента читается строго после нашей реплики, и
+      // старое сообщение с тем же текстом границу не сдвигает (1.4.83).
+      // Если id не пришёл (старая ветка), остаётся прежний водяной знак.
+      const mark = delivery.msgId || watermark;
+      GM_setValue(K.expect, { ...expect, watermark: mark, sentAt: Date.now(), verified: true, seen });
+      dbg("Send: доставка подтверждена, отметка внутри чата", { watermark: mark, via: delivery.via || "message" });
     }
     GM_setValue(K.pending, null);
     GM_setValue(K.deadSend, "");
     pendingNoticeAt = 0;
     // Длина — в журнал: по ней видно, какое сообщение Arena не приняла, и
     // сравнить его с коротким повтором (25.10: дважды на задании 2.16).
-    log(`Задание отправлено (${String(pending.text || "").length} символов).`);
+    // id сообщения — по той же причине: «отправлено» должно быть проверяемо,
+    // иначе Мастеру остаётся верить журналу на слово (28.10, 19:38).
+    log(
+      `Задание отправлено (${String(pending.text || "").length} символов` +
+        `${delivery.msgId ? `, сообщение ${delivery.msgId}` : ""}).`,
+    );
     return true;
   }
 

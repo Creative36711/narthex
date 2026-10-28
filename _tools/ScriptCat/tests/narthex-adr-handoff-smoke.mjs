@@ -1,4 +1,4 @@
-// Проба 1.4.82: вопрос и предложение доходят до приёмки, а не висят в базе.
+// Проба 1.4.83: вопрос и предложение доходят до приёмки, а не висят в базе.
 //
 // Случай Мастера (28.10, вечер): «Сейчас висит 1 открытый вопрос и 1
 // предложение (/docs/decisions), ни то ни то не ушло к тебе, исправить!»
@@ -16,7 +16,7 @@ import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-assert.match(src, /@version\s+1\.4\.82/, 'версия 1.4.82');
+assert.match(src, /@version\s+1\.4\.83/, 'версия 1.4.83');
 
 const cut = (from, to) => {
   const a = src.indexOf(from);

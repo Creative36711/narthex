@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и новый адрес ntfy.
-assert.match(src, /@version\s+1\.4\.82/, 'версия 1.4.82');
+assert.match(src, /@version\s+1\.4\.83/, 'версия 1.4.83');
 assert.match(src, /@connect\s+ntfy\.sh/, 'ntfy.sh разрешён в @connect');
 
 // 2. Журнал: ограничен, очищается, счётчик виден.
@@ -83,7 +83,7 @@ assert.match(missingFn, /sendToRole\(role, markerReminder/, 'напоминан�
 assert.match(missingFn, /pause\(/, 'после лимита — пауза для Мастера');
 assert.match(missingFn, /tries/, 'счётчик попыток хранится в ожидании');
 assert.match(src, /const watermark = lastMessageId\(\);/, 'водяной знак снимается на странице адресата до отправки');
-assert.match(src, /watermark, sentAt: Date\.now\(\)/, 'отметка ставится после успешной доставки');
+assert.match(src, /watermark: mark, sentAt: Date\.now\(\)/, 'отметка ставится после успешной доставки');
 
 // 7. Классификатор ntfy: тихо / громко / молча.
 const ntfyStart = src.indexOf('const QUIET_NTFY = [');
