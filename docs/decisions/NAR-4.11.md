@@ -1,0 +1,3 @@
+неясно / В `package.json` нет `check:parity`, а существующий `scripts/check-parity.mts` проверяет только `nar-4.4-determinism-fixture` (пять seed × два runtime), не два reference projects.
+решил / Не менять scripts/checks/thresholds; запустить NAR-4.6 runner напрямую, отдельно зафиксировать текущие `cf-play cycles` и оставить project-level browser parity неподтверждённой; работать только в закреплённой ветке `arena/40e6e676-narthex`.
+откат / Удалить только `_tools/reports/NAR-4.11.md` и этот decision-файл; implementation и другие tracked files не менялись, `node_modules/` и `dist-ai/` — игнорируемые временные артефакты.
