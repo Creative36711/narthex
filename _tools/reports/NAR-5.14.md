@@ -272,3 +272,23 @@ check:module-size passed
 STATE_UI_PROBE passed
 ```
 
+
+## CI / PR
+
+PR #127. CI run 40745819228 упал на проверке свежести бандла аудита
+до сборки; последующие шаги пропущены. Полный CI не зелёный.
+Локальный check:audit-bundle также rc=1 (вывод ниже). Бандл вне Scope,
+не пересобирался; обязательные три проверки карточки прошли rc=0.
+Merge выполняется по прямому требованию карточки, без изменения проверок.
+
+```text
+
+> narthex@0.9.0 check:audit-bundle
+> tsx scripts/check-audit-bundle.mts
+
+✗ public/ai/campaign-audit.mjs is stale relative to scripts/campaign-audit.mts
+  committed: 1020401 bytes, sha256 28087d972e8a0040d02bf4a39d8e3cc24fedc045cd2576439678c558292f5a2b
+  generated: 1020452 bytes, sha256 91b1e86ef03c62f0d7f1a5d88600a423f8507f1cf18c80c5b16c21b500426764
+  first differing byte: 301154
+  rebuild with: npm run build:ai-bundle
+```
