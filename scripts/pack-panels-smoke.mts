@@ -314,7 +314,7 @@ try {
   else Reflect.deleteProperty(globalThis, 'localStorage')
 }
 
-// ── 6. живые манифесты трёх паков ────────────────────────────────────────────
+// ── 6. живые манифесты четырёх паков ────────────────────────────────────────
 console.log('[6] живые манифесты: сборка вкладок для четырёх паков')
 let livePanels = 0
 for (const pack of installedPacks) {
@@ -327,8 +327,8 @@ for (const pack of installedPacks) {
   console.log(`  ${pack.id}: ${built.tabs.length} панелей · ${built.tabs.map(describe).join('; ')}`)
 }
 assert.equal(installedPacks.length, 4)
-assert.equal(livePanels, 13)
-console.log('  ✓ четыре пака, 13 панелей, коллизий слотов нет')
+assert.equal(livePanels, 14)
+console.log('  ✓ четыре пака, 14 панелей, коллизий слотов нет')
 
 // ── 7. открыть → сохранить → открыть ─────────────────────────────────────────
 console.log('[7] проект открывается и сохраняется без потерь полей')
