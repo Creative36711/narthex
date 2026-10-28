@@ -43,12 +43,12 @@ interface ParityBrowserContext {
 
 interface ParityBrowser {
   newContext(): Promise<ParityBrowserContext>
+  version(): string
   close(): Promise<void>
 }
 
 interface LocalBrowserTools {
   launchChromium(): Promise<ParityBrowser>
-  chromiumVersion(): string
 }
 
 interface ParityRow {
@@ -67,14 +67,35 @@ const browserBundleEntry = join(root, 'scripts/parity-browser-entry.ts')
 const browserToolsPath = join(root, 'scripts/visual/local-browser.mjs')
 const require = createRequire(import.meta.url)
 
-function browserPackagesAvailable(): boolean {
+const browserPackageNames = ['@sparticuz/chromium', 'playwright-core'] as const
+const browserPackageSpecs = ['@sparticuz/chromium@131', 'playwright-core@1.49.1'] as const
+const browserInstallPrefixEnv = 'NARTHEX_PARITY_BROWSER_PREFIX'
+const browserInstallTimeoutMs = 120000
+
+function browserPackagesAvailable(prefix?: string): boolean {
+  const packageRequire = prefix ? createRequire(join(prefix, 'package.json')) : require
   try {
-    require.resolve('@sparticuz/chromium')
-    require.resolve('playwright-core')
+    for (const packageName of browserPackageNames) packageRequire.resolve(packageName)
     return true
   } catch {
     return false
   }
+}
+
+function browserInstallArgs(prefix: string): string[] {
+  return [
+    'install',
+    '--prefix', prefix,
+    '--no-save',
+    '--ignore-scripts',
+    '--no-audit',
+    '--no-fund',
+    ...browserPackageSpecs,
+  ]
+}
+
+function browserInstallCommand(prefix: string): string {
+  return `npm install --prefix ${JSON.stringify(prefix)} --no-save --ignore-scripts --no-audit --no-fund ${browserPackageSpecs.join(' ')}`
 }
 
 async function launchBrowserTools(): Promise<{
@@ -82,62 +103,90 @@ async function launchBrowserTools(): Promise<{
   version: string
   cleanup: () => void
 }> {
-  const temporaryPrefix = browserPackagesAvailable()
-    ? null
-    : mkdtempSync(join(tmpdir(), 'narthex-parity-browser-'))
+  const configuredPrefix = process.env[browserInstallPrefixEnv]?.trim()
+  const cachePrefix = configuredPrefix ? resolve(configuredPrefix) : null
+  const rootHasPackages = browserPackagesAvailable()
+  const temporaryPrefix = !rootHasPackages && !cachePrefix
+    ? mkdtempSync(join(tmpdir(), 'narthex-parity-browser-'))
+    : null
+  const packagePrefix = cachePrefix ?? temporaryPrefix
   const temporaryLinks: string[] = []
+  const cleanup = () => {
+    for (const link of temporaryLinks) rmSync(link, { recursive: true, force: true })
+    if (temporaryPrefix) rmSync(temporaryPrefix, { recursive: true, force: true })
+  }
+
   try {
+    if (!rootHasPackages && cachePrefix && !browserPackagesAvailable(cachePrefix)) {
+      throw new Error(
+        `NAR-4.6 CI browser cache is missing ${browserPackageNames.join(' and ')} at ${cachePrefix}. ` +
+          `Install them in the dedicated CI step with: ${browserInstallCommand(cachePrefix)}`,
+      )
+    }
+
     if (temporaryPrefix) {
-      const install = spawnSync('npm', [
-        'install',
-        '--prefix', temporaryPrefix,
-        '--no-save',
-        '--ignore-scripts',
-        '--no-audit',
-        '--no-fund',
-        '@sparticuz/chromium@131',
-        'playwright-core@1.49.1',
-      ], { cwd: root, encoding: 'utf8' })
+      const command = browserInstallCommand(temporaryPrefix)
+      console.log(
+        `NAR-4.6 installing ${browserPackageNames.join(' and ')} ` +
+          `(timeout=${browserInstallTimeoutMs} ms):\n> ${command}`,
+      )
+      const install = spawnSync('npm', browserInstallArgs(temporaryPrefix), {
+        cwd: root,
+        timeout: 120000,
+        stdio: 'inherit',
+      })
       if (install.error || install.status !== 0) {
+        const timedOut = install.error?.code === 'ETIMEDOUT'
+        const detail = timedOut
+          ? `timed out after ${browserInstallTimeoutMs} ms`
+          : install.error?.message ?? `exit=${install.status} signal=${install.signal ?? 'none'}`
         throw new Error(
-          `NAR-4.6 browser install failed (rc=${install.status ?? 127}): ` +
-            `${install.error?.message ?? install.stderr.slice(-1200)}`,
+          `NAR-4.6 could not install ${browserPackageNames.join(' and ')} (${detail}). ` +
+            `Install command: ${command}`,
+        )
+      }
+    }
+
+    if (!rootHasPackages) {
+      if (!packagePrefix || !browserPackagesAvailable(packagePrefix)) {
+        const command = packagePrefix ? browserInstallCommand(packagePrefix) : 'npm install'
+        throw new Error(
+          `NAR-4.6 browser package prefix is missing ${browserPackageNames.join(' and ')}. ` +
+            `Install command: ${command}`,
         )
       }
 
-      const packages = [
-        {
-          source: join(temporaryPrefix, 'node_modules/@sparticuz/chromium'),
-          destination: join(root, 'node_modules/@sparticuz/chromium'),
-        },
-        {
-          source: join(temporaryPrefix, 'node_modules/playwright-core'),
-          destination: join(root, 'node_modules/playwright-core'),
-        },
-      ]
-      for (const item of packages) {
-        if (existsSync(item.destination)) continue
-        if (!existsSync(item.source)) throw new Error(`NAR-4.6 temporary browser package missing: ${item.source}`)
-        mkdirSync(dirname(item.destination), { recursive: true })
-        symlinkSync(item.source, item.destination, 'dir')
-        temporaryLinks.push(item.destination)
+      for (const packageName of browserPackageNames) {
+        const source = join(packagePrefix, 'node_modules', packageName)
+        const destination = join(root, 'node_modules', packageName)
+        if (existsSync(destination)) continue
+        if (!existsSync(source)) {
+          throw new Error(
+            `NAR-4.6 browser package ${packageName} is missing from ${packagePrefix}. ` +
+              `Install command: ${browserInstallCommand(packagePrefix)}`,
+          )
+        }
+        mkdirSync(dirname(destination), { recursive: true })
+        symlinkSync(source, destination, 'dir')
+        temporaryLinks.push(destination)
       }
-      console.log('Headless Chromium driver: installed in a temporary npm prefix for this check.')
+      console.log(cachePrefix
+        ? `Headless Chromium driver: using cached packages from ${cachePrefix}; no install.`
+        : 'Headless Chromium driver: installed in a temporary npm prefix for this check.')
     }
 
     const browserTools = await import(pathToFileURL(browserToolsPath).href) as unknown as LocalBrowserTools
+    console.log('NAR-4.6 launching Chromium from the prepared browser packages.')
     const browser = await browserTools.launchChromium()
+    const version = `Chromium ${browser.version()}`
+    console.log(`NAR-4.6 Chromium launched: ${version}.`)
     return {
       browser,
-      version: browserTools.chromiumVersion(),
-      cleanup: () => {
-        for (const link of temporaryLinks) rmSync(link, { recursive: true, force: true })
-        if (temporaryPrefix) rmSync(temporaryPrefix, { recursive: true, force: true })
-      },
+      version,
+      cleanup,
     }
   } catch (error) {
-    for (const link of temporaryLinks) rmSync(link, { recursive: true, force: true })
-    if (temporaryPrefix) rmSync(temporaryPrefix, { recursive: true, force: true })
+    cleanup()
     throw error
   }
 }
