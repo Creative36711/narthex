@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.84
+// @version      1.4.85
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -167,6 +167,35 @@
   const flat = (x) => String(x || "").replace(/[\s\u00a0]+/g, " ").trim().toLowerCase();
   const nowIso = () => new Date().toISOString();
   const rt = (p) => (p?.rich_text || p?.title || []).map((x) => x.plain_text || x.text?.content || "").join("");
+
+  /**
+   * `rich_text` для поля Notion: один объект — не больше 2000 знаков.
+   *
+   * 28.10 в 22:00 цикл дважды подряд встал на записи ответа приёмки: Notion
+   * ответил HTTP 400 «body.properties.Ответ.rich_text[0].text.content.length
+   * should be ≤ 2000, instead was 2296». Ответ был верный и полный — длина
+   * решения не порок, а предел одного объекта. Notion принимает до 100
+   * объектов в массиве, поэтому длинный текст режется на части и уезжает
+   * целиком, без потери второй половины решения.
+   *
+   * Ошибка транспорта была второй и худшей: любой HTTP-ответ, включая 400,
+   * назывался «Notion не ответил: сеть или блокировка запроса» — сеть тут ни
+   * при чём, Notion ответил и объяснил причину.
+   */
+  function richText(value, step = 1900) {
+    const text = String(value == null ? "" : value);
+    const parts = [];
+    let at = 0;
+    while (at < text.length && parts.length < 100) {
+      let end = Math.min(text.length, at + step);
+      // Суррогатная пара на границе: половина эмодзи ломает JSON запроса.
+      const code = text.charCodeAt(end - 1);
+      if (end < text.length && code >= 0xd800 && code <= 0xdbff) end -= 1;
+      parts.push({ type: "text", text: { content: text.slice(at, end) } });
+      at = end;
+    }
+    return parts;
+  }
   const sel = (p) => p?.select?.name || "";
   const uid = () => crypto.randomUUID();
 
@@ -309,7 +338,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.84";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.85";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -1657,7 +1686,14 @@
       }
     }
     last.narthex = "notion";
-    last.message = `Notion не ответил на ${method} ${path}: ${last.message}`;
+    // «Не ответил» и «ответил отказом» — разные поломки. 4xx значит, что Notion
+    // всё получил и объяснил, что не так с данными: чинить надо запрос, а не
+    // сеть. 28.10 HTTP 400 «content.length should be ≤ 2000» показывался как
+    // «сеть или блокировка», и Мастер искал сеть, которой ничего не было.
+    // 429 и 5xx — наоборот, короткий сбой на стороне Notion.
+    last.message = /HTTP 4\d\d/i.test(String(last.message)) && !/HTTP 429/i.test(String(last.message))
+      ? `Notion отказал на ${method} ${path} (он получил запрос и не принял данные): ${last.message}`
+      : `Notion не ответил на ${method} ${path}: ${last.message}`;
     throw last;
   }
 
@@ -5961,7 +5997,7 @@
       if (state === "Rework") {
         const props = {
           "Dispatch State": { select: { name: "Running" } },
-          "Ответ": { rich_text: [{ type: "text", text: { content: note } }] },
+          "Ответ": { rich_text: richText(note) },
         };
         if (link) props["PR"] = { url: link };
         await patch(last.dispatch_id, props);
@@ -5995,7 +6031,7 @@
 
     const props = {
       "Dispatch State": { select: { name: "Submitted" } },
-      "Ответ": { rich_text: [{ type: "text", text: { content: note } }] },
+      "Ответ": { rich_text: richText(note) },
       "Submitted At": { date: { start: nowIso() } },
     };
     if (link) props["PR"] = { url: link };
@@ -6763,7 +6799,7 @@
       }
       await patch(result.dispatch_id, {
         "Dispatch State": { select: { name: "Rework" } },
-        "Ответ": { rich_text: [{ type: "text", text: { content: `${reason} Ответ ${hit.id} в логе ${logId}.` } }] },
+        "Ответ": { rich_text: richText(`${reason} Ответ ${hit.id} в логе ${logId}.`) },
       });
       GM_setValue(`cfn-done:${result.dispatch_id}:${result.run_id}`, true);
       log(`«${taskTitle(page)}» → Rework: заявка о мерже не подтвердилась (${why}).`, true, {
@@ -6794,7 +6830,7 @@
       }
       await patch(result.dispatch_id, {
         "Dispatch State": { select: { name: "Rework" } },
-        "Ответ": { rich_text: [{ type: "text", text: { content: `${reason} Ответ ${hit.id} в логе ${logId}.` } }] },
+        "Ответ": { rich_text: richText(`${reason} Ответ ${hit.id} в логе ${logId}.`) },
       });
       GM_setValue(`cfn-done:${result.dispatch_id}:${result.run_id}`, true);
       log(`«${taskTitle(page)}» → Rework: PR закрыт без мержа.`);
@@ -6810,7 +6846,7 @@
 
     const props = {
       "Dispatch State": { select: { name: "Submitted" } },
-      "Ответ": { rich_text: [{ type: "text", text: { content: `Ответ ${hit.id} записан в лог ${logId}.` } }] },
+      "Ответ": { rich_text: richText(`Ответ ${hit.id} записан в лог ${logId}.`) },
       "Submitted At": { date: { start: nowIso() } },
     };
     if (typeof result.check === "number") props["Check"] = { select: { name: result.check === 0 ? "pass" : "fail" } };
@@ -7245,6 +7281,24 @@
     String(value == null ? "" : value).replace(/\s+/g, " ").trim().slice(0, max);
 
   /**
+   * Вариант ответа из маркера — строкой.
+   *
+   * 28.10 поле «Варианты» в «Вопросах» содержало «[object Object] ·
+   * [object Object]»: агент прислал варианты объектами, а транспорт склеил их
+   * через `String`. Объект без подписи — не вариант: читаем известные поля.
+   */
+  const optionLabel = (option) => {
+    if (option == null) return "";
+    if (typeof option === "string" || typeof option === "number") return String(option);
+    if (typeof option !== "object") return String(option);
+    for (const key of ["label", "text", "title", "name", "value", "id"]) {
+      const value = option[key];
+      if (typeof value === "string" && value.trim()) return value.trim();
+    }
+    return "";
+  };
+
+  /**
    * Заголовок вопроса: 180 символов в таблице «Вопросы» — предел читаемости.
    *
    * Раньше текст резался молча (`slice(0, 180)`), и Мастер видел оборванную на
@@ -7272,10 +7326,10 @@
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
     const text = questionTitle(raw.text, C.questionTextMax);
     const fullText = oneLine(raw.text, C.questionTextFull);
-    const fallback = oneLine(raw.default, C.questionDefaultMax);
+    const fallback = oneLine(optionLabel(raw.default), C.questionDefaultMax);
     if (!text || !fallback) return null;
     const options = Array.isArray(raw.options)
-      ? raw.options.map((option) => oneLine(option, 80)).filter(Boolean).slice(0, 4)
+      ? raw.options.map((option) => oneLine(optionLabel(option), 80)).filter(Boolean).slice(0, 4)
       : [];
     const hours = Number(raw.hours);
     return {
@@ -7313,7 +7367,7 @@
     const asked = parseQuestion(raw);
     if (asked) return { kind: "asked", question: asked };
     const options = Array.isArray(obj.options)
-      ? obj.options.map((option) => oneLine(option, 80)).filter(Boolean).slice(0, 4)
+      ? obj.options.map((option) => oneLine(optionLabel(option), 80)).filter(Boolean).slice(0, 4)
       : [];
     const hours = Number(obj.hours);
     return {
@@ -7324,7 +7378,7 @@
         options,
         blocks: oneLine(obj.blocks, 200),
         hours: Number.isFinite(hours) && hours >= 1 ? Math.min(hours, 168) : C.questionHours,
-        fallback: oneLine(fallback, C.questionDefaultMax) || "Работа идёт по решению агента",
+        fallback: oneLine(optionLabel(fallback), C.questionDefaultMax) || "Работа идёт по решению агента",
       },
     };
   }
@@ -7370,7 +7424,7 @@
 
   /** Свойства строки базы «Вопросы». */
   function questionProps(q, ctx = {}) {
-    const text = (value) => ({ rich_text: [{ type: "text", text: { content: value } }] });
+    const text = (value) => ({ rich_text: richText(value) });
     const props = {
       "Вопрос": { title: [{ type: "text", text: { content: q.text } }] },
       "Статус": { select: { name: Q.wait } },
@@ -7396,11 +7450,9 @@
   async function appendQuestionBody(row, q) {
     const full = String(q?.fullText || "").trim();
     if (!row?.id || !full || full.length <= String(q?.text || "").length) return;
-    const step = 1900;
-    const chunks = [];
-    for (let i = 0; i < full.length && chunks.length < 100; i += step) {
-      chunks.push({ type: "text", text: { content: full.slice(i, i + step) } });
-    }
+    // Режется тем же `richText`, что и «Ответ»: одно правило на весь файл, и
+    // эмодзи на границе части остаётся целым (1.4.85).
+    const chunks = richText(full);
     try {
       await notion("POST", `blocks/${row.id}/children`, {
         children: [
@@ -7673,7 +7725,7 @@
       try {
         await patch(row.id, {
           "Статус": { select: { name: Q.byDefault } },
-          "Ответ": { rich_text: [{ type: "text", text: { content: fallback } }] },
+          "Ответ": { rich_text: richText(fallback) },
         });
         closed += 1;
         log(
@@ -8921,7 +8973,7 @@
       "Состояние": { select: { name: "Возвращена" } },
       "Возвращена": { date: { start: nowIso() } },
       "Круг": { number: next },
-      "Замечания": { rich_text: [{ type: "text", text: { content: remarks } }] },
+      "Замечания": { rich_text: richText(remarks) },
     });
     GM_setValue("cfn-plan-at", 0);
     GM_setValue(`cfn-review:${mission.id}`, "rework");
@@ -9150,7 +9202,7 @@
     } else {
       await patch(expect.ref, {
         "Статус": { select: { name: Q.done } },
-        "Ответ": { rich_text: [{ type: "text", text: { content: answer } }] },
+        "Ответ": { rich_text: richText(answer) },
       });
       dropAnswer(expect.ref);
     }
@@ -9890,8 +9942,15 @@
           : /HTTP (?:429|5\d\d)/i.test(raw)
             ? "Notion ответил сбоем на своей стороне — это не ошибка карточки и не потерянный ход. " +
               "Скрипт повторил запрос и подождал; Notion не восстановился за это время. Обычно проходит за минуту-другую."
-            : e && e.narthex === "notion" || networkish(raw)
-              ? "Notion не ответил: сеть или блокировка запроса. Запись не сделана."
+            : /HTTP 4\d\d/i.test(raw)
+              ? "Notion отклонил запись: он ответил, и сеть тут ни при чём — данные не прошли его проверку. " +
+                (/length should be/i.test(raw)
+                  ? "Не поместился текст: одно поле принимает не больше 2000 знаков на объект — " +
+                    "это дефект скрипта, а не ошибка карточки или ответа. "
+                  : "") +
+                "Запись не сделана, ход не потерян."
+              : e && e.narthex === "notion" || networkish(raw)
+                ? "Notion не ответил: сеть или блокировка запроса. Запись не сделана."
               : "Шаг прервался на записи в Notion.";
       pause(
         `Цикл остановлен. ${plain} Ход не потерян: очередь и карточка на месте, ` +

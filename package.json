@@ -110,6 +110,7 @@
     "smoke:narthex-question": "node _tools/ScriptCat/tests/narthex-question-fulltext-smoke.mjs",
     "smoke:narthex-redispatch": "node _tools/ScriptCat/tests/narthex-rework-return-smoke.mjs",
     "smoke:narthex-review": "node _tools/ScriptCat/tests/narthex-review-gate-smoke.mjs",
+    "smoke:narthex-rich-text": "node _tools/ScriptCat/tests/narthex-rich-text-smoke.mjs",
     "smoke:narthex-tech": "node _tools/ScriptCat/tests/narthex-tech-info-smoke.mjs",
     "smoke:navigation-area": "tsx scripts/smoke-navigation-area.mts",
     "smoke:no-campaign": "tsx scripts/no-campaign-smoke.mts",

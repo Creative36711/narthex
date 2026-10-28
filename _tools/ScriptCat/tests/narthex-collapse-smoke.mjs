@@ -13,7 +13,7 @@ import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-assert.match(src, /@version\s+1\.4\.84/, 'версия 1.4.84');
+assert.match(src, /@version\s+1\.4\.85/, 'версия 1.4.85');
 
 const cut = (from, to) => {
   const a = src.indexOf(from);
