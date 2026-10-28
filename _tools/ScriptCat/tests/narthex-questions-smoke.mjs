@@ -17,7 +17,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-assert.match(src, /@version\s+1\.4\.79/, 'версия 1.4.79');
+assert.match(src, /@version\s+1\.4\.80/, 'версия 1.4.80');
 
 const sliceBetween = (startMarker, endMarker) => {
   const from = src.indexOf(startMarker);
@@ -34,7 +34,7 @@ const patched = [];
 const lines = [];
 
 const api = new Function(
-  'C', 'rt', 'sel', 'norm', 'GM_getValue', 'GM_setValue', 'notion', 'patch', 'log', 'K', 'noteQuestionAsked', 'dbg',
+  'C', 'rt', 'sel', 'norm', 'GM_getValue', 'GM_setValue', 'notion', 'patch', 'log', 'K', 'noteQuestionAsked', 'dbg', 'queueAnswer',
   `${block}
    return { Q, parseQuestion, questionDeadline, expiredQuestions, openQuestionsLine, answersLine, questionProps, askQuestion, markDelivered, closeExpired };`,
 )(
@@ -53,6 +53,7 @@ const api = new Function(
   { qQueue: 'cfn-q-queue' },
   () => {},
   () => {},
+  () => null,
 );
 
 const props = (over = {}) => ({
@@ -157,14 +158,14 @@ const run = async () => {
   assert.equal(created[0].path, 'pages', 'через pages');
   assert.equal(created[0].body.parent.data_source_id, 'ds-questions', 'пишем в базу «Вопросы»');
   assert.equal(created[0].body.parent.type, 'data_source_id', 'родитель — источник данных');
-  assert.match(lines.at(-1), /По умолчанию: оставить — работа идёт дальше/, 'в журнале сказано, что цикл продолжается');
+  assert.match(lines.at(-1), /По умолчанию: оставить — отвечает приёмка/, 'в журнале сказано, кто отвечает');
 
   await api.askQuestion(q, { key: 'turn-1' });
   assert.equal(created.length, 1, 'повторный маркер того же хода не создаёт вторую строку');
 
   // Ошибка Notion не срывает ход.
   const failing = new Function(
-    'C', 'rt', 'sel', 'norm', 'GM_getValue', 'GM_setValue', 'notion', 'patch', 'log', 'K', 'noteQuestionAsked', 'dbg',
+    'C', 'rt', 'sel', 'norm', 'GM_getValue', 'GM_setValue', 'notion', 'patch', 'log', 'K', 'noteQuestionAsked', 'dbg', 'queueAnswer',
     `${block}
      return { parseQuestion, askQuestion };`,
   )(
@@ -182,6 +183,7 @@ const run = async () => {
     { qQueue: 'cfn-q-queue' },
     () => {},
     () => {},
+    () => null,
   );
   const none = await failing.askQuestion(failing.parseQuestion({ text: 'q', default: 'a' }), { key: 'turn-x' });
   assert.equal(none, null, 'ошибка записи не возвращает строку');

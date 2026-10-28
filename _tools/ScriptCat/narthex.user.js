@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.79
+// @version      1.4.80
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -119,6 +119,7 @@
     lastSend: "cfn-last-send",
     deadSend: "cfn-dead-send",
     qQueue: "cfn-q-queue",
+    answers: "cfn-answer-queue",
     stateV: "cfn-state-v",
   };
 
@@ -305,7 +306,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.79";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.80";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -654,6 +655,20 @@
     GM_setValue(K.paused, info.reason);
     GM_setValue(K.pause, info);
     log(`ПАУЗА: ${info.reason}`, true, { skip: true });
+    // Тихая пауза — для остановок, которые Мастер не разбирает: вопрос ушёл
+    // приёмке, миссию закрыли в обход неё, приёмка сама решает по существу.
+    // С 1.4.80 такие события не повод звонить в телефон: их закрывает приёмка,
+    // а Мастер нужен только там, где без него физически нельзя (нет роли,
+    // нет прав, предел доработок).
+    if (context.quiet) {
+      notifyNtfy(`Цикл остановлен: ${info.reason}`, {
+        title: context.notifyTitle || "Narthex: пауза",
+        priority: "2",
+        tags: "memo",
+      });
+      setStatus();
+      return;
+    }
     notifyNtfy(`Цикл остановлен и ждёт Мастера: ${info.reason}`, {
       title: context.notifyTitle || "Narthex: пауза",
       priority: "5",
@@ -1797,7 +1812,12 @@
           "Если работу действительно приняли — нажмите «Продолжить», цикл закроет миссию как обычно. " +
           "Если нет — верните её в «Возвращена», напишите «Замечания» и нажмите «Продолжить»: " +
           "Координатор разберёт их карточками.",
-        { kind: "closed-unreviewed", ref: closed.id, notifyTitle: "Narthex: миссия закрыта без приёмки" },
+        {
+          kind: "closed-unreviewed",
+          ref: closed.id,
+          quiet: true,
+          notifyTitle: "Narthex: миссия закрыта без приёмки",
+        },
       );
       return true;
     }
@@ -1823,7 +1843,10 @@
       false,
       {
         tone: failed ? "warn" : "ok",
-        ntfy: "loud",
+        // Принятую миссию объявляет сама приёмка (`closeMission`) — громко и
+        // один раз. Здесь остаётся закрытие в обход приёмки: о нём Мастер уже
+        // знает из тихой паузы, звонить второй раз незачем (1.4.80).
+        ntfy: failed ? "loud" : "quiet",
         title: failed ? "Narthex: миссия провалена" : "Narthex: миссия завершена",
       },
     );
@@ -1882,6 +1905,14 @@
       GM_setValue(K.pending, null);
       cleared.push("очередь отправки");
     }
+    // Вопросы прошлой миссии к новой не относятся: ответ на них теперь
+    // бессмысленен, а очередь ответов иначе держала бы цикл (1.4.80).
+    const pendingAnswers = GM_getValue(K.answers || "cfn-answer-queue", null);
+    if (Array.isArray(pendingAnswers) && pendingAnswers.length) {
+      GM_setValue(K.answers || "cfn-answer-queue", []);
+      cleared.push("очередь ответов на вопросы");
+    }
+    GM_setValue("cfn-blocked-norole", 0);
     GM_setValue("cfn-plan-at", 0);
     GM_setValue("cfn-plan-miss", 0);
     dropPauseOfMission(cleared);
@@ -2623,14 +2654,20 @@
    * «ответь одной последней строкой» буквально, а в журнал попал только маркер).
    */
   function markerReminder(role, expect, attempt, markerName, why = "") {
-    const line =
-      expect.kind === "plan"
-        ? `CF_COORDINATOR_RESULT {"mission_id":"${expect.missionId || expect.ref}","turn_id":"${expect.turnId || ""}","status":"completed","next":"<роль|done>"}`
-        : expect.kind === "review"
-          ? `CF_REVIEW_RESULT {"mission_id":"${expect.missionId || expect.ref}","turn_id":"${expect.turnId || ""}","verdict":"accept|rework","remarks":"<пункты замечаний>"}`
-        : role.fn === "Auditor"
-          ? `CF_AGENT_RESULT {"dispatch_id":"${expect.ref}","run_id":"${expect.runId || ""}","status":"submitted","check":0,"report":"<путь к отчёту>"}`
-          : `CF_AGENT_RESULT {"dispatch_id":"${expect.ref}","run_id":"${expect.runId || ""}","status":"submitted","check":0,"report":"<путь>","pr":<номер PR|null>,"merged":true}`;
+    // Формат маркера зависит от вида хода: их четыре, и путать их нельзя —
+    // напоминание не должно просить у приёмки маркер исполнителя.
+    let line;
+    if (expect.kind === "answer") {
+      line = `CF_ANSWER_RESULT {"question_id":"${expect.ref}","turn_id":"${expect.turnId || ""}","verdict":"answer","answer":"<решение>"}`;
+    } else if (expect.kind === "plan") {
+      line = `CF_COORDINATOR_RESULT {"mission_id":"${expect.missionId || expect.ref}","turn_id":"${expect.turnId || ""}","status":"completed","next":"<роль|done>"}`;
+    } else if (expect.kind === "review") {
+      line = `CF_REVIEW_RESULT {"mission_id":"${expect.missionId || expect.ref}","turn_id":"${expect.turnId || ""}","verdict":"accept|rework","remarks":"<пункты замечаний>"}`;
+    } else if (role.fn === "Auditor") {
+      line = `CF_AGENT_RESULT {"dispatch_id":"${expect.ref}","run_id":"${expect.runId || ""}","status":"submitted","check":0,"report":"<путь к отчёту>"}`;
+    } else {
+      line = `CF_AGENT_RESULT {"dispatch_id":"${expect.ref}","run_id":"${expect.runId || ""}","status":"submitted","check":0,"report":"<путь>","pr":<номер PR|null>,"merged":true}`;
+    }
     const about = expect.title ? ` по «${expect.title}»` : "";
     const variants = [
       [
@@ -5867,7 +5904,8 @@
     if (role.fn === "Reviewer") {
       return [
         "Ты ничего не меняешь: ни в репозитории, ни в карточках — ни «на минутку», ни «чтобы стало зелёным».",
-        "Твой выход — вердикт: accept или rework с проверяемыми замечаниями.",
+        "Твой выход — вердикт: accept или rework с проверяемыми замечаниями, а на вопросы агентов — решение или master.",
+        "Вопрос агента ты закрываешь вместо Мастера; зовёшь Мастера только там, где без него физически нельзя.",
         "Чинит исполнитель, разбирает замечания карточками Координатор: чужая работа остаётся чужой.",
       ].join(" ");
     }
@@ -5907,7 +5945,7 @@
       "КАК РЕШАТЬ",
       `Зона записи${role && role.zone ? ` (${role.zone})` : ""} — рамка по умолчанию; Scope карточки расширяет её на этот ход. На этот ход карточка главнее общей рамки.`,
       "Неоднозначность решаешь сам: минимальное изменение, «Допущение: …» строкой в отчёт; меняет контракт — запись в docs/decisions.",
-      'Вопрос Мастеру задаётся только полем question в маркере: {"text":"…","options":["A","B"],"default":"A","hours":24}. Вариант по умолчанию обязателен — по нему ты работаешь сразу, не дожидаясь ответа; ответ придёт строкой в следующем промпте. Больше одного вопроса за ход не задавай.',
+      'Вопрос задаётся только полем question в маркере: {"text":"…","options":["A","B"],"default":"A","hours":24}. Вариант по умолчанию обязателен — по нему ты работаешь сразу, не дожидаясь ответа. Вопрос уходит приёмке сразу, как только записан: ответ придёт строкой в следующем промпте, обычно в том же ходе цикла. Больше одного вопроса за ход не задавай.',
       "Вопрос уместен, только если ответ меняет то, что будет построено, и ни ТЗ, ни карточка его не дают. Порядок, формулировки, оформление — решай сам.",
       "Предложение (ADR `proposed` в docs/decisions) — это тоже вопрос, и оно не работает без второго шага: в том же ходе задай question со ссылкой на файл, тремя вариантами и default = «оставить как есть». Иначе решение лежит в репозитории, где Мастер его не увидит. Ответ придёт строкой в следующем промпте — тогда и меняй статус: `accepted` или `rejected`, с датой. Оставлять `proposed` после ответа нельзя: это выглядит как нерешённый вопрос.",
       "Статус решения не проверяет ни один тест и не должен проверять: оракул, который требует `Статус: proposed`, защищает открытый вопрос от ответа. Проверка вправе требовать только допустимый статус, а не конкретный.",
@@ -6102,7 +6140,7 @@
       '3) Миссия выполнена → допиши «Итог» миссии (что сделано, чем проверено, какие долги остались) и поставь next = "done". Поле «Состояние» сам не ставь: «done» — это передача на приёмку, а не закрытие. Миссию закрывает роль с функцией Reviewer своим вердиктом; если она вернёт работу, замечания придут в плане следующего хода.',
       "",
       "next — имя роли той карточки, которую выдаёшь. Своё имя значит «ход снова мне»: это не ошибка, но работу надо выдать в этом же ответе.",
-      'Остановить цикл можно только одним способом: next = "blocked" и need = "<роль>" — когда работы для активных ролей нет вовсе. Rework, черновики и спорный Scope — твоя работа, а не повод. Если единственное, что осталось, — решение Мастера по оракулу, остановка законна; тогда объясни её полем question: вопрос без варианта по умолчанию при остановке попадает в «Вопросы» и в текст паузы, чтобы Мастер увидел суть, а не только «нет роли». Иначе — работай дальше.',
+      'Остановить цикл можно только одним способом: next = "blocked" и need = "<роль>" — когда работы для активных ролей нет вовсе. Rework, черновики и спорный Scope — твоя работа, а не повод. Остановка без need не принимается: транспорт вернёт ход тебе же. Вопрос — не остановка: он уходит приёмке сразу, она отвечает вместо Мастера, и ответ придёт тебе строкой в следующем плане. Иначе — работай дальше.',
       "Вопрос Мастеру задаётся полем question в маркере (формат — в «КАК РЕШАТЬ»): цикл при этом не останавливается.",
       "",
       "Последней строкой ответа:",
@@ -6662,15 +6700,15 @@
     for (const row of fresh.slice(0, 3)) {
       const fallback = qFallback(row);
       log(
-        `Новый вопрос к Мастеру: «${qText(row)}»${fallback ? ` — по умолчанию: ${fallback}` : ""}.`,
+        `Новый вопрос: «${qText(row)}»${fallback ? ` — по умолчанию: ${fallback}` : ""}. Отвечает приёмка.`,
         false,
-        { ntfy: "loud", title: "Narthex: новый вопрос к Мастеру" },
+        { ntfy: "quiet", title: "Narthex: новый вопрос" },
       );
     }
     if (fresh.length > 3) {
-      log(`И ещё ${fresh.length - 3} новых вопроса к Мастеру — откройте базу «Вопросы».`, false, {
-        ntfy: "loud",
-        title: "Narthex: вопросы к Мастеру",
+      log(`И ещё ${fresh.length - 3} новых вопроса — откройте базу «Вопросы».`, false, {
+        ntfy: "quiet",
+        title: "Narthex: вопросы",
       });
     }
     return fresh.length;
@@ -6959,10 +6997,11 @@
         });
         noteQuestionAsked(row, item.q);
         await appendQuestionBody(row, item.q);
+        queueAnswer(row, item.q, item.ctx || {});
         saved += 1;
-        log(`Отложенный вопрос к Мастеру записался: «${item.q.text}».`, false, {
-          ntfy: "loud",
-          title: "Narthex: вопрос к Мастеру",
+        log(`Отложенный вопрос записался: «${item.q.text}» — отвечает приёмка.`, false, {
+          ntfy: "quiet",
+          title: "Narthex: вопрос приёмке",
         });
       } catch (e) {
         left.push(item);
@@ -7056,12 +7095,14 @@
         properties: questionProps(q, ctx),
       });
       GM_setValue(key, Date.now());
-      // Счётчик на панели и громкий пуш: вопрос в Notion иначе теряется.
       noteQuestionAsked(row, q);
       await appendQuestionBody(row, q);
-      log(`Вопрос к Мастеру записан: «${q.text}». По умолчанию: ${q.fallback} — работа идёт дальше.`, false, {
-        ntfy: "loud",
-        title: "Narthex: новый вопрос к Мастеру",
+      // Вопрос сразу ставится в очередь приёмки: она отвечает вместо Мастера
+      // (1.4.80). Громкого пуша нет — вопрос больше не требует человека.
+      queueAnswer(row, q, ctx);
+      log(`Вопрос записан: «${q.text}». По умолчанию: ${q.fallback} — отвечает приёмка.`, false, {
+        ntfy: "quiet",
+        title: "Narthex: вопрос приёмке",
       });
       return row;
     } catch (e) {
@@ -7257,9 +7298,9 @@
     }
     const fresh = names.filter((name) => !before.includes(name));
     if (!fresh.length) return 0;
-    log(`Новое решение ждёт Мастера: ${fresh.join(", ")} — ${ADR_FOLDER} в main.`, false, {
-      ntfy: "loud",
-      title: "Narthex: новое решение (ADR)",
+    log(`Новое предложение ждёт решения: ${fresh.join(", ")} — ${ADR_FOLDER} в main.`, false, {
+      ntfy: "quiet",
+      title: "Narthex: новое предложение (ADR)",
     });
     return fresh.length;
   }
@@ -7755,8 +7796,11 @@
         decision.turn_id = expect.turnId;
       }
       log(`Маркер Координатора найден: дальше «${decision.next}» (turn ${decision.turn_id || expect.turnId}).`);
+      // Счётчик ложных остановок живёт подряд: обычное решение его обнуляет.
+      if (norm(decision.next) !== "blocked") GM_setValue("cfn-blocked-norole", 0);
       // Вопрос не останавливает цикл: он живёт строкой в базе «Вопросы», а
       // работа идёт по варианту, который агент назвал сам.
+      let askedRow = null;
       if (norm(decision.next) !== "blocked") {
         // Та же история, что у исполнителя: `"question":null` — не вопрос, а
         // вопрос без варианта по умолчанию записывается с честным вариантом
@@ -7770,13 +7814,20 @@
           );
         }
         if (asked.kind !== "none") {
-          await askQuestion(asked.question, {
+          askedRow = await askQuestion(asked.question, {
             roleName: role.name,
             card: "",
             mission: rt(mission.properties["Миссия"]),
             key: `${mission.id}:${decision.turn_id || expect.turnId}`,
           });
         }
+      }
+      // Вопрос не «висит» до конца хода: ход сразу переходит приёмке, а next из
+      // этого маркера не применяется — он посчитан без ответа. Ответ придёт
+      // Координатору следующим планом, строкой «Ответы на вопросы».
+      if (askedRow) {
+        const item = answerQueue().find((row) => row.id === askedRow.id);
+        if (item && (await startAnswer(mission, item))) return true;
       }
       if (norm(decision.next) === "blocked") {
         // Право Координатора остановить цикл. Повод ровно один: нужной роли
@@ -7789,6 +7840,54 @@
         // просто «Ждёт». Поэтому текст собирается по фактам (blockedReason), а
         // не по шаблону: Мастер должен видеть, что дозаполнить, а что создать.
         const need = String(decision.need || "").trim();
+        // Остановка законна только тогда, когда названной роли действительно
+        // некому отвечать: её нет в «Ролях», у неё не «Активна» или пуст
+        // «Agent URL». Роль, которая активна и имеет адрес, — не повод встать:
+        // работа для неё либо есть, либо решение за Координатором.
+        //
+        // Всё остальное («непонятно, что дальше», пустая очередь, спорный
+        // Scope) — работа Координатора, а не повод будить Мастера (1.4.80).
+        // Ход возвращается ему же с точной причиной; вторая такая попытка
+        // подряд — уже поломка, и тогда пауза честно зовёт человека.
+        const directory = need ? await roleRows().catch(() => []) : [];
+        const named = need ? directory.find((r) => norm(r.name) === norm(need)) : null;
+        const canTake = Boolean(named && (named.status || "") === "Активна" && named.url);
+        if (!need || canTake) {
+          const why = need
+            ? `роль «${need}» активна и «Agent URL» заполнен — значит, Координатор её не увидел`
+            : "роль не названа";
+          const tries = (Number(GM_getValue("cfn-blocked-norole", 0)) || 0) + 1;
+          GM_setValue("cfn-blocked-norole", tries);
+          const fresh0 = await queueOf(mission).catch(() => null);
+          if (tries >= 2) {
+            GM_setValue("cfn-blocked-norole", 0);
+            pause(
+              `Координатор второй раз подряд останавливает цикл, хотя ${why} (${fresh0?.summary || "очередь не прочитана"}). ` +
+                'Остановка с next = "blocked" законна только с need = "<роль>", которой не хватает: ' +
+                "очередь, Scope и неясное ТЗ решает Координатор. Посмотрите «Итог» и карточки — " +
+                "или назовите роль, которой действительно не хватает.",
+              { kind: "blocked-norole", ref: mission.id },
+            );
+            return true;
+          }
+          log(
+            `Остановка не принята (${tries} из 2): ${why}. Ход возвращается Координатору.`,
+            false,
+            { tone: "warn", ntfy: "quiet" },
+          );
+          await requestPlan(
+            mission,
+            role,
+            fresh0 || { summary: "очередь не прочитана" },
+            'Остановка не принимается: next = "blocked" законен только с need = "<роль>", которой нет ' +
+              "или которая не активна. " +
+              (need ? `Роль «${need}» активна и «Agent URL» заполнен — ход возможен. ` : "") +
+              "Реши сам — или назови роль, которой действительно не хватает.",
+            { force: true },
+          );
+          return true;
+        }
+        GM_setValue("cfn-blocked-norole", 0);
         // Вопрос при остановке раньше выбрасывался: у него нет варианта по
         // умолчанию (цикл и так стоит), а `parseQuestion` такие не принимает.
         // Мастер видел только «нужна роль», а суть вопроса оставалась в чате.
@@ -7814,8 +7913,7 @@
             });
           }
         }
-        const [directory, fresh, open] = await Promise.all([
-          roleRows().catch(() => []),
+        const [fresh, open] = await Promise.all([
           queueOf(mission).catch(() => null),
           questionRows([Q.wait], mission).catch(() => []),
         ]);
@@ -8079,8 +8177,11 @@
       `CF_REVIEW_RESULT {"mission_id":"${mission.id}","turn_id":"${turnId}","verdict":"accept","summary":"<одна строка: на что опирался>"}`,
       "или",
       `CF_REVIEW_RESULT {"mission_id":"${mission.id}","turn_id":"${turnId}","verdict":"rework","remarks":"1) <что не принято и чем это проверяется> 2) …"}`,
+      "или, если без Мастера решить нельзя (нужен новый агент, доступ, смена ТЗ или оракула):",
+      `CF_REVIEW_RESULT {"mission_id":"${mission.id}","turn_id":"${turnId}","verdict":"master","reason":"<чего именно не хватает>"}`,
       "Замечания — по пунктам и проверяемо: «не соответствует», «нет команды», «долг без записи». Придирка без проверки вернётся тебе же на четвёртом круге.",
       `Предел доработок: ${C.reworkLimit}. Следующий возврат не запускает работу, а будит Мастера — возвращай то, без чего миссию нельзя считать сделанной, а не то, что можно доделать следующим ТЗ.`,
+      "verdict master — не «мне не нравится»: это остановка цикла и вызов Мастера. Только когда без него физически нельзя.",
       "",
       roleContext(role),
     ]
@@ -8177,7 +8278,7 @@
       `«${reviewer.name}» не принял миссию (круг ${next} из ${C.reworkLimit}): ${firstLine(remarks)}. ` +
         "Замечания в карточке миссии, ход — Координатору.",
       false,
-      { tone: "warn", ntfy: "loud", title: "Narthex: миссия возвращена" },
+      { tone: "warn", ntfy: "quiet", title: "Narthex: миссия возвращена" },
     );
     const fresh = await notion("GET", `pages/${mission.id}`).catch(() => mission);
     const coord = (await roles().catch(() => [])).find((r) => r.fn === "Coordinator");
@@ -8228,6 +8329,209 @@
         "Поправьте маркер в ответе приёмки и нажмите «Продолжить».",
       { kind: "review-marker", ref: mission.id },
     );
+    return true;
+  }
+
+  // ─────────────────────── вопросы: отвечает приёмка ───────────────────────
+  /**
+   * Вопрос агента больше не ждёт Мастера.
+   *
+   * Раньше вопрос ложился строкой в «Вопросы» со сроком, цикл шёл по варианту
+   * по умолчанию, а ответ Мастера мог прийти через сутки или не прийти вовсе.
+   * 28.10 Мастер сказал прямо: на вопросы отвечает приёмка, и отвечает сразу —
+   * ход переключается на неё, как только вопрос записан.
+   *
+   * Теперь у вопроса две судьбы:
+   *   answer — приёмка решила по существу: «Ответ» записан, «Статус» =
+   *            «Решено», и ответ уезжает агентам обычным путём на следующем
+   *            ходе («Ответы на вопросы» в промпте);
+   *   master — без Мастера физически нельзя (нужен новый агент, доступ, смена
+   *            ТЗ или оракула): только тогда цикл встаёт и зовёт его.
+   *
+   * Предел срока (`Срок`, «Принят дефолт») остаётся страховкой: если приёмка
+   * недоступна, вопрос не висит вечно, а закрывается вариантом по умолчанию.
+   */
+  const answerQueue = () => {
+    const stored = GM_getValue(K.answers, []);
+    return Array.isArray(stored) ? stored : [];
+  };
+
+  /** Поставить вопрос в очередь приёмки. Повтор с тем же id не дублируется. */
+  function queueAnswer(row, q, ctx = {}) {
+    if (!row || !row.id) return null;
+    const item = {
+      id: row.id,
+      text: q.text,
+      fullText: q.fullText || q.text,
+      fallback: q.fallback,
+      options: Array.isArray(q.options) ? q.options : [],
+      role: ctx.roleName || "",
+      card: ctx.card || "",
+      mission: ctx.mission || "",
+      at: Date.now(),
+    };
+    const list = answerQueue().filter((row0) => row0.id !== item.id);
+    list.push(item);
+    GM_setValue(K.answers, list.slice(-10));
+    return item;
+  }
+
+  const dropAnswer = (id) => GM_setValue(K.answers, answerQueue().filter((item) => item.id !== id));
+
+  const answerPending = () => answerQueue()[0] || null;
+
+  /** Промпт приёмке: ответить на вопрос агента по существу или позвать Мастера. */
+  function answerPrompt(mission, role, item, turnId) {
+    const name = rt(mission.properties["Миссия"]) || "миссия";
+    const tz = mission.properties["ТЗ URL"]?.url || "не задано";
+    return [
+      technicalInfo(role),
+      "",
+      `Миссия: ${name}`,
+      `ТЗ и оракул: ${tz}`,
+      `Вопрос задал: ${item.role || "агент"}${item.card ? ` · карточка «${item.card}»` : ""}`,
+      "",
+      "ВОПРОС",
+      item.fullText,
+      "",
+      item.options.length ? `Варианты, которые предложил агент: ${item.options.join(" · ")}` : "",
+      `Вариант по умолчанию (по нему работа идёт прямо сейчас): ${item.fallback}`,
+      "",
+      "ЧТО ОТ ТЕБЯ ТРЕБУЕТСЯ",
+      "Ты — приёмка миссии и на вопросы агентов отвечаешь вместо Мастера. Решай по существу: что правильнее для миссии и её оракула, а не что проще согласовать.",
+      "Ответ увидят исполнитель и Координатор на следующем ходе — пиши решение, а не рассуждение: что делать, где граница, по какому признаку считать сделанным.",
+      "Твой ответ записывается в «Ответ» этой строки, статус становится «Решено», и на следующем ходе он уезжает агентам строкой «Ответы на вопросы». Поэтому ответ должен быть самодостаточным: агент увидит его без твоего чата.",
+      "Если вопрос про предложение (`docs/decisions/*.md`, статус `proposed`) — отвечай решением по существу: принять, отклонить или отложить, и что именно поменять. Статус файла меняет исполнитель карточкой, не ты.",
+      "Ничего не правь: ни карточки, ни код, ни документы. Твой выход — ответ или вызов Мастера.",
+      "Мастера зовёшь только тогда, когда без него физически нельзя: нужен новый агент в Arena, доступ или ключ, смена ТЗ или оракула. «Так спокойнее» и «пусть подтвердит» — не повод.",
+      "",
+      "ОТВЕТ — одной строкой в конце, ровно один маркер:",
+      `CF_ANSWER_RESULT {"question_id":"${item.id}","turn_id":"${turnId}","verdict":"answer","answer":"<решение: что делать и по какому признаку считать сделанным>"}`,
+      "или, если без Мастера физически нельзя:",
+      `CF_ANSWER_RESULT {"question_id":"${item.id}","turn_id":"${turnId}","verdict":"master","reason":"<чего именно не хватает: роль, доступ, решение по ТЗ>"}`,
+      "",
+      roleContext(role),
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  /**
+   * Передать вопрос приёмке. `true` — ход ушёл ей; `false` — отвечать некому
+   * (вопрос остаётся «Ждёт» и закрывается сроком или Мастером).
+   */
+  async function startAnswer(mission, item) {
+    const role = await reviewerRole();
+    if (!role) {
+      log(
+        "Вопрос записан, но активной роли с функцией Reviewer нет: отвечать некому — вопрос ждёт Мастера.",
+        false,
+        { ntfy: "quiet", title: "Narthex: отвечать на вопрос некому" },
+      );
+      dropAnswer(item.id);
+      return false;
+    }
+    const turnId = uid();
+    log(`Вопрос «${oneLine(item.text, 90)}» передан приёмке «${role.name}».`, false, { ntfy: "quiet" });
+    await sendToRole(role, answerPrompt(mission, role, item, turnId), "answer", item.id, {
+      questionId: item.id,
+      missionId: mission.id,
+      turnId,
+      title: "ответ на вопрос агента",
+    });
+    return true;
+  }
+
+  /** Ход приёмки по вопросу: записать ответ или позвать Мастера. */
+  async function answerStep(role, expect, manual = false) {
+    const decision = messagesAfter(expect.watermark)
+      .map((m) => parseMarker(m.raw, "CF_ANSWER_RESULT"))
+      .filter(Boolean)
+      .at(-1);
+    if (!decision) return markerMissing(role, expect, "CF_ANSWER_RESULT", manual);
+    GM_setValue(K.expect, null);
+    const qid = String(decision.question_id || "").trim();
+    if (qid && norm(qid) !== norm(expect.ref)) {
+      pause(`Маркер ответа относится к другому вопросу (${qid}), а ждём ${expect.ref}: ничего не меняю.`, {
+        kind: "marker-mismatch",
+        ref: expect.ref,
+      });
+      return true;
+    }
+    const verdict = String(decision.verdict || "").trim().toLowerCase();
+    const answer = String(decision.answer || "").trim();
+    if (verdict === "master") {
+      const reason = firstLine(String(decision.reason || answer || "").trim()) || "приёмка не назвала причину";
+      dropAnswer(expect.ref);
+      pause(
+        `Приёмка не может ответить на вопрос без Мастера: ${reason}. Вопрос остался в базе «Вопросы» со статусом ` +
+          "«Ждёт» — ответьте в поле «Ответ», поставьте «Решено» и нажмите «Продолжить».",
+        { kind: "answer-needs-master", ref: expect.ref, notifyTitle: "Narthex: вопрос ждёт Мастера" },
+      );
+      return true;
+    }
+    if (verdict !== "answer") {
+      pause(
+        `В маркере ответа нет verdict answer или master (пришло «${verdict || "пусто"}»): вопрос не закрываю. ` +
+          "Поправьте маркер в ответе приёмки и нажмите «Продолжить».",
+        { kind: "answer-marker", ref: expect.ref },
+      );
+      return true;
+    }
+    if (!answer) {
+      pause("Приёмка ответила без текста решения: пустой ответ ничего не меняет, вопрос остаётся открытым.", {
+        kind: "answer-empty",
+        ref: expect.ref,
+      });
+      return true;
+    }
+    // Вопрос могли закрыть руками, пока приёмка думала: тогда её ответ уже
+    // никому не нужен, и перезаписывать чужое решение нельзя.
+    const row = await notion("GET", `pages/${expect.ref}`).catch(() => null);
+    const state = row?.properties?.["Статус"]?.select?.name || "";
+    if (state && state !== Q.wait) {
+      dropAnswer(expect.ref);
+      log(
+        `Вопрос закрыт раньше приёмки («${state}») — ответ не перезаписываю, ход возвращается Координатору.`,
+        false,
+        { tone: "warn", ntfy: "quiet" },
+      );
+    } else {
+      await patch(expect.ref, {
+        "Статус": { select: { name: Q.done } },
+        "Ответ": { rich_text: [{ type: "text", text: { content: answer } }] },
+      });
+      dropAnswer(expect.ref);
+    }
+    // Панель знает про ответ сразу: вопрос больше не «Ждёт».
+    try {
+      const cache = openQuestions();
+      GM_setValue("cfn-q-open", { at: cache.at, rows: cache.rows.filter((row) => row.id !== expect.ref) });
+      paintQuestions(openQuestions().rows);
+    } catch (e) {
+      dbg("вопросы: панель не обновилась", e.message);
+    }
+    log(`Вопрос закрыт приёмкой «${role.name}»: ${oneLine(answer, 160)}`, false, { tone: "ok", ntfy: "quiet" });
+    // Ход возвращается Координатору: ответ придёт ему строкой в промпте
+    // («Ответы на вопросы»), а next из хода, где вопрос был задан, не
+    // применялся — он посчитан без ответа.
+    const mission = await activeMission().catch(() => null);
+    if (!mission) {
+      log("Вопрос закрыт, но активной миссии нет: продолжать не с чего.");
+      return true;
+    }
+    const coord = (await roles().catch(() => [])).find((r) => r.fn === "Coordinator");
+    if (!coord) {
+      pause("Вопрос закрыт, но активного Coordinator нет: ход возвращать некому.", {
+        kind: "answer-nocoord",
+        ref: mission.id,
+      });
+      return true;
+    }
+    const queue = await queueOf(mission).catch(() => ({ summary: "очередь не прочитана" }));
+    await requestPlan(mission, coord, queue, "Ответ на вопрос записан — учти его и продолжи план.", {
+      force: true,
+    });
     return true;
   }
 
@@ -8860,10 +9164,24 @@
         }
       }
 
+      // Вопрос, который ещё не отвечен, важнее нового хода: как только вопрос
+      // записан, ход переходит приёмке (1.4.80). Проверка стоит до выбора
+      // роли, поэтому работает и на странице исполнителя, и на странице
+      // Координатора — с любой из них транспорт уходит к приёмке сам.
+      if (!expect && me.fn !== "Reviewer") {
+        const item = answerPending();
+        if (item && (fromToggle || autoOn())) {
+          const mission = await activeMission().catch(() => null);
+          if (mission && (await startAnswer(mission, item))) return;
+        }
+      }
+
       if (me.fn === "Coordinator") {
         await coordinatorStep(me, expect, fromToggle);
       } else if (me.fn === "Reviewer" && expect) {
-        await reviewStep(me, expect, fromToggle);
+        // Приёмка ведёт два вида хода: ответ на вопрос агента и приёмку миссии.
+        if (expect.kind === "answer") await answerStep(me, expect, fromToggle);
+        else await reviewStep(me, expect, fromToggle);
       } else if (!expect) {
         // Без ожидания `messagesAfter(expect.watermark)` упал бы в catch,
         // и «Шаг» на странице исполнителя ставил бы паузу вместо ответа.

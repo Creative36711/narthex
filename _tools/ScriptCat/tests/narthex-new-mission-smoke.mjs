@@ -17,7 +17,7 @@ import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
-assert.match(src, /@version\s+1\.4\.79/, 'версия 1.4.79');
+assert.match(src, /@version\s+1\.4\.80/, 'версия 1.4.80');
 
 const sliceBetween = (startMarker, endMarker) => {
   const from = src.indexOf(startMarker);
@@ -71,6 +71,8 @@ function makeApi({ store = new Map(), active = mission, logs = [] } = {}) {
     ['cfn-pending', { roleId: 'role-1', text: 'задание' }],
     ['cfn-paused', 'ждём ответа'],
     ['cfn-pause-context', { kind: 'send', ref: 'mission-1', reason: 'ждём ответа' }],
+    // 1.4.80: очередь ответов на вопросы прошлой миссии к новой не относится.
+    ['cfn-answer-queue', [{ id: 'q-old', text: 'вопрос прошлой миссии' }]],
   ]);
   const { api } = makeApi({ store });
   assert.equal((await api.missionProbe()).changed, true, 'миссия другая');
@@ -81,6 +83,7 @@ function makeApi({ store = new Map(), active = mission, logs = [] } = {}) {
   assert.equal(store.get('cfn-paused'), '', 'пауза прошлой миссии снята');
   assert.equal(store.get('cfn-pause-context'), null, 'контекст паузы снят');
   assert.equal(store.get('cfn-mission-id'), 'mission-2', 'запомнена новая миссия');
+  assert.deepEqual(store.get('cfn-answer-queue'), [], 'вопросы прошлой миссии сняты');
 }
 
 // ── 2. Та же миссия: ничего не трогаем ─────────────────────────────────────
@@ -90,6 +93,7 @@ function makeApi({ store = new Map(), active = mission, logs = [] } = {}) {
     ['cfn-expect', { kind: 'dispatch', ref: 'card-1' }],
     ['cfn-pending', { roleId: 'role-1' }],
     ['cfn-paused', 'прошлая пауза'],
+    ['cfn-answer-queue', [{ id: 'q-1', text: 'вопрос этой миссии' }]],
   ]);
   const { api } = makeApi({ store });
   assert.equal((await api.missionProbe()).changed, false, 'миссия та же');
@@ -97,6 +101,7 @@ function makeApi({ store = new Map(), active = mission, logs = [] } = {}) {
   assert.deepEqual(store.get('cfn-expect'), { kind: 'dispatch', ref: 'card-1' }, 'ожидание живо');
   assert.deepEqual(store.get('cfn-pending'), { roleId: 'role-1' }, 'очередь жива');
   assert.equal(store.get('cfn-paused'), 'прошлая пауза', 'пауза осталась');
+  assert.deepEqual(store.get('cfn-answer-queue'), [{ id: 'q-1', text: 'вопрос этой миссии' }], 'очередь ответов жива');
 }
 
 // ── 3. Капча и сломанная страница ждут человека, а не миссии ──────────────

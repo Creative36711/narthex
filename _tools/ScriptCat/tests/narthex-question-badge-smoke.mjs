@@ -17,7 +17,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const V = '1.4.79';
+const V = '1.4.80';
 
 const versionLine = (src.split('\n').find((line) => line.startsWith('// @version')) || '')
   .replace(/\s+/g, ' ')
@@ -66,9 +66,15 @@ assert.match(logs.at(-1).text, /Открытых вопросов к Масте�
 logs.length = 0;
 assert.equal(api.notifyNewQuestions([row('q1', 'Роль Tools?', 'Активировать'), row('q2', 'Принять ADR F3?', 'Принять')]), 1, 'новый вопрос найден');
 const loud = logs.filter((l) => l.options?.ntfy === 'loud');
-assert.equal(loud.length, 1, 'громкий пуш ровно один');
-assert.match(loud[0].text, /Новый вопрос к Мастеру: «Принять ADR F3\?» — по умолчанию: Принять/, 'в пуше текст и вариант по умолчанию');
-assert.match(loud[0].options.title, /новый вопрос к Мастеру/, 'заголовок пуша говорит, что это вопрос');
+assert.equal(loud.length, 0, 'громкого пуша нет: вопросы закрывает приёмка');
+const quiet = logs.filter((l) => l.options?.ntfy === 'quiet');
+assert.equal(quiet.length, 1, 'строчка в журнале ровно одна');
+assert.match(
+  quiet[0].text,
+  /Новый вопрос: «Принять ADR F3\?» — по умолчанию: Принять\. Отвечает приёмка/,
+  'в журнале текст, вариант по умолчанию и кто отвечает',
+);
+assert.match(quiet[0].options.title, /новый вопрос/, 'заголовок говорит, что это вопрос');
 assert.deepEqual(store.get('cfn-q-seen'), ['q1', 'q2'], 'оба id запомнены');
 
 // Тот же список ещё раз — тишина.
@@ -101,10 +107,14 @@ assert.match(src, /C\.questionCheckMs\)/, 'частота — та же, что 
 assert.doesNotMatch(src, /cfn-q-check-at/, 'старый счётчик из тика убран');
 assert.match(src, /paintQuestions\(openQuestions\(\)\.rows\);\n\s+watchQuestions\(\);/, 'панель показывает число сразу при сборке');
 
-// Вопрос задан — пуш громкий, а не тихий (иначе его не услышать).
-assert.match(src, /Вопрос к Мастеру записан: «\$\{q\.text\}»[\s\S]{0,220}?ntfy: "loud"/, 'создание вопроса шлёт громкий пуш');
+// Вопрос задан — он уходит тихо: отвечает приёмка, а не человек (1.4.80).
+assert.match(
+  src,
+  /queueAnswer\(row, q, ctx\);\s*\n\s*log\(`Вопрос записан:[\s\S]{0,260}?ntfy: "quiet"/,
+  'создание вопроса не будит Мастера, а ставит его в очередь приёмки',
+);
 
 console.log(
-  `OK: narthex ${V} — открытые вопросы видны счётчиком на панели, новый вопрос даёт громкий пуш, ` +
+  `OK: narthex ${V} — открытые вопросы видны счётчиком на панели, новый вопрос уходит приёмке тихо, ` +
     'вопрос при остановке попадает в базу «Вопросы» и в текст паузы',
 );

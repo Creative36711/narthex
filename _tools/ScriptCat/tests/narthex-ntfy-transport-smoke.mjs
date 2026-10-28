@@ -14,7 +14,7 @@ const src = readFileSync(file, 'utf8');
 
 // 1. В @connect есть ntfy.sh, версия поднята.
 assert.match(src, /@connect\s+ntfy\.sh/, '@connect ntfy.sh');
-assert.match(src, /@version\s+1\.4\.79/, 'версия 1.4.79');
+assert.match(src, /@version\s+1\.4\.80/, 'версия 1.4.80');
 
 // 2. В коде нет кириллицы в заголовках: X-Title/X-Priority/X-Tags не используются.
 for (const header of ['X-Title', 'X-Tags', 'X-Priority']) {

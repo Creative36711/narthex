@@ -43,7 +43,11 @@ assert.match(src, /tone: options\.tone \|\| ""/, 'тон строки сохра
 // ── 2. Конец миссии: объявление события ────────────────────────────────────
 const noticeBlock = sliceBetween('  async function missionDoneNotice(expect) {', '  /**\n   * Блок замечаний Мастера');
 assert.match(noticeBlock, /autoSet\(false\)/, 'автоцикл выключается: цикл остановлен, а не «ждёт»');
-assert.match(noticeBlock, /ntfy: "loud"/, 'пуш громкий');
+assert.match(
+  noticeBlock,
+  /ntfy: failed \? "loud" : "quiet"/,
+  'громко только «Провалена»: закрытие без приёмки — тихая пауза, принятую объявляет приёмка',
+);
 assert.match(noticeBlock, /tone: failed \? "warn" : "ok"/, 'успех зелёный, провал жёлтый');
 assert.match(noticeBlock, /cfn-mission-done:/, 'событие объявляется один раз на миссию');
 assert.match(noticeBlock, /GM_setValue\(K\.expect, null\)/, 'ожидание снимается: ход вернуть некуда');
@@ -108,7 +112,7 @@ const closedMission = (state = 'Завершена', at = '2026-10-24') => ({
   assert.match(logs[0].t, /Миссия «NAR-1 · Ядро под паки» завершена/, 'видно, какая миссия');
   assert.match(logs[0].t, /цикл остановлен/, 'сказано, что дальше ничего не поедет');
   assert.equal(logs[0].o.tone, 'ok', 'строка зелёная');
-  assert.equal(logs[0].o.ntfy, 'loud', 'и с громким пушем');
+  assert.equal(logs[0].o.ntfy, 'quiet', 'без громкого пуша: принятую миссию объявляет сама приёмка');
 }
 
 // 2b. Повторный шаг не повторяет пуш.
@@ -152,7 +156,7 @@ const closedMission = (state = 'Завершена', at = '2026-10-24') => ({
   await second.call({ kind: 'plan' });
   assert.equal(second.logs.length, 1, 'второе закрытие после возврата снова объявлено');
   assert.equal(second.store.get('auto'), false, 'и снова гасит автоцикл');
-  assert.equal(second.logs[0].o.ntfy, 'loud', 'пуш снова громкий');
+  assert.equal(second.logs[0].o.ntfy, 'quiet', 'пуш снова тихий: громко объявляет только приёмка');
 }
 
 // 2c-ter. Повторный проход по уже объявленному закрытию тоже гасит автоцикл.
@@ -180,7 +184,7 @@ const closedMission = (state = 'Завершена', at = '2026-10-24') => ({
   const handled = await call({ kind: 'marker', ref: 'mission-1' });
   assert.equal(handled, true, 'закрытие этого дня — событие, а не тишина');
   assert.equal(store.get('auto'), false, 'автоцикл выключен');
-  assert.equal(logs[0].o.ntfy, 'loud', 'пуш громкий');
+  assert.equal(logs[0].o.ntfy, 'quiet', 'пуш тихий: принятую миссию объявляет приёмка');
 }
 
 // 2c-quinquies. Крутящийся автоцикл останавливается и о старом закрытии
@@ -195,7 +199,7 @@ const closedMission = (state = 'Завершена', at = '2026-10-24') => ({
   assert.equal(handled, true, 'пустой ход не выдаётся за «нет миссии»');
   assert.equal(store.get('auto'), false, 'автоцикл остановлен');
   assert.equal(logs.length, 1, 'о конце работы сказано один раз');
-  assert.equal(logs[0].o.ntfy, 'loud', 'и громким пушем');
+  assert.equal(logs[0].o.ntfy, 'quiet', 'и тихим пушем: конец работы объявляет приёмка');
 }
 
 // 2c-sexies. Без цикла и без ожидания старое закрытие — тишина.
@@ -213,6 +217,7 @@ const closedMission = (state = 'Завершена', at = '2026-10-24') => ({
   await call({ kind: 'plan' });
   assert.match(logs[0].t, /закрыта как «Провалена»/, 'провал не выдаётся за успех');
   assert.equal(logs[0].o.tone, 'warn', 'строка жёлтая');
+  assert.equal(logs[0].o.ntfy, 'loud', 'провал звонит: разбирать его Мастеру');
 }
 
 // 2e. Миссию закрыли без приёмки — это стоп с объяснением, а не «конец работы».
@@ -244,7 +249,7 @@ const closedMission = (state = 'Завершена', at = '2026-10-24') => ({
   assert.equal(handled, true, 'закрытие всё равно останавливает цикл');
   assert.equal(second.pauses.length, 0, 'второй паузы нет');
   assert.equal(second.logs.length, 1, 'и теперь сказано о конце работы');
-  assert.equal(second.logs[0].o.ntfy, 'loud', 'громким пушем');
+  assert.equal(second.logs[0].o.ntfy, 'quiet', 'тихим пушем: закрытие в обход приёмки');
 }
 
 // 2g. Тихий стенд без цикла и без ожидания: закрытие без вердикта не будит.

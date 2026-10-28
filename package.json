@@ -101,6 +101,7 @@
     "smoke:mission": "tsx scripts/mission-smokes.mts",
     "smoke:narrative-builder": "tsx scripts/smoke-narrative-builder-and-docs.mts",
     "smoke:narrative-intro": "tsx scripts/narrative-intro-and-ai-features-smoke.mts",
+    "smoke:narthex-answer": "node _tools/ScriptCat/tests/narthex-answer-smoke.mjs",
     "smoke:narthex-closed": "node _tools/ScriptCat/tests/narthex-closed-state-smoke.mjs",
     "smoke:narthex-fresh-branch": "node _tools/ScriptCat/tests/narthex-fresh-branch-smoke.mjs",
     "smoke:narthex-notion-retry": "node _tools/ScriptCat/tests/narthex-notion-retry-smoke.mjs",

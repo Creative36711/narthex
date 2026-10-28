@@ -22,7 +22,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // ── 1. Версия ──────────────────────────────────────────────────────────────
-assert.match(src, /@version\s+1\.4\.79/, 'версия 1.4.79');
+assert.match(src, /@version\s+1\.4\.80/, 'версия 1.4.80');
 
 // ── 2. Помощник dropGhostHandoff ───────────────────────────────────────────
 const from = src.indexOf('  async function dropGhostHandoff(why, { ignoreQueue = false } = {}) {');

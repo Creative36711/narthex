@@ -27,7 +27,7 @@ function make({ failPost = false, rows = [] } = {}) {
   let posts = 0;
   const fn = new Function(
     'GM_getValue', 'GM_setValue', 'K', 'C', 'notion', 'questionProps', 'noteQuestionAsked', 'appendQuestionBody', 'log', 'dbg',
-    'norm', 'questionRows', 'Q', 'rt',
+    'norm', 'questionRows', 'Q', 'rt', 'queueAnswer',
     `${block}\nreturn { queueQuestion, flushQuestionQueue };`,
   );
   const api = fn(
@@ -50,6 +50,7 @@ function make({ failPost = false, rows = [] } = {}) {
     async () => rows,
     { wait: 'Ждёт', done: 'Решено', byDefault: 'Принят дефолт' },
     (p) => (p?.rich_text || p?.title || []).map((x) => x.plain_text || x.text?.content || '').join(''),
+    (row) => row,
   );
   return { ...api, store, logs, posted, posts: () => posts };
 }
@@ -81,7 +82,8 @@ const question = {
   assert.equal(posted.length, 1, 'сделан ровно один POST');
   assert.equal(posted[0].body.parent.data_source_id, 'ds-questions', 'строка идёт в базу «Вопросы»');
   assert.equal(posted[0].body.properties['Вопрос'].title[0].text.content, question.text);
-  assert.ok(logs.some((l) => l.ntfy === 'loud'), 'о записанном вопросе приходит громкий пуш');
+  assert.ok(logs.every((l) => l.ntfy !== 'loud'), 'громкого пуша нет: вопрос уходит приёмке');
+  assert.ok(logs.some((l) => l.text && l.text.includes('отвечает приёмка')), 'в журнале сказано, кто отвечает');
   assert.ok(logs.some((l) => l.text && l.text.includes('Отложенный вопрос')), 'в журнал ушло объяснение');
 }
 
@@ -127,6 +129,6 @@ has('queueQuestion(q, ctx);', 'неудачная запись попадает 
 has('Строка отложена и повторится сама', 'Мастер видит, что вопрос не потерян');
 has('await flushQuestionQueue();', 'повтор запускается при обновлении вопросов');
 has('qQueue: "cfn-q-queue",', 'ключ хранилища очереди');
-has('@version      1.4.79', 'версия 1.4.79');
+has('@version      1.4.80', 'версия 1.4.80');
 
 console.log('question-retry: ok');
