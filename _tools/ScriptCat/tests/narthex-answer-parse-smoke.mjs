@@ -84,6 +84,37 @@ assert.deepEqual(
   'последний настоящий маркер важнее прошлого',
 );
 
+// 1.9. Живой ответ приёмки со сравнением «6<7» — маркер настоящий.
+// 28.10 18:19 Warden трижды «ответил без маркера»: разбор ловил знак «меньше»
+// в любом месте строки и выбрасывал ответ как шаблон из задания.
+assert.deepEqual(
+  parseMarker(
+    'CF_ANSWER_RESULT {"question_id":"q1","turn_id":"t1","verdict":"answer","answer":"до этого гейт красный со строкой 6<7, порог не достигнут"}',
+    'CF_ANSWER_RESULT',
+  ),
+  { question_id: 'q1', turn_id: 't1', verdict: 'answer', answer: 'до этого гейт красный со строкой 6<7, порог не достигнут' },
+  'знак «меньше» в ответе не делает маркер шаблоном',
+);
+
+// 1.10. Скобки в коде — не шаблон: `<div>` это разметка, а не пример задания.
+assert.deepEqual(
+  parseMarker('CF_REVIEW_RESULT {"mission_id":"m1","verdict":"rework","remarks":"в оракуле стоит a < b, поправь"}', 'CF_REVIEW_RESULT'),
+  { mission_id: 'm1', verdict: 'rework', remarks: 'в оракуле стоит a < b, поправь' },
+  'одиночные скобки в тексте замечаний допустимы',
+);
+
+// 1.11. Шаблон без описания внутри (всё значение в скобках) — по-прежнему не ответ.
+assert.equal(
+  parseMarker('CF_ANSWER_RESULT {"question_id":"q1","verdict":"answer","answer":"<путь>"}', 'CF_ANSWER_RESULT'),
+  null,
+  'короткий шаблон из задания не засчитывается',
+);
+assert.equal(
+  parseMarker('CF_ANSWER_RESULT {"question_id":"q1","verdict":"answer","answer":"<чего именно не хватает: роль, доступ>"}', 'CF_ANSWER_RESULT'),
+  null,
+  'шаблон с описанием внутри не засчитывается',
+);
+
 // ── 2. Сырой текст: разбор не зависит от innerText ──────────────────────────
 assert.match(src, /function messageRaw\(node\)/, 'есть чтение сырого текста');
 assert.match(src, /String\(clone\.textContent \|\| ""\)/, 'сырой текст берётся из textContent');
