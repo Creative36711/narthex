@@ -16,7 +16,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.83/, 'версия 1.4.83');
+assert.match(src, /@version\s+1\.4\.84/, 'версия 1.4.84');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
@@ -203,7 +203,11 @@ assert.match(src, /pendingTtlMs: 600000/, 'TTL очереди в конфиге'
 assert.match(src, /replyWaitMs: 1800000/, 'предел ожидания ответа в конфиге');
 assert.match(src, /function dropHandoff\(reason\)/, 'зависшая передача снимается целиком');
 assert.match(tickBody, /dropHandoff\(/, 'молчание агента ставит паузу');
-assert.match(src, /async function releaseUndelivered\(expect, why\)/, 'недошедший ход возвращает карточку в Ready');
+assert.match(
+  src,
+  /async function releaseUndelivered\(expect, why, \{ cause = "undelivered" \} = \{\}\)/,
+  'недошедший ход возвращает карточку в Ready',
+);
 assert.match(cpBody, /await releaseUndelivered\(/, 'отказ отправки и просрочка снимают Running');
 assert.match(tickBody, /await releaseUndelivered\(stuck/, 'молчание агента снимает Running, а не ждёт 45 минут');
 
@@ -229,7 +233,7 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
   });
   // Свои сообщения в транскрипте: 1.4.20 подтверждает доставку именно ими.
   // У реплики есть id: доставка подтверждается сообщением, которого не было в
-  // снимке до отправки, — без id сравнить нечего (1.4.83).
+  // снимке до отправки, — без id сравнить нечего (1.4.84).
   const sent = sentAlready
     ? [{ id: "chat-message-m0", textContent: pending?.text || "", closest: () => null }]
     : [];
@@ -394,7 +398,7 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
 
 // 6.1c. Повторная выдача той же карточки (28.10, 19:38): в чате уже лежит
 // прошлое сообщение с тем же ключом, а клик по Send ничего не отправляет.
-// До 1.4.83 такая реплика считалась доставкой — журнал писал «Задание
+// До 1.4.84 такая реплика считалась доставкой — журнал писал «Задание
 // отправлено», текст оставался в поле, и цикл ждал ответа впустую.
 {
   const { api, out } = load({

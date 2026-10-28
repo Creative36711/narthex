@@ -125,11 +125,12 @@ const real = { ...ghost, sentAt: 2, verified: true };
 
 // ── 6. Кнопка есть в панели, у 🧹 подсказка про ↺ ───────────────────────────
 assert.match(src, /reset: "cfn-reset"/, 'id кнопки объявлен');
-assert.match(src, /id="\$\{ui\.reset\}" title="Сбросить очередь и ожидание прошлых попыток/, 'кнопка ↺ в панели');
-assert.match(src, /getElementById\(ui\.reset\)\.onclick = \(\) => resetStateDialog\(\)/, 'кнопка вызывает очистку');
+assert.match(src, /id="\$\{ui\.reset\}" title="Снять ход: очередь, ожидание и карточки в Running/, 'кнопка ↺ в панели');
+assert.match(src, /getElementById\(ui\.reset\)\.onclick = \(\) => \{/, 'кнопка вызывает очистку');
+assert.match(src, /resetStateDialog\(\)\.catch\(/, 'отказ сети при снятии хода не теряется');
 assert.match(src, /Очистить журнал; очередь снимается кнопкой ↺/, 'у 🧹 понятная подсказка');
 assert.match(src, /reset: \(\) => resetStateDialog\(\)/, 'в консоли есть __narthex.reset()');
 assert.match(src, /const boot = \(\) => \{\s*migrateState\(\);/, 'миграция выполняется до первого шага');
 assert.match(src, /title="версия скрипта">v\$\{SCRIPT_VERSION\}/, 'в панели видно, какая версия загружена');
 
-console.log('OK: narthex 1.4.63 — обновление снимает ожидание без отправки, ↺ чистит очередь и ожидание, журнал не засоряется');
+console.log('OK: narthex 1.4.63 — обновление снимает ожидание без отправки, ↺ снимает ход целиком, журнал не засоряется');

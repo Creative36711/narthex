@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.83
+// @version      1.4.84
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -90,6 +90,7 @@
     sendVerifyMs: 6000, // сколько ждём своё сообщение в чате после нажатия Send
     captchaGuardMs: 8000, // сколько после «отправлено» ждём капчу: она всплывает с задержкой
     stalledMs: 2700000, // 45 минут — и только для карточки, по которой ход потерян
+    orphanGraceMs: 120000, // столько ждём, прежде чем вернуть в Ready карточку без хода
     longWaitNoticeMs: 600000, // раз в 10 минут напоминаем, что долгое ожидание — норма
     pollPauseCount: 3, // столько опросов подряд — уже поломка промпта, а не случайность
     reworkLimit: 3, // доработок миссии больше этого — стоп и вызов Мастера
@@ -308,7 +309,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.83";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.84";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -895,7 +896,7 @@
    * решает, снимать ли очередь и ожидание. Ошибка Notion ход не съедает: всё
    * остаётся как было, и работает прежнее правило 45 минут.
    */
-  async function releaseUndelivered(expect, why) {
+  async function releaseUndelivered(expect, why, { cause = "undelivered" } = {}) {
     if (!expect || expect.kind !== "dispatch" || !expect.ref) return false;
     let card;
     try {
@@ -919,19 +920,22 @@
     if (logId) {
       try {
         await gateway("append", logId, {
-          marker: `<!-- CF_DISPATCH ${card.id}:${runId}:undelivered -->`,
+          marker: `<!-- CF_DISPATCH ${card.id}:${runId}:${cause} -->`,
           entry:
-            `\n\n<!-- CF_DISPATCH ${card.id}:${runId}:undelivered -->\n## Ход не дошёл до исполнителя\n\n` +
+            `\n\n<!-- CF_DISPATCH ${card.id}:${runId}:${cause} -->\n## ` +
+            `${cause === "manual-reset" ? "Ход снят Мастером" : "Ход не дошёл до исполнителя"}\n\n` +
             `${why}\n\nКарточка возвращена в Ready, «Started At» и «Run ID» сняты: работы по ней не было.\n`,
         });
       } catch (e) {
         log(`Отметка о неудачной отправке не записалась в журнал: ${e.message}`, true);
       }
     }
-    log(`«${taskTitle(card)}» возвращена в Ready: ${why}. В Running она бы ждала 45 минут.`, true, {
-      ntfy: "quiet",
-      title: "Narthex: карточка возвращена в Ready",
-    });
+    log(
+      `«${taskTitle(card)}» возвращена в Ready: ${why}.` +
+        (cause === "manual-reset" ? "" : " В Running она бы ждала 45 минут."),
+      true,
+      { ntfy: "quiet", title: "Narthex: карточка возвращена в Ready" },
+    );
     return true;
   }
 
@@ -1129,7 +1133,7 @@
         <button id="${ui.adr}" title="Решения (ADR) со статусом proposed — ждут Мастера" style="${btnStyle()}">⚖<span id="${ui.adrBadge}" style="display:none;margin-left:3px;padding:0 4px;border-radius:7px;background:#8a6b2a;color:#fff;font-size:10px;line-height:14px;vertical-align:middle">0</span></button>
         <button id="${ui.gh}" title="GitHub: токен для приватного репозитория и возврат карточки после ложного отказа" style="${btnStyle()}">🐙</button>
         <button id="${ui.debug}" title="Отладка в консоли браузера (F12)" style="${btnStyle()}">🐞</button>
-        <button id="${ui.reset}" title="Сбросить очередь и ожидание прошлых попыток (журнал и настройки останутся)" style="${btnStyle()}">↺</button>
+        <button id="${ui.reset}" title="Снять ход: очередь, ожидание и карточки в Running без хода (журнал и настройки останутся)" style="${btnStyle()}">↺</button>
         <button id="${ui.clear}" title="Очистить журнал; очередь снимается кнопкой ↺" style="${btnStyle()}">🧹</button>
         <button id="${ui.setup}" title="Настройка" style="${btnStyle()}">⚙</button>
         <button id="${ui.stop}" title="Остановить цикл и снять паузу" style="${btnStyle()}">✕</button>
@@ -1141,7 +1145,11 @@
     document.getElementById(ui.collapse).onclick = () => togglePanel();
 
     document.getElementById(ui.setup).onclick = () => setup(true);
-    document.getElementById(ui.reset).onclick = () => resetStateDialog();
+    document.getElementById(ui.reset).onclick = () => {
+      // Сброс теперь ходит в Notion: без перехвата отказ сети остался бы
+      // необработанным обещанием и молчаливой кнопкой.
+      resetStateDialog().catch((e) => log(`Сброс не удался: ${e.message}`, true));
+    };
     document.getElementById(ui.clear).onclick = () => clearLog();
     document.getElementById(ui.debug).onclick = () => {
       const on = !debugOn();
@@ -4467,7 +4475,7 @@
    *
    * Подтверждением не считаются ни выросший счётчик сообщений, ни пустое поле
    * при работающем агенте (1.4.82: 28.10, 19:08), ни реплика, лежавшая в чате
-   * до попытки (1.4.83: 19:38 — повторная выдача той же карточки дала тот же
+   * до попытки (1.4.84: 19:38 — повторная выдача той же карточки дала тот же
    * ключ, и старая реплика сошла за новую).
    *
    * Возвращает `{ id }` — id сообщения, которым подтверждена отправка: по нему
@@ -5208,7 +5216,7 @@
     if (expect && norm(expect.roleId) === norm(me)) {
       // Граница «после отправки» — id подтвердившего сообщения, а не последнего
       // перед отправкой: ответ агента читается строго после нашей реплики, и
-      // старое сообщение с тем же текстом границу не сдвигает (1.4.83).
+      // старое сообщение с тем же текстом границу не сдвигает (1.4.84).
       // Если id не пришёл (старая ветка), остаётся прежний водяной знак.
       const mark = delivery.msgId || watermark;
       GM_setValue(K.expect, { ...expect, watermark: mark, sentAt: Date.now(), verified: true, seen });
@@ -5306,16 +5314,72 @@
     return who;
   }
 
-  /** Кнопка ↺: очистка по воле Мастера, с показом того, что снимается. */
-  function resetStateDialog() {
-    const what = describeTransient(transientState());
-    if (!what) {
-      log("Сбрасывать нечего: очередь пуста, ожидания нет.");
+  /**
+   * Кнопка ↺: снять ход, а не только память транспорта.
+   *
+   * 28.10 Мастер нажал ↺, когда задание не ушло. Очередь и ожидание в
+   * хранилище снялись — а карточка NAR-5.3 осталась в Notion в Running.
+   * Координатор увидел «1 Running», решил, что работа идёт, и выдал следующую
+   * карточку; прежняя так и висела. Сброс, после которого карточка выглядит
+   * выданной, — это не сброс, а потерянная работа.
+   *
+   * Поэтому теперь ↺ делает три вещи по порядку:
+   *  1) возвращает в Ready карточку текущего хода (`releaseUndelivered`);
+   *  2) чистит очередь, ожидание и защиту от повторов (`resetState`);
+   *  3) возвращает в Ready все карточки, висящие в Running без хода, — в том
+   *     числе оставшиеся от прошлых сбросов и обновлений (`sweepOrphans`).
+   *
+   * Отмена в диалоге не трогает ничего.
+   */
+  async function resetStateDialog() {
+    const state = transientState();
+    const what = describeTransient(state);
+    const handoff = state.expect && state.expect.kind === "dispatch" && state.expect.ref ? state.expect : null;
+    const cardLine = handoff
+      ? `Карточка «${handoff.title || handoff.ref}» вернётся в Ready: сниму «Run ID» и «Started At», ` +
+        "чтобы она не висела в Running без хода. Если агент ещё работает, его ответ придёт в чат уже без карточки."
+      : what
+        ? "Карточку текущего хода верну в Ready, если она висит в Running."
+        : "";
+    const plan = [
+      what ? `Снять с транспорта: ${what}.` : "На транспорте пусто: очереди и ожидания нет.",
+      cardLine,
+      "Карточки миссии, которые висят в Running без хода, тоже вернутся в Ready.",
+      "Журнал и настройки останутся.",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+    const head = what ? "Снять ход?" : "Проверить карточки в Running?";
+    if (!confirm(`${head}\n\n${plan}`)) return;
+
+    // 1. Карточка текущего хода — до очистки: после неё `expect` уже не найти.
+    let rolled = false;
+    if (handoff) {
+      rolled = await releaseUndelivered(handoff, "ход снят Мастером кнопкой ↺", { cause: "manual-reset" });
+    }
+    // 2. Память транспорта.
+    resetState();
+    if (what) log(`Снял ход вручную (${what}).`);
+
+    // 3. Остальные Running без хода — на любой странице и в любой момент.
+    let swept = [];
+    try {
+      const mission = await activeMission();
+      if (mission) swept = await sweepOrphans(mission);
+    } catch (e) {
+      dbg("сброс: карточки в Running не проверены", e.message);
+    }
+
+    if (!what && !swept.length) {
+      log("Снимать нечего: очередь пуста, ожидания нет, в Running без хода тоже ничего не висит.");
       return;
     }
-    if (!confirm(`Сбросить очередь и ожидание?\n\n${what}\n\nЖурнал и настройки останутся.`)) return;
-    resetState();
-    log(`Сбросил состояние вручную (${what}). Нажмите «Шаг», чтобы начать с чистого листа.`);
+    log(
+      `Готово: ${what ? "очередь и ожидание сняты" : "транспорт был пуст"}` +
+        `${rolled ? ", карточка хода возвращена в Ready" : ""}` +
+        `${swept.length ? `, без хода висели ${swept.length} — тоже в Ready` : ""}. ` +
+        "Нажмите «Шаг», чтобы начать с чистого листа.",
+    );
     setStatus();
   }
 
@@ -6434,6 +6498,7 @@
       note ? `Комментарий: ${note}` : "",
       "",
       "ОЧЕРЕДЬ — ТВОЯ",
+      "Running в очереди — это работа, которая идёт прямо сейчас: его ставит транспорт на время хода и сам возвращает карточку в Ready, если хода по ней нет. Перевыдавать такую карточку не надо.",
       "Движок ставит Running и Submitted; Accepted, Rework и Ready ставишь ты. Нарезка, порядок, Кому, Sequence, число Ready, выдача черновика (Draft → Ready), правка его полей и архив лишнего — твои действия. Код, ветки и PR — не твоя зона.",
       "Мастер и Архитектор пишут только черновики: это твой задел, а не приказ — правь под оракул миссии и выдавай сам, не дожидаясь Мастера. В архив — только если черновик дублирует уже выданное.",
       "Прежде чем заводить карточку, пролистай «Запросы» по номеру: карточка с этим номером уже есть (Draft, Ready, Rework — всё равно) — правь её и выдавай, второй такой же номер не создавай. Дубль без «Ответа» убери в архив. В «Миссию» пиши полное название миссии, а не «NAR-4»: по этому полю транспорт отличает очередь миссии от чужой, и короткое название прячет карточку от всех.",
@@ -6779,12 +6844,77 @@
    * задание или ожидание ответа), карточка не трогается никогда: агент может
    * работать и два, и три часа, и это нормально.
    */
+  /**
+   * Карточки в Running, по которым у транспорта нет хода.
+   *
+   * В Running карточку ставит только транспорт (`dispatchTask`) — тем самым он
+   * берёт её в работу. Значит Running без живого ожидания означает, что работу
+   * никто не ведёт: скрипт про неё забыл (сброс кнопкой ↺, обновление, чужой
+   * браузер), а в очереди она выглядит как ход. Координатор видит «1 Running»,
+   * считает, что работа идёт, и выдаёт вместо неё следующую карточку — а эта
+   * висит до 45 минут и потом всё равно возвращается.
+   *
+   * 28.10 так и вышло: ↺ снял ожидание, NAR-5.3 осталась Running, и новый ход
+   * ушёл Architect'у. Теперь такие карточки возвращаются в Ready сразу — до
+   * того, как Координатор увидит очередь.
+   *
+   * Не трогаем три вещи:
+   *  • карточку текущего хода — по ней скрипт правда ждёт ответа;
+   *  • всё, пока идёт отправка (`K.pending`) или транспорт занят другим ходом
+   *    (ответ приёмки, вопрос, план): тогда «без хода» — наша невнимательность,
+   *    а не факт;
+   *  • карточку, выданную только что (`orphanGraceMs`) — ход мог уйти из
+   *    другой вкладки, и `K.expect` ещё не перечитан.
+   *
+   * Возвращает список возвращённых карточек (для журнала и проб).
+   */
+  async function sweepOrphans(mission, cards = null) {
+    if (!mission || GM_getValue(K.pending, null)) return [];
+    const expect = GM_getValue(K.expect, null);
+    if (expect && Number(expect.sentAt) && expect.kind !== "dispatch") return [];
+    const live = expect && expect.kind === "dispatch" && expect.ref ? norm(expect.ref) : "";
+    const running = cards || (await tasks("Running", mission));
+    const swept = [];
+    for (const card of running) {
+      if (live && norm(card.id) === live) continue;
+      const started = card.properties?.["Started At"]?.date?.start;
+      const age = started ? Date.now() - Date.parse(started) : Number.POSITIVE_INFINITY;
+      if (age < C.orphanGraceMs) continue;
+      // `rollbackProps` сам откажется, если карточка уже отвечена («Submitted
+      // At», «PR») или её Run ID сменился: чужой ход не снимаем.
+      const props = rollbackProps(card, rt(card.properties?.["Run ID"]));
+      if (!props) continue;
+      try {
+        await patch(card.id, props);
+      } catch (e) {
+        log(`«${taskTitle(card)}» висит в Running без хода, но статус не снялся: ${e.message}.`, true);
+        continue;
+      }
+      GM_setValue(answerStampKey(card.id), "");
+      swept.push(card);
+      const how = Number.isFinite(age) ? `${Math.round(age / 60000)} мин` : "неизвестно сколько";
+      log(
+        `«${taskTitle(card)}» висит в Running ${how} без хода скрипта — вернул в Ready: ` +
+          "ожидания по ней нет, работа по ней не идёт.",
+        false,
+        { tone: "warn", ntfy: "quiet", title: "Narthex: карточка возвращена в Ready" },
+      );
+    }
+    return swept;
+  }
+
   async function releaseStalled(mission) {
     // Идёт отправка — не наше дело, что там на часах.
     if (GM_getValue(K.pending, null)) return;
-    const expect = GM_getValue(K.expect, null);
     const running = await tasks("Running", mission);
+    // Сироты — до всех отсчётов: карточка без хода не работает ни секунды, и
+    // ждать 45 минут ей незачем. Список передаём тот же, второй раз Notion не
+    // читаем.
+    const swept = new Set((await sweepOrphans(mission, running) || []).map((card) => norm(card.id)));
+    const expect = GM_getValue(K.expect, null);
     for (const card of running) {
+      // Карточку уже вернул `sweepOrphans`: второй раз её не читаем.
+      if (swept.has(norm(card.id))) continue;
       // По этой карточке скрипт как раз ждёт ответа: ход живой.
       if (expect && Number(expect.sentAt) && norm(expect.ref) === norm(card.id)) continue;
       const started = card.properties["Started At"]?.date?.start;
@@ -8178,6 +8308,30 @@
       }
     }
 
+    // Ход не у Координатора: ему тут делать нечего, а новый план — вреден.
+    // `requestPlan` перезаписывает `K.expect`, и ожидание живого хода
+    // пропадает: карточка остаётся в Running без хода, а ответ агента приходит
+    // в пустоту. Ровно так теряется работа, если открыть страницу Координатора
+    // (или перезагрузить её) посреди ответа исполнителя или приёмки.
+    //
+    // Ждём только свой ход — `plan` и `reminder` адресованы Координатору, их
+    // разбирает код ниже. Всё остальное — на странице адресата: ответ читается
+    // только там.
+    if (expect && Number(expect.sentAt) && expect.kind !== "plan" && expect.kind !== "reminder") {
+      const who = expect.roleName || expect.roleId;
+      const list = await roles().catch(() => []);
+      const target = list.find((r) => norm(r.id) === norm(expect.roleId)) || null;
+      if (target) return navigateTo(target, "там ждёт ответа исполнитель");
+      logThrottled(
+        `coord-busy:${expect.ref || who}`,
+        `Ход у «${who}»: жду ответа. Новый план Координатору не нужен — он перезапишет ожидание, ` +
+          "и карточка останется в Running без хода.",
+        false,
+        C.tickMs * 4,
+      );
+      return true;
+    }
+
     await releaseStalled(mission);
     const submitted = await tasks("Submitted", mission);
     const running = await tasks("Running", mission);
@@ -9151,13 +9305,27 @@
     // если `sendToRole` не отправил текст (тот же текст уходил минуту назад —
     // это защита от дубля, а не отказ). Отказ отправки разбирает сторож
     // неотправленной очереди, а не вызывающий.
-    await sendToRole(role, executorPrompt(card, role, payload, logId, runId), "dispatch", card.id, {
+    const queued = await sendToRole(role, executorPrompt(card, role, payload, logId, runId), "dispatch", card.id, {
       runId,
       logId,
       title: taskTitle(card),
       // Ссылка нужна минимальному повтору: «прочитай карточку сам».
       url: card.url || "",
     });
+    if (!queued) {
+      // Очередь не создалась (сработала защита от повтора — тот же текст уже
+      // уходил этой роли минуту назад). Значит хода нет, а карточка уже
+      // Running: без ожидания её никто не поведёт, и Координатор увидит
+      // «работу», которой нет. Возвращаем в Ready и говорим об этом прямо.
+      const left = GM_getValue(K.expect, null);
+      if (!left || norm(left.ref) !== norm(card.id)) {
+        await releaseUndelivered(
+          { kind: "dispatch", ref: card.id, runId, title: taskTitle(card) },
+          "задание не поставлено в очередь",
+        );
+        return "задание не поставлено в очередь (то же сообщение уже уходило)";
+      }
+    }
     return true;
   }
 

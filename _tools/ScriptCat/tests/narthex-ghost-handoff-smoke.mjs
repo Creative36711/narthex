@@ -22,7 +22,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // ── 1. Версия ──────────────────────────────────────────────────────────────
-assert.match(src, /@version\s+1\.4\.83/, 'версия 1.4.83');
+assert.match(src, /@version\s+1\.4\.84/, 'версия 1.4.84');
 
 // ── 2. Помощник dropGhostHandoff ───────────────────────────────────────────
 const from = src.indexOf('  async function dropGhostHandoff(why, { ignoreQueue = false } = {}) {');
@@ -151,7 +151,7 @@ assert.match(late.slice(0, 700), /dropGhostHandoff\(/, 'запасная вет�
 // 1.4.9 снимала при обновлении ожидание без отметки отправки — и карточка,
 // успевшая стать Running, оставалась в нём до `releaseStalled`.
 const migrateFrom = src.indexOf('  function migrateState() {');
-const migrateTo = src.indexOf('  /** Кнопка ↺: очистка по воле Мастера');
+const migrateTo = src.indexOf('  /**\n   * Кнопка ↺: снять ход, а не только память транспорта');
 assert.ok(migrateFrom > 0 && migrateTo > migrateFrom, 'migrateState на месте');
 const migrate = src.slice(migrateFrom, migrateTo);
 assert.match(migrate, /ghostAfterUpdate = expect;/, 'снятое ожидание передаётся шагу');

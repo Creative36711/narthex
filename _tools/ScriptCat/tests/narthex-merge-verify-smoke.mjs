@@ -21,7 +21,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // ── 1. Версия и разрешение хоста ───────────────────────────────────────────
-assert.match(src, /@version\s+1\.4\.83/, 'версия 1.4.83');
+assert.match(src, /@version\s+1\.4\.84/, 'версия 1.4.84');
 assert.match(src, /\/\/ @connect\s+api\.github\.com/, 'api.github.com разрешён в @connect');
 
 // ── 2. Номер и репозиторий PR ──────────────────────────────────────────────

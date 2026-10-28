@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и новый адрес ntfy.
-assert.match(src, /@version\s+1\.4\.83/, 'версия 1.4.83');
+assert.match(src, /@version\s+1\.4\.84/, 'версия 1.4.84');
 assert.match(src, /@connect\s+ntfy\.sh/, 'ntfy.sh разрешён в @connect');
 
 // 2. Журнал: ограничен, очищается, счётчик виден.
@@ -25,7 +25,7 @@ assert.match(src, /GM_getValue\(K\.log, \[\]\) \|\| \[\]\)\.slice\(-C\.maxLog\)/
 assert.match(src, /function clearLog\(\)/, 'есть очистка журнала');
 assert.match(src, /GM_setValue\(K\.log, \[\]\)/, 'очистка стирает сохранённый хвост');
 assert.match(src, /title="Очистить журнал/, 'кнопка очистки есть в панели');
-assert.match(src, /title="Сбросить очередь и ожидание прошлых попыток/, 'кнопка сброса состояния есть в панели');
+assert.match(src, /title="Снять ход: очередь, ожидание и карточки в Running/, 'кнопка снятия хода есть в панели');
 assert.match(src, /id="\$\{ui\.count\}"/, 'в панели виден размер журнала');
 
 // 3. Пауза — единственная точка остановки.

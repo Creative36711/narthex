@@ -14,9 +14,11 @@ import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
-const from = src.indexOf('  async function releaseStalled(mission) {');
+// С 1.4.84 рядом с `releaseStalled` стоит `sweepOrphans`: он берётся тем же
+// срезом, потому что работает по тому же правилу — «Running без хода не ход».
+const from = src.indexOf('  /**\n   * Карточки в Running, по которым у транспорта нет хода');
 const to = src.indexOf('  /**\n   * Что делать по решению Координатора');
-assert.ok(from > 0 && to > from, 'releaseStalled на месте');
+assert.ok(from > 0 && to > from, 'sweepOrphans и releaseStalled на месте');
 
 const MIN = 60_000;
 
@@ -25,11 +27,16 @@ function make({ pending = null, expect = null, cards = [] } = {}) {
   const full = [];
   const logs = [];
   const store = { 'cfn-pending': pending, 'cfn-expect': expect };
+  const stubs = new Map();
   const releaseStalled = new Function(
-    'GM_getValue', 'K', 'norm', 'tasks', 'patch', 'log', 'taskTitle', 'C',
+    'GM_getValue', 'GM_setValue', 'K', 'norm', 'tasks', 'patch', 'log', 'taskTitle', 'C',
+    'rt', 'rollbackProps', 'answerStampKey',
     `${src.slice(from, to)}; return releaseStalled;`,
   )(
-    (key, fallback) => store[key] ?? fallback,
+    (key, fallback) => (key in store ? store[key] : fallback),
+    (key, value) => {
+      store[key] = value;
+    },
     { pending: 'cfn-pending', expect: 'cfn-expect' },
     (x) => String(x || '').replace(/-/g, '').toLowerCase(),
     async () => cards,
@@ -39,9 +46,22 @@ function make({ pending = null, expect = null, cards = [] } = {}) {
     },
     (text, error) => logs.push({ text, error: Boolean(error) }),
     (card) => card.properties['Запрос'].title[0].plain_text,
-    { stalledMs: 45 * MIN },
+    { stalledMs: 45 * MIN, orphanGraceMs: 2 * MIN },
+    (value) => String(value || ''),
+    // Правило то же, что в скрипте: откат только у Running без ответа и без PR.
+    (card) => {
+      const props = card && card.properties;
+      if (!props || props['Dispatch State']?.select?.name !== 'Running') return null;
+      if (props['Submitted At']?.date?.start || props['PR']?.url) return null;
+      return {
+        'Dispatch State': { select: { name: 'Ready' } },
+        'Started At': { date: null },
+        'Run ID': { rich_text: [] },
+      };
+    },
+    (id) => `stamp:${id}`,
   );
-  return { releaseStalled, patched, full, logs };
+  return { releaseStalled, patched, full, logs, store, stubs };
 }
 
 const card = (id, minutesAgo, title = `NAR-${id}`) => ({
@@ -77,6 +97,7 @@ const card = (id, minutesAgo, title = `NAR-${id}`) => ({
   assert.equal(h.full[0].props['Started At'].date, null, '«Started At» снимается вместе со статусом');
   assert.deepEqual(h.full[0].props['Run ID'].rich_text, [], 'Run ID снимается вместе со статусом');
   assert.match(h.logs[0].text, /180 мин без хода скрипта/, 'в журнале видно, сколько висела');
+  assert.equal(h.patched.length, 1, 'карточка переписывается один раз, а не дважды');
 }
 
 // ── 4. Ожидание без отметки отправки не считается живым ходом ────────────
@@ -87,15 +108,20 @@ const card = (id, minutesAgo, title = `NAR-${id}`) => ({
   assert.deepEqual(h.patched, [{ id: 'c1', name: 'Ready' }], 'неотправленный ход не держит карточку вечно');
 }
 
-// ── 5. Порог: 44 минуты — рано, 46 — пора ────────────────────────────────
+// ── 5. Порог 45 минут остался только для спора «чей это ход» ─────────────
+// С 1.4.84 у карточки без ожидания хода нет вовсе, и её возвращают через
+// `orphanGraceMs` (2 минуты), а не через 45: держать в Running работу, которую
+// никто не ведёт, значит врать Координатору. 45 минут — только для случая,
+// когда ожидание формально есть, но не подтверждено отправкой.
 {
-  const early = make({ cards: [card('c1', 44)] });
+  const early = make({ cards: [card('c1', 1)] });
   await early.releaseStalled({ id: 'm' });
-  assert.deepEqual(early.patched, [], 'до порога не трогаем');
+  assert.deepEqual(early.patched, [], 'карточку, выданную минуту назад, не трогаем: ход мог уйти из другой вкладки');
 
   const late = make({ cards: [card('c1', 46)] });
   await late.releaseStalled({ id: 'm' });
-  assert.deepEqual(late.patched, [{ id: 'c1', name: 'Ready' }], 'после порога возвращаем');
+  assert.deepEqual(late.patched, [{ id: 'c1', name: 'Ready' }], 'карточка без хода возвращается сразу, а не через 45 минут');
+  assert.match(late.logs[0].text, /без хода скрипта/, 'в журнале сказано, что хода не было');
 }
 
 // ── 6. В коде сказано, что это не лимит работы ───────────────────────────
