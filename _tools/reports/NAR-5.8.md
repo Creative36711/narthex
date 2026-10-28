@@ -194,3 +194,53 @@ check:module-size passed
 ```
 
 `git diff --check`: rc=0, пустой вывод.
+
+## PR и CI
+
+PR #117, run 40707633560: TypeScript, детерминизм циклов,
+контракты/browser gate и граф ядра прошли. `Гайд и playkit` упал;
+последующие шаги CI пропущены. Полный CI **не зелёный**.
+Локально `npm run check:guide` воспроизводит rc=1: устаревший cf-play.mjs.
+Это известный остаток, явно переданный карточкой в 5.9; public/ai не менялся.
+Merge выполняется по прямому требованию карточки при зелёных четырёх
+обязательных локальных проверках, без ослабления какого-либо оракула.
+
+Дополнительная команда `npm run check:guide`, rc=1:
+
+```text
+
+> narthex@0.9.0 check:guide
+> tsx scripts/check-guide.mts
+
+fixture (a) guide size 268683: PASS — within limit 524288 bytes
+fixture (b) guide size 524289: PASS — error includes actual 524289 and limit 524288 bytes
+✓ campaign guide size: current=269247 bytes; mirror=269247 bytes; limit=524288 bytes
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: check:playkit-bundle завершился с rc=1
+
+> narthex@0.9.0 check:playkit-bundle
+> tsx scripts/check-playkit-bundle.mts
+
+✗ public/ai/cf-play.mjs не совпадает со сборкой из src — бандл устарел.
+  закоммичено: 1065736 байт, sha256 566887cfc475a664e50c2f42b9599d1b9469e0f84355e1a54fc08a97180ad7cb
+  собрано:    1066934 байт, sha256 191167f1ffc66d6e96c5f3a6e3598b65b291e0027250e22b03256e4e2ea68085
+  первое расхождение — байт 44255
+  пересоберите и закоммитьте: npm run build:playkit-bundle
+
+
+1 !== 0
+
+    at <anonymous> (/home/user/narthex/scripts/check-guide.mts:92:8) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 1,
+  expected: 0,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v22.22.3
+```
