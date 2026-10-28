@@ -1,52 +1,49 @@
 {
   "version": 1,
-  "description": "Read-only real-player targets: published campaign directories, their existing pack-data copies, and the realtime reference project.",
+  "description": "Seven unique existing project IDs checked by the real player or their existing contract validator.",
   "references": [
     {
-      "ref": "narrative-public",
+      "ref": "ash-of-caerden",
       "projectId": "ash-of-caerden",
       "path": "public/campaigns/ash-of-caerden",
       "runner": "campaign-check"
     },
     {
-      "ref": "adventure-public",
+      "ref": "ash-of-caerden-adventure",
       "projectId": "ash-of-caerden-adventure",
       "path": "public/campaigns/ash-of-caerden-adventure",
       "runner": "campaign-check"
     },
     {
-      "ref": "fmv-public",
+      "ref": "fmv-crossing",
       "projectId": "fmv-crossing",
       "path": "public/campaigns/fmv-crossing",
       "runner": "campaign-check"
     },
     {
-      "ref": "narrative-pack-data",
-      "projectId": "ash-of-caerden",
-      "path": "packs/narrative/data/ash-of-caerden",
-      "runner": "campaign-check"
-    },
-    {
-      "ref": "adventure-pack-data",
-      "projectId": "ash-of-caerden-adventure",
-      "path": "packs/adventure/data/ash-of-caerden-adventure",
-      "runner": "campaign-check"
-    },
-    {
-      "ref": "fmv-pack-data",
-      "projectId": "fmv-crossing",
-      "path": "packs/narrative/data/fmv-crossing",
-      "runner": "campaign-check"
-    },
-    {
-      "ref": "realtime-wall",
+      "ref": "realtime-wall-zone",
       "projectId": "realtime-wall-zone",
       "path": "_tools/projects/realtime-wall",
       "runner": "cycles",
       "runtime": "realtime"
     },
     {
-      "ref": "state-ui-public",
+      "ref": "river-of-ash",
+      "projectId": "river-of-ash",
+      "path": "docs/contracts/examples/project.narrative.json",
+      "relatedPaths": [
+        "docs/contracts/examples/locales.de.json"
+      ],
+      "runner": "contracts"
+    },
+    {
+      "ref": "ash-arena",
+      "projectId": "ash-arena",
+      "path": "docs/contracts/examples/project.code-mode.json",
+      "runner": "contracts"
+    },
+    {
+      "ref": "stone-tablet-siege",
       "projectId": "stone-tablet-siege",
       "path": "public/campaigns/stone-tablet-siege",
       "runner": "campaign-check"

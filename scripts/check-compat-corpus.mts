@@ -8,28 +8,34 @@ import { fileURLToPath } from 'node:url'
 const root = resolve(import.meta.dirname, '..')
 const scriptPath = fileURLToPath(import.meta.url)
 const tsxCli = join(root, 'node_modules/tsx/dist/cli.mjs')
+const contractsChecker = join(root, 'scripts/contracts-check.mts')
 const configPath = join(root, '_tools/compat-corpus.json')
 const playerBundle = join(root, 'public/ai/cf-play.mjs')
-const minimumReferences = 7
+const minimumProjects = 7
 const processTimeoutMs = 120_000
 const processBufferBytes = 16 * 1024 * 1024
 
-interface CampaignReference {
+interface BaseReference {
   ref: string
   projectId: string
   path: string
+}
+
+interface CampaignReference extends BaseReference {
   runner: 'campaign-check'
 }
 
-interface CycleReference {
-  ref: string
-  projectId: string
-  path: string
+interface CycleReference extends BaseReference {
   runner: 'cycles'
   runtime: string
 }
 
-type Reference = CampaignReference | CycleReference
+interface ContractReference extends BaseReference {
+  runner: 'contracts'
+  relatedPaths?: string[]
+}
+
+type Reference = CampaignReference | CycleReference | ContractReference
 
 interface CorpusConfig {
   version: number
@@ -37,7 +43,7 @@ interface CorpusConfig {
   references: Reference[]
 }
 
-interface ProcessResult {
+interface Invocation {
   rc: number
   stdout: string
   stderr: string
@@ -53,15 +59,11 @@ interface CampaignPayload {
     errors?: unknown[]
     warnings?: unknown[]
   }
-  sweep?: {
-    status?: string
-    seeds?: number
-    finals?: Record<string, number>
-  }
+  sweep?: { seeds?: number; finals?: Record<string, number> }
   coverage?: { visited?: number; total?: number }
 }
 
-interface CycleProjectPayload {
+interface CycleProject {
   id?: string
   runtime?: string
   stepCalls?: number
@@ -72,8 +74,7 @@ interface CycleProjectPayload {
 }
 
 interface CyclePayload {
-  projects?: CycleProjectPayload[]
-  configuredRuntimes?: string[]
+  projects?: CycleProject[]
   usedRuntimes?: string[]
   missingRuntimes?: string[]
   ok?: boolean
@@ -83,56 +84,32 @@ interface ReferenceResult {
   reference: Reference
   displayPath: string
   command: string
-  playerRc: number | null
-  gateOk: boolean
-  summary: string
+  rc: number | null
+  ok: boolean
+  stdoutSummary: string
   detail?: string
 }
 
-const requiredReferences: Array<Pick<Reference, 'ref' | 'projectId' | 'path' | 'runner'>> = [
+const requiredReferences: Reference[] = [
+  { ref: 'ash-of-caerden', projectId: 'ash-of-caerden', path: 'public/campaigns/ash-of-caerden', runner: 'campaign-check' },
+  { ref: 'ash-of-caerden-adventure', projectId: 'ash-of-caerden-adventure', path: 'public/campaigns/ash-of-caerden-adventure', runner: 'campaign-check' },
+  { ref: 'fmv-crossing', projectId: 'fmv-crossing', path: 'public/campaigns/fmv-crossing', runner: 'campaign-check' },
+  { ref: 'realtime-wall-zone', projectId: 'realtime-wall-zone', path: '_tools/projects/realtime-wall', runner: 'cycles', runtime: 'realtime' },
   {
-    ref: 'narrative-public',
-    projectId: 'ash-of-caerden',
-    path: 'public/campaigns/ash-of-caerden',
-    runner: 'campaign-check',
+    ref: 'river-of-ash',
+    projectId: 'river-of-ash',
+    path: 'docs/contracts/examples/project.narrative.json',
+    relatedPaths: ['docs/contracts/examples/locales.de.json'],
+    runner: 'contracts',
   },
-  {
-    ref: 'adventure-public',
-    projectId: 'ash-of-caerden-adventure',
-    path: 'public/campaigns/ash-of-caerden-adventure',
-    runner: 'campaign-check',
-  },
-  {
-    ref: 'fmv-public',
-    projectId: 'fmv-crossing',
-    path: 'public/campaigns/fmv-crossing',
-    runner: 'campaign-check',
-  },
-  {
-    ref: 'narrative-pack-data',
-    projectId: 'ash-of-caerden',
-    path: 'packs/narrative/data/ash-of-caerden',
-    runner: 'campaign-check',
-  },
-  {
-    ref: 'adventure-pack-data',
-    projectId: 'ash-of-caerden-adventure',
-    path: 'packs/adventure/data/ash-of-caerden-adventure',
-    runner: 'campaign-check',
-  },
-  {
-    ref: 'fmv-pack-data',
-    projectId: 'fmv-crossing',
-    path: 'packs/narrative/data/fmv-crossing',
-    runner: 'campaign-check',
-  },
-  {
-    ref: 'realtime-wall',
-    projectId: 'realtime-wall-zone',
-    path: '_tools/projects/realtime-wall',
-    runner: 'cycles',
-  },
+  { ref: 'ash-arena', projectId: 'ash-arena', path: 'docs/contracts/examples/project.code-mode.json', runner: 'contracts' },
+  { ref: 'stone-tablet-siege', projectId: 'stone-tablet-siege', path: 'public/campaigns/stone-tablet-siege', runner: 'campaign-check' },
 ]
+
+const contractSections: Record<string, string[]> = {
+  'river-of-ash': ['пример проекта narrative', 'пример локали'],
+  'ash-arena': ['пример проекта с кодом в швах'],
+}
 
 function fail(message: string): never {
   throw new Error(message)
@@ -152,8 +129,7 @@ function allowedReferencePath(path: string): boolean {
   return [
     'public/campaigns/',
     '_tools/projects/',
-    'packs/narrative/data/',
-    'packs/adventure/data/',
+    'docs/contracts/examples/',
   ].some((prefix) => path.startsWith(prefix))
 }
 
@@ -165,34 +141,61 @@ function validateConfig(value: unknown): CorpusConfig {
   if (candidate.version !== 1 || !Array.isArray(candidate.references)) {
     fail('compatibility corpus config must have version 1 and a references array')
   }
-  if (candidate.references.length < minimumReferences) {
-    fail(`compatibility corpus has ${candidate.references.length} references; minimum is ${minimumReferences}`)
-  }
 
   const references = candidate.references as Reference[]
+  if (references.length < minimumProjects) {
+    fail(`compatibility corpus has ${references.length} references; minimum is ${minimumProjects}`)
+  }
+
   const refIds = new Set<string>()
+  const projectIds = new Set<string>()
   const paths = new Set<string>()
   for (const reference of references) {
     if (!reference || typeof reference !== 'object') fail('each corpus reference must be an object')
-    if (!reference.ref || !reference.projectId || !reference.path) fail('each corpus reference needs ref, projectId, and path')
+    if (typeof reference.ref !== 'string' || !reference.ref || typeof reference.projectId !== 'string' || !reference.projectId) {
+      fail('each corpus reference needs non-empty ref and projectId strings')
+    }
+    if (typeof reference.path !== 'string' || !reference.path) fail(`${reference.ref}: path is required`)
     if (refIds.has(reference.ref)) fail(`duplicate corpus reference id: ${reference.ref}`)
+    if (projectIds.has(reference.projectId)) fail(`duplicate project.id in corpus: ${reference.projectId}`)
     if (paths.has(reference.path)) fail(`duplicate corpus path: ${reference.path}`)
-    if (!allowedReferencePath(reference.path)) fail(`reference path is outside the approved read-only roots: ${reference.path}`)
+    if (!allowedReferencePath(reference.path)) fail(`reference path is outside the allowed read-only roots: ${reference.path}`)
     repoPath(reference.path)
     refIds.add(reference.ref)
+    projectIds.add(reference.projectId)
     paths.add(reference.path)
+
+    for (const relatedPath of reference.runner === 'contracts' ? reference.relatedPaths ?? [] : []) {
+      if (!allowedReferencePath(relatedPath)) fail(`${reference.ref}: related path is outside the allowed read-only roots: ${relatedPath}`)
+      if (paths.has(relatedPath)) fail(`duplicate corpus path: ${relatedPath}`)
+      repoPath(relatedPath)
+      paths.add(relatedPath)
+    }
 
     if (reference.runner === 'campaign-check') continue
     if (reference.runner === 'cycles') {
       if (!reference.runtime) fail(`${reference.ref}: cycles reference needs its expected runtime`)
       continue
     }
+    if (reference.runner === 'contracts') continue
     fail(`${reference.ref}: unsupported runner ${String((reference as { runner?: unknown }).runner)}`)
+  }
+
+  if (projectIds.size < minimumProjects) {
+    fail(`compatibility corpus has ${projectIds.size} unique project IDs; minimum is ${minimumProjects}`)
   }
 
   for (const required of requiredReferences) {
     const found = references.find((reference) => reference.ref === required.ref)
-    if (!found || found.projectId !== required.projectId || found.path !== required.path || found.runner !== required.runner) {
+    const relatedMatches = JSON.stringify(found && 'relatedPaths' in found ? found.relatedPaths ?? [] : [])
+      === JSON.stringify('relatedPaths' in required ? required.relatedPaths ?? [] : [])
+    const runtimeMatches = !('runtime' in required) || (found && 'runtime' in found && found.runtime === required.runtime)
+    if (!found
+      || found.projectId !== required.projectId
+      || found.path !== required.path
+      || found.runner !== required.runner
+      || !relatedMatches
+      || !runtimeMatches) {
       fail(`required reference changed or missing: ${required.ref} (${required.path})`)
     }
   }
@@ -200,7 +203,7 @@ function validateConfig(value: unknown): CorpusConfig {
   return candidate as CorpusConfig
 }
 
-function runNode(args: string[]): ProcessResult {
+function runNode(args: string[]): Invocation {
   const result = spawnSync(process.execPath, args, {
     cwd: root,
     env: process.env,
@@ -208,9 +211,8 @@ function runNode(args: string[]): ProcessResult {
     timeout: processTimeoutMs,
     maxBuffer: processBufferBytes,
   })
-  const rc = result.status ?? (result.error ? 127 : 1)
   return {
-    rc,
+    rc: result.status ?? (result.error ? 127 : 1),
     stdout: result.stdout ?? '',
     stderr: result.stderr ?? '',
     ...(result.error ? { error: result.error.message } : {}),
@@ -229,6 +231,60 @@ function parseJson<T>(output: string): T | null {
   }
 }
 
+function referencePathLabel(reference: Reference): string {
+  const relatedPaths = reference.runner === 'contracts' ? reference.relatedPaths ?? [] : []
+  return [reference.path, ...relatedPaths].join(' + ')
+}
+
+function commandFor(reference: Reference, displayPath = reference.path): string {
+  if (reference.runner === 'campaign-check') {
+    return `node public/ai/cf-play.mjs check ${displayPath} --json --out <temporary-output>/${reference.ref}`
+  }
+  if (reference.runner === 'cycles') return 'node public/ai/cf-play.mjs cycles --json'
+  return 'node node_modules/tsx/dist/cli.mjs scripts/contracts-check.mts'
+}
+
+async function readJsonFile(filePath: string): Promise<Record<string, unknown> | undefined> {
+  try {
+    const value: unknown = JSON.parse(await readFile(filePath, 'utf8'))
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      return value as Record<string, unknown>
+    }
+  } catch {
+    return undefined
+  }
+  return undefined
+}
+
+async function preflight(reference: Reference, targetPath: string): Promise<string | undefined> {
+  if (!existsSync(targetPath)) return `missing reference path: ${targetPath}`
+  if (reference.runner === 'campaign-check') {
+    if (!existsSync(join(targetPath, 'campaign.json'))) return `missing campaign.json: ${targetPath}`
+    return undefined
+  }
+  if (reference.runner === 'cycles') {
+    const projectPath = join(targetPath, 'project.json')
+    const project = await readJsonFile(projectPath)
+    if (!project) return `missing or invalid project.json: ${projectPath}`
+    if (project.id !== reference.projectId) return `project id ${String(project.id)} != ${reference.projectId}`
+    if (project.runtime !== reference.runtime) return `project runtime ${String(project.runtime)} != ${reference.runtime}`
+    return undefined
+  }
+
+  const project = await readJsonFile(targetPath)
+  if (!project) return `missing or invalid project example: ${targetPath}`
+  if (project.id !== reference.projectId) return `project id ${String(project.id)} != ${reference.projectId}`
+  for (const relatedPath of reference.relatedPaths ?? []) {
+    const absolutePath = repoPath(relatedPath)
+    const related = await readJsonFile(absolutePath)
+    if (!related) return `missing or invalid related example: ${relatedPath}`
+    if (relatedPath.endsWith('locales.de.json') && related.language !== 'de') {
+      return `${relatedPath}: language ${String(related.language)} != de`
+    }
+  }
+  return undefined
+}
+
 function summarizeCampaign(payload: CampaignPayload): string {
   return JSON.stringify({
     campaignId: payload.campaign?.id ?? null,
@@ -239,53 +295,50 @@ function summarizeCampaign(payload: CampaignPayload): string {
     graphWarnings: Array.isArray(payload.graph?.warnings) ? payload.graph.warnings.length : null,
     seeds: payload.sweep?.seeds ?? null,
     finals: payload.sweep?.finals ?? null,
-    coverage: {
-      visited: payload.coverage?.visited ?? null,
-      total: payload.coverage?.total ?? null,
-    },
+    coverage: { visited: payload.coverage?.visited ?? null, total: payload.coverage?.total ?? null },
   })
 }
 
-function summarizeCycles(payload: CyclePayload): string {
+function summarizeCycle(payload: CyclePayload, reference: CycleReference): string {
+  const project = payload.projects?.find((entry) => entry.id === reference.projectId)
   return JSON.stringify({
     ok: payload.ok ?? false,
-    configuredRuntimes: payload.configuredRuntimes ?? [],
-    usedRuntimes: payload.usedRuntimes ?? [],
     missingRuntimes: payload.missingRuntimes ?? [],
-    projects: (payload.projects ?? []).map((project) => ({
-      id: project.id ?? null,
-      runtime: project.runtime ?? null,
-      stepCalls: project.stepCalls ?? null,
+    project: project ? {
+      id: project.id,
+      runtime: project.runtime,
+      stepCalls: project.stepCalls,
       clock: `${project.clockBefore ?? '?'}->${project.clockAfter ?? '?'}`,
-      finalFingerprint: project.finalFingerprint ?? null,
-      ok: project.ok ?? false,
-    })),
+      finalFingerprint: project.finalFingerprint,
+      ok: project.ok,
+    } : null,
   })
 }
 
-function renderCommand(reference: Reference, playerPath: string, outPath: string): string {
-  if (reference.runner === 'cycles') return 'node public/ai/cf-play.mjs cycles --json'
-  return `node public/ai/cf-play.mjs check ${playerPath} --json --out ${outPath}`
+function summarizeContractOutput(output: string, reference: ContractReference): { summary: string; allSectionsPresent: boolean } {
+  const lines = output.split(/\r?\n/)
+  const expectedSections = contractSections[reference.projectId] ?? []
+  const selected: string[] = []
+  let allSectionsPresent = expectedSections.length > 0
+  for (const heading of expectedSections) {
+    const index = lines.findIndex((line) => line.includes(heading))
+    if (index < 0) {
+      allSectionsPresent = false
+      selected.push(`${heading}: missing`)
+      continue
+    }
+    selected.push(lines.slice(index, index + 3).map((line) => line.trim()).filter(Boolean).join(' / '))
+  }
+  const completion = lines.find((line) => line.includes('контракты согласованы:'))?.trim()
+  if (!completion) allSectionsPresent = false
+  return {
+    summary: [...selected, completion ?? 'contracts completion line missing'].join(' | '),
+    allSectionsPresent,
+  }
 }
 
-async function preflight(reference: Reference, targetPath: string): Promise<string | undefined> {
-  if (!existsSync(targetPath)) return `missing reference path: ${targetPath}`
-  if (reference.runner === 'campaign-check') {
-    if (!existsSync(join(targetPath, 'campaign.json'))) return `missing campaign.json: ${targetPath}`
-    return undefined
-  }
-
-  const projectJsonPath = join(targetPath, 'project.json')
-  if (!existsSync(projectJsonPath)) return `missing project.json: ${targetPath}`
-  let project: { id?: string; runtime?: string }
-  try {
-    project = JSON.parse(await readFile(projectJsonPath, 'utf8')) as { id?: string; runtime?: string }
-  } catch (error) {
-    return `project.json cannot be parsed: ${error instanceof Error ? error.message : String(error)}`
-  }
-  if (project.id !== reference.projectId) return `project id ${String(project.id)} != ${reference.projectId}`
-  if (project.runtime !== reference.runtime) return `project runtime ${String(project.runtime)} != ${reference.runtime}`
-  return undefined
+function resultFailure(reference: Reference, command: string, displayPath: string, detail: string): ReferenceResult {
+  return { reference, displayPath, command, rc: null, ok: false, stdoutSummary: 'not run', detail }
 }
 
 async function runCampaignReference(
@@ -293,118 +346,122 @@ async function runCampaignReference(
   targetPath: string,
   outputRoot: string,
 ): Promise<ReferenceResult> {
-  const relativePathForCommand = targetPath.startsWith(root + sep)
+  const displayPath = targetPath.startsWith(root + sep)
     ? relative(root, targetPath).split(sep).join('/')
     : `<temporary broken copy of ${reference.path}>`
-  const outPath = join(outputRoot, reference.ref)
-  const command = renderCommand(reference, relativePathForCommand, `<temporary-output>/${reference.ref}`)
-  const preflightIssue = await preflight(reference, targetPath)
-  if (preflightIssue) {
-    return {
-      reference,
-      displayPath: relativePathForCommand,
-      command,
-      playerRc: null,
-      gateOk: false,
-      summary: 'not run',
-      detail: preflightIssue,
-    }
-  }
+  const command = commandFor(reference, displayPath)
+  const issue = await preflight(reference, targetPath)
+  if (issue) return resultFailure(reference, command, displayPath, issue)
 
-  const invocation = runNode([playerBundle, 'check', targetPath, '--json', '--out', outPath])
+  const invocation = runNode([playerBundle, 'check', targetPath, '--json', '--out', join(outputRoot, reference.ref)])
   const payload = parseJson<CampaignPayload>(invocation.stdout)
   const projectId = payload?.campaign?.id ?? null
-  const gateOk = invocation.rc === 0 && payload?.verdict === 'ok' && projectId === reference.projectId
-  const summary = payload
+  const ok = invocation.rc === 0 && payload?.verdict === 'ok' && projectId === reference.projectId
+  const stdoutSummary = payload
     ? summarizeCampaign(payload)
     : oneLine(invocation.stderr || invocation.stdout || invocation.error || 'no player output')
   const detail = invocation.error
     ? `spawn error: ${invocation.error}`
     : (invocation.rc !== 0 ? `player rc=${invocation.rc}` : (projectId !== reference.projectId ? `campaign id=${String(projectId)}` : undefined))
-
-  return { reference, displayPath: relativePathForCommand, command, playerRc: invocation.rc, gateOk, summary, ...(detail ? { detail } : {}) }
+  return { reference, displayPath, command, rc: invocation.rc, ok, stdoutSummary, ...(detail ? { detail } : {}) }
 }
 
 async function runCycleReference(reference: CycleReference, targetPath: string): Promise<ReferenceResult> {
-  const preflightIssue = await preflight(reference, targetPath)
-  const command = renderCommand(reference, '', '')
-  if (preflightIssue) {
-    return { reference, displayPath: reference.path, command, playerRc: null, gateOk: false, summary: 'not run', detail: preflightIssue }
-  }
+  const displayPath = reference.path
+  const command = commandFor(reference)
+  const issue = await preflight(reference, targetPath)
+  if (issue) return resultFailure(reference, command, displayPath, issue)
 
   const invocation = runNode([playerBundle, 'cycles', '--json'])
   const payload = parseJson<CyclePayload>(invocation.stdout)
-  const projects = payload?.projects ?? []
-  const expectedProject = projects.find((project) => project.id === reference.projectId)
-  // The same real-player cycles run also exercises the existing turn reference.
-  const turnExam = projects.find((project) => project.id === 'ash-of-caerden')
-  const runtimes = new Set(payload?.usedRuntimes ?? [])
-  const gateOk = invocation.rc === 0
+  const project = payload?.projects?.find((entry) => entry.id === reference.projectId)
+  const ok = invocation.rc === 0
     && payload?.ok === true
     && payload.missingRuntimes?.length === 0
-    && runtimes.has('turn')
-    && runtimes.has(reference.runtime)
-    && expectedProject?.runtime === reference.runtime
-    && expectedProject.ok === true
-    && turnExam?.runtime === 'turn'
-    && turnExam.ok === true
-  const summary = payload
-    ? summarizeCycles(payload)
+    && project?.runtime === reference.runtime
+    && project.ok === true
+  const stdoutSummary = payload
+    ? summarizeCycle(payload, reference)
     : oneLine(invocation.stderr || invocation.stdout || invocation.error || 'no player output')
   const detail = invocation.error
     ? `spawn error: ${invocation.error}`
-    : (invocation.rc !== 0 ? `player rc=${invocation.rc}` : (gateOk ? undefined : 'cycles assertions/runtime set did not match'))
-  return { reference, displayPath: reference.path, command, playerRc: invocation.rc, gateOk, summary, ...(detail ? { detail } : {}) }
+    : (invocation.rc !== 0 ? `player rc=${invocation.rc}` : (ok ? undefined : 'cycles assertions/runtime did not match'))
+  return { reference, displayPath, command, rc: invocation.rc, ok, stdoutSummary, ...(detail ? { detail } : {}) }
 }
 
-function printResult(result: ReferenceResult): void {
-  const mark = result.gateOk ? '✓' : '✗'
-  const playerRc = result.playerRc === null ? 'not-run' : String(result.playerRc)
-  console.log(`${mark} ${result.reference.ref} (${result.reference.projectId}) — player rc=${playerRc}`)
-  console.log(`  path: ${result.displayPath}`)
-  console.log(`  command: ${result.command}`)
-  console.log(`  stdout summary: ${result.summary}`)
-  if (result.detail) console.log(`  detail: ${result.detail}`)
+async function runContractReference(reference: ContractReference): Promise<ReferenceResult> {
+  const displayPath = referencePathLabel(reference)
+  const command = commandFor(reference)
+  const issue = await preflight(reference, repoPath(reference.path))
+  if (issue) return resultFailure(reference, command, displayPath, issue)
+
+  const invocation = runNode([tsxCli, contractsChecker])
+  const summarized = summarizeContractOutput(invocation.stdout, reference)
+  const ok = invocation.rc === 0 && summarized.allSectionsPresent
+  const detail = invocation.error
+    ? `spawn error: ${invocation.error}`
+    : (invocation.rc !== 0 ? `contracts checker rc=${invocation.rc}` : (ok ? undefined : 'expected contract section missing from checker output'))
+  return {
+    reference,
+    displayPath,
+    command,
+    rc: invocation.rc,
+    ok,
+    stdoutSummary: summarized.summary,
+    ...(detail ? { detail } : {}),
+  }
+}
+
+async function runReference(
+  reference: Reference,
+  outputRoot: string,
+  brokenOverride?: { ref: string; path: string },
+): Promise<ReferenceResult> {
+  const targetPath = brokenOverride?.ref === reference.ref ? brokenOverride.path : repoPath(reference.path)
+  if (reference.runner === 'campaign-check') return runCampaignReference(reference, targetPath, outputRoot)
+  if (reference.runner === 'cycles') return runCycleReference(reference, targetPath)
+  return runContractReference(reference)
+}
+
+function printResults(results: ReferenceResult[], projectCount: number): void {
+  console.log('\nproject | path | id | command | rc')
+  console.log('--- | --- | --- | --- | ---:')
+  for (const result of results) {
+    const mark = result.ok ? '✓' : '✗'
+    console.log(`| ${mark} ${result.reference.ref} | ${result.displayPath} | ${result.reference.projectId} | ${result.command} | ${result.rc ?? 'not-run'} |`)
+    console.log(`  stdout: ${result.stdoutSummary}`)
+    if (result.detail) console.log(`  detail: ${result.detail}`)
+  }
+  const ok = projectCount >= minimumProjects && results.length >= minimumProjects && results.every((result) => result.ok)
+  console.log(`check:compat-corpus ${ok ? 'passed' : 'failed'}; unique-projects=${projectCount}; minimum=${minimumProjects}; rc=${ok ? 0 : 1}`)
 }
 
 async function runCorpus(
   config: CorpusConfig,
   outputRoot: string,
   brokenOverride?: { ref: string; path: string },
-): Promise<{ ok: boolean; results: ReferenceResult[] }> {
-  console.log(`NAR-5.9 real-player compatibility corpus: ${config.references.length} references; minimum=${minimumReferences}`)
+): Promise<{ ok: boolean; projectCount: number; results: ReferenceResult[] }> {
+  const projectCount = new Set(config.references.map((reference) => reference.projectId)).size
+  console.log(`NAR-5.9 compatibility corpus: ${config.references.length} references; unique project IDs=${projectCount}; minimum=${minimumProjects}`)
   const results: ReferenceResult[] = []
-
-  for (const reference of config.references) {
-    const targetPath = brokenOverride?.ref === reference.ref
-      ? brokenOverride.path
-      : repoPath(reference.path)
-    const result = reference.runner === 'campaign-check'
-      ? await runCampaignReference(reference, targetPath, outputRoot)
-      : await runCycleReference(reference, targetPath)
-    results.push(result)
-    printResult(result)
-  }
-
-  const ok = results.length >= minimumReferences && results.every((result) => result.gateOk)
-  console.log(`check:compat-corpus ${ok ? 'passed' : 'failed'}; refs=${results.length}; rc=${ok ? 0 : 1}`)
-  return { ok, results }
+  for (const reference of config.references) results.push(await runReference(reference, outputRoot, brokenOverride))
+  printResults(results, projectCount)
+  return { ok: projectCount >= minimumProjects && results.length >= minimumProjects && results.every((result) => result.ok), projectCount, results }
 }
 
 function parseBreakReference(args: string[]): string | undefined {
   const index = args.indexOf('--break-and-run')
   if (index < 0) return undefined
-  const ref = args[index + 1]
-  if (!ref || ref.startsWith('--')) fail('--break-and-run requires a campaign reference id')
-  return ref
+  const referenceId = args[index + 1]
+  if (!referenceId || referenceId.startsWith('--')) fail('--break-and-run requires a campaign reference id')
+  return referenceId
 }
 
 async function makeBrokenCopy(reference: Reference, tempRoot: string): Promise<string> {
-  if (reference.runner !== 'campaign-check') fail(`negative mutation requires a campaign-check reference, got ${reference.ref}`)
-  const source = repoPath(reference.path)
+  if (reference.runner !== 'campaign-check') fail(`negative mutation requires a campaign reference, got ${reference.ref}`)
   const copyPath = join(tempRoot, 'broken-project')
-  await cp(source, copyPath, { recursive: true })
-  // Deliberately corrupt only this temporary copy. The checked-in source stays untouched.
+  await cp(repoPath(reference.path), copyPath, { recursive: true })
+  // Mutate only this temporary copy; the checked-in campaign remains untouched.
   await writeFile(join(copyPath, 'campaign.json'), '{ broken corpus project\n', 'utf8')
   return copyPath
 }
@@ -412,39 +469,37 @@ async function makeBrokenCopy(reference: Reference, tempRoot: string): Promise<s
 async function runNegativeMode(config: CorpusConfig, referenceId: string): Promise<number> {
   const reference = config.references.find((candidate) => candidate.ref === referenceId)
   if (!reference) fail(`unknown --break-and-run reference: ${referenceId}`)
-  if (reference.runner !== 'campaign-check') fail(`--break-and-run supports campaign-check references only: ${referenceId}`)
+  if (reference.runner !== 'campaign-check') fail(`--break-and-run supports campaign references only: ${referenceId}`)
 
   const tempRoot = await mkdtemp(join(tmpdir(), 'narthex-compat-corpus-negative-'))
   try {
     const brokenPath = await makeBrokenCopy(reference, tempRoot)
-    const results = await runCorpus(config, join(tempRoot, 'player-output'), { ref: referenceId, path: brokenPath })
-    return results.ok ? 0 : 1
+    const result = await runCorpus(config, join(tempRoot, 'player-output'), { ref: referenceId, path: brokenPath })
+    return result.ok ? 0 : 1
   } finally {
     await rm(tempRoot, { recursive: true, force: true })
   }
 }
 
 function runNegativeSelfTest(referenceId: string): boolean {
-  const command = [tsxCli, scriptPath, '--break-and-run', referenceId]
-  const result = spawnSync(process.execPath, command, {
+  const result = spawnSync(process.execPath, [tsxCli, scriptPath, '--break-and-run', referenceId], {
     cwd: root,
     env: process.env,
     encoding: 'utf8',
     timeout: processTimeoutMs,
     maxBuffer: processBufferBytes,
   })
-  const combined = `${result.stdout ?? ''}${result.stderr ?? ''}`
+  const output = `${result.stdout ?? ''}${result.stderr ?? ''}`
   const observedRc = result.status ?? (result.error ? 127 : 1)
-  console.log('\nNegative control: one existing campaign is copied to a temporary directory and its campaign.json is corrupted.')
-  console.log(`command: node ${relative(root, tsxCli).split(sep).join('/')} ${relative(root, scriptPath).split(sep).join('/')} --break-and-run ${referenceId}`)
+  console.log('\nNegative control: corrupt one temporary copy of an existing corpus campaign.')
+  console.log(`command: node node_modules/tsx/dist/cli.mjs scripts/check-compat-corpus.mts --break-and-run ${referenceId}`)
   console.log(`expected gate rc=1; observed gate rc=${observedRc}`)
-  if (combined.trim()) console.log(combined.trimEnd())
-
-  const failedReference = combined.includes(`✗ ${referenceId} (`)
-  const playerRejected = /player rc=2/.test(combined)
-  const gateRejected = /check:compat-corpus failed;[^\n]*rc=1/.test(combined)
-  const ok = observedRc === 1 && failedReference && playerRejected && gateRejected
-  console.log(`negative proof ${ok ? 'passed' : 'failed'}; broken-project player rejection=${playerRejected}; gate rc=1=${gateRejected}`)
+  if (output.trim()) console.log(output.trimEnd())
+  const rowFailed = output.includes(`| ✗ ${referenceId} |`)
+  const playerRejected = /player rc=2/.test(output)
+  const gateRejected = /check:compat-corpus failed;[^\n]*rc=1/.test(output)
+  const ok = observedRc === 1 && rowFailed && playerRejected && gateRejected
+  console.log(`negative proof ${ok ? 'passed' : 'failed'}; player rejection=${playerRejected}; gate rc=1=${gateRejected}`)
   return ok
 }
 
@@ -452,20 +507,18 @@ async function main(): Promise<number> {
   const args = process.argv.slice(2)
   const configValue = JSON.parse(await readFile(configPath, 'utf8')) as unknown
   const config = validateConfig(configValue)
-  const brokenRef = parseBreakReference(args)
-
-  if (brokenRef) return runNegativeMode(config, brokenRef)
+  const brokenReference = parseBreakReference(args)
+  if (brokenReference) return runNegativeMode(config, brokenReference)
   if (args.length) fail(`unsupported arguments: ${args.join(' ')}`)
 
   const tempRoot = await mkdtemp(join(tmpdir(), 'narthex-compat-corpus-'))
-  let corpusOk = false
+  let result: { ok: boolean; projectCount: number; results: ReferenceResult[] }
   try {
-    const result = await runCorpus(config, join(tempRoot, 'player-output'))
-    corpusOk = result.ok
+    result = await runCorpus(config, join(tempRoot, 'player-output'))
   } finally {
     await rm(tempRoot, { recursive: true, force: true })
   }
-  if (!corpusOk) return 1
+  if (!result.ok) return 1
 
   const negativeReference = config.references.find((reference) => reference.runner === 'campaign-check')
   if (!negativeReference) fail('negative-control campaign reference is missing')
