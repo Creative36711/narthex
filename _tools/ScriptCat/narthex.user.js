@@ -7667,7 +7667,8 @@
         log(
           `Миссия возвращена Мастером: ${firstLine(remarks)}. Координатор получит замечания в плане хода.`,
           false,
-          { tone: "warn", ntfy: "loud", title: "Narthex: миссия возвращена" },
+          // Мастер вернул миссию сам — звонить ему об этом незачем (1.4.80).
+          { tone: "warn", ntfy: "quiet", title: "Narthex: миссия возвращена" },
         );
       }
       if (dropStalePlan(mission, expect, epoch)) {
