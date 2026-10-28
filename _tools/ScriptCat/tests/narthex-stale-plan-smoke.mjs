@@ -139,7 +139,7 @@ function makeAsk({ rows = [], failQuery = false } = {}) {
   const created = [];
   const fn = new Function(
     'GM_getValue', 'GM_setValue', 'K', 'C', 'Q', 'norm', 'rt', 'sel', 'query', 'questionRows',
-    'noteQuestionAsked', 'appendQuestionBody', 'queueQuestion', 'log', 'dbg', 'notion', 'questionProps',
+    'noteQuestionAsked', 'appendQuestionBody', 'queueQuestion', 'queueAnswer', 'log', 'dbg', 'notion', 'questionProps',
     `${dedupeSrc}\n${askSrc}\nreturn { askQuestion, sameQuestionRow };`,
   );
   const api = fn(
@@ -159,6 +159,7 @@ function makeAsk({ rows = [], failQuery = false } = {}) {
     () => {},
     () => {},
     () => {},
+    () => null,
     (text, error, opts) => logs.push({ text, error: Boolean(error), ntfy: opts?.ntfy }),
     () => {},
     async (method, path, body) => {

@@ -1,4 +1,4 @@
-// Проба 1.4.79: миссию закрывает приёмка, а не Координатор.
+// Проба 1.4.80: миссию закрывает приёмка, а не Координатор.
 //
 // Мастер (28.10): «цикл должен останавливаться только когда миссия точно
 // закрыта». До этой версии `next: "done"` сам ставил «Завершена» и гасил
@@ -29,7 +29,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-assert.match(src, /@version\s+1\.4\.79/, 'версия 1.4.79');
+assert.match(src, /@version\s+1\.4\.80/, 'версия 1.4.80');
 
 const sliceBetween = (startMarker, endMarker) => {
   const from = src.indexOf(startMarker);
@@ -56,9 +56,17 @@ assert.doesNotMatch(doneBranch, /autoSet\(false\)/, 'done больше не га
 assert.doesNotMatch(doneBranch, /Миссия завершена Координатором/, 'прежней формулировки закрытия нет');
 assert.match(doneBranch, /done-with-open/, 'живые карточки по-прежнему держат миссию открытой');
 assert.match(doneBranch, /done-with-remarks/, 'возврат без разбора замечаний по-прежнему держит миссию открытой');
-assert.match(src, /else if \(me\.fn === "Reviewer" && expect\) \{\s*\n\s*await reviewStep\(me, expect, fromToggle\);/, 'ход приёмки подключён к тику');
+assert.match(
+  src,
+  /else if \(me\.fn === "Reviewer" && expect\) \{[\s\S]{0,320}?await reviewStep\(me, expect, fromToggle\);/,
+  'ход приёмки подключён к тику',
+);
 assert.match(src, /parseMarker\(m\.raw, "CF_REVIEW_RESULT"\)/, 'маркер приёмки читается общим разбором');
-assert.match(src, /expect\.kind === "review"\s*\n\s*\? `CF_REVIEW_RESULT/, 'напоминание о формате говорит на языке приёмки');
+assert.match(
+  src,
+  /if \(expect\.kind === "review"\) \{\s*\n\s*line = `CF_REVIEW_RESULT/,
+  'напоминание о формате говорит на языке приёмки',
+);
 
 // ── 3. Сам блок приёмки ────────────────────────────────────────────────────
 const block = sliceBetween('  const reviewerRole = async () =>', '  async function dispatchTask(');

@@ -18,9 +18,9 @@ import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const V = '1.4.79';
+const V = '1.4.80';
 
-assert.match(src, /@version\s+1\.4\.79/, `версия ${V}`);
+assert.match(src, /@version\s+1\.4\.80/, `версия ${V}`);
 
 // ── 1. Панель: отдельная кнопка решений ────────────────────────────────────
 const has = (needle) => assert.ok(src.includes(needle), `в скрипте нет: ${needle}`);
@@ -76,15 +76,17 @@ assert.equal(
 );
 assert.match(logs.at(-1).text, /Решений на Мастере: 2/, 'число всё равно названо в журнале');
 
-// 2.4. Новое предложение — ровно один громкий пуш.
+// 2.4. Новое предложение — строчка в журнале, без громкого пуша.
 logs.length = 0;
 const second = [...first, { file: 'NAR-2.18.md', sha: 'c' }];
-assert.equal(api.announceDecisions(second), 1, 'новое решение найдено');
+assert.equal(api.announceDecisions(second), 1, 'новое предложение найдено');
 const loud = logs.filter((entry) => entry.options?.ntfy === 'loud');
-assert.equal(loud.length, 1, 'громкий пуш ровно один');
-assert.match(loud[0].text, /новое решение|Новое решение/, 'в пуше сказано, что это решение');
-assert.match(loud[0].text, /NAR-2\.18\.md/, 'в пуше имя файла');
-assert.match(loud[0].options.title, /решение/, 'заголовок пуша говорит про решение');
+assert.equal(loud.length, 0, 'громкого пуша нет: предложения закрывает приёмка');
+const quiet = logs.filter((entry) => entry.options?.ntfy === 'quiet');
+assert.equal(quiet.length, 1, 'строчка ровно одна');
+assert.match(quiet[0].text, /Новое предложение ждёт решения/, 'в журнале сказано, что это предложение');
+assert.match(quiet[0].text, /NAR-2\.18\.md/, 'в журнале имя файла');
+assert.match(quiet[0].options.title, /предложение/, 'заголовок говорит про предложение');
 
 // 2.5. Повтор и снятие статуса молчат: приняли решение — уведомлять не о чем.
 logs.length = 0;
