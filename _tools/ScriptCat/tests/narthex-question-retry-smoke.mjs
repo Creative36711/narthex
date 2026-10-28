@@ -27,7 +27,7 @@ function make({ failPost = false, rows = [] } = {}) {
   let posts = 0;
   const fn = new Function(
     'GM_getValue', 'GM_setValue', 'K', 'C', 'notion', 'questionProps', 'noteQuestionAsked', 'appendQuestionBody', 'log', 'dbg',
-    'norm', 'questionRows', 'Q', 'rt', 'queueAnswer',
+    'norm', 'questionRows', 'Q', 'rt', 'queueAnswer', 'sel',
     `${block}\nreturn { queueQuestion, flushQuestionQueue };`,
   );
   const api = fn(
@@ -51,6 +51,7 @@ function make({ failPost = false, rows = [] } = {}) {
     { wait: 'Ждёт', done: 'Решено', byDefault: 'Принят дефолт' },
     (p) => (p?.rich_text || p?.title || []).map((x) => x.plain_text || x.text?.content || '').join(''),
     (row) => row,
+    (p) => p?.select?.name || '',
   );
   return { ...api, store, logs, posted, posts: () => posts };
 }
@@ -116,6 +117,63 @@ const question = {
   assert.ok(logs.some((l) => l.text && l.text.includes('уже есть')), 'причина названа в журнале');
 }
 
+// ── 3г. Строка «Ждёт» без ответа — передаётся приёмке, а не глотается ─────
+// 28.10: строка про NAR-5 висела в «Ждёт» с 15:41, а скрипт писал «Мастер уже
+// ответил» и до приёмки её не доносил.
+{
+  const waiting = {
+    id: 'row-wait',
+    properties: {
+      'Вопрос': { title: [{ plain_text: 'NAR-2.15: какой предел руководства действует?' }] },
+      'Статус': { select: { name: 'Ждёт' } },
+      'Ответ': { rich_text: [] },
+      'По умолчанию': { rich_text: [{ plain_text: 'оставить как есть' }] },
+      'Варианты': { rich_text: [{ plain_text: 'A · B · C' }] },
+    },
+  };
+  const store = new Map();
+  const queued = [];
+  const logs = [];
+  let posts = 0;
+  const fn = new Function(
+    'GM_getValue', 'GM_setValue', 'K', 'C', 'notion', 'questionProps', 'noteQuestionAsked', 'appendQuestionBody', 'log', 'dbg',
+    'norm', 'questionRows', 'Q', 'rt', 'queueAnswer', 'sel',
+    `${block}\nreturn { queueQuestion, flushQuestionQueue };`,
+  );
+  const run = fn(
+    (key, def) => (store.has(key) ? store.get(key) : def),
+    (key, value) => store.set(key, value),
+    { qQueue: 'k-queue' },
+    { questions: 'ds-questions' },
+    async () => {
+      posts += 1;
+      return { id: 'row-new' };
+    },
+    () => ({}),
+    () => {},
+    () => {},
+    (text, error, opts) => logs.push({ text, error: Boolean(error), ntfy: opts?.ntfy }),
+    () => {},
+    (v) => String(v || '').trim().toLowerCase(),
+    async () => [waiting],
+    { wait: 'Ждёт', done: 'Решено', byDefault: 'Принят дефолт' },
+    (p) => (p?.rich_text || p?.title || []).map((x) => x.plain_text || x.text?.content || '').join(''),
+    (row, q) => queued.push({ rowId: row.id, text: q.text }),
+    (p) => p?.select?.name || '',
+  );
+  run.queueQuestion(
+    { ...question, text: 'Как решить открытый ADR docs/decisions/NAR-2.15.md?' },
+    { roleName: 'Coordinator', key: 'm:11' },
+  );
+  const saved = await run.flushQuestionQueue();
+  assert.equal(saved, 0, 'второй строки нет: она уже есть в базе');
+  assert.equal(posts, 0, 'POST не делается');
+  assert.equal(queued.length, 1, 'висящая строка поставлена в очередь приёмки');
+  assert.equal(queued[0].rowId, 'row-wait', 'в очередь идёт именно найденная строка');
+  assert.equal(store.get('k-queue').length, 0, 'очередь отложенных пуста');
+  assert.ok(logs.some((l) => l.text && l.text.includes('ждёт без ответа')), 'причина названа в журнале');
+}
+
 // ── 3в. Один и тот же текст в очередь дважды не попадает ──────────────────
 {
   const { queueQuestion, store } = make({ failPost: true });
@@ -129,6 +187,6 @@ has('queueQuestion(q, ctx);', 'неудачная запись попадает 
 has('Строка отложена и повторится сама', 'Мастер видит, что вопрос не потерян');
 has('await flushQuestionQueue();', 'повтор запускается при обновлении вопросов');
 has('qQueue: "cfn-q-queue",', 'ключ хранилища очереди');
-has('@version      1.4.81', 'версия 1.4.81');
+has('@version      1.4.82', 'версия 1.4.82');
 
 console.log('question-retry: ok');

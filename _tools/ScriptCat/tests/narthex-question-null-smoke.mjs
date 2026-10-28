@@ -25,9 +25,9 @@ import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const V = '1.4.81';
+const V = '1.4.82';
 
-assert.match(src, /@version\s+1\.4\.81/, `версия ${V}`);
+assert.match(src, /@version\s+1\.4\.82/, `версия ${V}`);
 
 // ── 1. В коде нет проверки «вопрос есть, если поле не undefined» ────────────
 assert.doesNotMatch(

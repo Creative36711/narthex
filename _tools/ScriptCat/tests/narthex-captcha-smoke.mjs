@@ -86,23 +86,24 @@ for (const sel of ['.recaptcha-v2-container', 'iframe[title="reCAPTCHA"]', 'ifra
 
 // ── 2. При капче доставка не подтверждается ────────────────────────────────
 const waitSrc = cut('  async function waitSent(', '  /** Enter в поле ввода');
-function waitSentWith({ captcha, lastUser = false, count = 1 }) {
+function waitSentWith({ captcha, lastUser = false, count = 1, holds = false }) {
   const fn = new Function(
     'lastUserSays', 'messages', 'messagesBefore', 'composer', 'composerText', 'generating',
-    'sleep', 'captchaDialog', 'C', 'Date',
+    'sleep', 'captchaDialog', 'C', 'Date', 'flat',
     `${waitSrc}\nreturn waitSent;`,
   );
   const run = fn(
     () => lastUser,
     () => new Array(count).fill({}),
     0,
-    () => null,
-    () => '',
+    () => (holds ? {} : null),
+    () => (holds ? 'ключ задания' : ''),
     () => true,
     async () => {},
     () => (captcha ? {} : null),
     { sendVerifyMs: 10 },
     Date,
+    (value) => String(value || '').replace(/\s+/g, ' ').trim(),
   );
   return run('ключ', 0, 10);
 }
@@ -110,9 +111,18 @@ function waitSentWith({ captcha, lastUser = false, count = 1 }) {
 // Поле опустело, агент «печатает», сообщений стало больше — но висит капча.
 assert.equal(await waitSentWith({ captcha: true }), '', 'капча отменяет признаки доставки');
 assert.equal(await waitSentWith({ captcha: true, lastUser: true }), '', 'и свою реплику в транскрипте тоже');
-// Без капчи те же признаки работают как раньше.
+// Без капчи доставку подтверждает только своё сообщение в чате.
 assert.equal(await waitSentWith({ captcha: false, lastUser: true }), 'message', 'своё сообщение — доставка');
-assert.equal(await waitSentWith({ captcha: false, count: 1 }), 'count', 'счётчик тоже считается');
+assert.equal(
+  await waitSentWith({ captcha: false, count: 1 }),
+  '',
+  'счётчик сообщений доставкой не считается: страница догружает транскрипт',
+);
+assert.equal(
+  await waitSentWith({ captcha: false, lastUser: true, holds: true }),
+  '',
+  'текст остался в поле ввода — отправки не было, даже если реплика видна',
+);
 
 // ── 3. Проверки в самой отправке ───────────────────────────────────────────
 const deliverSrc = cut('  async function deliver(editor, text) {', '  /** Короткий хеш текста');
