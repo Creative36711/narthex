@@ -34,6 +34,10 @@ A second green PR run [`40777415310`](https://github.com/Creative36711/narthex/a
 
 A later PR run [`40778228954`](https://github.com/Creative36711/narthex/actions/runs/40778228954) timed out at the 5-minute `Детерминизм циклов` limit on a cache hit. This was treated as a code defect, not dismissed as a flake. The parity path also made an unnecessary synchronous `chromium --version` call through `local-browser.mjs`; `check-parity.mts` now gets the same `Chromium 131.0.6778.0` label from the already-running Playwright browser, avoiding that extra unbounded process. The updated local warm-prefix run passed in 4.72 s with identical 10/10 fingerprints. Follow-up PR run [`40779434375`](https://github.com/Creative36711/narthex/actions/runs/40779434375) then passed: the parity package install step was skipped on an exact cache hit, `Детерминизм циклов` completed in 4 s, and `screenshots` completed in 5m1s.
 
-## GitHub workflow dispatch
+The latest pre-trigger-change PR run [`40780151281`](https://github.com/Creative36711/narthex/actions/runs/40780151281) also passed: exact cache hit, installer skipped, `Детерминизм циклов` in 4 s, `screenshots` in 5m21s.
 
-Attempted `gh workflow run visual.yml --ref arena/acab765a-narthex`. GitHub returned HTTP 403, `Resource not accessible by integration`; no workflow-dispatch run was created, so there is no run URL or green dispatch result to report. GitHub connection permissions need attention before the required branch and post-merge-main dispatch runs can be performed.
+## Main verification strategy
+
+A `workflow_dispatch` API attempt in the previous submission returned HTTP 403, `Resource not accessible by integration`. Per the current card, no manual API dispatch is repeated. The new `push: { branches: [main] }` trigger will run `screenshots` after the merge; `pull_request` and `workflow_dispatch` remain enabled.
+
+Допущение: если push-run не появится в течение 15 минут после мержа, зелёный `pull_request` run PR #132 на финальном rebased head будет доказательством для main: `refs/pull/132/merge` даёт то же итоговое дерево после squash-мержа. Повторный workflow dispatch не запускается.
