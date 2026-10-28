@@ -1,4 +1,4 @@
-// Проба 1.4.83: окно ScriptCat сворачивается.
+// Проба 1.4.84: окно ScriptCat сворачивается.
 //
 // Просьба Мастера (28.10): «Сделай так, чтобы окно приложения ScriptCat можно
 // было сворачивать». Панель висит в углу страницы агента поверх чата: журнал на
@@ -13,7 +13,7 @@ import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-assert.match(src, /@version\s+1\.4\.83/, 'версия 1.4.83');
+assert.match(src, /@version\s+1\.4\.84/, 'версия 1.4.84');
 
 const cut = (from, to) => {
   const a = src.indexOf(from);
