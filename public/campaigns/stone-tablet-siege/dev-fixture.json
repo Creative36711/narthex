@@ -1,0 +1,8 @@
+{
+  "visibility": "internal",
+  "reason": "NAR-5.5 state-ui real-player sample and NAR-5.9 compatibility-corpus target; keep out of the player catalogue.",
+  "used_by": [
+    "NAR-5.5 acceptance: cf-play check and real-player finale",
+    "NAR-5.9 compatibility corpus: state-ui-public"
+  ]
+}
