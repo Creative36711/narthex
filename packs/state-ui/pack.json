@@ -1,0 +1,64 @@
+{
+  "id": "state-ui",
+  "title": "Автоматы состояний и интерфейсы",
+  "version": "0.1.0",
+  "runtime": "turn",
+  "provides": {
+    "kind": false,
+    "schema": "schema/state-machine.schema.json",
+    "seams": [
+      {
+        "id": "state-machine.step",
+        "kind": "sim",
+        "signature": "(machine: StateMachineDefinition, current: StateId, event: string) => StateId",
+        "description": "Чистый детерминированный переход автомата по одному событию; без доступа к ядру и внешним побочным эффектам.",
+        "caps": ["state-machine"]
+      }
+    ],
+    "panels": [
+      {
+        "id": "state-machine-table",
+        "title": "Автомат состояний",
+        "slot": "left",
+        "schema": "schema/state-machine.schema.json",
+        "caps": ["state-machine"],
+        "order": 10
+      }
+    ],
+    "validators": [
+      {
+        "id": "state-machine-reachable",
+        "title": "Граф автомата достижим",
+        "severity": "error",
+        "description": "Начальное состояние объявлено, ссылки переходов существуют и все состояния достижимы; терминальные состояния не имеют исходящих переходов.",
+        "caps": ["state-machine"]
+      }
+    ],
+    "probes": [
+      {
+        "id": "state-machine-turn-cycle",
+        "title": "Детерминированный переход и настоящий пошаговый проигрыватель",
+        "kind": "run",
+        "budget_ms": 180000,
+        "checks": [
+          "данные автомата проходят JSON Schema и семантический валидатор",
+          "одинаковый набор событий даёт одинаковую конечную последовательность состояний",
+          "панель показывает текущее состояние и доступные события без записи в источник",
+          "public/ai/cf-play.mjs завершает настоящий пошаговый прогон без провалов"
+        ],
+        "caps": ["state-machine"]
+      }
+    ]
+  },
+  "saves": {
+    "namespace": "state-ui",
+    "version": 1,
+    "migrations": 0
+  },
+  "requires": {
+    "core": ">=1.0.0",
+    "packs": [],
+    "caps": []
+  },
+  "caps": ["state-machine", "cards", "auto-battle", "turn-validation"]
+}

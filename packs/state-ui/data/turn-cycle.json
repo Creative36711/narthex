@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "turn-cycle",
+  "initial": "ready",
+  "states": {
+    "ready": { "title": "Готово к ходу" },
+    "active": { "title": "Ход выполняется" },
+    "completed": { "title": "Ход завершён", "terminal": true },
+    "cancelled": { "title": "Ход отменён", "terminal": true }
+  },
+  "transitions": [
+    { "id": "begin", "from": "ready", "event": "begin", "to": "active" },
+    { "id": "finish", "from": "active", "event": "finish", "to": "completed" },
+    { "id": "cancel", "from": "active", "event": "cancel", "to": "cancelled" }
+  ]
+}
