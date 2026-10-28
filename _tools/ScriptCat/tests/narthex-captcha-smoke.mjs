@@ -85,41 +85,35 @@ for (const sel of ['.recaptcha-v2-container', 'iframe[title="reCAPTCHA"]', 'ifra
 }
 
 // ── 2. При капче доставка не подтверждается ────────────────────────────────
-const waitSrc = cut('  async function waitSent(', '  /** Enter в поле ввода');
-function waitSentWith({ captcha, lastUser = false, count = 1, holds = false }) {
+const waitSrc = cut('  async function waitSent(', '  /**\n   * Текст задания всё ещё в поле ввода?');
+function waitSentWith({ captcha, fresh = false, holds = false }) {
   const fn = new Function(
-    'lastUserSays', 'messages', 'messagesBefore', 'composer', 'composerText', 'generating',
-    'sleep', 'captchaDialog', 'C', 'Date', 'flat',
+    'userSaysSince', 'composerHolds', 'captchaDialog', 'sleep', 'Date',
     `${waitSrc}\nreturn waitSent;`,
   );
   const run = fn(
-    () => lastUser,
-    () => new Array(count).fill({}),
-    0,
-    () => (holds ? {} : null),
-    () => (holds ? 'ключ задания' : ''),
-    () => true,
-    async () => {},
+    () => (fresh ? { id: 'm1', at: 0 } : null),
+    () => holds,
     () => (captcha ? {} : null),
-    { sendVerifyMs: 10 },
+    async () => {},
     Date,
-    (value) => String(value || '').replace(/\s+/g, ' ').trim(),
   );
-  return run('ключ', 0, 10);
+  return run('ключ', ['m-old'], 10, 'текст задания', 0);
 }
 
-// Поле опустело, агент «печатает», сообщений стало больше — но висит капча.
+// Поле опустело, сообщение новое — но висит капча.
 assert.equal(await waitSentWith({ captcha: true }), '', 'капча отменяет признаки доставки');
-assert.equal(await waitSentWith({ captcha: true, lastUser: true }), '', 'и свою реплику в транскрипте тоже');
-// Без капчи доставку подтверждает только своё сообщение в чате.
-assert.equal(await waitSentWith({ captcha: false, lastUser: true }), 'message', 'своё сообщение — доставка');
+assert.equal(await waitSentWith({ captcha: true, fresh: true }), '', 'и свою реплику в транскрипте тоже');
+// Без капчи доставку подтверждает только новое своё сообщение в чате.
+const ok = await waitSentWith({ captcha: false, fresh: true });
+assert.equal(ok && ok.id, 'm1', 'новое сообщение — доставка');
 assert.equal(
-  await waitSentWith({ captcha: false, count: 1 }),
+  await waitSentWith({ captcha: false }),
   '',
-  'счётчик сообщений доставкой не считается: страница догружает транскрипт',
+  'старое сообщение и счётчик доставкой не считаются',
 );
 assert.equal(
-  await waitSentWith({ captcha: false, lastUser: true, holds: true }),
+  await waitSentWith({ captcha: false, fresh: true, holds: true }),
   '',
   'текст остался в поле ввода — отправки не было, даже если реплика видна',
 );

@@ -37,7 +37,19 @@ const task = [
 ].join('\n');
 const key = sendKey(task);
 assert.match(key, /dispatch 4016f0cf/, 'ключ задания — строка с dispatch id');
+assert.match(key, /run 1fc527ed/, 'и с номером выдачи');
 assert.ok(!key.includes('ветка-снимок'), 'общий технический блок в ключ не попадает');
+
+// Главный случай 28.10, 19:38: ту же карточку выдали второй раз. Заголовок и
+// номер карточки совпадают, отличается только выдача — ключ обязан отличаться,
+// иначе прошлое сообщение сойдёт за новую отправку.
+const sameCard = task.replace('1fc527ed-3af9-4e09-9288-523ed62c5d24', '9f22e42b-1b7e-4a37-9a1e-33bd6a0a5d11');
+assert.notEqual(sendKey(sameCard), key, 'повторная выдача той же карточки — другой ключ');
+assert.equal(
+  sendKey(task.replace('1fc527ed-3af9-4e09-9288-523ed62c5d24', '')),
+  'dispatch 4016f0cf-5705-81f4-8e07-d987ab5f34db',
+  'без номера выдачи ключ держится на карточке',
+);
 
 const plan = 'Ход Координатора\nCF_COORDINATOR_RESULT {"mission_id":"m1","turn_id":"turn-777","status":"completed","next":"Kernel"}';
 assert.equal(sendKey(plan), 'turn-777', 'ход Координатора опознаётся по номеру хода');
@@ -57,7 +69,7 @@ assert.equal(
 );
 
 // ── 2. Своё сообщение в транскрипте ───────────────────────────────────────
-const userSrc = cut('  /** Своё сообщение в транскрипте', '  /** Ждём подтверждение доставки');
+const userSrc = cut('  /** Своё сообщение в транскрипте', '  /**\n   * Ждём подтверждение доставки');
 const makeDoc = (nodes) => ({
   querySelectorAll: () => nodes,
 });
@@ -94,22 +106,28 @@ assert.equal(empty(key), false, 'пустой транскрипт — не по
 
 // ── 3. deliver: подтверждение по сообщению, а не по счётчику ──────────────
 const deliverSrc = cut('  async function deliver(editor, text) {', '  /** Короткий хеш текста');
-assert.match(deliverSrc, /waitSent\(key, before, C\.sendVerifyMs\)/, 'ждём сообщение, а не спи 1200 мс');
-assert.match(deliverSrc, /lastUserSays\(key\)/, 'проверка своего сообщения в чате');
+assert.match(
+  deliverSrc,
+  /waitSent\(key, known, C\.sendVerifyMs, text, since\)/,
+  'ждём новое сообщение, а не спи 1200 мс',
+);
+assert.match(deliverSrc, /const known = userNodeIds\(\)/, 'снимок своих реплик снят до клика');
+assert.match(deliverSrc, /userSaysSince\(key, known, since\)/, 'доставка — только новое сообщение');
 assert.match(deliverSrc, /pressEnter\(live\)/, 'второй канал отправки — Enter');
 assert.match(deliverSrc, /composerAlive\(live\)/, 'редактор перечитывается из живого DOM');
 assert.match(deliverSrc, /const latest = sendButton\(live\)/, 'кнопка пересчитывается перед самим кликом');
 assert.match(deliverSrc, /текст в поле пропал/, 'пропавший текст вставляется заново, а не отправляется пустота');
-assert.match(deliverSrc, /if \(composerHolds\(key\)\)/, 'после клика проверяется, что текст ушёл из поля');
+assert.match(deliverSrc, /if \(composerHolds\(key, text\)\)/, 'после клика проверяется, что текст ушёл из поля');
 assert.match(deliverSrc, /текст остался в поле ввода/, 'оставшийся текст называется причиной, а не успехом');
 assert.ok(!/composerLeft/.test(deliverSrc), 'старый признак «поле опустело» больше не решает');
 assert.ok(!/if \(after > before \|\|/.test(deliverSrc), 'старый счётчик сообщений больше не решает');
 
 const verifySrc = cut('  async function waitSent(', '  /** Enter в поле ввода');
+assert.match(verifySrc, /if \(!composerHolds\(key, text\)\)/, 'текст в поле отменяет доставку');
 assert.match(
   verifySrc,
-  /if \(!composerHolds\(key\) && lastUserSays\(key\)\) return "message"/,
-  'доставка — своё сообщение в чате, и текста уже нет в поле',
+  /const sent = userSaysSince\(key, known, since\);\s*if \(sent\) return sent;/,
+  'доставка — новое своё сообщение в чате',
 );
 assert.ok(!/"count"/.test(verifySrc), 'счётчик сообщений больше не подтверждает доставку');
 assert.ok(!/"generating"/.test(verifySrc), 'пустое поле с кнопкой Stop больше не подтверждает доставку');

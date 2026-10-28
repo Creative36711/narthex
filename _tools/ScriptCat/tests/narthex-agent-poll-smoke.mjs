@@ -21,7 +21,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // ── 1. Версия ──────────────────────────────────────────────────────────────
-assert.match(src, /@version\s+1\.4\.82/, 'версия 1.4.82');
+assert.match(src, /@version\s+1\.4\.83/, 'версия 1.4.83');
 
 // ── 2. Вопросы читаются целиком ────────────────────────────────────────────
 const pollFrom = src.indexOf('  const POLL_REPLY = "Реши сам в рамках Scope');

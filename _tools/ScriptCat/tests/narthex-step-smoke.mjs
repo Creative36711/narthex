@@ -16,7 +16,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.82/, 'версия 1.4.82');
+assert.match(src, /@version\s+1\.4\.83/, 'версия 1.4.83');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
@@ -121,7 +121,7 @@ for (const text of [
   'Агент ещё отвечает: задание из очереди подождёт',
   'Не нашёл поле ввода на странице адресата',
   'Не удалось вставить задание в редактор',
-  'символов).`);',
+  'символов` +',
 ]) {
   assert.ok(cpBody.includes(text), `журнал объясняет: ${text}`);
 }
@@ -152,8 +152,16 @@ assert.match(
 );
 assert.match(sendBlock, /composerAlive\(live\) \? composerText\(live\)\.length : 0/, 'отвязанный узел не считается успехом');
 assert.match(sendBlock, /via: inserted \? "execCommand" : "textContent"/, 'путь вставки виден в отладке');
-assert.match(sendBlock, /waitSent\(key, before, C\.sendVerifyMs\)/, 'доставка подтверждается сообщением в чате');
-assert.match(sendBlock, /if \(lastUserSays\(key\)\) return \{ ok: true, via: "message" \};/, 'своё сообщение — первый признак доставки');
+assert.match(
+  sendBlock,
+  /waitSent\(key, known, C\.sendVerifyMs, text, since\)/,
+  'доставка подтверждается новым сообщением в чате',
+);
+assert.match(
+  sendBlock,
+  /const already = userSaysSince\(key, known, since\);/,
+  'старое сообщение с тем же ключом доставкой не считается',
+);
 assert.match(sendBlock, /своё сообщение в чате не появилось/, 'ложное «отправлено» исключено');
 assert.match(cpBody, /setTimeout\(\(\) => tick\(false\), 5000\)/, 'без редактора шаг повторится сам');
 
@@ -190,7 +198,7 @@ assert.match(noSendBlock, /GM_setValue\(K\.expect, null\);/, 'ожидание �
 assert.match(noSendBlock, /GM_setValue\("cfn-plan-at", 0\);/, 'троттлинг плана сбрасывается');
 assert.match(noSendBlock, /снимаю ожидание и начинаю ход заново/, 'причина видна в журнале');
 assert.match(noSendBlock, /expect = null;/, 'шаг продолжается без ожидания');
-assert.match(src, /watermark, sentAt: Date\.now\(\), verified: true/, 'отметка ставится только после подтверждённой доставки');
+assert.match(src, /watermark: mark, sentAt: Date\.now\(\), verified: true/, 'отметка ставится только после подтверждённой доставки');
 assert.match(src, /pendingTtlMs: 600000/, 'TTL очереди в конфиге');
 assert.match(src, /replyWaitMs: 1800000/, 'предел ожидания ответа в конфиге');
 assert.match(src, /function dropHandoff\(reason\)/, 'зависшая передача снимается целиком');
@@ -220,7 +228,11 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     ...props,
   });
   // Свои сообщения в транскрипте: 1.4.20 подтверждает доставку именно ими.
-  const sent = sentAlready ? [{ textContent: pending?.text || "", closest: () => null }] : [];
+  // У реплики есть id: доставка подтверждается сообщением, которого не было в
+  // снимке до отправки, — без id сравнить нечего (1.4.83).
+  const sent = sentAlready
+    ? [{ id: "chat-message-m0", textContent: pending?.text || "", closest: () => null }]
+    : [];
   // Кнопка Send стоит вплотную к полю ввода — как в жизни. Раньше стаб
   // ставил её в стороне, и это скрывало ошибку «клик ушёл в сайдбар».
   const sendBtn = send ? el("BUTTON", {
@@ -231,7 +243,11 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     out.clicks.push("send");
     if (deadSend) return; // клик по кнопке ничего не делает — как в жизни при «сером» Send
     if (editor) {
-      sent.push({ textContent: editor.innerText || editor.textContent || "", closest: () => null });
+      sent.push({
+        id: `chat-message-m${sent.length + 1}`,
+        textContent: editor.innerText || editor.textContent || "",
+        closest: () => null,
+      });
       editor.innerText = "";
       editor.textContent = "";
     }
@@ -290,7 +306,7 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     "GM_getValue", "GM_setValue", "K", "norm", "roleFromPath", "visible", "lastMessageId",
     "setStatus", "log", "pause", "releaseUndelivered", "sleep", "tick", "location", "document", "window",
     "getComputedStyle", "Date", "setTimeout", "HTMLTextAreaElement", "HTMLInputElement", "InputEvent",
-    "busySettled", "busyLabel", "messages", "nodeId", "C", "dbg", "debugSendButton", "describe", "autoOn", "flat", "ui",
+    "busySettled", "busyLabel", "messages", "nodeId", "idTime", "C", "dbg", "debugSendButton", "describe", "autoOn", "flat", "ui",
     "appReady",
     // 1.4.78: проверка Continue перед отправкой.
     "waitFor", "patience", "mergedFlag",
@@ -328,6 +344,8 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     (reason) => (reason ? `кнопка «${reason.label}»${reason.where || ""}` : ""),
     () => [],
     (n) => String(n.id || "").replace("chat-message-", ""),
+    // id-время у фейковых сообщений — текущий момент фейковых часов.
+    () => state.now,
     { maxLog: 200, pendingTtlMs: 600000, replyWaitMs: 1800000, sendVerifyMs: 6000, sendReadyMs: 20000, clickReadyMs: 8000 },
     () => {},
     (ed) => ({ found: Boolean(ed), covered: sendCovered }),
@@ -369,8 +387,34 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   assert.deepEqual(out.clicks, ["send"], 'нажата именно Send');
   assert.equal(out.sets.get("cfn-pending"), null, 'очередь очищена');
   assert.ok(
-    out.logs.some((l) => /^Задание отправлено \(\d+ символов\)\.$/.test(l.text)),
-    'в журнале есть отправка и её длина',
+    out.logs.some((l) => /^Задание отправлено \(\d+ символов, сообщение m1\)\.$/.test(l.text)),
+    'в журнале есть отправка, её длина и id подтвердившего сообщения',
+  );
+}
+
+// 6.1c. Повторная выдача той же карточки (28.10, 19:38): в чате уже лежит
+// прошлое сообщение с тем же ключом, а клик по Send ничего не отправляет.
+// До 1.4.83 такая реплика считалась доставкой — журнал писал «Задание
+// отправлено», текст оставался в поле, и цикл ждал ответа впустую.
+{
+  const { api, out } = load({
+    pending,
+    editor: freshEditor(),
+    send: true,
+    sentAlready: true,
+    deadSend: true,
+    rollback: true,
+  });
+  assert.equal(await api.consumePending(true), true, 'шаг занят отказом отправки');
+  assert.ok(out.clicks.length >= 1, 'клик по Send был');
+  assert.ok(
+    !out.logs.some((l) => /^Задание отправлено/.test(l.text)),
+    'старое сообщение в чате не выдано за отправку',
+  );
+  assert.equal(out.sets.get('cfn-pending')?.undelivered, true, 'задание осталось в очереди');
+  assert.ok(
+    out.pauses.some((p) => /сообщение не ушло|Send нажат/i.test(p.text)),
+    'Мастеру сказано, что сообщение не ушло',
   );
 }
 

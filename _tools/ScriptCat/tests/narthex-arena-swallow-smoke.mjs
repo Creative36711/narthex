@@ -115,7 +115,7 @@ const expect = {
 
 // ── 4. lastUserSays: мёртвая копия — не доставка ───────────────────────────
 const fromSays = src.indexOf('  function lastUserSays(key) {');
-const toSays = src.indexOf('  /** Ждём подтверждение доставки');
+const toSays = src.indexOf('  /**\n   * Ждём подтверждение доставки');
 assert.ok(fromSays > 0 && toSays > fromSays, 'блок lastUserSays на месте');
 const saysBlock = src.slice(fromSays, toSays);
 
@@ -155,7 +155,8 @@ has('GM_setValue(K.errSeen, "");', 'старая ошибка перестаёт
 has('retryRejectedHandoff(\n          GM_getValue(K.expect, null),', '«Продолжить» ставит в очередь минимальное сообщение');
 has('В поле ввода был текст (Arena возвращает туда отклонённое) — очистил перед вставкой задания.', 'поле ввода чистится перед вставкой');
 has('function clearComposer(editor) {', 'очистка поля — отдельная функция');
-has('символов).`);', 'длина отправленного видна в журнале');
+has('символов` +', 'длина отправленного видна в журнале');
+has('сообщение ${delivery.msgId}', 'id сообщения в журнале — «отправлено» можно проверить');
 has('const TECH_OPEN = "=== CF_TECH v1 ===";', 'блок помечен обычным текстом, а не HTML-комментарием');
 has('const TECH_CLOSE = "=== /CF_TECH ===";', 'закрывающая метка тоже текстовая');
 
