@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.80
+// @version      1.4.81
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -2450,15 +2450,40 @@
   }
 
   /**
-   * Шаблонные значения (`<роль|done>`, `<путь>`) — это наши же примеры из
-   * задания и напоминания, а не ответ агента. Такой «маркер» не принимаем:
-   * иначе собственный промпт засчитывается как готовый ответ.
+   * Шаблонное значение (`<роль|done>`, `<путь>`, `<решение: …>`) — это наш же
+   * пример из задания или напоминания, а не ответ агента. Такой «маркер» не
+   * принимаем: иначе собственный промпт засчитывается как готовый ответ.
+   *
+   * Ловим пару скобок вокруг описания, а не знак «меньше» вообще. Прежнее
+   * правило искало `[<>]` в любом месте строки и требовало, чтобы всё
+   * значение было ASCII-путём: живой ответ «6<7, порог не достигнут»
+   * (кириллица, пробелы) попадал в «шаблоны» и молча выбрасывался.
+   * 28.10 18:19 приёмка трижды «ответила без маркера» именно из-за «6<7»:
+   * маркер был, а разбор его отклонял — и в журнале это выглядело как
+   * отсутствие маркера.
    */
+  const placeholderShape = (value) => {
+    const text = String(value || "").trim();
+    if (!text) return false;
+    // Всё значение в скобках — точно пример: «<путь>», «<решение>».
+    if (/^<[^<>\n]{1,200}>$/.test(text)) return true;
+    // Скобки внутри текста: шаблон узнаём по описанию внутри («<роль|done>»,
+    // «<чего именно не хватает: роль, доступ>»), а `<div>`/`<b>` в коде — нет.
+    const token = /<([^<>\n]{1,200})>/.exec(text);
+    return Boolean(token && /[\s|:…]|[А-Яа-яЁё]/.test(token[1]));
+  };
+
   function isPlaceholderMarker(obj) {
-    return Object.values(obj || {}).some(
-      (v) => typeof v === "string" && /[<>]/.test(v) && !/^https?:/.test(v) && !/^[\w./-]+$/.test(v),
-    );
+    return Object.values(obj || {}).some((v) => typeof v === "string" && placeholderShape(v));
   }
+
+  /**
+   * Почему последний разбор не сложился: по имени маркера храним причину и
+   * начало отвергнутого JSON. Журналу это нужно, чтобы «маркер есть, но он
+   * отвергнут как шаблон» не сливалось с «маркера нет» — разные беды и чинятся
+   * по-разному.
+   */
+  const markerNotes = {};
 
   function parseMarker(text, name) {
     const src = String(text || "")
@@ -2466,15 +2491,33 @@
       .replace(/\u00a0/g, " ")
       .replace(/\r\n?/g, "\n");
     let from = src.length;
+    let rejected = "";
     while (from > 0) {
       const at = src.lastIndexOf(name, from - 1);
       if (at === -1) break;
-      const obj = markerJson(braceJson(src.slice(at + name.length)));
-      if (obj && !isPlaceholderMarker(obj)) return obj;
+      const raw = braceJson(src.slice(at + name.length));
+      const obj = markerJson(raw);
+      if (obj && !isPlaceholderMarker(obj)) {
+        delete markerNotes[name];
+        return obj;
+      }
+      if (obj && !rejected) rejected = raw.replace(/\s+/g, " ").trim().slice(0, 160);
       from = at;
     }
+    if (rejected) markerNotes[name] = { reason: "placeholder", sample: rejected };
+    else delete markerNotes[name];
     return null;
   }
+
+  /** Пояснение к «маркера нет», если маркер был, но его отверг разбор. */
+  const markerRejectHint = (name) => {
+    const note = markerNotes[name];
+    if (!note || note.reason !== "placeholder") return "";
+    return (
+      ` В ответе есть ${name}, но разбор счёл его шаблоном из задания` +
+      `${note.sample ? ` (${note.sample})` : ""} — это дефект разбора, а не ответ агента.`
+    );
+  };
 
   /** Короткая подпись элемента для журнала: без разметки и лишнего текста. */
   const shortLabel = (el) =>
@@ -3001,12 +3044,15 @@
 
     dbg("ответ без маркера", { id: last.id, length: last.raw.length, tail: tail(last.raw, 300), why });
     const sent = Number(expect.tries) || 0;
+    // Маркер мог быть и отвергнутым: «нет маркера» и «есть, но разбор его
+    // выбросил» — разные поломки, и журнал обязан их различать.
+    const reject = markerRejectHint(markerName);
     if (markerStep(sent) === "remind") {
       log(
         why === "thin"
           ? `${role.name} прислал только маркер ${markerName}, без отчёта — напоминание ${sent + 1} из ${C.markerReminders}.`
           : `${role.name} ответил без маркера ${markerName} — напоминание ${sent + 1} из ${C.markerReminders}. ` +
-              `Прочитан хвост: «${tail(last.text, 110)}»`,
+              `Прочитан хвост: «${tail(last.text, 110)}»${reject}`,
         true,
         { ntfy: "quiet", title: why === "thin" ? "Narthex: маркер без отчёта" : "Narthex: нет маркера" },
       );
@@ -3026,7 +3072,7 @@
         ? `${role.name} присылает только маркер ${markerName}, без отчёта, после ${C.markerReminders} напоминаний. ` +
             "Нужен Мастер: проверьте страницу агента."
         : `${role.name} ответил без маркера ${markerName} после ${C.markerReminders} напоминаний. ` +
-            "Нужен Мастер: проверьте страницу агента.",
+            `Нужен Мастер: проверьте страницу агента.${reject}`,
       { kind: "marker", ref: expect.ref, runId: expect.runId, turnId: expect.turnId, tries: sent },
     );
     return true;
