@@ -1,0 +1,3 @@
+неясно / Arena закрепила `arena/9a2f0673-narthex`, а общий ритуал называет `nar/NAR-4.15`; карточка принимает только main PR, при этом lint baseline содержит 1505 warnings, которые D-01 не считает долгом.
+решил / Остаться на закреплённой ветке и выполнить локальные lint, mission, TypeScript gates; warnings считать отдельно от ошибок, подтвердить turn+realtime и 55/55, не менять конфиг, suppressions, runner или Phase 4; передать только report и decision через PR.
+откат / До мержа удалить только `_tools/reports/NAR-4.15.md` и `docs/decisions/NAR-4.15.md` и закрыть PR; после мержа revert только docs-only commit, не меняя lint rules, mission script, исходники, thresholds или phase state.
