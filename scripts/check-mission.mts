@@ -17,6 +17,7 @@ const steps: MissionStep[] = [
   { command: 'npm run check:contracts', executable: npm, args: ['run', 'check:contracts'] },
   { command: 'npm run check:core-graph', executable: npm, args: ['run', 'check:core-graph'] },
   { command: 'npm run check:guide', executable: npm, args: ['run', 'check:guide'] },
+  { command: 'npm run check:compat-corpus', executable: npm, args: ['run', 'check:compat-corpus'] },
   { command: 'npm run check:narrative-codes', executable: npm, args: ['run', 'check:narrative-codes'] },
   { command: 'npm run check:version', executable: npm, args: ['run', 'check:version'] },
   { command: 'npm run check:brand', executable: npm, args: ['run', 'check:brand'] },

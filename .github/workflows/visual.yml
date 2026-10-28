@@ -45,6 +45,9 @@ jobs:
       - name: Гайд и playkit
         run: npm run check:guide
 
+      - name: Корпус совместимости реального player
+        run: npm run check:compat-corpus
+
       - name: Коды narrative
         run: npm run check:narrative-codes
 
