@@ -100,12 +100,20 @@ assert.match(deliverSrc, /pressEnter\(live\)/, 'второй канал отпр
 assert.match(deliverSrc, /composerAlive\(live\)/, 'редактор перечитывается из живого DOM');
 assert.match(deliverSrc, /const latest = sendButton\(live\)/, 'кнопка пересчитывается перед самим кликом');
 assert.match(deliverSrc, /текст в поле пропал/, 'пропавший текст вставляется заново, а не отправляется пустота');
+assert.match(deliverSrc, /if \(composerHolds\(key\)\)/, 'после клика проверяется, что текст ушёл из поля');
+assert.match(deliverSrc, /текст остался в поле ввода/, 'оставшийся текст называется причиной, а не успехом');
 assert.ok(!/composerLeft/.test(deliverSrc), 'старый признак «поле опустело» больше не решает');
 assert.ok(!/if \(after > before \|\|/.test(deliverSrc), 'старый счётчик сообщений больше не решает');
 
 const verifySrc = cut('  async function waitSent(', '  /** Enter в поле ввода');
-assert.match(verifySrc, /if \(lastUserSays\(key\)\) return "message"/, 'первый признак — своё сообщение');
-assert.match(verifySrc, /composerText\(live\) && generating\(\)/, 'пустое поле считается только вместе с работой агента');
+assert.match(
+  verifySrc,
+  /if \(!composerHolds\(key\) && lastUserSays\(key\)\) return "message"/,
+  'доставка — своё сообщение в чате, и текста уже нет в поле',
+);
+assert.ok(!/"count"/.test(verifySrc), 'счётчик сообщений больше не подтверждает доставку');
+assert.ok(!/"generating"/.test(verifySrc), 'пустое поле с кнопкой Stop больше не подтверждает доставку');
+assert.match(verifySrc, /function composerHolds\(key, text\)/, 'проверка «текст остался в поле» на месте');
 
 const consumeSrc = cut('  async function consumePending(', '  // ───────────────────── следы прошлых попыток');
 assert.match(consumeSrc, /delivery\.detail/, 'пауза отправки объясняет, что видно на странице');

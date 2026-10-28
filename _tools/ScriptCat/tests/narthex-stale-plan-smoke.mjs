@@ -137,6 +137,7 @@ function makeAsk({ rows = [], failQuery = false } = {}) {
   const store = new Map();
   const logs = [];
   const created = [];
+  const queued = [];
   const fn = new Function(
     'GM_getValue', 'GM_setValue', 'K', 'C', 'Q', 'norm', 'rt', 'sel', 'query', 'questionRows',
     'noteQuestionAsked', 'appendQuestionBody', 'queueQuestion', 'queueAnswer', 'log', 'dbg', 'notion', 'questionProps',
@@ -159,7 +160,10 @@ function makeAsk({ rows = [], failQuery = false } = {}) {
     () => {},
     () => {},
     () => {},
-    () => null,
+    (row, q, ctx) => {
+      queued.push({ row, q, ctx });
+      return { id: row?.id };
+    },
     (text, error, opts) => logs.push({ text, error: Boolean(error), ntfy: opts?.ntfy }),
     () => {},
     async (method, path, body) => {
@@ -168,7 +172,7 @@ function makeAsk({ rows = [], failQuery = false } = {}) {
     },
     (q) => ({ 'Вопрос': { title: [{ type: 'text', text: { content: q.text } }] } }),
   );
-  return { ...api, store, logs, created };
+  return { ...api, store, logs, created, queued };
 }
 
 const row = (text, status, answer = '') => ({
@@ -195,17 +199,21 @@ const same = async () => {
   const res = await api.askQuestion(question, { key: 'm:1' });
   assert.equal(res, null, 'дубль не создаёт строку');
   const note = api.logs.slice(before).find((l) => l.text);
-  assert.ok(note && note.text.includes('Мастер уже ответил'), 'в журнале сказано, что отвечать не нужно');
+  assert.ok(note && note.text.includes('приёмка уже ответила'), 'в журнале сказано, что отвечать не нужно');
   assert.ok(note && note.text.includes('524 288'), 'виден ответ Мастера');
   assert.notEqual(note.ntfy, 'loud', 'громкого пуша нет');
 }
 
-// 3.2 Дубль вопроса, который ещё ждёт, — тоже не пишем.
+// 3.2 Дубль вопроса, который ещё ждёт, — второй строки нет, но вопрос
+// передаётся приёмке: «Ждёт» без «Ответа» — это не «Мастер ответил».
 {
   const api = makeAsk({ rows: [row('Предел руководства: 71 680 или 524 288?', 'Ждёт')] });
   const res = await api.askQuestion(question, { key: 'm:2' });
-  assert.equal(res, null, 'второй такой же строки не появляется');
-  assert.ok(api.logs.some((l) => l.text && l.text.includes('уже ждёт ответа')), 'причина названа');
+  assert.ok(res && res.id, 'найденная строка возвращается, а не теряется');
+  assert.equal(api.created.length, 0, 'второй такой же строки не появляется');
+  assert.equal(api.queued.length, 1, 'висящая строка поставлена в очередь приёмки');
+  assert.equal(api.queued[0].row.id, res.id, 'в очередь идёт именно она');
+  assert.ok(api.logs.some((l) => l.text && l.text.includes('Ждёт') && l.text.includes('приёмке')), 'причина названа');
 }
 
 // 3.3 Длинные тексты, обрезанные по-разному, считаются одним вопросом.
@@ -236,7 +244,7 @@ const same = async () => {
   assert.equal(res, null, 'повтор про решённый ADR не создаёт строку');
   const note = api.logs.slice(before).find((l) => l.text);
   assert.ok(note && note.text.includes('NAR-2.14'), 'назван ADR, по которому уже ответили');
-  assert.ok(note && note.text.includes('Мастер уже ответил'), 'сказано, что ответ есть');
+  assert.ok(note && note.text.includes('приёмка уже ответила'), 'сказано, что ответ есть');
   assert.ok(note && note.text.includes('F3'), 'виден прежний ответ');
   assert.notEqual(note.ntfy, 'loud', 'громкого пуша нет');
 }
@@ -261,7 +269,8 @@ const same = async () => {
   assert.ok(res && res.id, 'вопрос про другой ADR записывается');
 }
 
-// 3.8 Тот же ADR, но прежний вопрос ещё ждёт, — второй раз не пишем и не будим.
+// 3.8 Тот же ADR, но прежний вопрос ещё ждёт: второй строки нет, а висящая
+// строка передаётся приёмке (1.4.82: «Ждёт» без ответа — не ответ Мастера).
 {
   const api = makeAsk({ rows: [row('NAR-2.14: принять F3/F4/F5?', 'Ждёт')] });
   const before = api.logs.length;
@@ -269,14 +278,16 @@ const same = async () => {
     { ...question, text: 'Как решить открытый ADR docs/decisions/NAR-2.14.md?' },
     { key: 'm:8' },
   );
-  assert.equal(res, null, 'дубль ждущего вопроса не создаётся');
+  assert.ok(res && res.id, 'висящая строка возвращается');
+  assert.equal(api.created.length, 0, 'дубль ждущего вопроса не создаётся');
+  assert.equal(api.queued.length, 1, 'и передаётся приёмке');
   const note = api.logs.slice(before).find((l) => l.text);
-  assert.ok(note && note.text.includes('ждёт ответа'), 'причина названа');
+  assert.ok(note && note.text.includes('Ждёт') && note.text.includes('приёмке'), 'причина названа');
   assert.notEqual(note.ntfy, 'loud', 'громкого пуша нет');
 }
 
 // ── 4. «⚖» не зовёт Мастера туда, где он уже ответил ─────────────────────
-const decidedSrc = cut('  async function decidedAdrNames() {', '  /** `Статус:` из шапки ADR');
+const decidedSrc = cut('  function adrKeysOf(text) {', '  /** `Статус:` из шапки ADR');
 const { decidedAdrNames } = new Function(
   'questionRows', 'Q', 'rt', 'dbg',
   `${decidedSrc}\nreturn { decidedAdrNames };`,
@@ -285,6 +296,7 @@ const { decidedAdrNames } = new Function(
     row('Предел руководства: docs/decisions/NAR-2.15.md держит 294 912', 'Решено', '524 288 байт'),
     row('NAR-2.14: принять F3/F4/F5?', 'Решено', 'принять'),
     row('Вопрос без ответа', 'Решено', ''),
+    row('Предложение docs/decisions/0016-capability-registry-boundary.md', 'Решено', 'принять с поправкой'),
   ],
   { done: 'Решено', byDefault: 'Принят дефолт' },
   (p) => (p?.rich_text || p?.title || []).map((x) => x.plain_text || x.text?.content || '').join(''),
@@ -295,7 +307,8 @@ assert.ok((await decidedAdrNames()).has('nar-2.15'), 'решение 2.15 опо
 assert.ok((await decidedAdrNames()).has('nar-2.14'), 'решение 2.14 опознано по вопросу');
 assert.ok(!(await decidedAdrNames()).has('nar-2.16'), 'решение без ответа не считается принятым');
 
-has('const settled = rows.filter((row) => answered.has(String(row.file).replace(/\\.md$/i, "").toLowerCase()));', 'решения с ответом отделяются');
+has('const settled = rows.filter((row) => answered.has(adrKeyOf(row.file)));', 'решения с ответом отделяются');
+has('await deliverProposals(pending);', 'нерешённое предложение доходит до приёмки, а не только до счётчика');
 has('if (answered === null) {', 'сбой чтения ответов не возвращает решённое в счётчик');
 has('paintDecisions(cache.rows);', 'при сбое показывается прежний счётчик');
 has('announceDecisions(pending);', 'пуш только про то, что правда ждёт Мастера');

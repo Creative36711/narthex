@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.81
+// @version      1.4.82
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -120,6 +120,7 @@
     deadSend: "cfn-dead-send",
     qQueue: "cfn-q-queue",
     answers: "cfn-answer-queue",
+    collapsed: "cfn-panel-collapsed",
     stateV: "cfn-state-v",
   };
 
@@ -139,6 +140,7 @@
     qBadge: "cfn-q-badge",
     adr: "cfn-adr",
     adrBadge: "cfn-adr-badge",
+    collapse: "cfn-collapse",
     count: "cfn-log-count",
     debug: "cfn-debug-toggle",
   };
@@ -306,7 +308,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.80";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.82";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -1019,6 +1021,50 @@
     el.title = on ? "Отладка включена: подробности в консоли браузера" : "Отладка в консоли браузера (F12)";
   };
 
+  /**
+   * Свёрнутая панель.
+   *
+   * 28.10 Мастер попросил свернуть окно приложения: панель занимает угол
+   * страницы агента и мешает читать чат. Свёрнутое состояние — только полоса с
+   * названием, статусом и кнопкой «Стоп»: журнал и остальные кнопки скрыты, но
+   * счётчики вопросов и решений остаются на самой кнопке, чтобы свёрнутое окно
+   * не прятало работу, которая ждёт человека. Состояние помнится в ScriptCat и
+   * переживает перезагрузку страницы.
+   */
+  const panelCollapsed = () => GM_getValue(K.collapsed, false) === true;
+
+  function paintPanelChrome() {
+    const panel = document.getElementById(ui.panel);
+    if (!panel) return;
+    const collapsed = panelCollapsed();
+    panel.classList.toggle("cfn-panel-collapsed", collapsed);
+    panel.style.width = collapsed ? "208px" : "360px";
+    const log = document.getElementById(ui.log);
+    if (log) log.style.display = collapsed ? "none" : "";
+    for (const id of [ui.step, ui.ntfy, ui.questions, ui.adr, ui.gh, ui.debug, ui.reset, ui.clear, ui.setup]) {
+      const el = document.getElementById(id);
+      if (el) el.style.display = collapsed ? "none" : "";
+    }
+    const status = document.getElementById(ui.status);
+    if (status) status.style.maxWidth = collapsed ? "120px" : "190px";
+    const button = document.getElementById(ui.collapse);
+    if (!button) return;
+    const count = (id) => Number(document.getElementById(id)?.textContent || 0) || 0;
+    const openQ = count(ui.qBadge);
+    const openAdr = count(ui.adrBadge);
+    const marks = `${openQ ? ` ❓${openQ}` : ""}${openAdr ? ` ⚖${openAdr}` : ""}`;
+    button.textContent = collapsed ? `▸${marks}` : "▾";
+    button.title = collapsed
+      ? `Развернуть панель${openQ || openAdr ? ` (ждут: ${openQ ? `вопросов ${openQ}` : ""}${openQ && openAdr ? ", " : ""}${openAdr ? `решений ${openAdr}` : ""})` : ""}`
+      : "Свернуть панель";
+    button.style.background = collapsed ? "#2c3a2f" : "#242833";
+  }
+
+  function togglePanel() {
+    GM_setValue(K.collapsed, !panelCollapsed());
+    paintPanelChrome();
+  }
+
   function mount() {
     if (document.getElementById(ui.panel)) return;
     const panel = document.createElement("div");
@@ -1047,9 +1093,12 @@
         <button id="${ui.clear}" title="Очистить журнал; очередь снимается кнопкой ↺" style="${btnStyle()}">🧹</button>
         <button id="${ui.setup}" title="Настройка" style="${btnStyle()}">⚙</button>
         <button id="${ui.stop}" title="Остановить цикл и снять паузу" style="${btnStyle()}">✕</button>
+        <button id="${ui.collapse}" title="Свернуть панель" style="${btnStyle()}">▾</button>
       </div>
       <div id="${ui.log}" style="max-height:200px;overflow:auto;padding:6px 10px"></div>`;
     document.body.appendChild(panel);
+
+    document.getElementById(ui.collapse).onclick = () => togglePanel();
 
     document.getElementById(ui.setup).onclick = () => setup(true);
     document.getElementById(ui.reset).onclick = () => resetStateDialog();
@@ -1088,6 +1137,7 @@
     renderLog();
     setStatus();
     paintDebugButton();
+    paintPanelChrome();
     paintQuestions(openQuestions().rows);
     watchQuestions();
     paintDecisions(openDecisions().rows);
@@ -4310,25 +4360,47 @@
     return flat(last.textContent || "").includes(key);
   }
 
-  /** Ждём подтверждение доставки: сообщение в чате, а не «поле опустело». */
+  /** Ждём подтверждение доставки: своё сообщение в чате, а не «поле опустело». */
   async function waitSent(key, before, timeoutMs) {
+    // 1.4.82: подтверждением больше не считаются ни выросший счётчик
+    // сообщений (`before`), ни пустое поле при работающем агенте. Оба
+    // признака обманывали: счётчик растёт, когда страница догружает старый
+    // транскрипт, а кнопка Stop висит от прошлой генерации. Цена ошибки —
+    // ложное «Задание отправлено» и цикл, который ждёт ответа на
+    // неотправленное сообщение (28.10, 19:08).
+    //
     // Ожидание не должно стать бесконечным из-за пустой настройки: без числа
     // deadline был бы NaN, и опрос шёл бы вечно.
     const deadline = Date.now() + (Number(timeoutMs) || 6000);
     for (;;) {
-      // Капча важнее счётчика: Arena успевает показать нашу реплику до
+      // Капча важнее любого признака: Arena успевает показать нашу реплику до
       // проверки, а до агента она не доходит. Признак «отправлено» в это
       // время — ложь, из-за которой 11:56:47 задание считалось ушедшим.
       if (captchaDialog()) return "";
-      if (lastUserSays(key)) return "message";
-      if (messages().length > before) return "count";
-      const live = composer();
-      // Пустое поле плюс работающий агент — тоже след отправки, но только
-      // вместе: по отдельности каждый признак обманывает.
-      if (live && !composerText(live) && generating()) return "generating";
+      if (!composerHolds(key) && lastUserSays(key)) return "message";
       if (Date.now() >= deadline) return "";
       await sleep(300);
     }
+  }
+
+  /**
+   * Текст задания всё ещё в поле ввода?
+   *
+   * Это второй признак доставки, и он нужен именно вместе с первым. 28.10 в
+   * 19:08 скрипт написал «Задание отправлено (7829 символов)», а текст остался
+   * в поле: клик по Send ушёл в перерисованное поле, сообщение не появилось, а
+   * ожидание подтвердилось счётчиком сообщений (страница в этот момент
+   * догружала транскрипт). Пока наш текст лежит в поле, отправки не было —
+   * каким бы ни был счётчик.
+   */
+  function composerHolds(key, text) {
+    const live = composer();
+    if (!live) return false;
+    const body = flat(composerText(live));
+    if (!body) return false;
+    const probe = flat(key || "").trim() || flat(text || "").slice(0, 60);
+    if (!probe) return false;
+    return body.includes(probe);
   }
 
   /**
@@ -4382,7 +4454,10 @@
    */
   async function deliver(editor, text) {
     const before = messages().length;
-    const key = sendKey(text);
+    // Ключ доставки — отличительная строка задания. Если её нет (короткий
+    // промпт без маркера), берём начало текста: без ключа подтвердить отправку
+    // нечем, и «сообщение ушло» пришлось бы брать на веру.
+    const key = sendKey(text) || flat(text).slice(0, 60);
     let live = composerAlive(editor) ? editor : composer();
     dbg("Send: начало", () => ({ messages: before, button: debugSendButton(live), textLength: composerText(live).length }));
 
@@ -4496,6 +4571,15 @@
         if (captchaDialog()) return blocked();
         // Проверка не разовая: окно проверки всплывает через несколько секунд.
         if (await captchaGuard()) return blocked();
+        // Последняя проверка перед словом «отправлено»: текст задания не
+        // должен остаться в поле ввода. 19:08 он там остался, а журнал сказал,
+        // что задание ушло (7829 символов) — и цикл ждал ответа впустую.
+        if (composerHolds(key)) {
+          why.push(`клик ${attempt}: текст остался в поле ввода`);
+          dbg("Send: текст в поле после клика — отправки не было", { attempt });
+          await sleep(500);
+          continue;
+        }
         dbg("Send: сообщение в чате", { via, attempt });
         return { ok: true, via };
       }
@@ -6695,6 +6779,9 @@
       : "Вопросов к Мастеру нет — база «Вопросы» в Notion";
     button.style.background = list.length ? "#3a3320" : "#242833";
     button.style.borderColor = list.length ? "#8a6b2a" : "#343a46";
+    // Свёрнутая панель показывает те же числа на своей кнопке: вопрос не
+    // должен потеряться только потому, что окно сжали.
+    if (typeof paintPanelChrome === "function") paintPanelChrome();
   }
 
   /**
@@ -6791,6 +6878,30 @@
         const due = expiredQuestions(mine).filter((row) => rt(row.properties["По умолчанию"]));
         await closeExpired(due);
         closed = new Set(due.map((row) => row.id));
+        // Строка «Ждёт» без ответа — вопрос, который ещё не передавали
+        // приёмке. Проверка идёт при каждой загрузке страницы, поэтому вопрос,
+        // созданный прошлой версией (или агентом без очереди), тоже доходит:
+        // 28.10 строка про NAR-5 висела с 15:41 и до приёмки не дошла.
+        const adopted = mine.filter(
+          (row) =>
+            !closed.has(row.id) &&
+            !rt(row.properties["Ответ"]).trim() &&
+            !GM_getValue(answerHandoffKey(row.id), 0),
+        );
+        for (const row of adopted) {
+          handWaitingRow(row, questionFromRow(row), {
+            roleName: "Narthex (транспорт)",
+            mission: wanted,
+          });
+        }
+        if (adopted.length) {
+          log(
+            `Вопросов «Ждёт» без ответа, которые не передавались приёмке: ${adopted.length} — поставил в очередь, ` +
+              "она ответит на ближайшем шаге.",
+            false,
+            { ntfy: "quiet", title: "Narthex: вопрос передан приёмке" },
+          );
+        }
       }
       const open = rows
         .filter((row) => !closed.has(row.id))
@@ -7031,9 +7142,17 @@
       // тот же ADR) — тогда не пишем и не будим.
       const same = await sameQuestionRow(item.q.text);
       if (same) {
-        log(`Отложенный вопрос «${item.q.text}» уже есть в «Вопросах» — не записываю второй раз.`, false, {
-          ntfy: false,
-        });
+        // Строка «Ждёт» без «Ответа» — это не «вопрос уже задан», а вопрос,
+        // который никто не передал приёмке (1.4.82). Молча пропустить его
+        // значит потерять его совсем: так NAR-5 висел с 15:41.
+        const handled = handWaitingRow(same.row, item.q, item.ctx || {});
+        log(
+          handled
+            ? `Отложенный вопрос «${item.q.text}» уже есть в «Вопросах» и ждёт без ответа — передаю приёмке, второй строки не пишу.`
+            : `Отложенный вопрос «${item.q.text}» уже есть в «Вопросах» с ответом — не записываю второй раз.`,
+          false,
+          { ntfy: false },
+        );
         continue;
       }
       try {
@@ -7081,6 +7200,55 @@
    */
   const followUpOf = (text) => /(уточнени|ещ[её] вопрос|новый вопрос|дополнительн|вдогонку)/i.test(String(text || ""));
 
+  /** Варианты из строки «Вопросов» — строкой в ` · `, как их пишет `questionProps`. */
+  const qOptions = (row) =>
+    rt(row?.properties?.["Варианты"])
+      .split("·")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+  /**
+   * Вопрос из самой строки «Вопросов» — без новой записи.
+   *
+   * Нужен, когда строка уже есть, а приёмка её не видела: повторной записи не
+   * делаем, передаём то, что лежит в базе.
+   */
+  function questionFromRow(row) {
+    const text = rt(row?.properties?.["Вопрос"]);
+    const options = qOptions(row);
+    const fallback = rt(row?.properties?.["По умолчанию"]);
+    const blocks = rt(row?.properties?.["Что блокирует"]).trim();
+    const full = [
+      text,
+      options.length ? `Варианты: ${options.join(" · ")}` : "",
+      fallback ? `Вариант по умолчанию: ${fallback}` : "",
+      blocks ? `Что блокирует: ${blocks}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+    return { text, fullText: full, fallback, options, hours: 168 };
+  }
+
+  /** Отметка «эту строку приёмке уже передавали» — чтобы не гонять её кругом. */
+  const answerHandoffKey = (id) => `cfn-q-handoff:${id}`;
+
+  /**
+   * Строка «Ждёт» без ответа — в очередь приёмки.
+   *
+   * 28.10 Мастер: «висит 1 открытый вопрос, ни то ни то не ушло к тебе». Так и
+   * было: скрипт видел строку в «Вопросах», считал её уже заданной и не
+   * передавал приёмке ни при создании, ни после. Строка «Ждёт» с пустым
+   * «Ответом» — это долг транспорта, а не ответ Мастера.
+   */
+  function handWaitingRow(row, q = null, ctx = {}) {
+    if (!row || !row.id) return false;
+    if (sel(row.properties?.["Статус"]) !== Q.wait) return false;
+    if (rt(row.properties?.["Ответ"]).trim()) return false;
+    GM_setValue(answerHandoffKey(row.id), Date.now());
+    queueAnswer(row, q || questionFromRow(row), ctx);
+    return true;
+  }
+
   /**
    * Такой вопрос уже есть в базе? Возвращает `{ row, why }` или null.
    *
@@ -7127,12 +7295,23 @@
       const status = sel(same.row.properties?.["Статус"]);
       const answer = rt(same.row.properties?.["Ответ"]).replace(/\s+/g, " ").trim();
       GM_setValue(key, Date.now());
-      const fact =
-        status === Q.wait
-          ? "вопрос уже ждёт ответа"
-          : `Мастер уже ответил${answer ? `: «${answer.slice(0, 140)}»` : ""}`;
       const where = same.why === "adr" ? `По решению «${String(same.ref).toUpperCase()}»` : "Такой вопрос уже задан:";
-      log(`${where} ${fact} — второй раз не записываю и не уведомляю.`, false, { ntfy: false });
+      // Строка «Ждёт» с пустым «Ответом» — это вопрос, который не дошёл до
+      // приёмки. Раньше он считался «Мастер уже ответил» и второй раз не
+      // записывался: 28.10 строка про NAR-5 висела с 15:41 до вечера, а скрипт
+      // писал, что отвечать нечего. Теперь такая строка передаётся приёмке.
+      if (status === Q.wait && !answer) {
+        handWaitingRow(same.row, q, ctx);
+        log(`${where} строка есть, но она «Ждёт» без ответа: «${q.text}» — передаю приёмке, второй не пишу.`, false, {
+          ntfy: false,
+        });
+        return same.row;
+      }
+      log(
+        `${where} приёмка уже ответила${answer ? `: «${answer.slice(0, 140)}»` : ""} — второй раз не записываю и не уведомляю.`,
+        false,
+        { ntfy: false },
+      );
       return null;
     }
     try {
@@ -7252,7 +7431,25 @@
   const ADR_PROPOSED = "proposed";
 
   /**
-   * Имена решений, по которым Мастер уже ответил в «Вопросах».
+   * Имена решений в тексте: номер карточки (`NAR-5.13`) и имя файла
+   * (`0016-capability-registry-boundary`).
+   *
+   * Файл обязателен с 1.4.82. Прежде ключом был только номер вида `NAR-x.y`, и
+   * предложение с описательным именем (`0016-…md`) не могло связаться со своим
+   * ответом: оно навсегда оставалось в счётчике «ждёт Мастера», хотя решение
+   * уже было принято. Обратное тоже ломалось: любое упоминание «NAR-5» в
+   * ответе прятало все файлы миссии NAR-5, в том числе нерешённые.
+   */
+  function adrKeysOf(text) {
+    const out = new Set();
+    const src = String(text || "");
+    for (const hit of src.matchAll(/NAR-\d+(?:\.\d+)?(?:-[\wа-яё]+)?/gi)) out.add(hit[0].toLowerCase());
+    for (const hit of src.matchAll(/([\w.-]+)\.md/gi)) out.add(hit[1].toLowerCase());
+    return out;
+  }
+
+  /**
+   * Имена решений, по которым приёмка уже ответила в «Вопросах».
    *
    * ADR остаётся `proposed`, пока решение не записано в репозиторий. Но само
    * решение может быть уже принято — ответ лежит в базе. Держать такой ADR в
@@ -7266,10 +7463,7 @@
       for (const row of rows) {
         const answer = rt(row.properties?.["Ответ"]).trim();
         if (!answer) continue;
-        const text = `${rt(row.properties?.["Вопрос"])} ${answer}`;
-        for (const hit of text.matchAll(/NAR-\d+(?:\.\d+)?(?:-[\wа-яё]+)?/gi)) {
-          names.add(hit[0].toLowerCase());
-        }
+        for (const key of adrKeysOf(`${rt(row.properties?.["Вопрос"])} ${answer}`)) names.add(key);
       }
     } catch (e) {
       // `null` — «не знаю», а не «решений нет»: иначе сбой чтения вернул бы в
@@ -7325,6 +7519,7 @@
       : `Решений, ждущих Мастера, нет — ${ADR_FOLDER} в main.${decidedHint}`;
     button.style.background = list.length ? "#3a3320" : "#242833";
     button.style.borderColor = list.length ? "#8a6b2a" : "#343a46";
+    if (typeof paintPanelChrome === "function") paintPanelChrome();
   }
 
   /**
@@ -7349,6 +7544,74 @@
       title: "Narthex: новое предложение (ADR)",
     });
     return fresh.length;
+  }
+
+  /** Ключ файла предложения: `0016-capability-registry-boundary.md` → без `.md`. */
+  const adrKeyOf = (file) => String(file || "").replace(/\.md$/i, "").toLowerCase();
+
+  /**
+   * Вопрос приёмке по предложению из репозитория.
+   *
+   * Текст держится коротким (заголовок «Вопрос» режется на 180 знаках), а
+   * полный — в теле страницы. Пересказывать предложение нельзя: приёмка
+   * читает файл, иначе решение примется по моей формулировке, а не по тексту
+   * агента.
+   */
+  function proposalQuestion(row, missionName = "") {
+    const file = String(row?.file || "");
+    const path = `${ADR_FOLDER}/${file}`;
+    return {
+      text: `Предложение ${path}: принять, отклонить или оставить как есть?`,
+      fullText: [
+        `Предложение лежит в репозитории: ${path} (main), статус «proposed».`,
+        missionName ? `Миссия: ${missionName}` : "",
+        "",
+        "ЧТО РЕШИТЬ",
+        "Принять как есть, отклонить или оставить как есть (вариант по умолчанию). Если принимаешь с поправкой — назови её: что поменять в предложении и по какому признаку считать решение исполненным.",
+        "Статус файла меняет исполнитель карточкой: приёмка решает по существу, агенты переводят предложение в accepted или rejected с датой.",
+        "Файл не пересказан здесь намеренно: решение принимается по его тексту, а не по моему пересказу.",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      fallback: "оставить как есть",
+      options: ["принять", "отклонить", "оставить как есть"],
+      hours: 168,
+    };
+  }
+
+  /**
+   * Довести нерешённые предложения до приёмки.
+   *
+   * Счётчик «⚖» — подсказка панели, а не доставка. 28.10 Мастер: «висит 1
+   * предложение (/docs/decisions), не ушло к тебе». Так и было: статус файла
+   * читался, число рисовалось, а строки в «Вопросах» не появлялось — приёмка о
+   * предложении не знала, и оно могло лежать неделями.
+   *
+   * Теперь каждое `proposed` без принятого решения получает строку со ссылкой
+   * на файл и сразу ставится в очередь приёмки. Повторная строка не
+   * создаётся: `sameQuestionRow` сравнивает ссылки на решение, а отметка
+   * `cfn-asked:adr:<файл>` помнит факт передачи.
+   */
+  async function deliverProposals(rows) {
+    let missionName = "";
+    try {
+      const mission = await activeMission();
+      missionName = mission ? rt(mission.properties["Миссия"]) : "";
+    } catch (e) {
+      missionName = "";
+    }
+    for (const row of rows || []) {
+      try {
+        await askQuestion(proposalQuestion(row, missionName), {
+          roleName: "Narthex (транспорт)",
+          card: "",
+          mission: missionName,
+          key: `adr:${row.file}`,
+        });
+      } catch (e) {
+        dbg("решения: предложение не передано приёмке", e.message);
+      }
+    }
   }
 
   async function refreshDecisions(force = false) {
@@ -7384,15 +7647,22 @@
         paintDecisions(cache.rows);
         return cache.rows;
       }
-      const settled = rows.filter((row) => answered.has(String(row.file).replace(/\.md$/i, "").toLowerCase()));
+      const settled = rows.filter((row) => answered.has(adrKeyOf(row.file)));
       const pending = rows.filter((row) => !settled.includes(row));
       paintDecisions(pending, settled);
       announceDecisions(pending);
+      // Предложение — не украшение счётчика: оно обязано дойти до приёмки так
+      // же, как вопрос агента. 28.10 файл лежал в репозитории, «⚖» показывал
+      // единицу, а решения не ждал никто: строки в «Вопросах» не было.
+      if (pending.length) await deliverProposals(pending);
       if (settled.length) {
         logThrottled(
           "adr-settled",
-          `Решение Мастера уже принято в «Вопросах», но в репозитории ADR ещё proposed: ` +
-            `${settled.map((row) => row.file).join(", ")}. Это работа агентов, а не Мастера — в счётчик «⚖» не входит.`,
+          `Решение по предложению уже принято в «Вопросах», но в репозитории ADR ещё proposed: ` +
+            `${settled.map((row) => row.file).join(", ")}. Это работа агентов, а не Мастера — в счётчик «⚖» не входит, ` +
+            "но и не забывается: статус файла меняет исполнитель карточкой, иначе предложение выглядит нерешённым.",
+          false,
+          3_600_000,
         );
       }
       return pending;
