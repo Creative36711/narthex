@@ -33,7 +33,22 @@ jobs:
       - name: TypeScript
         run: npx tsc -b
 
+      - name: Cache browser parity packages
+        id: parity-browser-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/narthex-parity-browser
+          key: ${{ runner.os }}-${{ runner.arch }}-node22-parity-chromium131-playwright-core1.49.1-v1
+
+      - name: Установить браузерные пакеты для parity
+        if: steps.parity-browser-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 5
+        run: npm install --prefix "$RUNNER_TEMP/narthex-parity-browser" --no-save --ignore-scripts --no-audit --no-fund @sparticuz/chromium@131 playwright-core@1.49.1
+
       - name: Детерминизм циклов
+        timeout-minutes: 5
+        env:
+          NARTHEX_PARITY_BROWSER_PREFIX: ${{ runner.temp }}/narthex-parity-browser
         run: npm run check:determinism
 
       - name: Контракты и browser gate
