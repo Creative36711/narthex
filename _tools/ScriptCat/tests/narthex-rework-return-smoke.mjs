@@ -1,4 +1,4 @@
-// Проба 1.4.77: Rework → Ready за один ход не запирает карточку.
+// Проба 1.4.78: Rework → Ready за один ход не запирает карточку.
 //
 // 27.10 Координатор разобрал NAR-4.9: вернул её в Rework, переписал Инварианты
 // и Acceptance, поставил Check=fail — и тут же перевёл в Ready, чтобы работа
@@ -29,7 +29,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-assert.match(src, /@version\s+1\.4\.77/, 'версия 1.4.77');
+assert.match(src, /@version\s+1\.4\.78/, 'версия 1.4.78');
 
 const sliceBetween = (startMarker, endMarker) => {
   const from = src.indexOf(startMarker);
@@ -210,4 +210,4 @@ assert.match(
 assert.doesNotMatch(src, /верни её в Ready и очисти «Submitted At», «PR», «Run ID»/, 'чистка коннектором не просится');
 assert.match(src, /rememberRework\(rework\);/, 'queueOf по-прежнему помнит Rework — ради причины в журнале');
 
-console.log('OK: narthex 1.4.77 — Rework → Ready за один ход выдаётся заново, паузы нет');
+console.log('OK: narthex 1.4.78 — Rework → Ready за один ход выдаётся заново, паузы нет');

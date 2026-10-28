@@ -51,7 +51,7 @@ assert.match(noticeBlock, /GM_setValue\(K\.expect, null\)/, 'ожидание с
 function makeNotice({ closed = null, store = new Map(), expect = null, now = Date.now() } = {}) {
   const logs = [];
   const fn = new Function(
-    'GM_getValue', 'GM_setValue', 'K', 'log', 'lastClosedMission', 'autoSet', 'rt', 'missionKind', 'Date',
+    'GM_getValue', 'GM_setValue', 'K', 'log', 'lastClosedMission', 'autoSet', 'autoOn', 'setStatus', 'rt', 'missionKind', 'Date',
     `${noticeBlock}; return missionDoneNotice;`,
   );
   const call = fn(
@@ -61,6 +61,8 @@ function makeNotice({ closed = null, store = new Map(), expect = null, now = Dat
     (t, e, o) => logs.push({ t, e, o }),
     async () => closed,
     () => store.set('auto', false),
+    () => store.get('auto') === true,
+    () => {},
     (prop) => (prop?.rich_text || []).map((x) => x.text?.content || '').join(''),
     (page) => page?.properties?.['Состояние']?.select?.name || '',
     class extends Date {
@@ -119,6 +121,82 @@ const closedMission = (state = 'Завершена', at = '2026-10-24') => ({
   const handled = await call(null);
   assert.equal(handled, false, 'шаг не считается особым событием');
   assert.equal(logs.length, 0, 'журнал молчит');
+}
+
+// 2c-bis. Миссию вернули и закрыли снова — это новое событие, а не повтор.
+// 28.10 NAR-4 закрыли повторно после возврата, а флаг «объявлено» остался с
+// 27.10: Мастер не получил ни громкого пуша, ни остановленного автоцикла.
+{
+  const store = new Map();
+  const firstClose = closedMission('Завершена', '2026-10-27');
+  const first = makeNotice({ closed: firstClose, store, expect: { kind: 'plan' } });
+  await first.call({ kind: 'plan' });
+  assert.equal(first.logs.length, 1, 'первое закрытие объявлено');
+
+  const reClosed = {
+    ...closedMission('Завершена', '2026-10-28'),
+    properties: {
+      ...closedMission('Завершена', '2026-10-28').properties,
+      'Возвращена': { date: { start: '2026-10-28' } },
+    },
+  };
+  const second = makeNotice({ closed: reClosed, store, expect: { kind: 'plan' } });
+  await second.call({ kind: 'plan' });
+  assert.equal(second.logs.length, 1, 'второе закрытие после возврата снова объявлено');
+  assert.equal(second.store.get('auto'), false, 'и снова гасит автоцикл');
+  assert.equal(second.logs[0].o.ntfy, 'loud', 'пуш снова громкий');
+}
+
+// 2c-ter. Повторный проход по уже объявленному закрытию тоже гасит автоцикл.
+{
+  const store = new Map();
+  const closed = closedMission();
+  const first = makeNotice({ closed, store, expect: { kind: 'plan' } });
+  await first.call({ kind: 'plan' });
+  store.delete('auto');
+  const second = makeNotice({ closed, store, expect: { kind: 'plan' } });
+  await second.call({ kind: 'plan' });
+  assert.equal(store.get('auto'), false, 'закрытая миссия не оставляет автоцикл включённым');
+  assert.equal(second.logs.length, 0, 'но строку и пуш второй раз не печатает');
+}
+
+// 2c-quater. «Завершена» — дата без времени: закрытие сегодняшнего дня
+// объявляется и через полчаса, и через восемь часов, если цикл работал.
+{
+  const now = new Date(2026, 9, 28, 12, 0, 0).getTime();
+  const { call, logs, store } = makeNotice({
+    closed: closedMission('Завершена', '2026-10-28'),
+    expect: { kind: 'marker', ref: 'mission-1' },
+    now,
+  });
+  const handled = await call({ kind: 'marker', ref: 'mission-1' });
+  assert.equal(handled, true, 'закрытие этого дня — событие, а не тишина');
+  assert.equal(store.get('auto'), false, 'автоцикл выключен');
+  assert.equal(logs[0].o.ntfy, 'loud', 'пуш громкий');
+}
+
+// 2c-quinquies. Крутящийся автоцикл останавливается и о старом закрытии
+// говорит вслух: иначе он бесконечно писал бы «Миссий в работе нет».
+{
+  const { call, logs, store } = makeNotice({
+    closed: closedMission('Завершена', '2026-10-15'),
+    expect: null,
+  });
+  store.set('auto', true);
+  const handled = await call(null);
+  assert.equal(handled, true, 'пустой ход не выдаётся за «нет миссии»');
+  assert.equal(store.get('auto'), false, 'автоцикл остановлен');
+  assert.equal(logs.length, 1, 'о конце работы сказано один раз');
+  assert.equal(logs[0].o.ntfy, 'loud', 'и громким пушем');
+}
+
+// 2c-sexies. Без цикла и без ожидания старое закрытие — тишина.
+{
+  const { call, logs, store } = makeNotice({ closed: closedMission('Завершена', '2026-09-30'), expect: null });
+  const handled = await call(null);
+  assert.equal(handled, false, 'старое закрытие не событие');
+  assert.equal(logs.length, 0, 'пуш не уходит');
+  assert.equal(store.get('auto'), false, 'но автоцикл всё равно выключен');
 }
 
 // 2d. «Провалена» называется своим словом.

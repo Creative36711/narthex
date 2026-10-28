@@ -74,7 +74,7 @@ function makeHarness({ payloadId = '', fileText = '', readFails = false } = {}) 
     },
     (text) => calls.push({ action: 'pause', text }),
     { pending: 'cfn-pending', expect: 'cfn-expect' },
-    // 1.4.77: снятие следов повторной работы проверяется отдельной пробой
+    // 1.4.78: снятие следов повторной работы проверяется отдельной пробой
     // (narthex-rework-return-smoke.mjs); здесь важно, что обычная выдача идёт
     // прежним путём.
     () => null,

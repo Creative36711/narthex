@@ -1,4 +1,4 @@
-// Проба 1.4.77: короткий сбой Notion не останавливает цикл.
+// Проба 1.4.78: короткий сбой Notion не останавливает цикл.
 //
 // 27.10 в 19:23 цикл встал на паузе: POST `data_sources/ed076bfe-…/query`
 // получил HTTP 502. Это ответ на стороне Notion, а не отказ по существу:
@@ -22,7 +22,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-assert.match(src, /@version\s+1\.4\.77/, 'версия 1.4.77');
+assert.match(src, /@version\s+1\.4\.78/, 'версия 1.4.78');
 
 const sliceBetween = (startMarker, endMarker) => {
   const from = src.indexOf(startMarker);
@@ -136,4 +136,4 @@ assert.ok(
   'сбой сервера отличается от сети до общей формулировки',
 );
 
-console.log('OK: narthex 1.4.77 — 5xx/429 от Notion повторяются, POST pages — нет, пауза называет виновника');
+console.log('OK: narthex 1.4.78 — 5xx/429 от Notion повторяются, POST pages — нет, пауза называет виновника');
