@@ -44,6 +44,12 @@
       "path": "_tools/projects/realtime-wall",
       "runner": "cycles",
       "runtime": "realtime"
+    },
+    {
+      "ref": "state-ui-public",
+      "projectId": "stone-tablet-siege",
+      "path": "public/campaigns/stone-tablet-siege",
+      "runner": "campaign-check"
     }
   ]
 }

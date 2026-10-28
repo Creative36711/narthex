@@ -1,0 +1,227 @@
+{
+  "id": "scene_last_hand",
+  "label": "Пепельный круг — каменный стол",
+  "location": "loc_stone_table",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_table",
+      "label": "Стол перед партией",
+      "condition": null,
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#10131b",
+        "layers": [
+          {
+            "label": "стена зала",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": {
+                "gradient": {
+                  "from": "#222633",
+                  "to": "#0b0d12",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "свет над столом",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 360,
+              "rx": 500,
+              "ry": 280,
+              "fill": "#c78946",
+              "opacity": 0.08
+            }
+          },
+          {
+            "label": "столешница",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 425,
+              "rx": 460,
+              "ry": 205,
+              "fill": "#503b31",
+              "stroke": "#b58a57",
+              "stroke_width": 7
+            }
+          },
+          {
+            "label": "внутренняя кромка",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 425,
+              "rx": 420,
+              "ry": 172,
+              "fill": "none",
+              "stroke": "#d2ae73",
+              "stroke_width": 2,
+              "opacity": 0.7
+            }
+          },
+          {
+            "label": "центральный круг",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 420,
+              "rx": 118,
+              "ry": 74,
+              "fill": "#302a2a",
+              "stroke": "#d5aa63",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "руна",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                640,
+                375,
+                667,
+                420,
+                640,
+                465,
+                613,
+                420
+              ],
+              "fill": "none",
+              "stroke": "#e4c17f",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "карта щит",
+            "shape": {
+              "type": "rect",
+              "x": 342,
+              "y": 362,
+              "w": 92,
+              "h": 128,
+              "fill": "#293b45",
+              "stroke": "#b6c1b1",
+              "stroke_width": 4,
+              "rotate": -8
+            }
+          },
+          {
+            "label": "карта выпад",
+            "shape": {
+              "type": "rect",
+              "x": 594,
+              "y": 315,
+              "w": 92,
+              "h": 128,
+              "fill": "#694338",
+              "stroke": "#e0b86f",
+              "stroke_width": 4,
+              "rotate": 2
+            }
+          },
+          {
+            "label": "карта удар",
+            "shape": {
+              "type": "rect",
+              "x": 844,
+              "y": 362,
+              "w": 92,
+              "h": 128,
+              "fill": "#4c3340",
+              "stroke": "#c89175",
+              "stroke_width": 4,
+              "rotate": 8
+            }
+          },
+          {
+            "label": "свеча слева",
+            "shape": {
+              "type": "ellipse",
+              "cx": 210,
+              "cy": 294,
+              "rx": 8,
+              "ry": 19,
+              "fill": "#ffd17a",
+              "opacity": 0.85
+            }
+          },
+          {
+            "label": "свеча справа",
+            "shape": {
+              "type": "ellipse",
+              "cx": 1070,
+              "cy": 294,
+              "rx": 8,
+              "ry": 19,
+              "fill": "#ffd17a",
+              "opacity": 0.85
+            }
+          },
+          {
+            "label": "надпись зала",
+            "shape": {
+              "type": "text",
+              "x": 470,
+              "y": 150,
+              "text": "ПЕПЕЛЬНЫЙ КРУГ",
+              "bold": true,
+              "color": "#e6cb96",
+              "size": 26
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_stonekeeper",
+      "label": "Смотритель за столом",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 515,
+      "y": 195,
+      "w": 250,
+      "h": 160,
+      "default_entity": "npc_stonekeeper",
+      "condition": null
+    }
+  ],
+  "navigation": [
+    {
+      "area": {
+        "x": 20,
+        "y": 620,
+        "w": 260,
+        "h": 80
+      },
+      "go_to_scene": "scene_entry",
+      "label": "Вернуться в зал"
+    }
+  ],
+  "lighting": "indoor",
+  "narrative_intro": [
+    {
+      "text": "Последний жетон кладут на каменный стол. Нажмите на Смотрителя, чтобы начать трёхраундовую карточную партию."
+    }
+  ],
+  "narrative_intro_once": true,
+  "narrative_intro_done_label": "К столу"
+}

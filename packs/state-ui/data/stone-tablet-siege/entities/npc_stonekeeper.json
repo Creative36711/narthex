@@ -1,0 +1,19 @@
+{
+  "id": "npc_stonekeeper",
+  "type": "npc",
+  "label": "Смотритель",
+  "description": "Молчаливый хозяин Пепельного круга. Перед каждым ходом открыто показывает намерение своей карты.",
+  "dialogue": "dialogues/last_hand.ink",
+  "base_disposition": 0,
+  "portrait": {},
+  "stats": {
+    "STR": 10,
+    "CON": 10,
+    "SIZ": 10,
+    "DEX": 10,
+    "INT": 12,
+    "POW": 10,
+    "CHA": 12
+  },
+  "skills": {}
+}

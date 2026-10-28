@@ -15,6 +15,11 @@
       "pack": "adventure",
       "data": "ash-of-caerden-adventure",
       "campaign": "ash-of-caerden-adventure"
+    },
+    {
+      "pack": "state-ui",
+      "data": "stone-tablet-siege",
+      "campaign": "stone-tablet-siege"
     }
   ]
 }
