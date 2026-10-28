@@ -36,7 +36,7 @@ async function run({ last, check, state = 'Rework', here = '', adopt = { ok: tru
   const fn = new Function(
     'K', 'GM_getValue', 'GM_setValue', 'verifyMergeClaim', 'ghToken', 'notion',
     'taskState', 'prUrl', 'nowIso', 'patch', 'log', 'gateway',
-    'roleFromPath', 'adoptPageAnswer', 'norm',
+    'roleFromPath', 'adoptPageAnswer', 'norm', 'richText',
     `${block}; return recoverLastClaim;`,
   );
   const recover = fn(
@@ -62,6 +62,19 @@ async function run({ last, check, state = 'Rework', here = '', adopt = { ok: tru
       return adopt;
     },
     (x) => String(x || '').replace(/-/g, '').toLowerCase(),
+    (value) => {
+      const text = String(value == null ? '' : value);
+      const parts = [];
+      let at = 0;
+      while (at < text.length && parts.length < 100) {
+        let end = Math.min(text.length, at + 1900);
+        const code = text.charCodeAt(end - 1);
+        if (end < text.length && code >= 0xd800 && code <= 0xdbff) end -= 1;
+        parts.push({ type: 'text', text: { content: text.slice(at, end) } });
+        at = end;
+      }
+      return parts;
+    },
   );
   const result = await recover();
   return { result, patched, store, logged, appended, adopted };
@@ -174,7 +187,7 @@ assert.match(adopt, /await submitExecutor\(role, expect, true\)/, 'дальше 
 assert.match(adopt, /adopted: true/, 'видно, что выдача восстановлена, а не отправлена заново');
 
 // ── 9. Версия ──────────────────────────────────────────────────────────────
-assert.match(src, /@version\s+1\.4\.84/, 'версия 1.4.84');
+assert.match(src, /@version\s+1\.4\.85/, 'версия 1.4.85');
 
 // ── 10. Ложный отказ чинится сам, без клика Мастера ────────────────────────
 {

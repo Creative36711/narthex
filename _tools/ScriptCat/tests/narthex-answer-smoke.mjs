@@ -20,7 +20,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-assert.match(src, /@version\s+1\.4\.84/, 'версия 1.4.84');
+assert.match(src, /@version\s+1\.4\.85/, 'версия 1.4.85');
 
 const sliceBetween = (startMarker, endMarker) => {
   const from = src.indexOf(startMarker);
@@ -123,6 +123,7 @@ const api = new Function(
   'roles',
   'queueOf',
   'requestPlan',
+  'richText',
   'notion',
   `${block}
    return { answerQueue, queueAnswer, dropAnswer, answerPending, answerPrompt, startAnswer, answerStep };`,
@@ -165,6 +166,19 @@ const api = new Function(
   async (mission, role, queue, note, opts = {}) => {
     calls.plans.push({ role: role.name, note, opts });
     return true;
+  },
+  (value) => {
+    const text = String(value == null ? '' : value);
+    const parts = [];
+    let at = 0;
+    while (at < text.length && parts.length < 100) {
+      let end = Math.min(text.length, at + 1900);
+      const code = text.charCodeAt(end - 1);
+      if (end < text.length && code >= 0xd800 && code <= 0xdbff) end -= 1;
+      parts.push({ type: 'text', text: { content: text.slice(at, end) } });
+      at = end;
+    }
+    return parts;
   },
   async (method, path) => {
     calls.reads.push({ method, path });
@@ -350,6 +364,29 @@ const question = {
   assert.equal(calls.plans.length, 1, 'ход всё равно возвращается Координатору');
   assert.equal(calls.pauses.length, 0, 'паузы нет');
   api.__rowStatus = 'Ждёт';
+}
+
+// ── 14. Длинный ответ: 2296 знаков — случай 28.10 ─────────────────────────
+// Notion ответил 400 «content.length should be ≤ 2000, instead was 2296», и
+// вопрос остался «Ждёт». Ответ режется на части и уезжает целиком.
+{
+  reset();
+  const long = 'Ответ приёмки. '.repeat(160); // 2400 знаков
+  api.queueAnswer({ id: 'q-1' }, question, { roleName: 'Architect' });
+  api.__messages = [
+    { raw: `CF_ANSWER_RESULT ${JSON.stringify({ question_id: 'q-1', turn_id: 't', verdict: 'answer', answer: long })}` },
+  ];
+  await api.answerStep(reviewer, { watermark: 'w-8', ref: 'q-1', kind: 'answer' });
+  assert.equal(calls.pauses.length, 0, 'цикл не встал на длинном ответе');
+  assert.equal(calls.patches.length, 1, 'вопрос закрыт');
+  const parts = calls.patches[0].props['Ответ'].rich_text;
+  assert.equal(parts.length, 2, '2296+ знаков — две части');
+  for (const part of parts) {
+    assert.ok(part.text.content.length <= 2000, `часть в пределе, а было ${part.text.content.length}`);
+  }
+  // Ответ приходит с trim(): хвостовой пробел срезается до записи, и это не потеря.
+  assert.equal(parts.map((p) => p.text.content).join(''), long.trim(), 'текст решения не потерян');
+  assert.equal(calls.patches[0].props['Статус'].select.name, 'Решено', 'статус выставлен');
 }
 
 console.log('narthex-answer-smoke: ok');

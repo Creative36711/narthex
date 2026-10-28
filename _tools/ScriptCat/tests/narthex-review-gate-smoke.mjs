@@ -29,7 +29,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-assert.match(src, /@version\s+1\.4\.84/, 'версия 1.4.84');
+assert.match(src, /@version\s+1\.4\.85/, 'версия 1.4.85');
 
 const sliceBetween = (startMarker, endMarker) => {
   const from = src.indexOf(startMarker);
@@ -95,6 +95,7 @@ const api = new Function(
   'requestPlan',
   'queueOf',
   'notion',
+  'richText',
   'taskTitle',
   'taskRole',
   'technicalInfo',
@@ -135,6 +136,19 @@ const api = new Function(
   },
   async () => ({ summary: '0 Submitted, 0 Running, 0 Ready, 0 Rework, 0 Draft' }),
   async () => ({ properties: {} }),
+  (value) => {
+    const text = String(value == null ? '' : value);
+    const parts = [];
+    let at = 0;
+    while (at < text.length && parts.length < 100) {
+      let end = Math.min(text.length, at + 1900);
+      const code = text.charCodeAt(end - 1);
+      if (end < text.length && code >= 0xd800 && code <= 0xdbff) end -= 1;
+      parts.push({ type: 'text', text: { content: text.slice(at, end) } });
+      at = end;
+    }
+    return parts;
+  },
   (card) => (card?.properties?.['Запрос']?.title || []).map((x) => x.text?.content || x.plain_text || '').join(''),
   (card) => card?.properties?.['Кому']?.select?.name || '',
   () => 'ТЕХНИКА',

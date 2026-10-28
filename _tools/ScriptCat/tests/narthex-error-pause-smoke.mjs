@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и новый адрес ntfy.
-assert.match(src, /@version\s+1\.4\.84/, 'версия 1.4.84');
+assert.match(src, /@version\s+1\.4\.85/, 'версия 1.4.85');
 assert.match(src, /@connect\s+ntfy\.sh/, 'ntfy.sh разрешён в @connect');
 
 // 2. Журнал: ограничен, очищается, счётчик виден.
@@ -114,5 +114,33 @@ assert.ok(
   blankGuard.includes('location.reload()'),
   'перезагружается только неотрисованная страница адресата, а не видимая ошибка',
 );
+
+// 9. 1.4.85: отказ Notion и молчание Notion — разные причины паузы.
+// 28.10 HTTP 400 «content.length should be ≤ 2000» показывался как «сеть или
+// блокировка», и Мастер чинил сеть, которой ничего не было.
+const stepCatch = src.slice(
+  src.indexOf('      const plain = /битый id|valid uuid|path failed validation/i.test(raw)'),
+  src.indexOf('      pause(\n        `Цикл остановлен.'),
+);
+assert.ok(stepCatch.length > 0, 'разбор причины паузы на месте');
+const refusal = stepCatch.indexOf('/HTTP 4\\d\\d/i.test(raw)');
+const silence = stepCatch.indexOf('Notion не ответил: сеть или блокировка запроса');
+assert.ok(refusal > -1, 'есть отдельная ветка для HTTP 4xx');
+assert.ok(silence > -1, 'ветка «сеть или блокировка» осталась');
+assert.ok(refusal < silence, 'отказ Notion проверяется раньше сети');
+assert.match(stepCatch, /Notion отклонил запись/, 'отказ назван отказом');
+assert.match(stepCatch, /одно поле принимает не больше 2000 знаков/, 'предел длины назван прямо');
+assert.match(stepCatch, /дефект скрипта, а не ошибка карточки или ответа/, 'виноват скрипт, а не данные');
+// Ветка 5xx идёт до 4xx: 502 — не отказ по данным.
+const server = stepCatch.indexOf('/HTTP (?:429|5\\d\\d)/i.test(raw)');
+assert.ok(server > -1 && server < refusal, 'сбой на стороне Notion проверяется первым');
+
+// Обёртка вызова Notion: 4xx — «отказал», остальное — «не ответил».
+const wrapperFrom = src.indexOf('    last.narthex = "notion";');
+const wrapper = src.slice(wrapperFrom, src.indexOf('    throw last;', wrapperFrom));
+assert.match(wrapper, /Notion отказал на \$\{method\} \$\{path\}/, '4xx назван отказом и с адресом');
+assert.match(wrapper, /он получил запрос и не принял данные/, 'сказано, что Notion ответил');
+assert.match(wrapper, /Notion не ответил на \$\{method\} \$\{path\}/, 'молчание осталось молчанием');
+assert.match(wrapper, /HTTP 429/, '429 не считается отказом по данным');
 
 console.log('OK: narthex 1.4.63 — журнал чистится, маркер напоминается, ошибка ставит паузу и ждёт Мастера');

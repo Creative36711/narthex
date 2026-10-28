@@ -59,7 +59,10 @@ const bodyTo = src.indexOf('  /**\n   * Записать вопрос в баз�
 assert.ok(bodyFrom > 0 && bodyTo > bodyFrom, 'appendQuestionBody на месте');
 const body = src.slice(bodyFrom, bodyTo);
 assert.match(body, /blocks\/\$\{row\.id\}\/children/, 'тело пишется в блоки страницы вопроса');
-assert.match(body, /const step = 1900;/, 'кусок меньше лимита Notion 2000');
+// 1.4.85: нарезка одна на весь файл — `richText`, а не свой цикл в этой функции.
+assert.match(body, /const chunks = richText\(full\);/, 'куски режет общий richText');
+assert.match(src, /function richText\(value, step = 1900\)/, 'шаг 1900 — меньше предела 2000');
+assert.match(src, /parts\.length < 100/, 'не больше 100 частей — предел массива Notion');
 assert.match(body, /heading_3/, 'тело подписано заголовком');
 assert.match(body, /catch \(e\) \{\s*\n\s*dbg\(/, 'ошибка тела вопрос не срывает');
 

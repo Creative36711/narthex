@@ -17,7 +17,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-assert.match(src, /@version\s+1\.4\.84/, 'версия 1.4.84');
+assert.match(src, /@version\s+1\.4\.85/, 'версия 1.4.85');
 
 const sliceBetween = (startMarker, endMarker) => {
   const from = src.indexOf(startMarker);
@@ -34,7 +34,7 @@ const patched = [];
 const lines = [];
 
 const api = new Function(
-  'C', 'rt', 'sel', 'norm', 'GM_getValue', 'GM_setValue', 'notion', 'patch', 'log', 'K', 'noteQuestionAsked', 'dbg', 'queueAnswer',
+  'C', 'rt', 'sel', 'norm', 'GM_getValue', 'GM_setValue', 'notion', 'patch', 'log', 'K', 'noteQuestionAsked', 'dbg', 'queueAnswer', 'richText',
   `${block}
    return { Q, parseQuestion, questionDeadline, expiredQuestions, openQuestionsLine, answersLine, questionProps, askQuestion, markDelivered, closeExpired };`,
 )(
@@ -54,6 +54,19 @@ const api = new Function(
   () => {},
   () => {},
   () => null,
+  (value) => {
+    const text = String(value == null ? '' : value);
+    const parts = [];
+    let at = 0;
+    while (at < text.length && parts.length < 100) {
+      let end = Math.min(text.length, at + 1900);
+      const code = text.charCodeAt(end - 1);
+      if (end < text.length && code >= 0xd800 && code <= 0xdbff) end -= 1;
+      parts.push({ type: 'text', text: { content: text.slice(at, end) } });
+      at = end;
+    }
+    return parts;
+  },
 );
 
 const props = (over = {}) => ({
@@ -165,7 +178,7 @@ const run = async () => {
 
   // Ошибка Notion не срывает ход.
   const failing = new Function(
-    'C', 'rt', 'sel', 'norm', 'GM_getValue', 'GM_setValue', 'notion', 'patch', 'log', 'K', 'noteQuestionAsked', 'dbg', 'queueAnswer',
+    'C', 'rt', 'sel', 'norm', 'GM_getValue', 'GM_setValue', 'notion', 'patch', 'log', 'K', 'noteQuestionAsked', 'dbg', 'queueAnswer', 'richText',
     `${block}
      return { parseQuestion, askQuestion };`,
   )(
@@ -184,6 +197,19 @@ const run = async () => {
     () => {},
     () => {},
     () => null,
+    (value) => {
+      const text = String(value == null ? '' : value);
+      const parts = [];
+      let at = 0;
+      while (at < text.length && parts.length < 100) {
+        let end = Math.min(text.length, at + 1900);
+        const code = text.charCodeAt(end - 1);
+        if (end < text.length && code >= 0xd800 && code <= 0xdbff) end -= 1;
+        parts.push({ type: 'text', text: { content: text.slice(at, end) } });
+        at = end;
+      }
+      return parts;
+    },
   );
   const none = await failing.askQuestion(failing.parseQuestion({ text: 'q', default: 'a' }), { key: 'turn-x' });
   assert.equal(none, null, 'ошибка записи не возвращает строку');
