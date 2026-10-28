@@ -25,6 +25,10 @@ Base: `73971f6ae1e825746c1728770ada19539d4e5472` (merged NAR-5.10 / PR #131).
 1. Empty npm cache outside the repository, with npm offline (`NPM_CONFIG_CACHE="$tmp/npm-cache" NPM_CONFIG_OFFLINE=true npm run check:determinism`): expected rc=1 in 1 s. npm reported `ENOTCACHED`; the checker then reported both required packages and the full install command. It did not wait for the workflow timeout.
 2. Timeout path, with no browser packages and a temporary npm cache outside the repository, using a controlled `npm` shim that stalls: `node_modules/.bin/tsx scripts/check-determinism.mts` — expected rc=1 in 120 s. Log includes `timed out after 120000 ms`, both package names, and the complete `npm install --prefix ...` command.
 
+## Pull-request CI
+
+PR #132 `screenshots` run [`40776654386`](https://github.com/Creative36711/narthex/actions/runs/40776654386) passed. In the job, the browser-package install step took 3 s and `Детерминизм циклов` took 3 s; the complete job took 4m36s. This is a green `pull_request` run, not the requested `workflow_dispatch` run.
+
 ## GitHub workflow dispatch
 
 Attempted `gh workflow run visual.yml --ref arena/acab765a-narthex`. GitHub returned HTTP 403, `Resource not accessible by integration`; no workflow-dispatch run was created, so there is no run URL or green dispatch result to report. GitHub connection permissions need attention before the required branch and post-merge-main dispatch runs can be performed.
