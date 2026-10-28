@@ -37,4 +37,4 @@
 
 ## PR
 
-**PR:** ожидает создания.
+**PR:** #126 — https://github.com/Creative36711/narthex/pull/126.
