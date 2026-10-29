@@ -21,14 +21,16 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const CAMPAIGN_ROOT = join(ROOT, '.golden', 'karkas')
 const MANIFEST_PATH = join(ROOT, '.golden', 'manifest.json')
 const SAVE_LOAD_MODE = process.argv.includes('--save-load')
-const TASK = SAVE_LOAD_MODE ? 'GOLD-1.4' : 'GOLD-1.2'
+const TASK = process.env.GOLDEN_TASK || (SAVE_LOAD_MODE ? 'GOLD-1.4' : 'GOLD-1.2')
 const OUTPUT_DIR = join(ROOT, '_tools', 'reports', TASK)
 const LOG_PATH = join(ROOT, '_tools', 'reports', `${TASK}.log`)
+const RUN_ID = process.env.GOLDEN_RUN_ID || null
 const PORT = Number(process.env.GOLDEN_PORT || 4173)
 const BASE_URL = `http://127.0.0.1:${PORT}`
 const WIDTH = 1440
 const HEIGHT = 900
 const SAVE_SLOT = 1
+const BROWSER_SETUP_TIMEOUT_MS = 30_000
 const BRANCH = execFileSync('git', ['branch', '--show-current'], { cwd: ROOT, encoding: 'utf8' }).trim()
 
 const manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8'))
@@ -45,13 +47,27 @@ if (
 }
 
 mkdirSync(OUTPUT_DIR, { recursive: true })
-writeFileSync(LOG_PATH, '')
+if (process.env.GOLDEN_APPEND_LOG !== '1') writeFileSync(LOG_PATH, '')
 const log = (event, data = {}) => {
-  const record = { at: new Date().toISOString(), event, ...data }
+  const record = { at: new Date().toISOString(), ...(RUN_ID ? { task: TASK, runId: RUN_ID } : {}), event, ...data }
   appendFileSync(LOG_PATH, `${JSON.stringify(record)}\n`)
   const summary = data.step ? ` ${data.step}` : ''
   console.log(`${record.at} ${event}${summary}`)
   return record
+}
+
+async function withTimeout(promise, label, timeoutMs = BROWSER_SETUP_TIMEOUT_MS) {
+  let timer
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} exceeded ${timeoutMs} ms`)), timeoutMs)
+      }),
+    ])
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 const server = spawn(process.execPath, [
@@ -580,7 +596,7 @@ async function audioProbe() {
 async function main() {
   log('run_start', {
     task: TASK,
-    command: SAVE_LOAD_MODE ? 'npm run golden:import && npm run golden:save-load' : 'npm run golden:import && npm run golden:play',
+    command: process.env.GOLDEN_COMMAND || (SAVE_LOAD_MODE ? 'npm run golden:import && npm run golden:save-load' : 'npm run golden:import && npm run golden:play'),
     branch: BRANCH,
     baseUrl: BASE_URL,
     viewport: `${WIDTH}x${HEIGHT}`,
@@ -599,14 +615,18 @@ async function main() {
   log('vite_ready', { url: BASE_URL })
   browser = await launchChromium()
   log('browser_ready', { browser: chromiumVersion() })
-  const context = await browser.newContext({
+  log('browser_context_start')
+  const context = await withTimeout(browser.newContext({
     viewport: { width: WIDTH, height: HEIGHT },
     screen: { width: WIDTH, height: HEIGHT },
     deviceScaleFactor: 1,
     locale: 'ru-RU',
     timezoneId: 'Europe/Vilnius',
-  })
-  page = await context.newPage()
+  }), 'browser.newContext')
+  log('browser_context_ready')
+  log('browser_page_start')
+  page = await withTimeout(context.newPage(), 'browserContext.newPage')
+  log('browser_page_ready')
   page.setDefaultTimeout(15000)
   await installCampaignRoutes(page)
   await page.addInitScript(() => {

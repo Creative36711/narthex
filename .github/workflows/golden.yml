@@ -1,0 +1,87 @@
+name: golden-playthrough
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/golden.yml'
+      - '.golden/manifest.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'index.html'
+      - 'vite.config.*'
+      - 'src/**'
+      - 'packs/**'
+      - 'public/**'
+      - 'scripts/golden/**'
+      - 'scripts/golden-import.mts'
+      - 'scripts/campaign-audit.mts'
+      - 'scripts/campaign-fmv-audit.mts'
+      - 'scripts/playkit/**'
+      - 'scripts/pack-ai-kit.mts'
+      - 'scripts/visual/local-browser.mjs'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/golden.yml'
+      - '.golden/manifest.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'index.html'
+      - 'vite.config.*'
+      - 'src/**'
+      - 'packs/**'
+      - 'public/**'
+      - 'scripts/golden/**'
+      - 'scripts/golden-import.mts'
+      - 'scripts/campaign-audit.mts'
+      - 'scripts/campaign-fmv-audit.mts'
+      - 'scripts/playkit/**'
+      - 'scripts/pack-ai-kit.mts'
+      - 'scripts/visual/local-browser.mjs'
+  workflow_dispatch:
+
+jobs:
+  golden-playthrough:
+    name: golden-playthrough
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Cache verified golden archive and extracted campaign
+        id: golden-cache
+        uses: actions/cache@v4
+        with:
+          path: .golden
+          key: golden-karkas-${{ runner.os }}-${{ hashFiles('.golden/manifest.json') }}
+
+      - name: Install headless Chromium packages
+        timeout-minutes: 8
+        run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund @sparticuz/chromium@131 playwright-core@1.49.1
+
+      - name: Run golden import, audit, playkit and browser save/load
+        timeout-minutes: 40
+        run: npm run playthrough:golden
+
+      - name: Upload GOLD-1.6 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: GOLD-1.6-${{ github.run_id }}
+          path: |
+            _tools/reports/GOLD-1.6.md
+            _tools/reports/GOLD-1.6.log
+            _tools/reports/GOLD-1.6/
+          retention-days: 14
+          if-no-files-found: warn
