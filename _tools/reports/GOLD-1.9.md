@@ -54,4 +54,9 @@ Disposable manifest copies in `/tmp` were tested against the same validation blo
 - `rg` confirmed none of the old commit/archive/tree literals remain in `scripts/golden/play.mjs`.
 - `git diff -- .golden/manifest.json` is empty; the importer-created `.golden/karkas/` remains ignored.
 - The GOLD-1.9 log is JSONL at `_tools/reports/GOLD-1.9.log` (71 lines at report creation), including the route events, negative-case results, and integrated-run failure evidence.
-- Post-PR and post-merge CI run/job/step results will be recorded after those workflows complete.
+## PR CI
+
+- PR #155: https://github.com/Creative36711/narthex/pull/155; CI-tested head `7f6d92dfbcf031dba3674d43f351a2e4fc7674b0`, base `main`.
+- `golden-playthrough` run [40958158084](https://github.com/Creative36711/narthex/actions/runs/40958158084/job/123743634100): **failure** in step “Run golden import, audit, playkit and browser save/load”; setup, project install, cache, and Chromium install passed; evidence-artifact upload passed. `gh run view --log` returned EOF from the Actions results host, so the exact substep is unavailable here. Local `playthrough:golden` result above identifies its first failed step as `06-before-save` (missing pre-save autosave).
+- `visual` run [40958158126](https://github.com/Creative36711/narthex/actions/runs/40958158126/job/123743634564): **failure** at “Проверить свежесть бандла аудита до сборки”; later visual/browser checks were skipped. No `public/ai` file was changed.
+- Both PR checks are recorded as failures, not passes. Post-merge push CI results are included in the final response.
