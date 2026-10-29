@@ -454,6 +454,40 @@ Spec Auditor не выписал это как находку.
 Порядок заморозки в ТЗ намеренно обратный интуиции: сначала пак и игра, потом
 `accepted`. Формат, не проверенный на третьем жанре, морозить нельзя.
 
+### Вердикт NAR-5 — 2026-10-29
+
+**Фаза 4 закрыта. Дата закрытия: 2026-10-29.** Девять пунктов оракула §1
+подтверждены командами и артефактами; критерии «Готово, когда» выше и текст
+оракула сохранены без изменений. Полная сверка и оба рода источников — в
+[отчёте NAR-5.12](../_tools/reports/NAR-5.12.md), доставленном в `main` PR
+[#135](https://github.com/Creative36711/narthex/pull/135): коммит мержа
+`c85fe71`, push-прогон
+[40828183335](https://github.com/Creative36711/narthex/actions/runs/40828183335)
+— `success`.
+
+| Пункт оракула §1 | Доказательство и источник |
+|---|---|
+| 1. Игра на `state-ui` играется от начала до конца | `node public/ai/cf-play.mjs check public/campaigns/stone-tablet-siege` — **rc=0**, «проверка пройдена»: 2 сцены, 1 локация, 1 диалог, 8 узлов ink, 0 ошибок и 0 предупреждений графа, 5 seed'ов. Кампания пришла PR [#129](https://github.com/Creative36711/narthex/pull/129), коммит `5d4e55d`; команда повторена 2026-10-29 на `main` с тем же rc. Протокол — [NAR-5.12](../_tools/reports/NAR-5.12.md), п. 1. |
+| 2. В ядро не добавлено ни одной строчки под пак | Списки файлов трёх смёрженных PR (5.3–5.5) через GitHub API: `src/core/**` — `[]` у #125, #126 и #129. `npm run check:pack-boundary` — **rc=0**: `core pack boundary: 37 source files; no pack-ID branches or imports from packs/**`. Источник — [NAR-5.12](../_tools/reports/NAR-5.12.md), п. 2. |
+| 3. `cap_options` проходит контракты | `npm run check:contracts` — **rc=0**, `контракты согласованы: 46 проверок`; пример `project.code-mode.json`, содержащий `cap_options`, дал `✓ проходит схему` и `✓ проходит семантику`. Повторено 2026-10-29 на `main` — те же 46 проверок и rc=0. Источник — [NAR-5.12](../_tools/reports/NAR-5.12.md), п. 3. |
+| 4. Режим кода и язык проходят контракты | `npm run check:contracts` — **rc=0** (те же 46 проверок): `project.code-mode.json` — схема и семантика; `locales.de.json` — пять галочек (схема локали = 1, язык файла = имени, ключи-стабильные ID, хэш источника у каждой строки, у каждого источника есть строка). [NAR-5.12](../_tools/reports/NAR-5.12.md), п. 4. |
+| 5. Негативный пример отклоняется | `npm run check:contracts` — **rc=0** для гейта, и внутри — `✓ project.cap-off-required.json: отклонён (семантика)`: проект с выключенной обязательной возможностью падает проверкой, а не получает предупреждение. [NAR-5.12](../_tools/reports/NAR-5.12.md), п. 5. |
+| 6. Формат заморожен | ADR [0015](./contracts/adr/0015-format-freeze.md) — `Статус: accepted`, дата решения `2026-10-28`; [format-v2.md](./contracts/format-v2.md) — «Статус: **принят** с 2026-10-28»; манифест [format-v2.freeze.json](./contracts/format-v2.freeze.json) записан с `frozenAt: 2026-10-28`. `npm run check:schema-freeze` — **rc=0**: `проверено 42 полей, добавлено с тех пор 0, нарушений 0`. [NAR-5.12](../_tools/reports/NAR-5.12.md), п. 6. |
+| 7. Корпус совместимости зелёный | `npm run check:compat-corpus` — **rc=0**: `7 references; unique project IDs=7; minimum=7`, все семь целей прошли свою проверку (`ash-of-caerden`, `ash-of-caerden-adventure`, `fmv-crossing`, `realtime-wall-zone`, `river-of-ash`, `ash-arena`, `stone-tablet-siege`); встроенный negative control дал ожидаемый `gate rc=1`. [NAR-5.12](../_tools/reports/NAR-5.12.md), п. 7. |
+| 8. Долг D-02 оплачен | `wc -l src/core/savemigrate.ts` — **2** строки при пределе 450; `npm run check:module-size` — **rc=0**, `module src/core/savemigrate.ts: 2/450 lines (changed)`. Golden-выводы совпали байт в байт: SHA-256 полного stdout `smoke:core` `21333c43…` и `smoke:saves-compat` `5e8e2703…` равны контрольным из [NAR-5.8](../_tools/reports/NAR-5.8.md), обе команды — rc=0. Строка D-02 в [`debts.md`](./debts.md) помечена оплаченной 2026-10-28. [NAR-5.12](../_tools/reports/NAR-5.12.md), п. 8. |
+| 9. Браузерный экзамен не сдвинулся | `npm run playthrough:exam -- http://localhost:4173 …` — **rc=0**, `RESULT: PASS; packs=2; steps=20; findings=0`; Ash — 8 шагов до `ending_ashes`, Adventure — 12 шагов до `ending_gate_unlocked`, все счётчики ошибок страницы, экранов ошибки, битых и пустых картинок, сырых NPC-id — нули; Chromium `131.0.6778.0`. Visual CI на том же коммите — [run 40789160369](https://github.com/Creative36711/narthex/actions/runs/40789160369), `success`. [NAR-5.12](../_tools/reports/NAR-5.12.md), п. 9. |
+
+Сквозные гейты: `npm run check:mission` — **rc=0**, smoke-миссия 55/55,
+детерминизм `PASS: 10/10 browser hashes equal cf-play`; `npm run lint` — rc=0,
+**0 ошибок** (1 509 предупреждений); `npx tsc -b` — rc=0; `npm run build` —
+rc=0. Прогон `main` на коммите мержа отчёта (`40828183335`) — `success`.
+Удалённых проверок 0, пороги не менялись. Первый PR-прогон отчёта
+(`40826799931`) завершился `failure` не на проверке: аннотация GitHub сообщает
+`The action 'Детерминизм циклов' has timed out after 5 minutes`.
+
+Все двенадцать карточек §3 ТЗ приняты. Прежние вердикты и тексты фаз не
+переписывались. Фаза 4 закрыта, **фаза 5 этим вердиктом не открывается**.
+
 ---
 
 ## Фаза 5. Студия по пакам
