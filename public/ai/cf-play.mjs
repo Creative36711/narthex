@@ -22160,7 +22160,7 @@ function navigationProgressSignature(engine) {
 function navigationAttemptKey(from, to, progressSignature) {
   return JSON.stringify([from, to, progressSignature]);
 }
-function chooseAction(rng, observation, mode, visitedLocations, visitedScenes, attemptedNavigations, progressSignature) {
+function chooseAction(rng, observation, mode, visitedLocations, visitedScenes, attemptedNavigations, progressSignature, followNavigation) {
   const options = [];
   if (observation.combat) {
     if (observation.combat.result) return { do: "combat_close" };
@@ -22176,20 +22176,22 @@ function chooseAction(rng, observation, mode, visitedLocations, visitedScenes, a
     for (const item of observation.visible) {
       if (item.entity && item.action !== "none") options.push({ do: "interact", entity: item.entity });
     }
-    for (const navigation of observation.navigation) {
-      const fresh = !visitedScenes.has(navigation.scene);
-      const attempted = attemptedNavigations.has(navigationAttemptKey(observation.scene, navigation.scene, progressSignature));
-      if (mode === "fuzz" || fresh && !attempted) options.push({ do: "move", to: navigation.scene });
+    if (followNavigation) {
+      for (const navigation of observation.navigation) {
+        const fresh = !visitedScenes.has(navigation.scene);
+        const attempted = attemptedNavigations.has(navigationAttemptKey(observation.scene, navigation.scene, progressSignature));
+        if (mode === "fuzz" || fresh && !attempted) options.push({ do: "move", to: navigation.scene });
+      }
     }
     for (const exit of observation.exits) options.push({ do: "travel", to: exit.location });
     options.push({ do: "wait", ticks: 1 });
   }
   if (!options.length) return null;
   if (mode === "explore") {
-    const freshNavigation = options.find((option) => option.do === "move");
-    if (freshNavigation) return freshNavigation;
     const freshLocation = options.find((option) => option.do === "travel" && !visitedLocations.has(option.to));
     if (freshLocation) return freshLocation;
+    const freshNavigation = options.find((option) => option.do === "move");
+    if (freshNavigation) return freshNavigation;
   }
   return options[Math.floor(rng() * options.length)];
 }
@@ -22218,8 +22220,17 @@ async function cmdSearch(config, mode, stepsLimit) {
   for (let i2 = 0; i2 < stepsLimit; i2++) {
     const observation = steps[steps.length - 1].observation;
     if (observation.over) break;
-    const progressSignature = navigationProgressSignature(engine);
-    const action = chooseAction(rng, observation, mode, seen.locations, seen.scenes, attemptedNavigations, progressSignature);
+    const progressSignature = config.followNavigation === false ? "" : navigationProgressSignature(engine);
+    const action = chooseAction(
+      rng,
+      observation,
+      mode,
+      seen.locations,
+      seen.scenes,
+      attemptedNavigations,
+      progressSignature,
+      config.followNavigation !== false
+    );
     if (!action) {
       status = "softlock";
       break;
@@ -22669,7 +22680,9 @@ async function cmdExample() {
     debug: false,
     quiet: false,
     injection: emptyInjection(),
-    record: null
+    record: null,
+    // Keep the documented sample's long-standing golden coverage; normal check/explore/sweep follow navigation.
+    followNavigation: false
   };
   const { result, text } = await cmdCheck(config, [1, 5], 300, null);
   process.stdout.write(text);

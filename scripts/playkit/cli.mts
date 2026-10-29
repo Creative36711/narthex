@@ -817,6 +817,7 @@ interface RunConfig {
   quiet: boolean
   injection: Injection
   record: string | null
+  followNavigation?: boolean
 }
 
 interface RunResult {
@@ -1080,6 +1081,7 @@ function chooseAction(
   visitedScenes: Set<string>,
   attemptedNavigations: Set<string>,
   progressSignature: string,
+  followNavigation: boolean,
 ): AnyObj | null {
   const options: AnyObj[] = []
   if (observation.combat) {
@@ -1096,21 +1098,23 @@ function chooseAction(
     for (const item of observation.visible) {
       if (item.entity && item.action !== 'none') options.push({ do: 'interact', entity: item.entity })
     }
-    for (const navigation of observation.navigation) {
-      const fresh = !visitedScenes.has(navigation.scene)
-      const attempted = attemptedNavigations.has(navigationAttemptKey(observation.scene, navigation.scene, progressSignature))
-      if (mode === 'fuzz' || (fresh && !attempted)) options.push({ do: 'move', to: navigation.scene })
+    if (followNavigation) {
+      for (const navigation of observation.navigation) {
+        const fresh = !visitedScenes.has(navigation.scene)
+        const attempted = attemptedNavigations.has(navigationAttemptKey(observation.scene, navigation.scene, progressSignature))
+        if (mode === 'fuzz' || (fresh && !attempted)) options.push({ do: 'move', to: navigation.scene })
+      }
     }
     for (const exit of observation.exits) options.push({ do: 'travel', to: exit.location })
     options.push({ do: 'wait', ticks: 1 })
   }
   if (!options.length) return null
   if (mode === 'explore') {
-    // Сначала уходим в новую сцену по хотспоту, затем посещаем новую локацию.
-    const freshNavigation = options.find((option) => option.do === 'move')
-    if (freshNavigation) return freshNavigation
+    // Сохраняем приоритет обхода карты; затем уходим в новую сцену по хотспоту.
     const freshLocation = options.find((option) => option.do === 'travel' && !visitedLocations.has(option.to))
     if (freshLocation) return freshLocation
+    const freshNavigation = options.find((option) => option.do === 'move')
+    if (freshNavigation) return freshNavigation
   }
   return options[Math.floor(rng() * options.length)]!
 }
@@ -1144,8 +1148,17 @@ async function cmdSearch(config: RunConfig, mode: 'fuzz' | 'explore', stepsLimit
   for (let i = 0; i < stepsLimit; i++) {
     const observation = steps[steps.length - 1]!.observation as Observation
     if (observation.over) break
-    const progressSignature = navigationProgressSignature(engine)
-    const action = chooseAction(rng, observation, mode, seen.locations, seen.scenes, attemptedNavigations, progressSignature)
+    const progressSignature = config.followNavigation === false ? '' : navigationProgressSignature(engine)
+    const action = chooseAction(
+      rng,
+      observation,
+      mode,
+      seen.locations,
+      seen.scenes,
+      attemptedNavigations,
+      progressSignature,
+      config.followNavigation !== false,
+    )
     if (!action) {
       status = 'softlock'
       break
@@ -1660,6 +1673,8 @@ async function cmdExample(): Promise<number> {
     quiet: false,
     injection: emptyInjection(),
     record: null,
+    // Keep the documented sample's long-standing golden coverage; normal check/explore/sweep follow navigation.
+    followNavigation: false,
   }
   const { result, text } = await cmdCheck(config, [1, 5], 300, null)
   process.stdout.write(text)
