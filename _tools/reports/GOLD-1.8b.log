@@ -39,3 +39,12 @@ No scripts/golden/**, public/ai/*.mjs, campaign source, core/player, packs, cont
 Generated dist-ai/ package output was removed after unpacked-kit checks.
 Report/log and manifest are the only intended tracked changes; .golden/karkas is ignored.
 Post-repin HTTP 404 counts: NOT MEASURED; do not claim 0 at scene entry or 0 over the full run.
+PR #154 opened at https://github.com/Creative36711/narthex/pull/154; base=main; head=arena/c5133465-narthex; head_sha=dec4f7ed38443df24abe1c02b9bbb749f0aa1129.
+PR check golden-playthrough run=40954610209 job=123731338091: failed combined "Run golden import, audit, playkit and browser save/load" step; artifact upload succeeded.
+The golden job setup, checkout, Node, npm dependencies, cache, and headless Chromium package installation steps succeeded.
+CI job metadata confirms the combined run step failed; the exact substep is not visible because `gh run view --log` returned EOF from results-receiver.actions.githubusercontent.com.
+`gh run download 40954610209 --name GOLD-1.6-40954610209` also returned EOF from productionresultssa2.blob.core.windows.net; artifact contents could not be inspected in this sandbox.
+Local `npm run golden:play` rc=1 at the old hard-coded manifest guard before browser startup; post-repin 404 counts remain NOT MEASURED.
+PR visual run=40954610101 job=123731337498: failed at "Проверить свежесть бандла аудита до сборки"; subsequent checks, including browser screenshots, were skipped.
+PR status at report update: both golden-playthrough and screenshots checks red; no check is represented as passing unless explicitly listed above.
+PR #154 was open and not yet merged at the time of this log entry.

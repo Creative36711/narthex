@@ -30,8 +30,13 @@ The audit and cf-play produced no errors, so there were none to suppress or fix.
 - **Before repin (recorded baseline):** 2 `/project.json` 404s at first scene entry (`03-gate`); 5 over the complete route (2 at scene entry, 2 during Continue/autosave, 1 during manual-slot load). This is the prior measured run in `_tools/reports/GOLD-1.6.log`.
 - **After repin:** **not measured**; no post-repin 0/0 claim is made. `npm run golden:play` was attempted and returned rc=1 before starting the browser with: `Pinned GOLD-1 campaign tree/manifest is missing or does not match .golden/manifest.json`. `scripts/golden/play.mjs` hard-codes the prior commit `71dbbc1056fd34679cf9017ee7dc5ecff29d666c`, archive SHA `d424a914…ad3cf4b`, and tree SHA `132a5c09…ce62c76`; the new correct values therefore hit that guard. `.github/workflows/golden.yml` invokes `playthrough:golden`, whose browser step calls the same runner. The browser stage cannot measure the new campaign until that out-of-scope legacy pin guard is updated; this task does not change `scripts/golden/**` or weaken checks.
 
-## Scope and PR
+## PR and CI
 
-The intended tracked diff is limited to `.golden/manifest.json`, `_tools/reports/GOLD-1.8b.md`, and `_tools/reports/GOLD-1.8b.log`. No generated campaign files, campaign source, player/core code, pack code, contracts, importer, or `public/ai/*.mjs` were changed. The import-created `.golden/karkas/` remains ignored.
+- PR #154: https://github.com/Creative36711/narthex/pull/154, head `dec4f7ed38443df24abe1c02b9bbb749f0aa1129`, base `main`.
+- `golden-playthrough` run [40954610209](https://github.com/Creative36711/narthex/actions/runs/40954610209/job/123731338091): **failure** in the combined “Run golden import, audit, playkit and browser save/load” step; the evidence-artifact upload succeeded. Job metadata confirms the step failed, but `gh run view --log` and `gh run download` both returned EOF from GitHub’s external Actions results/blob hosts, so the exact substep is not independently visible here. The local `npm run golden:play` attempt does confirm the runner's legacy-pin guard and remains the concrete reason no post-repin browser count is claimed.
+- `visual` run [40954610101](https://github.com/Creative36711/narthex/actions/runs/40954610101/job/123731337498): **failure** at “Проверить свежесть бандла аудита до сборки”; later browser/visual steps were skipped. No audit bundle or code was changed in this task.
+- Both failures are recorded, not reclassified as passes. PR #154 is open; squash merge is not yet recorded in this report.
 
-PR/CI/merge evidence will be appended after the PR is opened and its checks have completed.
+## Scope
+
+The tracked diff is limited to `.golden/manifest.json`, `_tools/reports/GOLD-1.8b.md`, and `_tools/reports/GOLD-1.8b.log`. No generated campaign files, campaign source, player/core code, pack code, contracts, importer, or `public/ai/*.mjs` were changed. The import-created `.golden/karkas/` remains ignored.
