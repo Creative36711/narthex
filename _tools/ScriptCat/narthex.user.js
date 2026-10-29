@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.86
+// @version      1.4.87
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -9539,11 +9539,11 @@
       last &&
       norm(last.roleId) === norm(role.id) &&
       last.from === from &&
-      Date.now() - Number(last.at || 0) < 20_000;
+      Date.now() - Number(last.at || 0) < 30_000;
     if (recent) {
       pause(
         `Не удалось открыть страницу «${role.name}»: остаюсь на ${from}. ` +
-          "Похоже, «Agent URL» в базе «Роли» ведёт не туда — поправьте адрес и снимите паузу.",
+          "Страница не открылась за два перехода подряд — возможно, медленная загрузка или адрес в «Ролях» неверен. Проверьте адрес и нажмите «Продолжить».",
         { kind: "nav", ref: role.id },
       );
       return true;
