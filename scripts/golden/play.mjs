@@ -35,15 +35,33 @@ const BRANCH = execFileSync('git', ['branch', '--show-current'], { cwd: ROOT, en
 
 const manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8'))
 const campaign = JSON.parse(readFileSync(join(CAMPAIGN_ROOT, 'campaign.json'), 'utf8'))
-if (
-  manifest.repository !== 'Creative36711/campaign-1' ||
-  manifest.commit !== '71dbbc1056fd34679cf9017ee7dc5ecff29d666c' ||
-  manifest.sha256 !== 'd424a914ed2714e9c643f428e5a8eba515cbc0aaba3b3a2d4746362ccad3cf4b' ||
-  manifest.tree?.archive_sha256 !== manifest.sha256 ||
-  manifest.tree?.sha256 !== '132a5c09987aff80c9dfe2f69f1195e642295f666fc906545f00d5fccce62c76' ||
-  !existsSync(join(CAMPAIGN_ROOT, 'manifest.json'))
-) {
-  throw new Error('Pinned GOLD-1 campaign tree/manifest is missing or does not match .golden/manifest.json; run npm run golden:import first.')
+const pinValidationErrors = []
+const ARCHIVE_PREFIX = 'https://codeload.github.com/Creative36711/campaign-1/tar.gz/'
+const validCommit = typeof manifest.commit === 'string' && /^[a-f0-9]{40}$/i.test(manifest.commit)
+const validArchiveSha = typeof manifest.sha256 === 'string' && /^[a-f0-9]{64}$/i.test(manifest.sha256)
+const validTreeSha = typeof manifest.tree?.sha256 === 'string' && /^[a-f0-9]{64}$/i.test(manifest.tree.sha256)
+const campaignManifestPath = join(CAMPAIGN_ROOT, 'manifest.json')
+
+if (manifest.repository !== 'Creative36711/campaign-1') {
+  pinValidationErrors.push('repository must be Creative36711/campaign-1')
+}
+if (!validCommit) pinValidationErrors.push('commit must be a 40-character hexadecimal SHA')
+if (manifest.url !== `${ARCHIVE_PREFIX}${manifest.commit ?? ''}`) {
+  pinValidationErrors.push('url must be the codeload archive URL for manifest.commit')
+}
+if (!validArchiveSha) pinValidationErrors.push('sha256 must be a 64-character hexadecimal digest')
+if (manifest.tree?.archive_sha256 !== manifest.sha256) {
+  pinValidationErrors.push('tree.archive_sha256 must equal sha256')
+}
+if (!validTreeSha) pinValidationErrors.push('tree.sha256 must be a 64-character hexadecimal digest')
+if (!Number.isSafeInteger(manifest.size_bytes) || manifest.size_bytes <= 0) {
+  pinValidationErrors.push('size_bytes must be a positive safe integer')
+}
+if (!existsSync(campaignManifestPath) || !statSync(campaignManifestPath).isFile()) {
+  pinValidationErrors.push('imported .golden/karkas/manifest.json is missing; run npm run golden:import')
+}
+if (pinValidationErrors.length) {
+  throw new Error(`Pinned GOLD-1 manifest validation failed: ${pinValidationErrors.join('; ')}`)
 }
 
 mkdirSync(OUTPUT_DIR, { recursive: true })
