@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chronicle Forge — открыть следующего агента
 // @namespace    https://arena.ai/
-// @version      0.13.27
+// @version      0.13.28
 // @description  Role-aware Arena handoff with a marker-gated Coordinator cycle, FIFO queue, and master alerts.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -52,7 +52,7 @@
     reloadCountPrefix: "cf-auto-error-reload-count:",
     autoPauseContext: "cf-automation-pause-context",
   };
-  const AUTO = { maxSends: 2, noStartMs: 90000, idleMs: 18000, coordinatorMarkerRetries: 2 };
+  const AUTO = { maxSends: 2, noStartMs: 90000, idleMs: 18000, coordinatorMarkerRetries: 2, maxReloadAttempts: 3 };
   const rt = (p) =>
     (p?.rich_text || p?.title || [])
       .map((x) => x.plain_text || x.text?.content || "")
@@ -2155,17 +2155,43 @@
       await releaseActionLock(lockOwner);
     }
   }
-  async function monitorVisibleChatError() {
+  async function monitorVisibleChatError(pending) {
     if (await autoIsPaused()) return false;
     const detected = latestUserMessageAlert();
     if (detected) {
       const text = detected.errorText.replace(/\s+/g, " ").slice(0, 300) || "текст ошибки пуст";
+      const isReloadable = /something went wrong|please try again/i.test(text);
+      if (isReloadable && pending) {
+        const reloadKey = `${C.reloadCountPrefix}${pending.dispatchId}`;
+        const count = Number(await GM_getValue(reloadKey, 0)) || 0;
+        if (count < AUTO.maxReloadAttempts) {
+          await GM_setValue(reloadKey, count + 1);
+          logEvent(`Ошибка Arena «${text}»: перезагрузка страницы (попытка ${count + 1} из ${AUTO.maxReloadAttempts}) и повтор отправки.`, true, { ntfy: "quiet" });
+          location.reload();
+          return true;
+        }
+        await pauseAutomation(`Ошибка Arena «${text}» повторилась ${AUTO.maxReloadAttempts} раз. Страница не восстанавливается автоматически; требуется Мастер.`);
+        return true;
+      }
       await pauseAutomation(`Видимая ошибка Arena в последнем сообщении: ${text}. Автоматический режим остановлен; требуется Мастер.`);
       return true;
     }
     const genericError = detectVisibleErrorCard();
     if (genericError) {
       const text = String(genericError.innerText || genericError.textContent || "").trim().replace(/\s+/g, " ").slice(0, 300);
+      const isReloadable = /something went wrong|please try again/i.test(text);
+      if (isReloadable && pending) {
+        const reloadKey = `${C.reloadCountPrefix}${pending.dispatchId}`;
+        const count = Number(await GM_getValue(reloadKey, 0)) || 0;
+        if (count < AUTO.maxReloadAttempts) {
+          await GM_setValue(reloadKey, count + 1);
+          logEvent(`Необработанная ошибка интерфейса «${text || "текст ошибки пуст"}»: перезагрузка страницы (попытка ${count + 1} из ${AUTO.maxReloadAttempts}) и повтор отправки.`, true, { ntfy: "quiet" });
+          location.reload();
+          return true;
+        }
+        await pauseAutomation(`Ошибка интерфейса «${text || "текст ошибки пуст"}» повторилась ${AUTO.maxReloadAttempts} раз. Страница не восстанавливается автоматически; требуется Мастер.`);
+        return true;
+      }
       await pauseAutomation(`Необработанная ошибка интерфейса: ${text || "текст ошибки пуст"}. Автоматический режим остановлен; требуется Мастер.`);
       return true;
     }
@@ -2176,9 +2202,9 @@
     if (monitorPendingInFlight) return;
     monitorPendingInFlight = true;
     try {
-      if (await monitorVisibleChatError()) return;
-      if (!(await autoEnabled()) || (await autoIsPaused())) return;
       const pending = await currentPendingForPage();
+      if (await monitorVisibleChatError(pending)) return;
+      if (!(await autoEnabled()) || (await autoIsPaused())) return;
       if (!pending?.sentAt) return;
       if (hasVisibleOptionalCard()) {
         if (!(await clickVisibleOptionalSkip())) {
