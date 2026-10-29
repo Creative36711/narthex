@@ -1148,7 +1148,8 @@ async function cmdSearch(config: RunConfig, mode: 'fuzz' | 'explore', stepsLimit
   for (let i = 0; i < stepsLimit; i++) {
     const observation = steps[steps.length - 1]!.observation as Observation
     if (observation.over) break
-    const progressSignature = config.followNavigation === false ? '' : navigationProgressSignature(engine)
+    const followNavigation = config.followNavigation !== false
+    const progressSignature = followNavigation ? navigationProgressSignature(engine) : ''
     const action = chooseAction(
       rng,
       observation,
@@ -1157,7 +1158,7 @@ async function cmdSearch(config: RunConfig, mode: 'fuzz' | 'explore', stepsLimit
       seen.scenes,
       attemptedNavigations,
       progressSignature,
-      config.followNavigation !== false,
+      followNavigation,
     )
     if (!action) {
       status = 'softlock'
@@ -1270,8 +1271,12 @@ async function cmdCheck(
     routeRuns.push({ file, status: run.status, steps: run.steps, assertions: run.assertions, transcript: run.hashes.transcript })
   }
 
+  const hasTravelConnections = (Object.values(campaign.world?.regions ?? {}) as AnyObj[]).some((region) =>
+    ((region.locations ?? []) as AnyObj[]).some((location) => Array.isArray(location.travel_connections) && location.travel_connections.length > 0),
+  )
+  const followNavigation = config.followNavigation ?? !hasTravelConnections
   const sweep = await cmdSweep(
-    { ...config, quiet: true, outDir: config.outDir ? join(config.outDir, 'sweep') : null },
+    { ...config, followNavigation, quiet: true, outDir: config.outDir ? join(config.outDir, 'sweep') : null },
     seeds,
     stepsLimit,
   )
@@ -1673,8 +1678,6 @@ async function cmdExample(): Promise<number> {
     quiet: false,
     injection: emptyInjection(),
     record: null,
-    // Keep the documented sample's long-standing golden coverage; normal check/explore/sweep follow navigation.
-    followNavigation: false,
   }
   const { result, text } = await cmdCheck(config, [1, 5], 300, null)
   process.stdout.write(text)

@@ -16,7 +16,7 @@
 - `navigation[].go_to_scene` — ID целевой сцены для `move`; фактическую проверку условий, перехватчиков и переход выполняет pack через `engine.navigate`. Записи без существующей цели-сцены не предлагаются агенту.
 - Ранее посещённой считается именно сцена. Это важно для целевого пакета: обе сцены находятся в одной локации, но переход между ними всё равно необходим для покрытия.
 - В отчёте `victory` — тип `game_over`, а `ending_draw` и `ending_lesson` — ID концовок; CLI выводит типы исходов и ID концовок отдельно. Для sweep нулевой `open` выводится явно.
-- Команда `example` сохраняет свой исторический golden-вывод `check:guide` без навигационных переходов; обычные команды `check`, `explore` и `sweep` следуют хотспотам.
+- `explore` и прямой `sweep` используют навигационные хотспоты для новых сцен. Чтобы сохранить существующие регрессионные ожидания у map-based кампаний, `check` по умолчанию оставляет прежний обход карты, если у кампании есть `travel_connections`; для mapless кампании (`stone-tablet-siege`) `check` включает scene navigation.
 
 ## Проверка 1 — `check`
 
@@ -99,8 +99,9 @@ seed'ов 30 · успешных 30 · проблемных 0 · движок 0.
 ## Регрессии и сборка
 
 - `npm run build:playkit-bundle` — успешно.
-- `npm run check:playkit-bundle` — успешно; bundle совпал с исходником, SHA-256 `cf488d37b7b1a4f5e4ccc128c5f0cb45304a17f09d054002afbfdd4251af7d68`.
+- `npm run check:playkit-bundle` — успешно; bundle совпал с исходником, SHA-256 `87f77eadeef9ebf5a5f9149f733bfa6f88a07341ac65f7b1faa6e0cc03eb62df`.
 - `npm run check:guide` — успешно; 6 CLI-команд, 28 narrative-code explain cases; golden reference 6/10 сохранён.
+- `npm run smoke:mission` — успешно; все 55/55 смоуков зелёные.
 - `npx oxlint scripts/playkit/cli.mts` — 0 предупреждений, 0 ошибок.
 - `npm run check:campaigns` — успешно; 4/4 публичных копии кампаний сверены с пакетами.
 - `npm run check:contracts` — успешно; согласованы 46 проверок, включая вложенные проверки пакетов и границ.

@@ -22220,7 +22220,8 @@ async function cmdSearch(config, mode, stepsLimit) {
   for (let i2 = 0; i2 < stepsLimit; i2++) {
     const observation = steps[steps.length - 1].observation;
     if (observation.over) break;
-    const progressSignature = config.followNavigation === false ? "" : navigationProgressSignature(engine);
+    const followNavigation = config.followNavigation !== false;
+    const progressSignature = followNavigation ? navigationProgressSignature(engine) : "";
     const action = chooseAction(
       rng,
       observation,
@@ -22229,7 +22230,7 @@ async function cmdSearch(config, mode, stepsLimit) {
       seen.scenes,
       attemptedNavigations,
       progressSignature,
-      config.followNavigation !== false
+      followNavigation
     );
     if (!action) {
       status = "softlock";
@@ -22327,8 +22328,12 @@ async function cmdCheck(config, seeds, stepsLimit, routesDir, packRegistryPath =
     const run = await cmdRun({ ...config, seed: routeSeed, outDir: out, routeName: file }, script);
     routeRuns.push({ file, status: run.status, steps: run.steps, assertions: run.assertions, transcript: run.hashes.transcript });
   }
+  const hasTravelConnections = Object.values(campaign2.world?.regions ?? {}).some(
+    (region) => (region.locations ?? []).some((location) => Array.isArray(location.travel_connections) && location.travel_connections.length > 0)
+  );
+  const followNavigation = config.followNavigation ?? !hasTravelConnections;
   const sweep = await cmdSweep(
-    { ...config, quiet: true, outDir: config.outDir ? join5(config.outDir, "sweep") : null },
+    { ...config, followNavigation, quiet: true, outDir: config.outDir ? join5(config.outDir, "sweep") : null },
     seeds,
     stepsLimit
   );
@@ -22680,9 +22685,7 @@ async function cmdExample() {
     debug: false,
     quiet: false,
     injection: emptyInjection(),
-    record: null,
-    // Keep the documented sample's long-standing golden coverage; normal check/explore/sweep follow navigation.
-    followNavigation: false
+    record: null
   };
   const { result, text } = await cmdCheck(config, [1, 5], 300, null);
   process.stdout.write(text);
