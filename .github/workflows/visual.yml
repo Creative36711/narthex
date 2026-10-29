@@ -34,6 +34,25 @@ jobs:
       - name: TypeScript
         run: npx tsc -b
 
+      # Пробы транспорта ScriptCat — обычные node-скрипты, без сети и без
+      # браузера: 66 проверок примерно за 11 с. Раньше они жили только в
+      # README, и 29.10 одна из них покраснела на зелёном коде (в ней «сейчас»
+      # бралось из системных часов) — заметил это только Мастер.
+      - name: Пробы транспорта ScriptCat
+        run: |
+          set -e
+          passed=0
+          for probe in _tools/ScriptCat/tests/*.mjs; do
+            if ! node "$probe" > /tmp/scriptcat-probe.log 2>&1; then
+              echo "::group::Провал: $probe"
+              cat /tmp/scriptcat-probe.log
+              echo "::endgroup::"
+              exit 1
+            fi
+            passed=$((passed + 1))
+          done
+          echo "Пробы ScriptCat: $passed/$passed зелёных"
+
       - name: Cache browser parity packages
         id: parity-browser-cache
         uses: actions/cache@v4

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.85
+// @version      1.4.86
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -94,6 +94,9 @@
     longWaitNoticeMs: 600000, // раз в 10 минут напоминаем, что долгое ожидание — норма
     pollPauseCount: 3, // столько опросов подряд — уже поломка промпта, а не случайность
     reworkLimit: 3, // доработок миссии больше этого — стоп и вызов Мастера
+    retryWaits: [800, 2500, 6000], // выдержки перед повторами: 4 попытки, ~9 с
+    linkProbeWaits: [5000, 15000], // зонды связи после обрыва: 5 и 15 с
+    rolesCacheMs: 600000, // база «Роли» — настройка: кеш на 10 минут
   };
 
   const K = {
@@ -123,6 +126,7 @@
     answers: "cfn-answer-queue",
     collapsed: "cfn-panel-collapsed",
     stateV: "cfn-state-v",
+    rolesCache: "cfn-roles-cache",
   };
 
   const ui = {
@@ -1271,6 +1275,8 @@
     GM_setValue(K.notion, token.trim());
     GM_setValue(K.gwUrl, gwUrl.trim());
     GM_setValue(K.gwKey, gwKey.trim());
+    // Новый токен — новый доступ: список ролей перечитываем, а не берём из кеша.
+    GM_setValue(K.rolesCache, null);
     const clean = new URL(location.href);
     if (clean.searchParams.has("cf-auth-setup")) {
       clean.searchParams.delete("cf-auth-setup");
@@ -1562,7 +1568,28 @@
   const networkish = (text) =>
     /сеть|таймаут|failed to fetch|network|load failed|HTTP (?:429|5\d\d)/i.test(String(text || ""));
 
-  function requestOnce(method, url, headers, body) {
+  /**
+   * Причина обрыва в читаемом виде.
+   *
+   * 29.10 в 10:08 цикл встал на паузе посреди шага 5.20: POST
+   * `data_sources/ed076bfe-…/query` не получил вообще ничего — ни кода, ни
+   * тела ответа. Notion был жив (отдельный запрос в ту же минуту это
+   * подтвердил), но `onerror` не сохранял ни `statusText`, ни `error`:
+   * «оборвано» и «запрещено менеджером скриптов» выглядели одинаково, а
+   * фраза про `@connect` отправляла Мастера искать блокировку, которой нет.
+   */
+  function linkError(kind, r) {
+    const detail = [r && r.statusText, r && r.error && (r.error.message || String(r.error))]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean)
+      .join(" / ");
+    const err = new Error(detail ? `${kind}: ${detail}` : kind);
+    err.status = 0;
+    err.link = true;
+    return err;
+  }
+
+  function requestOnce(method, url, headers, body, timeout = 45000) {
     return new Promise((resolve, reject) => {
       GM_xmlhttpRequest({
         method,
@@ -1571,7 +1598,7 @@
         // Строка уходит как есть: шлюз Apps Script читает `postData.contents`
         // и ждёт там JSON-текст, а не JSON-строку в кавычках.
         data: body === undefined ? undefined : typeof body === "string" ? body : JSON.stringify(body),
-        timeout: 45000,
+        timeout,
         onload: (r) => {
           let parsed = null;
           try {
@@ -1588,8 +1615,8 @@
             reject(err);
           }
         },
-        onerror: () => reject(Object.assign(new Error("сеть недоступна или хост не разрешён в @connect"), { status: 0 })),
-        ontimeout: () => reject(Object.assign(new Error("таймаут запроса"), { status: 0 })),
+        onerror: (r) => reject(linkError("сеть недоступна или запрос оборвался", r)),
+        ontimeout: (r) => reject(linkError("таймаут запроса", r)),
       });
     });
   }
@@ -1602,18 +1629,65 @@
    * экрана; повторяем только то, что не дошло (сеть, таймаут), — отказ прав
    * или HTTP 4xx повторять незачем.
    */
-  async function request(method, url, headers, body) {
+  async function request(method, url, headers, body, opts = {}) {
+    // Кому нужен свой распорядок повторов, тот просит один запрос: иначе
+    // вложенные циклы перемножаются (2 × 3 = шесть попыток на один сбой), и
+    // выдержка перестаёт быть предсказуемой. Так делает `notion()`.
+    const tries = opts.retry === false ? 1 : 2;
     let last = null;
-    for (let attempt = 0; attempt < 2; attempt += 1) {
+    for (let attempt = 0; attempt < tries; attempt += 1) {
       try {
         return await requestOnce(method, url, headers, body);
       } catch (e) {
         last = e;
-        if (!networkish(e && e.message)) break;
+        // Выдержка — только перед следующей попыткой. Иначе последняя,
+        // заведомо холостая пауза добавляла 0,7 с к каждой неудаче.
+        if (attempt === tries - 1 || !networkish(e && e.message)) break;
         await sleep(700);
       }
     }
     throw last;
+  }
+
+  /**
+   * Сбой, который имеет смысл повторить: обрыв, таймаут, 429 или чужая 5xx.
+   *
+   * Обрыв (`status 0`) раньше повторялся реже, чем 502: внешний цикл смотрел
+   * только на `HTTP 429|5xx`, и секундная потеря связи стоила паузы. 29.10
+   * именно так встал шаг 5.20 — на девятом часу работы, без единого отказа
+   * Notion по существу.
+   */
+  const retriable = (e) =>
+    Boolean(e) && (Number(e.status) === 0 || /HTTP (?:429|5\d\d)/i.test(String(e.message || "")));
+
+  /**
+   * Связь после обрыва: два зонда, через 5 и 15 секунд.
+   *
+   * `true` — Notion снова отвечает, и шаг повторяется; `false` — связи нет,
+   * и пауза говорит об этом прямо. Зонд — самое дешёвое чтение: `users/me`.
+   */
+  async function linkBack() {
+    const token = GM_getValue(K.notion, "");
+    for (const wait of C.linkProbeWaits) {
+      await sleep(wait);
+      try {
+        // Короткий таймаут: зонд — это «есть связь или нет», а не запрос данных.
+        // Два зонда по 45 с растянули бы паузу сильнее, чем сама поломка.
+        await requestOnce("GET", "https://api.notion.com/v1/users/me", {
+          Authorization: `Bearer ${token}`,
+          "Notion-Version": C.notionV,
+        }, 8000);
+        log(
+          `Связь с Notion пропадала и вернулась через ${Math.round(wait / 1000)} с — повторяю запрос.`,
+          false,
+          { tone: "warn", ntfy: "quiet" },
+        );
+        return true;
+      } catch {
+        /* зонд не прошёл — ждём следующий */
+      }
+    }
+    return false;
   }
 
   const isUuid = (value) =>
@@ -1666,34 +1740,55 @@
       throw new Error(`в адресе записи битый id «${segment[1]}» — запрос не отправлен`);
     // Повторяем только то, что безопасно повторить: чтение, правку свойств и
     // запрос очереди. Создание страниц (`POST pages`) не повторяем никогда —
-    // на 502 запрос мог уже пройти, и повтор сделал бы вторую карточку.
+    // на 502 или на обрыве запрос мог уже пройти, и повтор сделал бы вторую
+    // карточку.
     const safeToRepeat = method !== "POST" || /\/query$/.test(String(path));
     const url = `https://api.notion.com/v1/${path}`;
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      "Notion-Version": C.notionV,
+      "Content-Type": "application/json",
+    };
+    // Распорядок один на всех: 4 попытки с выдержкой 0,8 / 2,5 / 6 с. Обрыв
+    // связи повторяется так же, как 5xx: это одинаково чужой сбой.
+    const tries = safeToRepeat ? C.retryWaits.length + 1 : 1;
     let last = null;
-    for (let attempt = 0; attempt < 3; attempt += 1) {
+    for (let attempt = 0; attempt < tries; attempt += 1) {
       try {
-        return await request(method, url, {
-          Authorization: `Bearer ${token}`,
-          "Notion-Version": C.notionV,
-          "Content-Type": "application/json",
-        }, body);
+        return await request(method, url, headers, body, { retry: false });
       } catch (e) {
         last = e;
-        // Короткая пауза Notion (429/5xx) проходит сама: две попытки с
-        // выдержкой дешевле, чем остановка цикла и Мастер у экрана.
-        if (!safeToRepeat || !/HTTP (?:429|5\d\d)/i.test(String(e && e.message)) || attempt === 2) break;
-        await sleep(attempt === 0 ? 800 : 2500);
+        if (attempt === tries - 1 || !retriable(e)) break;
+        await sleep(C.retryWaits[attempt]);
+      }
+    }
+    // Связи нет — но это может быть сон машины или фоновая вкладка, а не
+    // поломка. Прежде чем останавливать цикл, проверяем связь и повторяем.
+    if (safeToRepeat && Number(last.status) === 0) {
+      if (await linkBack()) {
+        try {
+          return await request(method, url, headers, body, { retry: false });
+        } catch (e) {
+          last = e;
+        }
+      } else {
+        last.probed = true;
       }
     }
     last.narthex = "notion";
-    // «Не ответил» и «ответил отказом» — разные поломки. 4xx значит, что Notion
-    // всё получил и объяснил, что не так с данными: чинить надо запрос, а не
-    // сеть. 28.10 HTTP 400 «content.length should be ≤ 2000» показывался как
-    // «сеть или блокировка», и Мастер искал сеть, которой ничего не было.
-    // 429 и 5xx — наоборот, короткий сбой на стороне Notion.
-    last.message = /HTTP 4\d\d/i.test(String(last.message)) && !/HTTP 429/i.test(String(last.message))
-      ? `Notion отказал на ${method} ${path} (он получил запрос и не принял данные): ${last.message}`
-      : `Notion не ответил на ${method} ${path}: ${last.message}`;
+    // «Не ответил», «ответил отказом» и «связь пропала» — разные поломки. 4xx
+    // значит, что Notion всё получил и объяснил, что не так с данными: чинить
+    // надо запрос, а не сеть. 28.10 HTTP 400 «content.length should be ≤ 2000»
+    // показывался как «сеть или блокировка», и Мастер искал сеть, которой
+    // ничего не было. 429 и 5xx — короткий сбой на стороне Notion.
+    const raw = String(last.message || "");
+    last.message =
+      /HTTP 4\d\d/i.test(raw) && !/HTTP 429/i.test(raw)
+        ? `Notion отказал на ${method} ${path} (он получил запрос и не принял данные): ${raw}`
+        : last.probed
+          ? `Notion не ответил на ${method} ${path}: ${raw}; связь не восстановилась за ` +
+            `${Math.round(C.linkProbeWaits.reduce((a, b) => a + b, 0) / 1000)} с (два зонда users/me)`
+          : `Notion не ответил на ${method} ${path}: ${raw}`;
     throw last;
   }
 
@@ -1780,21 +1875,57 @@
     return m ? m[1] : "";
   }
 
-  /** Вся база «Роли»: и активные, и те, что Мастер ещё не включил. */
-  async function roleRows() {
-    return (await query(C.roles)).map((p) => {
-      const url = p.properties["Agent URL"]?.url || "";
-      return {
-        id: agentIdFromUrl(url),
-        name: rt(p.properties["Роль"]),
-        url,
-        fn: sel(p.properties["Функция"]),
-        status: sel(p.properties["Статус"]),
-        zone: rt(p.properties["Зона записи"]),
-        gate: rt(p.properties["Гейт"]),
-        pageId: p.id,
-      };
-    });
+  /** Строка базы «Роли» в том виде, в каком её видит остальной скрипт. */
+  const mapRoleRow = (p) => {
+    const url = p.properties["Agent URL"]?.url || "";
+    return {
+      id: agentIdFromUrl(url),
+      name: rt(p.properties["Роль"]),
+      url,
+      fn: sel(p.properties["Функция"]),
+      status: sel(p.properties["Статус"]),
+      zone: rt(p.properties["Зона записи"]),
+      gate: rt(p.properties["Гейт"]),
+      pageId: p.id,
+    };
+  };
+
+  /**
+   * Вся база «Роли»: и активные, и те, что Мастер ещё не включил.
+   *
+   * Кеш на 10 минут — потому что это настройка, а не данные миссии: список
+   * агентов читается в начале каждого шага, а меняет его человек. 29.10 обрыв
+   * связи именно на этом чтении остановил цикл на девятом часу работы; с
+   * кешем шаг переживает потерю сети, а не ждёт Мастера у экрана.
+   *
+   * `fresh: true` — мимо кеша: смена токена в ⚙ и случаи, где список только
+   * что правили руками.
+   */
+  async function roleRows({ fresh = false } = {}) {
+    const cached = GM_getValue(K.rolesCache, null);
+    const usable = cached && Array.isArray(cached.rows) && cached.rows.length ? cached : null;
+    const age = usable ? Date.now() - Number(usable.at || 0) : Number.POSITIVE_INFINITY;
+    if (!fresh && usable && age < C.rolesCacheMs) return usable.rows;
+    try {
+      const rows = (await query(C.roles)).map(mapRoleRow);
+      if (rows.length) GM_setValue(K.rolesCache, { at: Date.now(), rows });
+      return rows;
+    } catch (e) {
+      if (!usable) throw e;
+      log(
+        `База «Роли» не ответила (${firstLine(String((e && e.message) || e))}) — работаю по кешу ` +
+          `${Math.max(1, Math.round(age / 60000))} мин назад: список агентов с тех пор не менялся.`,
+        false,
+        { tone: "warn", ntfy: "quiet" },
+      );
+      return usable.rows;
+    }
+  }
+
+  /** Свежий список ролей: сбросить кеш и перечитать. */
+  async function rolesFresh() {
+    GM_setValue(K.rolesCache, null);
+    return roles();
   }
 
   async function roles() {
@@ -9675,7 +9806,10 @@
         return navigateTo(target, why);
       }
       const list = await roles();
-      const me = list.find((r) => norm(r.id) === norm(meId));
+      let me = list.find((r) => norm(r.id) === norm(meId));
+      // Список мог устареть в кеше: Мастер только что вписал этот Agent URL.
+      // Один перечит мимо кеша дешевле, чем «страница не привязана к роли».
+      if (!me) me = (await rolesFresh().catch(() => [])).find((r) => norm(r.id) === norm(meId));
       if (!me) {
         if (fromToggle)
           log(
@@ -9949,8 +10083,12 @@
                     "это дефект скрипта, а не ошибка карточки или ответа. "
                   : "") +
                 "Запись не сделана, ход не потерян."
-              : e && e.narthex === "notion" || networkish(raw)
-                ? "Notion не ответил: сеть или блокировка запроса. Запись не сделана."
+              : e && e.narthex === "notion" && e.link
+                ? "Связь с Notion пропала: запрос не дошёл, и два зонда (через 5 и 15 с) её не вернули. " +
+                  "Обычно это сон машины или вкладка в фоне — проверьте интернет и нажмите «Продолжить». " +
+                  "Запись не сделана, ход не потерян."
+                : e && e.narthex === "notion" || networkish(raw)
+                  ? "Notion не ответил: сеть или блокировка запроса. Запись не сделана."
               : "Шаг прервался на записи в Notion.";
       pause(
         `Цикл остановлен. ${plain} Ход не потерян: очередь и карточка на месте, ` +
