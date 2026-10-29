@@ -1,6 +1,6 @@
 # GOLD-1.6c — Align cf-play with the current PackHost API
 
-**Status:** the in-scope CLI/adapter fix is implemented and verified on both datasets. Full `npm run playthrough:golden` is **not accepted**: it reaches the first clue with `pageerror=0`, then exits rc=1 because the browser runner finds no pre-save autosave (not a `project.json` 404). `npm run check:audit-bundle` is also rc=1 because the separate, out-of-scope campaign-audit bundle is stale. Protected files remain unchanged; proposed scope decision: `docs/decisions/GOLD-1.6c.md`.
+**Status:** the in-scope CLI/adapter fix is implemented and verified on both datasets. Full `npm run playthrough:golden` is **not accepted**: it reaches the first clue with `pageerror=0`, then exits rc=1 because the browser runner finds no pre-save autosave (not a `project.json` 404). `npm run check:audit-bundle` is also rc=1 because the separate, out-of-scope campaign-audit bundle is stale. PR #150 is open and both PR checks failed on these blockers; it remains unmerged. Protected files remain unchanged; proposed scope decision: `docs/decisions/GOLD-1.6c.md`.
 
 - Dispatch: `4086f0cf-5705-813a-9321-c57b69b398ff`
 - Run: `05030ef4-ef13-44dd-9962-9ab75f9a97ef`
@@ -45,8 +45,10 @@
 
 ## PR and CI
 
-- No merge was performed while the required golden playthrough is red for a non-404 failure and the scope decision is proposed.
-- PR/CI details will be appended after submitting the in-scope change; no main-push run exists for this task yet.
+- PR #150: https://github.com/Creative36711/narthex/pull/150 — **OPEN** at the CI observation below; CI-tested head `a96d0077ee5f88bcd0d02b37bf6896fc7e298afa`, merge state `UNSTABLE`. No merge was performed because the required acceptance is not met.
+- `golden-playthrough` run [40938574068](https://github.com/Creative36711/narthex/actions/runs/40938574068/job/123675560457), job `123675560457`: **failure** at “Run golden import, audit, playkit and browser save/load”. The evidence artifact `GOLD-1.6-40938574068` (artifact id `12925013705`) uploaded successfully. GitHub's failed-log endpoint returned EOF when queried, so the failed-step metadata is recorded without inferring a CI-specific browser error from the local run.
+- `visual` / screenshots run [40938574008](https://github.com/Creative36711/narthex/actions/runs/40938574008/job/123675559210), job `123675559210`: **failure** at “Проверить свежесть бандла аудита до сборки”; later visual checks were skipped. This matches the documented, unchanged out-of-scope audit-bundle freshness failure.
+- Both PR checks are red, so no merge or main-push golden run exists. PR/CI evidence is appended to `_tools/reports/GOLD-1.6c.log`.
 
 ## Artifacts
 
