@@ -1,6 +1,6 @@
 # GOLD-1.6b — Restore package scripts and remove `_ai-temp`
 
-**Status for dispatch `4086f0cf-5705-8120-b50e-db3877602b32`, run `266adde0-27a9-4648-bc62-13caa79eed1e`: PR #148 is open. Per the clarified acceptance, the documented known `golden-playthrough` failure does not block squash merge; merge SHA and main-push run will be recorded after the merge.
+**Status for dispatch `4086f0cf-5705-8120-b50e-db3877602b32`, run `266adde0-27a9-4648-bc62-13caa79eed1e`: PR #148 was squash-merged into `main` at `94044ee19e3a535cefb07d924d2018ebf3573539`. Its post-merge `golden-playthrough` push run `40934895116` completed with **failure** for the documented, permitted source mismatch; details and the visual external-debt assumption are recorded below.
 
 ## Baseline and changes
 
@@ -58,15 +58,16 @@ The local `cf-play` failure comes from the current source engine/CLI mismatch (`
 
 ## CI and PR
 
-- Current PR: [#148](https://github.com/Creative36711/narthex/pull/148), source commit `b3e5068b53d295c7ee0f605d2a654a8c86e798b9` before this evidence refresh.
-- PR `golden-playthrough` latest completed run: [40933018389](https://github.com/Creative36711/narthex/actions/runs/40933018389), job `golden-playthrough` (ID `123656150471`), **FAILURE** at `Run golden import, audit, playkit and browser save/load`. The equivalent local `npm run playthrough:golden` exited rc=1; within it, source `cf-play check` exited rc=2 with `engine.attachPackSim is not a function`. This is the mismatch between `scripts/playkit/cli.mts` and the current `src/core/engine.ts`, which is out of this task's scope and is not being changed.
-- The latest failure artifact is `GOLD-1.6-40933018389` (artifact ID `12923018602`, 15,705,750 bytes, SHA-256 `3e97f8eead8dfb85233328258b9ea41907d6d8f79cb5f88b80a059d8f927ac14`; expires 2026-11-12). Earlier PR run `40931990660` failed at the same step and also uploaded `GOLD-1.6-40931990660` (ID `12922887848`).
-- PR visual run `40933018472` failed at `Проверить свежесть бандла аудита до сборки`; `Пробы транспорта ScriptCat` was skipped. The same visual failure is already present on `main` at run `40929415978` on `e3891bc`. **Допущение:** treat this pre-existing audit-bundle freshness failure as the external visual debt explicitly allowed by the card; do not call it a green check.
-- The prior direct push on `main` (`2344bcf`) already had a red `golden-playthrough` push run `40929321273`. A push run for the repair commit will be recorded after PR #148 is merged.
-- **Merge decision:** proceed with PR #148 squash merge under the clarified acceptance, documenting the failing step, rc=1 for the equivalent local full command, rc=2 for its source `cf-play` check, and the exact cause above. The merge SHA and post-merge push run are pending.
+- PR [#148](https://github.com/Creative36711/narthex/pull/148) is **MERGED** by squash; merged at `2026-10-29T18:52:33Z` with main commit `94044ee19e3a535cefb07d924d2018ebf3573539` (PR head `cff99a505e327def995c66f45563f0de0e2c7088`).
+- PR `golden-playthrough` run [40933018389](https://github.com/Creative36711/narthex/actions/runs/40933018389), job ID `123656150471`, failed at `Run golden import, audit, playkit and browser save/load`. Local `npm run playthrough:golden` exited rc=1; nested source `cf-play check` exited rc=2 with `engine.attachPackSim is not a function`. This is the mismatch between `scripts/playkit/cli.mts` and current `src/core/engine.ts`; both are outside this task's scope and unchanged.
+- **Post-merge main push:** [`golden-playthrough` run 40934895116](https://github.com/Creative36711/narthex/actions/runs/40934895116) completed with **failure** on merge commit `94044ee19e3a535cefb07d924d2018ebf3573539`; job ID `123662717856`, failed step 7 `Run golden import, audit, playkit and browser save/load`. The local full-command rc=1 and nested `cf-play check` rc=2 / `engine.attachPackSim is not a function` cause above are the permitted source mismatch; no protected files were changed. Artifact upload step succeeded.
+- The PR golden artifact is `GOLD-1.6-40933018389` (ID `12923018602`, 15,705,750 bytes, SHA-256 `3e97f8eead8dfb85233328258b9ea41907d6d8f79cb5f88b80a059d8f927ac14`; expires 2026-11-12). Earlier PR run `40931990660` also failed at the same step and uploaded `GOLD-1.6-40931990660` (ID `12922887848`).
+- PR visual run `40933018472` and post-merge main push visual run [`40934895167`](https://github.com/Creative36711/narthex/actions/runs/40934895167) both failed at `Проверить свежесть бандла аудита до сборки`; on the main push, job ID `123662717754`, step 5 failed and `Пробы транспорта ScriptCat` was skipped. The same visual failure was present on baseline `main` run `40929415978` (`e3891bc`). **Assumption:** accept this pre-existing audit-bundle freshness issue as the visual external debt allowed by the task; it is not reported as green.
+- Earlier main push `40929321273` on `2344bcf` also failed `golden-playthrough`; its precise diagnostic was not established, so it is not used to infer the current failure cause.
+- **Decision:** PR #148 was squash-merged under the clarified acceptance. Reported the failed step, its local equivalent rc=1, nested source check rc=2 and exact cause; no out-of-scope engine/CLI fix was attempted.
 
 ## Log and report artifacts
 
 - Report: `_tools/reports/GOLD-1.6b.md`
-- JSONL log: `_tools/reports/GOLD-1.6b.log`
+- JSONL log: `_tools/reports/GOLD-1.6b.log` (26 valid records; includes merge and both post-merge push-check results).
 - Drive log: [GOLD-1.6b.log](https://drive.google.com/file/d/1BI6uVD-n81MvWKr89AxubMdh2oVYg4t8/view?usp=drivesdk) (file ID `1BI6uVD-n81MvWKr89AxubMdh2oVYg4t8`, in the existing `logs` folder).
