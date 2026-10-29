@@ -31,7 +31,6 @@ import { loadCampaign } from '../../src/core/loader'
 import { GameEngine } from '../../src/core/engine'
 import '../../packs/narrative/operations'
 import { PRNG } from '../../src/core/prng'
-import { PackHost } from '../../src/core/pack/host'
 import { newCharChoice } from '../../src/core/charcreate'
 import { ENGINE_VERSION } from '../../src/shared/versions'
 import { analyzeCampaign, formatGraphReport } from './analyze'
@@ -49,13 +48,7 @@ import {
   type CycleSetup,
 } from './cycle-check'
 import { createRealtimeProjectSetup } from './realtime-project'
-import {
-  createNarrativePackBinding,
-  loadNarrativeContent,
-  NARRATIVE_PACK_MANIFEST,
-  narrativeEntryEvent,
-} from '../../packs/narrative/runtime'
-import type { NarrativeState } from '../../packs/narrative/types'
+import { checkNarrativePack } from './pack-check'
 
 const PLAYKIT_VERSION = '0.1.0'
 const CLI_DIR = dirname(fileURLToPath(import.meta.url))
@@ -1240,21 +1233,7 @@ async function cmdCheck(
   // execute a real pack event; construction or sim failure aborts the check.
   let pack: AnyObj = null
   if (!errors.length) {
-    const content = await loadNarrativeContent(config.campaignDir)
-    const binding = createNarrativePackBinding(content, NARRATIVE_PACK_MANIFEST)
-    const host = engine.attachPackSim(binding)
-    if (!(host instanceof PackHost)) throw new Error('PACK_RUNTIME_MISSING: cf-play did not receive a PackHost')
-    const event = narrativeEntryEvent(content, binding.state)
-    const before = binding.state
-    const after = engine.runPackSim(event, seeds[0]) as NarrativeState
-    const execution = engine.packExecution
-    if (!execution || execution.steps !== 1) throw new Error('PACK_RUNTIME_MISSING: narrative.sim did not execute')
-    pack = {
-      ...execution,
-      event: event.type,
-      from: { scene: before.scene, location: before.location, fmv: before.fmv?.phase ?? null },
-      to: { scene: after.scene, location: after.location, fmv: after.fmv?.phase ?? null },
-    }
+    pack = await checkNarrativePack(config.campaignDir, seeds[0])
   }
 
   const routeFiles: string[] = []
@@ -1759,6 +1738,17 @@ async function main(): Promise<void> {
   const outDir = flagText(flags, 'out') ? resolve(String(flagText(flags, 'out'))) : null
   const debug = !!flags.debug
   const asJson = !!flags.json
+
+  if (asJson) {
+    const log = console.log.bind(console)
+    console.log = ((...args: unknown[]) => {
+      if (typeof args[0] === 'string' && args[0].startsWith('[CF:Debug]')) {
+        console.error(...args)
+        return
+      }
+      log(...args)
+    }) as typeof console.log
+  }
 
   if (command === 'explain') {
     if (flags.catalogue) process.exit(await cmdExplainCatalogue())
