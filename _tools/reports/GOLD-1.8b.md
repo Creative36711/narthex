@@ -1,76 +1,37 @@
-# GOLD-1.8b — Re-pin `.golden/manifest.json` to the campaign-1 release with `project.json`
+# GOLD-1.8b — Re-pin the golden campaign to the campaign-1 release
 
-**Status: not done — blocked on GOLD-1.8 (Sequence 612, role `campaign-1`).**
-There is nothing to re-pin yet: the head of `Creative36711/campaign-1` is still the
-commit already pinned in `.golden/manifest.json`, and the archive still has no
-`project.json`, so the 404 target of the card cannot be removed by the platform side.
-`.golden/manifest.json` is **unchanged** in this PR; the only diff is this report and
-`_tools/reports/GOLD-1.8b.log`.
+**Status:** manifest repinned; two imports, audit, cf-play, and unpacked-kit checks passed. Post-repin browser 404 counts remain **unmeasured**: the existing `golden:play` runner rejects the new pin at a hard-coded legacy manifest guard before starting Chromium. No protected script was changed. This is an explicit measurement limitation, not a claim that the 404s are zero.
 
-## 1. Why blocked (numbers)
+## Pin and archive evidence
 
-| Fact | Value |
-| --- | --- |
-| `campaign-1` `main` | `71dbbc1056fd34679cf9017ee7dc5ecff29d666c`, committed `2026-10-29T13:51:09Z` |
-| `.golden/manifest.json` `commit` | `71dbbc1056fd34679cf9017ee7dc5ecff29d666c` (same commit) |
-| Open PRs in `campaign-1` | 0 (last: PR #3 merged `2026-10-29T13:51:10Z`) |
-| `project.json` inside `.golden/karkas` | 0 (`campaign.json` — 1) |
-| `project.json` requests still served | `GET /campaigns/<id>/project.json` has no file to resolve → the 404s of card item 5 stay |
+- Working branch: `arena/c5133465-narthex`; base `main` / starting `HEAD`: `86edcd8234103261d59e90e33537bae159a73e72`.
+- Target campaign commit: `4783665b04b9ea703cbdfc0bd10cc2b1263caf83` (parent `71dbbc1056fd34679cf9017ee7dc5ecff29d666c`).
+- URL: `https://codeload.github.com/Creative36711/campaign-1/tar.gz/4783665b04b9ea703cbdfc0bd10cc2b1263caf83`.
+- A fresh GET returned HTTP `200`, content type `application/x-gzip`, and `188670372` downloaded bytes. The downloaded archive SHA-256 is `7c2172a7c1582cf269b2035ea952c989ffa4fad5ce8c238528fca7545d527cb2`; a second direct download matched the first byte-for-byte.
+- The importer measured the extracted tree as 1,291 files, 32 directories, 192,491,897 bytes, tree SHA-256 `d645ea0b79385b6a478f3e17108245ff5f4b057553ec4ad765f4387bb3d79d68`. These measured values are now in `.golden/manifest.json`.
+- Extracted `project.json`: 510 bytes; SHA-256 `489cf44da06347eede87db3df5472cf80afea8d02d6c7ec83dbb90d100efa5dd`. The task card listed a different SHA-256 (`509cf44da06347eede87db3df5472cf80afea8d02d6c7ec83dbb90d100efa5dd`) for the same stated size. The manifest follows the bytes actually downloaded and extracted; archive content was not modified.
 
-The campaign side has not published a new head commit or a release archive with
-`sha256` since GOLD-1.3b (`71dbbc10`). Re-pinning to the same commit would be a
-no-op diff, and inventing a `sha256` for an archive that does not exist is not
-acceptable — so the manifest stays as it is.
+## Import and validation
 
-## 2. What was actually measured on the current pin (`71dbbc10`)
+| Check | Result |
+|---|---|
+| `npm run golden:import` — run 1 | rc=0; downloaded and verified 188,670,372 bytes with SHA-256 `7c2172a7…5d527cb2`; extracted tree 1,291 files / 32 directories / 192,491,897 bytes / SHA-256 `d645ea0b…3d79d68`; manifest updated. |
+| `npm run golden:import` — run 2 | rc=0; verified the extracted cache and skipped the download; reported the same archive size/SHA and tree size/SHA; manifest unchanged. |
+| Extracted campaign / ignore status | `.golden/karkas/project.json` exists with the measured 510-byte size and SHA above. `git status --porcelain -- .golden/karkas` is empty; generated campaign files remain ignored. `.golden/manifest.json` is the intended tracked modification. |
+| `npm run audit:campaign -- .golden/karkas` | rc=0; **0 errors, 0 warnings, 3 notes**; coverage: 319 JSON and 11 Ink/Markdown files; 887 referenced local media links found. |
+| `node public/ai/cf-play.mjs check .golden/karkas` | rc=0; **0 errors, 0 warnings**; 12 scenes, 5 locations, 11 dialogues, 118 Ink nodes; 5 seeds; 4/12 reachable scenes visited. |
+| AI kit after unpack | `npm run pack:ai-kit` rc=0; unpacked kit `cf-play.mjs check` on `.golden/karkas` rc=0 with matching counts and 0 errors / 0 warnings. The packed/unpacked kit also checked `public/campaigns/ash-of-caerden`: 10 scenes, 8 locations, 6 dialogues, 21 Ink nodes, 0 errors, 3 warnings. The repository bundle and unpacked kit reported the same reference-campaign result. Generated `dist-ai/` output was removed after the check. |
+| `npm run check:playkit-bundle` | rc=0; committed `public/ai/cf-play.mjs` matches the source build; SHA-256 `d7e7973b397200492a8e764e0857d90fd37bd1db4a78f8bf46325a403172a908`. |
 
-Commands and full output: `_tools/reports/GOLD-1.8b.log` (73 lines).
+The audit and cf-play produced no errors, so there were none to suppress or fix.
 
-| Step | Result |
-| --- | --- |
-| `npm run golden:import`, run 1 (fresh download) | rc=0 · `188669895` B · sha256 `d424a914ed2714e9c643f428e5a8eba515cbc0aaba3b3a2d4746362ccad3cf4b` · `manifest: unchanged` |
-| `npm run golden:import`, run 2 (independent fresh download after `rm -rf .golden/karkas`) | rc=0 · `188669895` B · sha256 `d424a914…3cf4b` — identical to run 1 and to the manifest |
-| Tree both runs | files `1290` · directories `32` · `192491387` B · sha256 `132a5c09987aff80c9dfe2f69f1195e642295f666fc906545f00d5fccce62c76` |
-| `npm run audit:campaign -- .golden/karkas` | rc=0 · **0 errors, 0 warnings**, 3 notes; coverage `json 319`, `ink/md 11`; 887 media links, all present |
-| `node public/ai/cf-play.mjs check .golden/karkas` | rc=0 · **0 errors, 0 warnings**; 12 scenes · 5 locations · 11 dialogues · 118 ink nodes; 5 seeds → `ending_death`, `ending_flood`; coverage 4/12 scenes |
-| `git status --porcelain` (`.golden` and repo) | 0 lines — nothing generated leaks into git |
+## Browser 404 evidence
 
-So oracle items 2 and 3 of GOLD-1 hold on the current pin; oracles 1 and 4–6 are not
-touched by this card.
+- **Before repin (recorded baseline):** 2 `/project.json` 404s at first scene entry (`03-gate`); 5 over the complete route (2 at scene entry, 2 during Continue/autosave, 1 during manual-slot load). This is the prior measured run in `_tools/reports/GOLD-1.6.log`.
+- **After repin:** **not measured**; no post-repin 0/0 claim is made. `npm run golden:play` was attempted and returned rc=1 before starting the browser with: `Pinned GOLD-1 campaign tree/manifest is missing or does not match .golden/manifest.json`. `scripts/golden/play.mjs` hard-codes the prior commit `71dbbc1056fd34679cf9017ee7dc5ecff29d666c`, archive SHA `d424a914…ad3cf4b`, and tree SHA `132a5c09…ce62c76`; the new correct values therefore hit that guard. `.github/workflows/golden.yml` invokes `playthrough:golden`, whose browser step calls the same runner. The browser stage cannot measure the new campaign until that out-of-scope legacy pin guard is updated; this task does not change `scripts/golden/**` or weaken checks.
 
-## 3. Not measured, and why
+## Scope and PR
 
-- **Browser run to `scene_gate_hall` (card item 5, 404 count `2 → 0` on entry and
-  `5 → 0` per run).** Not executed: this sandbox has no chromium binary and no
-  `playwright`/`puppeteer` dependency (browser download hosts are not reachable
-  here). More importantly it is not the moment: `project.json` does not exist in the
-  archive, so the count cannot go to 0 before GOLD-1.8 lands. The numbers `2` and `5`
-  from the card stay as the pre-fix baseline.
-- **New `url` / `size_bytes` / `sha256` / `tree.*`.** Depend on the GOLD-1.8 release
-  archive; nothing to compute.
+The intended tracked diff is limited to `.golden/manifest.json`, `_tools/reports/GOLD-1.8b.md`, and `_tools/reports/GOLD-1.8b.log`. No generated campaign files, campaign source, player/core code, pack code, contracts, importer, or `public/ai/*.mjs` were changed. The import-created `.golden/karkas/` remains ignored.
 
-## 4. What unblocks this card
-
-1. GOLD-1.8 merges `project.json` (plus whatever `cf-play`/`audit` deflections it
-   owns) into `campaign-1` and publishes a release/commit with a downloadable
-   archive.
-2. Tools then, in one pass: `url = https://codeload.github.com/Creative36711/campaign-1/tar.gz/<new commit>`
-   (HTTP 200, `application/x-gzip`), `repository` / `commit` / `size_bytes` /
-   `sha256` / `tree.*` — **by the fact of the download**, not from the answer log.
-3. `npm run golden:import` twice with identical `sha256`/size, then
-   `audit:campaign` → 0 errors, `cf-play check` → 0/0, then the browser run to
-   `scene_gate_hall` counting 404s (expect 0 on entry and 0 per run), and only then
-   the report + squash merge.
-
-## 5. Assumption
-
-- **Допущение:** GOLD-1.8 has not produced a new campaign-1 head commit by
-  `2026-10-29T20:22Z`; if a release appears later, this card is re-run from step 2
-  above. No manifest bytes were touched in the meantime.
-
-## 6. Zone check
-
-`git diff --stat origin/main` for this branch: `_tools/reports/GOLD-1.8b.md` and
-`_tools/reports/GOLD-1.8b.log` only. No `.golden/manifest.json`, `src/core/**`,
-`src/player/**`, `packs/**`, `docs/contracts/**`, `public/campaigns/**`,
-`scripts/golden/**` changes.
+PR/CI/merge evidence will be appended after the PR is opened and its checks have completed.
