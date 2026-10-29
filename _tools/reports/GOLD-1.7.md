@@ -53,14 +53,21 @@ The frozen audit-bundle check cannot be made rc=0 without changing a specificall
 
 ## PR and merge
 
-- PR #151: https://github.com/Creative36711/narthex/pull/151, head `ac2c9ed304fde7e9b95bcd0219cf63a35c61a521` on `arena/30abd3ef-narthex`, base `main` at `93a749699de92104162a14b946558c77d7375ca4`.
-- PR `visual` run `40944645293`, job `123696684362`: **failure** at “Проверить свежесть бандла аудита до сборки”; later visual checks were skipped. This is the frozen audit-bundle mismatch noted above.
-- PR `golden-playthrough` run `40944645289`, job `123696684497`: **failure** at “Run golden import, audit, playkit and browser save/load”; the GOLD-1.6 evidence artifact uploaded successfully. This matches the previously accepted non-blocking autosave/save-load failure.
-- `gh pr checks 151 --watch` returned rc=1 because both checks are red. `gh run view` identified the failed steps; `--log-failed` could not download logs (results-receiver returned EOF), so no more detailed diagnosis is claimed.
-- These are the same two accepted exceptions recorded in `docs/decisions/GOLD-1.6c.md`; they remain failures, not passes. Squash-merge status and any main-push run are reported in the final completion marker after the PR operation.
+- PR #151: https://github.com/Creative36711/narthex/pull/151, on `arena/30abd3ef-narthex`, base `main` at `93a749699de92104162a14b946558c77d7375ca4`. Initial code head: `ac2c9ed304fde7e9b95bcd0219cf63a35c61a521`; final pre-merge head after a report-only update: `40a1013659ae844974daa1981ce6de9023234c34`.
+- Initial PR `visual` run `40944645293`, job `123696684362`: **failure** at “Проверить свежесть бандла аудита до сборки”; later visual checks were skipped. This is the frozen audit-bundle mismatch noted above.
+- Initial PR `golden-playthrough` run `40944645289`, job `123696684497`: **failure** at “Run golden import, audit, playkit and browser save/load”; the GOLD-1.6 evidence artifact uploaded successfully. This matches the previously accepted non-blocking autosave/save-load failure.
+- Follow-up checks on the final pre-merge head had the same outcomes: visual run `40945049797` / job `123698132836` failed at audit-bundle freshness; golden-playthrough run `40945049760` / job `123698132257` failed at the combined golden/browser step and uploaded its evidence. `gh run view --log-failed` could not download logs (results-receiver returned EOF), so no more detailed diagnosis is claimed.
+- `gh pr checks 151 --watch` returned rc=1 because both checks are red. These are the same two accepted exceptions recorded in `docs/decisions/GOLD-1.6c.md`; they remain failures, not passes.
+
+### Merge and main-push evidence
+
+- PR #151 was squash-merged at `2026-10-29T20:02:12Z`; merge SHA `4f4241b6dc5ffe5e7d7ddd8aed7f53623bdff54b`. After fetch, `origin/main` resolved to this SHA. No direct main push was made.
+- Main-push `golden-playthrough` run `40945413575`, job `123699365874`: **failure** at “Run golden import, audit, playkit and browser save/load”; the evidence upload step succeeded.
+- Main-push visual run `40945413551`, job `123699365588`: **failure** at the frozen audit-bundle freshness check before subsequent visual checks.
+- These CI results remain failures, not passes. The previously accepted GOLD-1.6c decision allows the two known failures not to block the requested squash merge.
 
 ## Artifacts
 
 - Report: `_tools/reports/GOLD-1.7.md`
-- JSONL log: `_tools/reports/GOLD-1.7.log` (at least 20 valid records)
+- JSONL log: `_tools/reports/GOLD-1.7.log` (36 valid records). Uploaded to Drive as [GOLD-1.7.log](https://drive.google.com/file/d/15KMTO1XKi04LZjGwQP0nXJfYJdxo2K-l/view?usp=drivesdk), Drive file ID `15KMTO1XKi04LZjGwQP0nXJfYJdxo2K-l` (8,247 bytes).
 - Related GOLD-1.6c report: `_tools/reports/GOLD-1.6c.md`
