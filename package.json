@@ -42,6 +42,7 @@
     "playthrough": "node scripts/visual/playthrough.mjs",
     "playthrough:adventure": "node scripts/visual/playthrough.mjs --adventure",
     "playthrough:exam": "node scripts/visual/playthrough.mjs --exam",
+    "playthrough:golden": "node scripts/golden/playthrough-golden.mjs",
     "preview": "vite preview",
     "probe:adventure": "tsx scripts/adventure-probe.mts",
     "probe:state-ui": "tsx packs/state-ui/probe.mts",
