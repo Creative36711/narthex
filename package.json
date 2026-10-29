@@ -35,6 +35,7 @@
     "dev": "vite",
     "doctor": "tsx scripts/doctor.mts",
     "generate:campaign-schema": "tsx scripts/gen-schema.mts",
+    "golden:import": "tsx scripts/golden-import.mts",
     "lint": "oxlint",
     "media:check": "tsx scripts/media-check.mts",
     "pack:ai-kit": "tsx scripts/pack-ai-kit.mts",
