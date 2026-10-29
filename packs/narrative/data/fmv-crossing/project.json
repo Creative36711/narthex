@@ -1,0 +1,30 @@
+{
+  "format": 2,
+  "id": "fmv-crossing",
+  "title": "Перекрёсток огней — FMV",
+  "kind": "narrative",
+  "caps": [
+    "narrative",
+    "scenes",
+    "dialogue",
+    "map",
+    "inventory",
+    "needs",
+    "skills",
+    "relationships",
+    "trade",
+    "combat",
+    "quests",
+    "cutscenes",
+    "fmv",
+    "codex",
+    "crafting",
+    "time"
+  ],
+  "engine": {
+    "min": "0.9.0",
+    "tested": "0.9.0"
+  },
+  "entry": "world.json",
+  "manifest": "manifest.json"
+}

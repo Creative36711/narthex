@@ -1,6 +1,7 @@
 import assert from 'node:assert'
 import { playVoiceAudio, stopVoiceAudio, isVoiceAudioPlaying } from '../src/shared/voiceAudio'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 import type { CampaignData } from '../src/shared/types'
 
 console.log('--- Смоук-тест: Voice Coordinator и защита от задваивания озвучки ---')

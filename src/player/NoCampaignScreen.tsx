@@ -6,7 +6,7 @@ import { importCampaignFromDirectory, importChroniclePackage } from '../editor/n
 interface Props {
   /** создаёт новую кампанию и открывает её в редакторе */
   onCreate: () => Promise<void>
-  /** импорт пакета .chronicle, если игрок принёс свою кампанию */
+  /** импорт пакета .narthex, если игрок принёс свою кампанию */
   onImported: (id: string) => void
   /** необязательное пояснение, если записи были, но ни один пакет не открылся */
   notice?: string | null
@@ -18,7 +18,7 @@ interface Props {
  * Так бывает у свежей сборки (демо-кампания убрана, она осталась только
  * полигоном для смоуков) и после удаления последней кампании в редакторе.
  * Движок в этом состоянии обязан не падать, а показать два пути: создать
- * кампанию в редакторе или импортировать готовый пакет .chronicle.
+ * кампанию в редакторе или импортировать готовый пакет .narthex.
  */
 export function NoCampaignScreen({ onCreate, onImported, notice }: Props) {
   const [busy, setBusy] = useState<'create' | 'import' | null>(null)
@@ -91,7 +91,7 @@ export function NoCampaignScreen({ onCreate, onImported, notice }: Props) {
       <div className="panel no-campaign-panel" style={{ position: 'relative' }}>
         <div className="brand-row">
           <span className="brand">
-            <Ico n="forge" /> Chronicle Forge
+            <Ico n="forge" /> Narthex
           </span>
         </div>
         <div className="brand-sub">движок тактических визуальных новелл</div>
@@ -100,7 +100,7 @@ export function NoCampaignScreen({ onCreate, onImported, notice }: Props) {
           Ни одной кампании в <code>public/campaigns</code>. Создайте кампанию —
           сначала задайте ей название, затем откроется редактор. Движок подставит
           стартовую сцену, а вы опишете правила, квесты и диалоги. Или загрузите
-          готовую кампанию из файла <code>.chronicle</code> или локальной папки.
+          готовую кампанию из файла <code>.narthex</code> или локальной папки.
         </p>
         {notice && <p className="no-campaign-notice" role="status">{notice}</p>}
         <div className="menu-buttons">
@@ -108,7 +108,7 @@ export function NoCampaignScreen({ onCreate, onImported, notice }: Props) {
             <Ico n="hammer" /> {busy === 'create' ? 'Создаю кампанию…' : 'Создать кампанию'}
           </button>
           <button className="btn" onClick={() => fileRef.current?.click()} disabled={busy !== null}>
-            <Ico n="doc" /> {busy === 'import' ? 'Загружаю…' : 'Загрузить архив (.chronicle)'}
+            <Ico n="doc" /> {busy === 'import' ? 'Загружаю…' : 'Загрузить архив (.narthex)'}
           </button>
           <button
             className="btn"
@@ -122,7 +122,7 @@ export function NoCampaignScreen({ onCreate, onImported, notice }: Props) {
         <input
           ref={fileRef}
           type="file"
-          accept=".chronicle,.zip"
+          accept=".narthex,.chronicle,.zip"
           style={{ display: 'none' }}
           onChange={(e) => {
             const f = e.target.files?.[0]

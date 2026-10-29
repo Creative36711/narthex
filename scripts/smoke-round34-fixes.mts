@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 import type { CampaignManifest, MonolithDoc, NpcDef } from '../src/shared/types'
 import { campaignFromMonolith } from '../src/editor/playtest'
 

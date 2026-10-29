@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://narthex.local/packs/state-ui/cards.schema.json",
+  "title": "State UI cards, decks, and auto-battle setup",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "cards", "decks", "battle"],
+  "properties": {
+    "version": { "const": 1 },
+    "cards": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/card" }
+    },
+    "decks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/deck" }
+    },
+    "battle": { "$ref": "#/$defs/battle" }
+  },
+  "$defs": {
+    "effect": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "amount"],
+          "properties": {
+            "type": { "const": "damage" },
+            "amount": { "type": "integer", "minimum": 1 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "amount"],
+          "properties": {
+            "type": { "const": "block" },
+            "amount": { "type": "integer", "minimum": 1 }
+          }
+        }
+      ]
+    },
+    "card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "cost", "effects"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "title": { "type": "string", "minLength": 1 },
+        "cost": { "type": "integer", "minimum": 0 },
+        "effects": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/effect" } }
+      }
+    },
+    "deck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "cards"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "title": { "type": "string", "minLength": 1 },
+        "cards": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "battle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["player_deck", "opponent_deck", "player_hp", "opponent_hp", "energy_per_turn", "max_rounds"],
+      "properties": {
+        "player_deck": { "type": "string", "minLength": 1 },
+        "opponent_deck": { "type": "string", "minLength": 1 },
+        "player_hp": { "type": "integer", "minimum": 1 },
+        "opponent_hp": { "type": "integer", "minimum": 1 },
+        "energy_per_turn": { "type": "integer", "minimum": 1 },
+        "max_rounds": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

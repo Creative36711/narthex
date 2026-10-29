@@ -1,0 +1,10 @@
+{
+  "id": "item_tavern_key",
+  "type": "item",
+  "category": "misc",
+  "label": "Ключ от сундука",
+  "description": "Тяжёлый железный ключ. Бран говорит, что он от сундука в общем зале таверны.",
+  "weight": 0.1,
+  "value": { "silver": 8 },
+  "stackable": false
+}

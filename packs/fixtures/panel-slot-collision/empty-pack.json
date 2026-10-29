@@ -1,0 +1,24 @@
+{
+  "id": "fixture-empty",
+  "title": "Фикстура без панелей",
+  "version": "1.0.0",
+  "runtime": "none",
+  "provides": {
+    "kind": false,
+    "schema": "schema/fixture.schema.json",
+    "panels": [],
+    "validators": [],
+    "probes": []
+  },
+  "saves": {
+    "namespace": "fixture-empty",
+    "version": 1,
+    "migrations": 0
+  },
+  "requires": {
+    "core": ">=1.0.0",
+    "packs": [],
+    "caps": []
+  },
+  "caps": []
+}

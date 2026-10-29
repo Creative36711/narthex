@@ -1,0 +1,29 @@
+{
+  "format": 2,
+  "id": "ash-of-caerden",
+  "title": "Пепел Каэрдена",
+  "kind": "narrative",
+  "caps": [
+    "narrative",
+    "scenes",
+    "dialogue",
+    "map",
+    "inventory",
+    "needs",
+    "skills",
+    "relationships",
+    "trade",
+    "combat",
+    "quests",
+    "cutscenes",
+    "codex",
+    "crafting",
+    "time"
+  ],
+  "engine": {
+    "min": "0.9.0",
+    "tested": "0.9.0"
+  },
+  "entry": "world.json",
+  "manifest": "manifest.json"
+}

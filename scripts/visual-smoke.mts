@@ -33,6 +33,7 @@ import { framesOf, sheetOf } from '../src/player/frames'
 
 import type { ImageValue } from '../src/shared/types'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 import type { CampaignData } from '../src/shared/types'
 import { loadCampaign } from '../src/core/loader'
 

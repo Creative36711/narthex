@@ -1,0 +1,7 @@
+{
+  "accept": false,
+  "diagnostic_contains": [
+    "not-registered-capability",
+    "pack.json"
+  ]
+}

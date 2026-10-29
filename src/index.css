@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════
-   Chronicle Forge — Player Mode
+   Narthex — Player Mode
    Токен-система редизайна 2026: один набор семантических переменных,
    13 именованных визуальных профилей (.cf-profile-forge и др.),
    shared/profiles.ts) и переопределения кампании (шрифты/акцент — инлайном).
@@ -14,7 +14,7 @@
   --ease: cubic-bezier(0.25, 0.8, 0.35, 1);
   --ease-out: cubic-bezier(0.2, 0.7, 0.3, 1);
   color-scheme: dark;
-  /* fallback-токены = фирменный профиль «Chronicle Forge»
+  /* fallback-токены = фирменный профиль «Narthex»
      (экраны вне .cf-themed: загрузка, ошибки, модалки редактора) */
   --bg: #14161c;
   --bg-deep: #0e1014;
@@ -99,12 +99,12 @@ button { font-family: inherit; }
    Каждый профиль задаёт полный набор токенов + именованный атмосферный
    эффект. Кампания поверх профиля может переопределить --cf-font-* и
    --gold (через инлайн-стиль контейнера .cf-themed) — см. shared/theme.ts.
-   Фирменный профиль «Chronicle Forge» (forge) — дефолт; старым id
+   Фирменный профиль «Narthex» (forge) — дефолт; старым id
    fantasy/horror/survival сопоставлены dark-fantasy/gothic-horror/wilderness
    (см. shared/profiles.ts).
    ═══════════════════════════════════════════════════════════════════ */
 
-/* ── Chronicle Forge (фирменный, по умолчанию): графит-индиго, латунь ── */
+/* ── Narthex (фирменный, по умолчанию): графит-индиго, латунь ── */
 .cf-profile-forge {
   --bg: #14161c;
   --bg-deep: #0e1014;
@@ -825,7 +825,7 @@ html.cf-profile-modern {
 }
 /* ────────── Индивидуальный почерк интерфейса по профилям кампании ────────── */
 
-/* 1. Chronicle Forge: латунные акценты, строгие панели */
+/* 1. Narthex: латунные акценты, строгие панели */
 .cf-profile-forge .panel,
 .cf-profile-forge .side-panel {
   border-top: 2px solid color-mix(in srgb, var(--gold) 65%, var(--border));
@@ -1368,24 +1368,6 @@ html.cf-profile-modern {
   box-shadow: var(--shadow-2), inset 0 0 0 2px color-mix(in srgb, var(--gold) 22%, transparent), inset 0 0 0 6px color-mix(in srgb, var(--gold) 10%, transparent);
 }
 .cf-profile-gothic-horror .scene-stage { box-shadow: var(--shadow-2), inset 0 0 60px rgba(0, 0, 0, 0.55); }
-
-.scene-bg-note {
-  position: absolute;
-  left: 50%;
-  bottom: 10px;
-  transform: translateX(-50%);
-  z-index: 40;
-  background: color-mix(in srgb, var(--bg-deep) 92%, transparent);
-  border: 1px solid var(--gold);
-  color: var(--gold-bright);
-  font-size: 12px;
-  line-height: 1.4;
-  padding: 6px 10px;
-  border-radius: var(--radius);
-  text-align: center;
-  max-width: 90%;
-  backdrop-filter: blur(2px);
-}
 
 .scene-bg {
   position: absolute;
@@ -4739,3 +4721,117 @@ img.scene-bg { object-fit: fill; }
 .party-weight .party-need-bar { flex: 1; margin-top: 0; }
 .party-bag-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 560px) { .party-bag-cols { grid-template-columns: 1fr; } }
+
+/* Pack-provided adventure screen: rendered from view draw commands, no campaign image assets required. */
+.adventure-screen {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+  gap: 12px;
+  padding: clamp(10px, 1.5vw, 20px);
+  color: #f8ead2;
+  background: #171918;
+  overflow: auto;
+}
+.adventure-header,
+.adventure-tools,
+.adventure-stage-footer,
+.adventure-riddle-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.adventure-header h2 { margin: 3px 0 0; color: #fff3dc; }
+.adventure-eyebrow { color: #d9b77e; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.adventure-tools { flex-wrap: wrap; justify-content: flex-end; }
+.adventure-mode.is-active { color: #211b12; background: #d7b779; border-color: #f1d49a; }
+.adventure-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(190px, 250px); gap: 14px; min-height: 0; }
+.adventure-stage-column { min-width: 0; }
+.adventure-stage {
+  position: relative;
+  width: 100%;
+  min-height: 360px;
+  max-height: min(68vh, 680px);
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid #b19466;
+  border-radius: 12px;
+  background: #302d28;
+  box-shadow: 0 16px 48px #0009, inset 0 0 70px #0b0c0b88;
+  cursor: crosshair;
+}
+.adventure-stage.is-closeup { background: #201d1b; }
+.adventure-paint,
+.adventure-hotspots { position: absolute; inset: 0; }
+.adventure-paint { z-index: -1; overflow: hidden; background: linear-gradient(180deg, #18232c 0%, #4b514d 48%, #6c5a3b 72%, #28251f 100%); }
+.adventure-moon { position: absolute; top: 9%; right: 14%; width: 8%; aspect-ratio: 1; border-radius: 50%; background: #e1c99a; box-shadow: 0 0 42px #e7cf9a99; }
+.adventure-ridge { position: absolute; inset: 24% -8% auto; height: 37%; clip-path: polygon(0 68%, 12% 44%, 24% 62%, 39% 12%, 52% 58%, 68% 31%, 82% 60%, 100% 28%, 100% 100%, 0 100%); }
+.adventure-ridge-back { background: #343b37; opacity: .94; }
+.adventure-ridge-front { top: 35%; background: #252b27; transform: scaleX(-1); }
+.adventure-ground { position: absolute; inset: 65% -10% -8%; background: linear-gradient(180deg, #725d3e, #29251e 78%); clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+.adventure-gate { position: absolute; right: 13%; bottom: 20%; width: 17%; height: 42%; border: 8px solid #9d8050; border-bottom: 0; border-radius: 48% 48% 0 0; background: repeating-linear-gradient(90deg, #282520 0 12%, #6b593c 13% 16%, #30291f 17% 29%); box-shadow: 0 0 0 3px #211e19, inset 0 0 28px #000b; }
+.adventure-embers { position: absolute; inset: 0; opacity: .48; background: radial-gradient(ellipse at 75% 76%, #d29a4a33, transparent 30%), radial-gradient(ellipse at 18% 54%, #ffd98a12, transparent 24%); pointer-events: none; }
+.adventure-stage.is-closeup .adventure-paint { background: radial-gradient(ellipse at 50% 48%, #7e6a43 0%, #292620 45%, #111211 100%); }
+.adventure-stage.is-closeup .adventure-gate { right: 36%; bottom: 18%; width: 28%; height: 60%; transform: scale(1.35); }
+.adventure-hotspots { z-index: 1; }
+.adventure-hotspot {
+  position: absolute;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  min-width: 42px;
+  padding: 3px;
+  overflow: visible;
+  border: 1px solid #e7c887aa;
+  border-radius: 8px;
+  color: #fff4db;
+  background: #1d201c21;
+  cursor: inherit;
+  transition: background .15s ease, border-color .15s ease, transform .15s ease;
+}
+.adventure-hotspot span {
+  max-width: 100%;
+  padding: 3px 7px;
+  border-radius: 20px;
+  background: #171714c9;
+  font-size: clamp(10px, 1vw, 13px);
+  line-height: 1.2;
+  text-shadow: 0 1px 3px #000;
+  white-space: nowrap;
+}
+.adventure-hotspot:hover,
+.adventure-hotspot:focus-visible { z-index: 2; border-color: #fff0bb; background: #eac6793d; transform: translateY(-2px); outline: 2px solid #fff0bb; }
+.adventure-hotspot.is-taken { opacity: .42; border-style: dashed; }
+.adventure-hotspot.is-character::before { content: ''; position: absolute; left: 50%; top: 9%; width: 30%; height: 33%; transform: translateX(-50%); border-radius: 50% 50% 24% 24%; background: linear-gradient(#d4ad79 0 35%, #483d34 36%); box-shadow: 0 0 20px #111; }
+.adventure-avatar { position: absolute; z-index: 3; width: 4.3%; min-width: 25px; aspect-ratio: .72; transform: translate(-50%, -75%); pointer-events: none; filter: drop-shadow(0 3px 4px #000a); }
+.adventure-avatar-cloak { position: absolute; inset: 23% 4% 0; clip-path: polygon(30% 0, 70% 0, 100% 100%, 0 100%); border-radius: 45% 45% 9% 9%; background: linear-gradient(90deg, #342c27, #8b6240 52%, #3a3029); }
+.adventure-avatar-face { position: absolute; top: 0; left: 31%; width: 38%; aspect-ratio: 1; border-radius: 50%; background: #c9a375; }
+.adventure-message { position: absolute; z-index: 5; left: 50%; bottom: 12px; width: min(88%, 620px); transform: translateX(-50%); padding: 10px 14px; border: 1px solid #d6b678aa; border-radius: 9px; color: #fff2d5; background: #171714e8; text-align: center; box-shadow: 0 6px 24px #0008; }
+.adventure-stage-footer { min-height: 38px; color: #cbb994; font-size: 13px; }
+.adventure-inventory { padding: 14px; border: 1px solid #806a48; border-radius: 11px; background: linear-gradient(160deg, #272824, #181a18); }
+.adventure-inventory h3 { margin: 0 0 12px; color: #e5ca92; }
+.adventure-items { display: grid; gap: 8px; }
+.adventure-item { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; text-align: left; }
+.adventure-item.is-selected { border-color: #efca82; box-shadow: 0 0 0 2px #d5b36a55; }
+.adventure-item small { color: #e7c980; }
+.adventure-inventory-hint { margin-top: 14px; color: #b8ab91; font-size: 12px; line-height: 1.5; }
+.adventure-crafted { color: #c4dda9; }
+.adventure-riddle { position: absolute; z-index: 8; inset: 10% 12%; display: flex; flex-direction: column; justify-content: center; gap: 12px; padding: clamp(14px, 3vw, 34px); border: 1px solid #e4c783; border-radius: 14px; background: #171714ed; box-shadow: 0 20px 80px #000c; text-align: center; }
+.adventure-riddle h3 { margin: 0; color: #f1d18e; font-size: clamp(20px, 3vw, 32px); }
+.adventure-riddle p { margin: 0; color: #d8c9aa; }
+.adventure-sigil-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.adventure-sigil-choice { min-height: 24px; color: #f3ddaa !important; }
+.adventure-riddle-actions { justify-content: center; flex-wrap: wrap; }
+.adventure-ending { position: absolute; z-index: 9; inset: 16% 12%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; border: 1px solid #e8cf99; border-radius: 14px; background: linear-gradient(145deg, #1d211deF, #171612f2); box-shadow: 0 0 70px #dbb96b44; text-align: center; }
+.adventure-ending strong { color: #f2d897; font-family: var(--font-display, Georgia, serif); font-size: clamp(24px, 4vw, 42px); }
+.adventure-ending-kicker { color: #d6b77b; letter-spacing: .18em; text-transform: uppercase; }
+.adventure-ending > span:last-child { color: #d2c7ac; }
+@media (max-width: 820px) {
+  .adventure-header { align-items: flex-start; flex-direction: column; }
+  .adventure-tools { justify-content: flex-start; }
+  .adventure-layout { grid-template-columns: minmax(0, 1fr); }
+  .adventure-stage { min-height: 300px; max-height: none; }
+  .adventure-inventory { order: -1; }
+}

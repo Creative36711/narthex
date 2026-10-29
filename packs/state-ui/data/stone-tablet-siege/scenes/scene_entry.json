@@ -1,0 +1,143 @@
+{
+  "id": "scene_entry",
+  "label": "Зал последней партии",
+  "location": "loc_stone_table",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_invitation",
+      "label": "Приглашение к партии",
+      "condition": null,
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#10131b",
+        "layers": [
+          {
+            "label": "зал",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": {
+                "gradient": {
+                  "from": "#252a36",
+                  "to": "#090b10",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "круг света",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 365,
+              "rx": 330,
+              "ry": 245,
+              "fill": "#d29b59",
+              "opacity": 0.09
+            }
+          },
+          {
+            "label": "плита",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                640,
+                165,
+                808,
+                263,
+                808,
+                457,
+                640,
+                555,
+                472,
+                457,
+                472,
+                263
+              ],
+              "fill": "#292b31",
+              "stroke": "#bd965f",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "руна",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                640,
+                235,
+                715,
+                360,
+                640,
+                485,
+                565,
+                360
+              ],
+              "fill": "none",
+              "stroke": "#e4c17f",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "искра",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 360,
+              "rx": 20,
+              "ry": 20,
+              "fill": "#e7b96f"
+            }
+          },
+          {
+            "label": "название",
+            "shape": {
+              "type": "text",
+              "x": 430,
+              "y": 625,
+              "text": "ПЕПЕЛЬНЫЙ КРУГ",
+              "bold": true,
+              "color": "#e6cb96",
+              "size": 28
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "slots": [],
+  "navigation": [
+    {
+      "area": {
+        "x": 470,
+        "y": 548,
+        "w": 340,
+        "h": 72
+      },
+      "go_to_scene": "scene_last_hand",
+      "label": "Сесть за стол →"
+    }
+  ],
+  "lighting": "indoor",
+  "narrative_intro": [
+    {
+      "text": "В зале Пепельного круга решают не словами, а картами. Смотритель уже ждёт вас за столом."
+    },
+    {
+      "text": "Партия длится три раунда. Перед каждым ходом соперник открывает намерение; выберите карту и прочитайте ответ. Пять очков приносят корону."
+    }
+  ],
+  "narrative_intro_once": true,
+  "narrative_intro_done_label": "Понятно"
+}

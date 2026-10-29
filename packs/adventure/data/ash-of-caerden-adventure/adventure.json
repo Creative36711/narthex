@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "startScene": "scene_gates_front",
+  "startNode": "spawn",
+  "scenes": {
+    "scene_gates_front": {
+      "walk": {
+        "nodes": [
+          { "id": "spawn", "x": 320, "y": 560 },
+          { "id": "herbs", "x": 520, "y": 560 },
+          { "id": "gate", "x": 900, "y": 560 }
+        ],
+        "edges": [
+          ["spawn", "herbs"],
+          ["herbs", "gate"]
+        ]
+      },
+      "hotspots": [
+        {
+          "id": "herb_left",
+          "label": "Горная трава слева",
+          "x": 490,
+          "y": 500,
+          "w": 50,
+          "h": 80,
+          "item": "item_herb",
+          "message": "Стебли пахнут горькой смолой."
+        },
+        {
+          "id": "herb_right",
+          "label": "Горная трава справа",
+          "x": 550,
+          "y": 500,
+          "w": 50,
+          "h": 80,
+          "item": "item_herb",
+          "message": "Второй пучок пригодится для мази."
+        },
+        {
+          "id": "guard_aldric",
+          "label": "Стражник Алдрик",
+          "x": 285,
+          "y": 340,
+          "w": 130,
+          "h": 280,
+          "dialogue": "aldric",
+          "node": "first_meeting",
+          "message": "Стражник следит за дорогой и воротами."
+        },
+        {
+          "id": "gate_sigils",
+          "label": "Символы на воротах",
+          "x": 820,
+          "y": 300,
+          "w": 180,
+          "h": 120,
+          "message": "Пепел, дуб и солнце образуют старый знак Каэрдена."
+        }
+      ]
+    },
+    "scene_gates_guardroom": {
+      "walk": {
+        "nodes": [
+          { "id": "entry", "x": 240, "y": 560 },
+          { "id": "mechanism", "x": 640, "y": 560 }
+        ],
+        "edges": [["entry", "mechanism"]]
+      },
+      "hotspots": [
+        {
+          "id": "sigil_mechanism",
+          "label": "Механизм трёх символов",
+          "x": 520,
+          "y": 260,
+          "w": 240,
+          "h": 220,
+          "message": "Три диска ждут порядок: пепел, дуб, солнце."
+        }
+      ]
+    }
+  },
+  "combinations": [
+    {
+      "id": "salve_from_herbs",
+      "inputs": ["item_herb", "item_herb"],
+      "output": "item_healing_salve",
+      "message": "Два пучка травы растёрты в целебную мазь."
+    }
+  ],
+  "riddles": [
+    {
+      "id": "gate_sigils",
+      "scene": "scene_gates_guardroom",
+      "background": "assets/img/scenes/guardroom.jpg",
+      "solution": ["ash", "oak", "sun"],
+      "ending": "ending_gate_unlocked",
+      "message": "Крупный план механизма: выберите пепел, дуб и солнце."
+    }
+  ],
+  "endings": {
+    "ending_gate_unlocked": {
+      "label": "Механизм ворот открыт"
+    }
+  }
+}

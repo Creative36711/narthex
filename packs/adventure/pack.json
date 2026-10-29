@@ -1,0 +1,112 @@
+{
+  "id": "adventure",
+  "title": "Point-and-click приключение",
+  "version": "0.1.0",
+  "runtime": "turn",
+  "provides": {
+    "kind": true,
+    "schema": "schema/adventure.schema.json",
+    "panels": [
+      {
+        "id": "adventure-stage",
+        "title": "Сцена приключения",
+        "slot": "center",
+        "schema": "schema/adventure.schema.json",
+        "caps": ["adventure", "scenes"],
+        "order": 10
+      },
+      {
+        "id": "adventure-combinations",
+        "title": "Соединения предметов",
+        "slot": "right",
+        "schema": "schema/adventure.schema.json",
+        "caps": ["adventure", "inventory"],
+        "order": 20
+      },
+      {
+        "id": "adventure-riddle",
+        "title": "Крупный план-загадка",
+        "slot": "modal",
+        "schema": "schema/adventure.schema.json",
+        "caps": ["adventure"],
+        "order": 30
+      }
+    ],
+    "validators": [
+      {
+        "id": "walk-target",
+        "title": "Путь аватара существует",
+        "severity": "error",
+        "description": "Стартовый узел и оба конца каждого ребра объявлены в сцене.",
+        "caps": ["adventure"]
+      },
+      {
+        "id": "hotspot-action",
+        "title": "Горячая точка имеет действие",
+        "severity": "error",
+        "description": "Точка имеет осмотр, предмет или диалог и уникальный id в сцене.",
+        "caps": ["adventure", "scenes"]
+      },
+      {
+        "id": "combination-recipe",
+        "title": "Рецепт соединения корректен",
+        "severity": "error",
+        "description": "Пара входов и результат заданы непустыми id, рецепты не повторяются.",
+        "caps": ["adventure", "inventory"]
+      },
+      {
+        "id": "riddle-solution",
+        "title": "Загадка ведёт к развязке",
+        "severity": "error",
+        "description": "Крупный план имеет сцену, фон, решение и объявленную развязку.",
+        "caps": ["adventure"]
+      }
+    ],
+    "probes": [
+      {
+        "id": "adventure-mechanics",
+        "title": "Механики, маршрут и совместимость сейвов",
+        "kind": "run",
+        "budget_ms": 60000,
+        "checks": [
+          "клик перемещает аватара по координатам и выдаёт длину пути",
+          "курсор переключается между walk, look, take и talk",
+          "пара предметов создаёт объявленный результат",
+          "крупный план принимает решение и открывает развязку",
+          "20 прогонов из 20 с одним seed дают один sha256 при включённом и выключенном view",
+          "маршрут от стартовой сцены достигает развязки",
+          "сейвы narrative и adventure открываются в обоих направлениях",
+          "запись из view отклоняется хостом"
+        ],
+        "caps": ["adventure", "narrative", "scenes", "dialogue", "inventory"]
+      }
+    ],
+    "seams": [
+      {
+        "id": "adventure.sim",
+        "kind": "sim",
+        "signature": "(ctx: PackSimContext<AdventureState, AdventureEvent>) => AdventureState",
+        "description": "Чистый переход аватара, курсора, предметов и загадок; narrative-события делегируются внедрённой возможности.",
+        "caps": ["adventure", "narrative"]
+      },
+      {
+        "id": "adventure.view",
+        "kind": "view",
+        "signature": "(ctx: PackViewContext<AdventureState, AdventureFrame>) => void",
+        "description": "Проекция аватара, курсора, сообщения, крупного плана и развязки только в draw-порт.",
+        "caps": ["adventure"]
+      }
+    ]
+  },
+  "saves": {
+    "namespace": "adventure",
+    "version": 1,
+    "migrations": 0
+  },
+  "requires": {
+    "core": ">=1.0.0",
+    "packs": [],
+    "caps": ["narrative", "scenes", "dialogue", "inventory", "map", "quests"]
+  },
+  "caps": ["adventure"]
+}

@@ -1,0 +1,20 @@
+{
+  "scenes": [
+    "scene_entry.json",
+    "scene_last_hand.json"
+  ],
+  "entities": [
+    "player_cardplayer.json",
+    "npc_stonekeeper.json"
+  ],
+  "rules": [],
+  "dialogues": [
+    "last_hand.ink"
+  ],
+  "arenas": [],
+  "quests": [],
+  "encounters": [],
+  "cutscenes": [],
+  "recipes": [],
+  "codex": []
+}

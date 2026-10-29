@@ -1,0 +1,185 @@
+name: visual
+
+# Пиксельная проверка интерфейса: собрать проект, поднять предпросмотр,
+# снять экраны, проверить утверждения и положить PNG в артефакт.
+#
+# Зачем в CI, если браузер работает и в песочнице агента (docs/agents/browser.md):
+#   * прогон остаётся в истории и его можно перепроверить через месяцы;
+#   * скриншоты видны в PR всем, без запуска чужой песочницы;
+#   * CI — независимый от агента свидетель: он не «забыл снять».
+
+on:
+  pull_request:
+  workflow_dispatch:
+  push: { branches: [main] }
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Установить зависимости
+        run: npm ci
+
+      - name: Проверить свежесть бандла аудита до сборки
+        run: npm run check:audit-bundle
+
+      - name: TypeScript
+        run: npx tsc -b
+
+      # Пробы транспорта ScriptCat — обычные node-скрипты, без сети и без
+      # браузера: 66 проверок примерно за 11 с. Раньше они жили только в
+      # README, и 29.10 одна из них покраснела на зелёном коде (в ней «сейчас»
+      # бралось из системных часов) — заметил это только Мастер.
+      - name: Пробы транспорта ScriptCat
+        run: |
+          set -e
+          passed=0
+          for probe in _tools/ScriptCat/tests/*.mjs; do
+            if ! node "$probe" > /tmp/scriptcat-probe.log 2>&1; then
+              echo "::group::Провал: $probe"
+              cat /tmp/scriptcat-probe.log
+              echo "::endgroup::"
+              exit 1
+            fi
+            passed=$((passed + 1))
+          done
+          echo "Пробы ScriptCat: $passed/$passed зелёных"
+
+      - name: Cache browser parity packages
+        id: parity-browser-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/narthex-parity-browser
+            ${{ runner.temp }}/narthex-parity-runtime
+          key: ${{ runner.os }}-${{ runner.arch }}-node22-parity-chromium131-playwright-core1.49.1-v2
+
+      - name: Установить браузерные пакеты для parity
+        if: steps.parity-browser-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 5
+        run: npm install --prefix "$RUNNER_TEMP/narthex-parity-browser" --no-save --ignore-scripts --no-audit --no-fund @sparticuz/chromium@131 playwright-core@1.49.1
+
+      - name: Детерминизм циклов
+        timeout-minutes: 5
+        env:
+          NARTHEX_PARITY_BROWSER_PREFIX: ${{ runner.temp }}/narthex-parity-browser
+          TMPDIR: ${{ runner.temp }}/narthex-parity-runtime
+        run: npm run check:determinism
+
+      - name: Контракты и browser gate
+        run: npm run check:contracts
+
+      - name: Граф ядра
+        run: npm run check:core-graph
+
+      - name: Гайд и playkit
+        run: npm run check:guide
+
+      - name: Корпус совместимости реального player
+        run: npm run check:compat-corpus
+
+      - name: Коды narrative
+        run: npm run check:narrative-codes
+
+      - name: Размер модулей
+        run: npm run check:module-size
+
+      - name: Версия
+        run: npm run check:version
+
+      - name: Бренд
+        run: npm run check:brand
+
+      - name: Smoke ядра
+        run: npm run smoke:core
+
+      - name: Все 55 смоуков миссии NAR-2.15
+        run: npm run smoke:mission
+
+      - name: Изолированный smoke пустого реестра
+        run: npm run smoke:no-campaign
+
+      - name: Эталон narrative
+        run: node public/ai/cf-play.mjs check public/campaigns/ash-of-caerden
+
+      - name: Эталон adventure
+        run: node public/ai/cf-play.mjs check public/campaigns/ash-of-caerden-adventure
+
+      - name: Собрать проект
+        run: npm run build
+
+      - name: Проверить свежесть бандла после сборки
+        run: npm run check:audit-bundle
+
+      - name: Поставить Chromium с системными библиотеками
+        run: |
+          npm i --no-save playwright@1.49.1
+          npx playwright install --with-deps chromium
+
+      # Серверы и проверки — в одном шаге: фоновые процессы не переживают
+      # границу шага, а «сервер не поднялся» должен падать здесь, а не тихо.
+      - name: Снять экраны и проверить утверждения
+        run: |
+          set +e
+          # Старый pixel smoke фиксирует empty-state UI. Дайте ему отдельную
+          # копию билда с фикстурой [], не меняя dist или public index.
+          EMPTY_DIR=out/visual-empty-preview
+          rm -rf "$EMPTY_DIR"
+          mkdir -p "$EMPTY_DIR"
+          cp -a dist/. "$EMPTY_DIR/"
+          printf '[]\n' > "$EMPTY_DIR/campaigns/index.json"
+          ./node_modules/.bin/vite preview --outDir "$EMPTY_DIR" --port 4174 --strictPort --host 127.0.0.1 &
+          EMPTY_PID=$!
+          npx --yes wait-on@8 http://127.0.0.1:4174 --timeout 60000
+          WAIT=$?
+          if [ "$WAIT" -ne 0 ]; then
+            echo "Изолированный empty-state preview не поднялся за 60 с"
+            kill "$EMPTY_PID" 2>/dev/null
+            rm -rf "$EMPTY_DIR"
+            exit 1
+          fi
+          node scripts/visual/shots.mjs http://127.0.0.1:4174 out/visual
+          SHOTS=$?
+          kill "$EMPTY_PID" 2>/dev/null
+          rm -rf "$EMPTY_DIR"
+
+          # Игровой маршрут и стартовая проверка используют обычный билд с
+          # реальным index: меню → сцена, затем отдельная проверка запуска.
+          ./node_modules/.bin/vite preview --port 4173 --strictPort --host 127.0.0.1 &
+          SERVER_PID=$!
+          npx --yes wait-on@8 http://127.0.0.1:4173 --timeout 60000
+          WAIT=$?
+          if [ "$WAIT" -ne 0 ]; then
+            echo "Предпросмотр штатного билда не поднялся за 60 с"
+            kill "$SERVER_PID" 2>/dev/null
+            exit 1
+          fi
+          # Браузер уже стоит выше (playwright install --with-deps chromium).
+          node scripts/visual/playthrough.mjs http://127.0.0.1:4173 out/visual/play
+          PLAY=$?
+          npm run playthrough:exam -- http://127.0.0.1:4173 out/visual/exam
+          EXAM=$?
+          npm run smoke:campaign-start -- http://127.0.0.1:4173
+          START=$?
+          kill "$SERVER_PID" 2>/dev/null
+          if [ "$SHOTS" -ne 0 ]; then exit "$SHOTS"; fi
+          if [ "$PLAY" -ne 0 ]; then exit "$PLAY"; fi
+          if [ "$EXAM" -ne 0 ]; then exit "$EXAM"; fi
+          exit "$START"
+
+      - name: Сохранить снимки и отчёт
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-report
+          path: out/visual
+          retention-days: 14
+          if-no-files-found: warn

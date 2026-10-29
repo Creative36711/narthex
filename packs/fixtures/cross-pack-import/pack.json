@@ -1,0 +1,187 @@
+{
+  "id": "narrative",
+  "title": "Сюжет и ветвление",
+  "version": "1.0.0",
+  "runtime": "turn",
+  "provides": {
+    "kind": true,
+    "schema": "schema/narrative.schema.json",
+    "panels": [
+      {
+        "id": "scenes",
+        "title": "Сцены",
+        "slot": "left",
+        "schema": "schema/scene.schema.json",
+        "caps": [
+          "scenes"
+        ],
+        "order": 10
+      },
+      {
+        "id": "dialogue",
+        "title": "Диалоги",
+        "slot": "center",
+        "schema": "schema/dialogue.schema.json",
+        "caps": [
+          "dialogue"
+        ],
+        "order": 20
+      },
+      {
+        "id": "flow",
+        "title": "Граф ветвления",
+        "slot": "center",
+        "caps": [
+          "narrative"
+        ],
+        "order": 30
+      },
+      {
+        "id": "map",
+        "title": "Карта мира",
+        "slot": "center",
+        "schema": "schema/world.schema.json",
+        "caps": [
+          "map"
+        ],
+        "order": 40
+      }
+    ],
+    "validators": [
+      {
+        "id": "dangling-goto",
+        "title": "Переход в несуществующую сцену",
+        "severity": "error",
+        "description": "Любой goto, выбор или правило ссылается на существующую сцену.",
+        "caps": [
+          "scenes"
+        ]
+      },
+      {
+        "id": "unreachable-scene",
+        "title": "Недостижимая сцена",
+        "severity": "warn",
+        "description": "Каждая сцена достижима хотя бы одним маршрутом от стартовой.",
+        "caps": [
+          "narrative"
+        ]
+      },
+      {
+        "id": "dangling-ink-knot",
+        "title": "Узел ink не найден",
+        "severity": "error",
+        "description": "Все переходы диалога ведут в существующие узлы.",
+        "caps": [
+          "dialogue"
+        ]
+      }
+    ],
+    "probes": [
+      {
+        "id": "reachability",
+        "title": "Достижимость сцен",
+        "kind": "graph",
+        "budget_ms": 5000,
+        "checks": [
+          "каждая сцена достижима от стартовой",
+          "нет компонент, отрезанных от старта"
+        ],
+        "caps": [
+          "narrative"
+        ]
+      },
+      {
+        "id": "dialogue-coverage",
+        "title": "Покрытие диалогов",
+        "kind": "graph",
+        "budget_ms": 5000,
+        "checks": [
+          "каждый узел диалога достижим хотя бы одним выбором",
+          "нет узлов без выхода, кроме терминальных"
+        ],
+        "caps": [
+          "dialogue"
+        ]
+      },
+      {
+        "id": "route-smoke",
+        "title": "Прогон маршрутов",
+        "kind": "run",
+        "budget_ms": 60000,
+        "checks": [
+          "маршруты из routes/*.json проходят без падений",
+          "на каждом шаге движок возвращает допустимое состояние",
+          "прогон детерминирован по seed"
+        ],
+        "caps": [
+          "narrative"
+        ]
+      }
+    ],
+    "seams": [
+      {
+        "id": "on_tick",
+        "kind": "sim",
+        "signature": "(ctx: EngineCtx, dt: number) => void",
+        "description": "Вызывается на каждом шаге симуляции до систем ядра.",
+        "caps": [
+          "time"
+        ]
+      },
+      {
+        "id": "on_interact",
+        "kind": "sim",
+        "signature": "(ctx: EngineCtx, scene: string, slot: string) => boolean | void",
+        "description": "Перехват клика по слоту до стандартной реакции. true — событие обработано кодом.",
+        "caps": [
+          "scenes"
+        ]
+      },
+      {
+        "id": "combat.resolve_attack",
+        "kind": "sim",
+        "signature": "(ctx: EngineCtx, attack: AttackInput) => AttackResult",
+        "description": "Полная замена расчёта атаки. Сейв и журнал остаются формата ядра.",
+        "caps": [
+          "combat"
+        ]
+      },
+      {
+        "id": "render.scene",
+        "kind": "view",
+        "signature": "(ctx: RenderCtx) => void",
+        "description": "Рисование поверх сцены. Не влияет на состояние и не проверяется headless.",
+        "caps": [
+          "scenes"
+        ]
+      }
+    ]
+  },
+  "saves": {
+    "namespace": "narrative",
+    "version": 3,
+    "migrations": 3
+  },
+  "requires": {
+    "core": ">=1.0.0",
+    "packs": [],
+    "caps": []
+  },
+  "caps": [
+    "narrative",
+    "scenes",
+    "dialogue",
+    "map",
+    "inventory",
+    "needs",
+    "skills",
+    "relationships",
+    "trade",
+    "combat",
+    "quests",
+    "cutscenes",
+    "codex",
+    "crafting",
+    "time"
+  ]
+}

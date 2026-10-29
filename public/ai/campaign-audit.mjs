@@ -47,1353 +47,6 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// src/shared/migrate.ts
-function migrateNeedCondition(c) {
-  const any = c;
-  switch (any.type) {
-    case "in_location": {
-      if (Array.isArray(any.locations)) return c;
-      const one = any.location ?? any.locations ?? "";
-      return { type: "in_location", locations: one ? [one] : [], not: any.not };
-    }
-    case "has_item":
-    case "equipped": {
-      if (Array.isArray(any.items)) return c;
-      const one = any.item ?? any.items ?? "";
-      return { type: any.type, items: one ? [one] : [], not: any.not };
-    }
-    default:
-      return c;
-  }
-}
-function migrateNeedConditions(list) {
-  if (!list) return list;
-  return list.map(migrateNeedCondition);
-}
-function migrateMeta(meta) {
-  for (const need of meta.needs ?? []) {
-    if (need.decay_when) need.decay_when = migrateNeedConditions(need.decay_when);
-    if (need.restore_when) need.restore_when = migrateNeedConditions(need.restore_when);
-  }
-  const cc = meta.char_creation;
-  if (cc) {
-    if (Array.isArray(cc.allowed_professions)) delete cc.allowed_professions;
-    if (!Array.isArray(cc.mandatory_skills)) cc.mandatory_skills = cc.mandatory_skills ? [String(cc.mandatory_skills)] : [];
-    if (!Array.isArray(cc.forbidden_skills)) cc.forbidden_skills = cc.forbidden_skills ? [String(cc.forbidden_skills)] : [];
-  }
-  const legacyBuiltins = [
-    { id: "neutral", label: "\u041E\u0431\u044B\u0447\u043D\u044B\u0439" },
-    { id: "happy", label: "\u0420\u0430\u0434\u043E\u0441\u0442\u044C" },
-    { id: "angry", label: "\u0413\u043D\u0435\u0432" },
-    { id: "sad", label: "\u041F\u0435\u0447\u0430\u043B\u044C" },
-    { id: "fear", label: "\u0421\u0442\u0440\u0430\u0445" }
-  ];
-  meta.emotions = (meta.emotions ?? []).filter(
-    (e) => !legacyBuiltins.some((b) => b.id === e.id && b.label === e.label)
-  );
-  return meta;
-}
-function migrateNavigation(scene, world) {
-  let changed = false;
-  const out = scene.navigation.map((nav) => {
-    const legacy = nav.go_to_location;
-    if (!legacy) return nav;
-    changed = true;
-    const next = { ...nav };
-    delete next.go_to_location;
-    if (legacy === scene.location) {
-      const loc = findLocation(world, legacy);
-      const target = loc?.arrival_scene ?? loc?.scenes[0];
-      if (target && target !== scene.id) next.go_to_scene = target;
-      else next.open_map = true;
-    } else {
-      next.open_map = true;
-    }
-    return next;
-  });
-  if (changed) scene.navigation = out;
-  return out;
-}
-function findLocation(world, id) {
-  const walk = (regions) => {
-    for (const r of regions) {
-      const l = r.locations.find((x) => x.id === id);
-      if (l) return l;
-      const sub = r.sub_regions ? walk(r.sub_regions) : void 0;
-      if (sub) return sub;
-    }
-    return void 0;
-  };
-  return walk(world.regions);
-}
-function allLocations(world) {
-  const out = [];
-  const walk = (regions) => {
-    for (const r of regions) {
-      out.push(...r.locations);
-      if (r.sub_regions) walk(r.sub_regions);
-    }
-  };
-  walk(world.regions);
-  return out;
-}
-var init_migrate = __esm({
-  "src/shared/migrate.ts"() {
-  }
-});
-
-// src/shared/aiBaseline.ts
-function aiDiffSnapshotKey(basePath) {
-  return `cf_editor_ai_baseline:${basePath}`;
-}
-var init_aiBaseline = __esm({
-  "src/shared/aiBaseline.ts"() {
-  }
-});
-
-// src/shared/ruleFiles.ts
-function isEncounterFile(obj) {
-  return Array.isArray(obj.encounter_tables);
-}
-function isBareTable(obj) {
-  return !("id" in obj) && !("conditions" in obj) && !("effects" in obj) && Array.isArray(obj.entries);
-}
-function parseRuleFile(file, raw) {
-  const warnings = [];
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    warnings.push(`rules/${file}: \u0444\u0430\u0439\u043B \u043D\u0435 \u044F\u0432\u043B\u044F\u0435\u0442\u0441\u044F \u043D\u0438 \u043F\u0440\u0430\u0432\u0438\u043B\u043E\u043C, \u043D\u0438 \u0442\u0430\u0431\u043B\u0438\u0446\u0435\u0439 \u0432\u0441\u0442\u0440\u0435\u0447 \u2014 \u043F\u0440\u043E\u043F\u0443\u0449\u0435\u043D.`);
-    return { kind: "invalid", warnings };
-  }
-  const obj = raw;
-  if (isEncounterFile(obj) || isBareTable(obj)) {
-    const tables = isEncounterFile(obj) ? obj.encounter_tables : [obj];
-    const clean = tables.filter((t) => !!t && typeof t === "object" && typeof t.id === "string");
-    warnings.push(
-      `rules/${file}: \u044D\u0442\u043E \u0442\u0430\u0431\u043B\u0438\u0446\u0430 \u0432\u0441\u0442\u0440\u0435\u0447, \u0430 \u043D\u0435 \u043F\u0440\u0430\u0432\u0438\u043B\u043E. \u0422\u0430\u043A\u0438\u0435 \u0444\u0430\u0439\u043B\u044B \u043F\u0435\u0440\u0435\u0447\u0438\u0441\u043B\u044F\u044E\u0442 \u0432 manifest.encounters, \u0430 \u043D\u0435 \u0432 manifest.rules; \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043D\u043E \u043A\u0430\u043A \u0432\u0441\u0442\u0440\u0435\u0447${clean.length === 1 ? "\u0430" : clean.length > 1 ? ` (${clean.length})` : ""}.`
-    );
-    return { kind: "encounters", tables: clean, warnings };
-  }
-  const rule = raw;
-  if (!rule.id || typeof rule.id !== "string") {
-    warnings.push(`rules/${file}: \u0443 \u043F\u0440\u0430\u0432\u0438\u043B\u0430 \u043D\u0435\u0442 id \u2014 \u0444\u0430\u0439\u043B \u043F\u0440\u043E\u043F\u0443\u0449\u0435\u043D (\u0438\u043D\u0430\u0447\u0435 \u043E\u043D \u043F\u043E\u043F\u0430\u043B \u0431\u044B \u0432 \u0440\u0435\u0435\u0441\u0442\u0440 \u043F\u043E\u0434 \u043A\u043B\u044E\u0447\u043E\u043C \xABundefined\xBB).`);
-    return { kind: "invalid", warnings };
-  }
-  if (!Array.isArray(rule.conditions)) {
-    warnings.push(`rules/${file}: \u0443 \u043F\u0440\u0430\u0432\u0438\u043B\u0430 \xAB${rule.id}\xBB \u043D\u0435 \u0431\u044B\u043B\u043E \u043C\u0430\u0441\u0441\u0438\u0432\u0430 conditions \u2014 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D \u043F\u0443\u0441\u0442\u044B\u043C.`);
-    rule.conditions = [];
-  }
-  if (!Array.isArray(rule.effects)) {
-    warnings.push(`rules/${file}: \u0443 \u043F\u0440\u0430\u0432\u0438\u043B\u0430 \xAB${rule.id}\xBB \u043D\u0435 \u0431\u044B\u043B\u043E \u043C\u0430\u0441\u0441\u0438\u0432\u0430 effects \u2014 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D \u043F\u0443\u0441\u0442\u044B\u043C.`);
-    rule.effects = [];
-  }
-  if (rule.conditions_any !== void 0 && !Array.isArray(rule.conditions_any)) {
-    warnings.push(`rules/${file}: \u0443 \u043F\u0440\u0430\u0432\u0438\u043B\u0430 \xAB${rule.id}\xBB conditions_any \u043D\u0435 \u043C\u0430\u0441\u0441\u0438\u0432 \u2014 \u043F\u043E\u043B\u0435 \u043E\u0442\u0431\u0440\u043E\u0448\u0435\u043D\u043E.`);
-    delete rule.conditions_any;
-  }
-  return { kind: "rule", rule, warnings };
-}
-var init_ruleFiles = __esm({
-  "src/shared/ruleFiles.ts"() {
-  }
-});
-
-// src/shared/versions.ts
-function readEngineVersion() {
-  if (typeof __CF_ENGINE_VERSION__ === "string" && __CF_ENGINE_VERSION__) return __CF_ENGINE_VERSION__;
-  const fromEnv = globalThis.process?.env?.npm_package_version;
-  return fromEnv || "0.0.0-dev";
-}
-function parseVersion(text) {
-  const m = /^v?\s*(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:-([0-9A-Za-z.-]+))?/.exec(String(text ?? "").trim());
-  if (!m) return { major: 0, minor: 0, patch: 0 };
-  return {
-    major: Number(m[1]),
-    minor: m[2] === void 0 ? 0 : Number(m[2]),
-    patch: m[3] === void 0 ? 0 : Number(m[3]),
-    pre: m[4]
-  };
-}
-function compareVersions(a, b) {
-  const x = parseVersion(a);
-  const y = parseVersion(b);
-  if (x.major !== y.major) return x.major < y.major ? -1 : 1;
-  if (x.minor !== y.minor) return x.minor < y.minor ? -1 : 1;
-  if (x.patch !== y.patch) return x.patch < y.patch ? -1 : 1;
-  if (x.pre === y.pre) return 0;
-  if (x.pre === void 0) return 1;
-  if (y.pre === void 0) return -1;
-  return x.pre < y.pre ? -1 : x.pre > y.pre ? 1 : 0;
-}
-var ENGINE_VERSION;
-var init_versions = __esm({
-  "src/shared/versions.ts"() {
-    ENGINE_VERSION = readEngineVersion();
-  }
-});
-
-// src/core/loader.ts
-function isExternalUrl(path) {
-  return /^(?:https?:)?\/\//i.test(path) || /^(?:asset|tauri|ipc):\/\//i.test(path) || path.startsWith("data:") || path.startsWith("blob:");
-}
-var init_loader = __esm({
-  "src/core/loader.ts"() {
-    init_migrate();
-    init_ruleFiles();
-    init_versions();
-  }
-});
-
-// src/shared/types.ts
-function featureOn(meta, key) {
-  return meta.features?.[key] !== false;
-}
-var DEFAULT_EMOTION;
-var init_types = __esm({
-  "src/shared/types.ts"() {
-    DEFAULT_EMOTION = { id: "neutral", label: "\u041E\u0431\u044B\u0447\u043D\u044B\u0439" };
-  }
-});
-
-// src/shared/skills.ts
-function skillLabel(id, campaignSkills) {
-  const fromCampaign = campaignSkills?.find((s) => s.id === id)?.label;
-  return fromCampaign ?? BUILTIN_SKILL_LABELS[id] ?? id;
-}
-var BUILTIN_SKILL_LABELS;
-var init_skills = __esm({
-  "src/shared/skills.ts"() {
-    BUILTIN_SKILL_LABELS = {
-      sword: "\u041C\u0435\u0447\u0438",
-      axe: "\u0422\u043E\u043F\u043E\u0440\u044B",
-      spear: "\u041A\u043E\u043F\u044C\u044F",
-      mace: "\u0414\u0440\u043E\u0431\u044F\u0449\u0435\u0435",
-      dagger: "\u041A\u0438\u043D\u0436\u0430\u043B\u044B",
-      bow: "\u041B\u0443\u043A\u0438",
-      crossbow: "\u0410\u0440\u0431\u0430\u043B\u0435\u0442\u044B",
-      throw: "\u041C\u0435\u0442\u0430\u043D\u0438\u0435",
-      brawl: "\u041A\u0443\u043B\u0430\u0447\u043D\u044B\u0439 \u0431\u043E\u0439",
-      shield: "\u0429\u0438\u0442\u044B",
-      dodge: "\u0423\u043A\u043B\u043E\u043D\u0435\u043D\u0438\u0435",
-      stealth: "\u0421\u043A\u0440\u044B\u0442\u043D\u043E\u0441\u0442\u044C",
-      spot: "\u041D\u0430\u0431\u043B\u044E\u0434\u0430\u0442\u0435\u043B\u044C\u043D\u043E\u0441\u0442\u044C",
-      listen: "\u0421\u043B\u0443\u0445",
-      search: "\u041E\u0431\u044B\u0441\u043A",
-      track: "\u0421\u043B\u0435\u0434\u043E\u043F\u044B\u0442\u0441\u0442\u0432\u043E",
-      persuade: "\u0423\u0431\u0435\u0436\u0434\u0435\u043D\u0438\u0435",
-      bargain: "\u0422\u043E\u0440\u0433\u043E\u0432\u043B\u044F",
-      intimidate: "\u0417\u0430\u043F\u0443\u0433\u0438\u0432\u0430\u043D\u0438\u0435",
-      charm: "\u041E\u0431\u0430\u044F\u043D\u0438\u0435",
-      deceive: "\u041E\u0431\u043C\u0430\u043D",
-      etiquette: "\u042D\u0442\u0438\u043A\u0435\u0442",
-      first_aid: "\u041F\u0435\u0440\u0432\u0430\u044F \u043F\u043E\u043C\u043E\u0449\u044C",
-      medicine: "\u041C\u0435\u0434\u0438\u0446\u0438\u043D\u0430",
-      herbalism: "\u0422\u0440\u0430\u0432\u043D\u0438\u0447\u0435\u0441\u0442\u0432\u043E",
-      athletics: "\u0410\u0442\u043B\u0435\u0442\u0438\u043A\u0430",
-      climb: "\u041B\u0430\u0437\u0430\u043D\u0438\u0435",
-      swim: "\u041F\u043B\u0430\u0432\u0430\u043D\u0438\u0435",
-      jump: "\u041F\u0440\u044B\u0436\u043A\u0438",
-      ride: "\u0412\u0435\u0440\u0445\u043E\u0432\u0430\u044F \u0435\u0437\u0434\u0430",
-      survival: "\u0412\u044B\u0436\u0438\u0432\u0430\u043D\u0438\u0435",
-      craft: "\u0420\u0435\u043C\u0435\u0441\u043B\u043E",
-      repair: "\u041F\u043E\u0447\u0438\u043D\u043A\u0430",
-      lore: "\u0417\u043D\u0430\u043D\u0438\u044F",
-      occult: "\u041E\u043A\u043A\u0443\u043B\u044C\u0442\u0438\u0437\u043C",
-      navigate: "\u041E\u0440\u0438\u0435\u043D\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435",
-      sleight: "\u041B\u043E\u0432\u043A\u043E\u0441\u0442\u044C \u0440\u0443\u043A",
-      lockpick: "\u0412\u0437\u043B\u043E\u043C",
-      bite: "\u0423\u043A\u0443\u0441",
-      club: "\u0414\u0443\u0431\u0438\u043D\u044B",
-      claw: "\u041A\u043E\u0433\u0442\u0438"
-    };
-  }
-});
-
-// src/editor/store.ts
-var store_exports = {};
-__export(store_exports, {
-  EditorStore: () => EditorStore,
-  FIRE_RULE_MAX_DEPTH: () => FIRE_RULE_MAX_DEPTH
-});
-function walkEffects(effects, fn) {
-  for (const e of effects ?? []) {
-    fn(e);
-    if (e.type === "skill_check_gate") {
-      walkEffects(e.success_effects ?? [], fn);
-      walkEffects(e.fail_effects ?? [], fn);
-    } else if (e.type === "stat_check") {
-      walkEffects(e.success_effects ?? [], fn);
-      walkEffects(e.fail_effects ?? [], fn);
-    } else if (e.type === "opposed_check") {
-      walkEffects(e.success_effects ?? [], fn);
-      walkEffects(e.fail_effects ?? [], fn);
-    } else if (e.type === "group_stat_check") {
-      walkEffects(e.success_effects ?? [], fn);
-      walkEffects(e.fail_effects ?? [], fn);
-    } else if (e.type === "start_pursuit") {
-      walkEffects(e.on_fail ?? [], fn);
-    }
-  }
-}
-var FIRE_RULE_MAX_DEPTH, EditorStore;
-var init_store = __esm({
-  "src/editor/store.ts"() {
-    init_migrate();
-    init_aiBaseline();
-    init_loader();
-    init_ruleFiles();
-    init_versions();
-    init_types();
-    init_skills();
-    FIRE_RULE_MAX_DEPTH = 2;
-    EditorStore = class _EditorStore {
-      basePath;
-      // "/campaigns/ash-of-caerden"
-      // до load() — безопасные пустые значения: рендер между сменой кампании
-      // и загрузкой не должен падать (фидбек №4–5 шестого раунда)
-      meta = { id: "", title: "" };
-      world = { regions: [] };
-      manifest = { scenes: [], entities: [], rules: [], arenas: [], quests: [], encounters: [], cutscenes: [], dialogues: [] };
-      /** JSON-документы по путям пакета */
-      jsonFiles = /* @__PURE__ */ new Map();
-      /** текстовые документы (.ink) по путям пакета */
-      textFiles = /* @__PURE__ */ new Map();
-      /** предупреждения загрузки (битые/перепутанные файлы пакета): показывает баннер */
-      loadWarnings = [];
-      dirty = /* @__PURE__ */ new Set();
-      listeners = /* @__PURE__ */ new Set();
-      /** undo: снимки «до изменения» (path + сериализация), максимум 100 шагов */
-      undoStack = [];
-      /** текущая сериализация файлов — чтобы снять снимок «до» в момент touch */
-      snapshots = /* @__PURE__ */ new Map();
-      /** содержимое файлов на диске (на момент загрузки/сохранения) — для точного счётчика «несохранено» */
-      saved = /* @__PURE__ */ new Map();
-      /** исходные снимки файлов на момент загрузки/импорта кампании для фиксации изменений мастера */
-      baseline = /* @__PURE__ */ new Map();
-      lastTouch = { path: "", group: "", at: 0 };
-      /** версия формата сохранённого снимка базы правок мастера (при смене формата старые ключи игнорируются) */
-      static AI_BASELINE_VERSION = 1;
-      /** верхний лимит сохраняемого снимка в символах JSON — страховка от квоты localStorage (~5 МБ в браузерах) */
-      static AI_BASELINE_LIMIT = 4 * 1024 * 1024;
-      constructor(basePath) {
-        this.basePath = basePath;
-      }
-      subscribe(fn) {
-        this.listeners.add(fn);
-        return () => this.listeners.delete(fn);
-      }
-      notify() {
-        for (const fn of this.listeners) fn();
-      }
-      async load() {
-        const get = async (rel) => {
-          const res = await fetch(`${this.basePath}/${rel}?t=${Date.now()}`);
-          if (!res.ok) throw new Error(`\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C ${rel}: ${res.status}`);
-          return res;
-        };
-        const getJson = async (rel) => {
-          const text = await (await get(rel)).text();
-          try {
-            return JSON.parse(text);
-          } catch {
-            throw new Error(`\u0424\u0430\u0439\u043B ${rel} \u043E\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442 \u0438\u043B\u0438 \u043F\u043E\u0432\u0440\u0435\u0436\u0434\u0451\u043D (\u043A\u0430\u043C\u043F\u0430\u043D\u0438\u044F \u0437\u0430\u043F\u0438\u0441\u0430\u043D\u0430 \u043D\u0435 \u043F\u043E\u043B\u043D\u043E\u0441\u0442\u044C\u044E?)`);
-          }
-        };
-        this.meta = await getJson("campaign.json");
-        this.world = await getJson("world.json");
-        this.manifest = await getJson("manifest.json");
-        const jobs = [];
-        const loadJson = (rel) => jobs.push(get(rel).then(async (r) => void this.jsonFiles.set(rel, await r.json())));
-        const loadText = (rel) => jobs.push(get(rel).then(async (r) => void this.textFiles.set(rel, await r.text())));
-        for (const f of this.manifest.scenes) loadJson(`scenes/${f}`);
-        for (const f of this.manifest.entities) loadJson(`entities/${f}`);
-        for (const f of this.manifest.rules) loadJson(`rules/${f}`);
-        for (const f of this.manifest.arenas ?? []) loadJson(`arenas/${f}`);
-        for (const f of this.manifest.quests ?? []) loadJson(`quests/${f}`);
-        for (const f of this.manifest.encounters ?? []) {
-          jobs.push(
-            (async () => {
-              let r = await fetch(`${this.basePath}/encounters/${f}?t=${Date.now()}`);
-              let path = `encounters/${f}`;
-              if (!r.ok) {
-                r = await fetch(`${this.basePath}/rules/${f}?t=${Date.now()}`);
-                path = `rules/${f}`;
-              }
-              if (r.ok) {
-                try {
-                  this.jsonFiles.set(path, await r.json());
-                } catch {
-                }
-              }
-            })()
-          );
-        }
-        for (const f of this.manifest.cutscenes ?? []) loadJson(`cutscenes/${f}`);
-        for (const f of this.manifest.recipes ?? []) loadJson(`recipes/${f}`);
-        for (const f of this.manifest.codex ?? []) loadJson(`codex/${f}`);
-        for (const f of this.manifest.dialogues) loadText(`dialogues/${f}`);
-        for (const f of this.manifest.dialogues) {
-          const rel = `dialogues/${f.replace(/\.ink$/, ".dlg.json")}`;
-          jobs.push(
-            fetch(`${this.basePath}/${rel}?t=${Date.now()}`).then(async (r) => {
-              if (r.ok && (r.headers.get("content-type") ?? "").includes("json")) {
-                this.jsonFiles.set(rel, await r.json());
-              }
-            }).catch(() => void 0)
-          );
-        }
-        await Promise.all(jobs);
-        this.sanitizeRules();
-        this.migrateContent();
-        for (const p of this.allPaths()) {
-          this.snapshots.set(p, this.fileText(p));
-          this.saved.set(p, this.fileText(p));
-        }
-        if (!this.restoreBaseline()) this.captureBaseline();
-      }
-      /**
-       * Разбор файлов из manifest.rules: таблицы встреч уходят в manifest.encounters,
-       * файлы без id отбрасываются, у правил восстанавливаются массивы conditions/
-       * effects. Всё предупреждениями в loadWarnings — их показывает баннер редактора.
-       */
-      sanitizeRules() {
-        this.loadWarnings = [];
-        const kept = [];
-        const seenIds = /* @__PURE__ */ new Set();
-        for (const f of this.manifest.rules) {
-          const rel = `rules/${f}`;
-          const verdict = parseRuleFile(f, this.jsonFiles.get(rel));
-          if (verdict.warnings.length) this.loadWarnings.push(...verdict.warnings);
-          if (verdict.kind === "rule") {
-            if (seenIds.has(verdict.rule.id)) {
-              this.loadWarnings.push(`rules/${f}: \u0434\u0443\u0431\u043B\u044C id \xAB${verdict.rule.id}\xBB \u2014 \u0444\u0430\u0439\u043B \u0438\u0441\u043A\u043B\u044E\u0447\u0451\u043D \u0438\u0437 manifest.rules.`);
-              continue;
-            }
-            seenIds.add(verdict.rule.id);
-            this.jsonFiles.set(rel, verdict.rule);
-            kept.push(f);
-          } else if (verdict.kind === "encounters") {
-            this.jsonFiles.set(rel, { encounter_tables: verdict.tables });
-            if (!this.manifest.encounters) this.manifest.encounters = [];
-            if (!this.manifest.encounters.includes(f)) this.manifest.encounters.push(f);
-          }
-        }
-        const dropped = this.manifest.rules.length - kept.length;
-        if (dropped > 0) this.manifest.rules = kept;
-      }
-      // ─────────────── доступ с типами ───────────────
-      scenePaths() {
-        return this.manifest.scenes.map((f) => `scenes/${f}`);
-      }
-      entityPaths() {
-        return this.manifest.entities.map((f) => `entities/${f}`);
-      }
-      rulePaths() {
-        return this.manifest.rules.map((f) => `rules/${f}`);
-      }
-      arenaPaths() {
-        return (this.manifest.arenas ?? []).map((f) => `arenas/${f}`);
-      }
-      questPaths() {
-        return (this.manifest.quests ?? []).map((f) => `quests/${f}`);
-      }
-      /**
-       * Персонаж, который ведёт этот диалог (ссылка `dialogue` в сущности NPC).
-       * Нужен, чтобы в списках вместо имени файла стояло человеческое имя.
-       */
-      npcForDialogue(inkPath) {
-        for (const p of this.entityPaths()) {
-          const e = this.entity(p);
-          if (e?.type === "npc" && e.dialogue === inkPath) return e;
-        }
-        return void 0;
-      }
-      /** Читаемое имя диалога: подпись документа → имя ведущего персонажа → русское имя или имя файла словами. */
-      dialogueLabel(inkPath) {
-        const doc = this.jsonFiles.get(inkPath.replace(/\.ink$/, ".dlg.json"));
-        if (doc?.label) return doc.label;
-        const npc = this.npcForDialogue(inkPath);
-        if (npc) return npc.label;
-        const base = inkPath.replace("dialogues/", "").replace(/\.ink$/, "");
-        const DIALOGUE_RU = {
-          heart: "\u0421\u0435\u0440\u0434\u0446\u0435",
-          core: "\u042F\u0434\u0440\u043E",
-          choir: "\u0425\u043E\u0440",
-          clock: "\u0427\u0430\u0441\u044B",
-          guard: "\u0421\u0442\u0440\u0430\u0436\u0430",
-          abbot: "\u041D\u0430\u0441\u0442\u043E\u044F\u0442\u0435\u043B\u044C"
-        };
-        if (DIALOGUE_RU[base.toLowerCase()]) return DIALOGUE_RU[base.toLowerCase()];
-        const allEnts = this.entityPaths().map((p) => this.entity(p));
-        for (const ent of allEnts) {
-          if (ent && (ent.id === base || ent.id === `item_${base}` || ent.id === `npc_${base}`) && ent.label) {
-            return ent.label;
-          }
-        }
-        return base.replace(/[_-]+/g, " ").replace(/^./, (ch) => ch.toUpperCase());
-      }
-      dialoguePaths() {
-        return this.manifest.dialogues.map((f) => `dialogues/${f}`);
-      }
-      cutscenePaths() {
-        return (this.manifest.cutscenes ?? []).map((f) => `cutscenes/${f}`);
-      }
-      recipePaths() {
-        return (this.manifest.recipes ?? []).map((f) => `recipes/${f}`);
-      }
-      codexPaths() {
-        return (this.manifest.codex ?? []).map((f) => `codex/${f}`);
-      }
-      scene(path) {
-        return this.jsonFiles.get(path);
-      }
-      entity(path) {
-        const e = this.jsonFiles.get(path);
-        if (e && e.type === "npc" && typeof e.description !== "string") {
-          ;
-          e.description = "";
-        }
-        return e;
-      }
-      rule(path) {
-        return this.jsonFiles.get(path);
-      }
-      arena(path) {
-        return this.jsonFiles.get(path);
-      }
-      quest(path) {
-        return this.jsonFiles.get(path);
-      }
-      cutscene(path) {
-        return this.jsonFiles.get(path);
-      }
-      recipe(path) {
-        return this.jsonFiles.get(path);
-      }
-      codexEntry(path) {
-        return this.jsonFiles.get(path);
-      }
-      /** id всех рецептов кампании (для ссылок unlock_recipe) */
-      recipeIds() {
-        return new Set(this.recipePaths().map((p) => this.recipe(p)?.id).filter((x) => !!x));
-      }
-      /**
-       * Ключи состояний облика НПЦ: его собственные портреты и спрайты сцены
-       * плюс общий реестр состояний meta.emotions. Пустая строка — обычный облик.
-       */
-      entityStateKeys(entityId) {
-        const out = /* @__PURE__ */ new Set(["", DEFAULT_EMOTION.id]);
-        for (const e of this.meta.emotions ?? []) out.add(e.id);
-        const npc = this.entityPaths().map((p) => this.entity(p)).find((e) => e?.id === entityId);
-        if (npc && npc.type === "npc") {
-          for (const k of Object.keys(npc.portrait ?? {})) out.add(k);
-          for (const k of Object.keys(npc.scene_sprite_states ?? {})) out.add(k);
-          for (const k of Object.keys(npc.combat_figure_states ?? {})) out.add(k);
-        }
-        return out;
-      }
-      /**
-       * Циклы правил через эффект fire_rule (прямой вызов себя и транзитивные
-       * петли). Возвращает список замкнутых цепочек для отчёта «Проверить кампанию».
-       */
-      fireRuleCycles() {
-        const edges = /* @__PURE__ */ new Map();
-        for (const p of this.rulePaths()) {
-          const r = this.rule(p);
-          if (!r) continue;
-          const to = [];
-          walkEffects(r.effects ?? [], (e) => {
-            if (e.type === "fire_rule") to.push(e.rule);
-          });
-          edges.set(r.id, to);
-        }
-        const cycles = [];
-        const state = /* @__PURE__ */ new Map();
-        const stack = [];
-        const labels = /* @__PURE__ */ new Map();
-        for (const p of this.rulePaths()) {
-          const r = this.rule(p);
-          if (r) labels.set(r.id, r.label || r.id);
-        }
-        const visit = (id) => {
-          const st = state.get(id) ?? 0;
-          if (st === 2) return;
-          if (st === 1) {
-            const from = stack.indexOf(id);
-            if (from >= 0) cycles.push([...stack.slice(from), id]);
-            return;
-          }
-          state.set(id, 1);
-          stack.push(id);
-          for (const next of edges.get(id) ?? []) visit(next);
-          stack.pop();
-          state.set(id, 2);
-        };
-        for (const id of edges.keys()) visit(id);
-        return cycles.map((c) => c.map((id) => `\xAB${labels.get(id) ?? id}\xBB`));
-      }
-      /** списки id для подсказок в полях */
-      /** все флаги, упомянутые в правилах/квестах/ink — для подсказок в конструкторах */
-      knownFlags() {
-        const flags = /* @__PURE__ */ new Set();
-        const scan = (o) => {
-          if (Array.isArray(o)) {
-            o.forEach(scan);
-            return;
-          }
-          if (o && typeof o === "object") {
-            const r = o;
-            if (typeof r.flag === "string") flags.add(r.flag);
-            for (const v of Object.values(r)) scan(v);
-          }
-        };
-        for (const p of this.rulePaths()) scan(this.rule(p));
-        for (const p of this.questPaths()) scan(this.quest(p));
-        for (const [, text] of this.textFiles) {
-          for (const m of text.matchAll(/(?:get_flag|set_flag)\("([^"]+)"\)/g)) flags.add(m[1]);
-        }
-        return [...flags].sort();
-      }
-      /** пары id+label для выпадающих списков (в UI мастер видит названия, не id) */
-      options(kind) {
-        const out = [];
-        if (kind === "currency") {
-          for (const c of this.meta.currencies ?? []) out.push({ id: c.id, label: c.label });
-        } else if (kind === "entity" || kind === "item" || kind === "npc") {
-          for (const p of this.entityPaths()) {
-            const e = this.entity(p);
-            if (!e) continue;
-            if (kind === "entity" || e.type === kind) out.push({ id: e.id, label: e.label || e.id });
-          }
-        } else if (kind === "scene") {
-          for (const p of this.scenePaths()) {
-            const sc = this.scene(p);
-            if (sc) out.push({ id: sc.id, label: sc.label || sc.id });
-          }
-        } else if (kind === "quest") {
-          for (const p of this.questPaths()) {
-            const q = this.quest(p);
-            if (q) out.push({ id: q.id, label: q.label || q.id });
-          }
-        } else if (kind === "arena") {
-          for (const p of this.arenaPaths()) {
-            const a = this.arena(p);
-            if (a) out.push({ id: a.id, label: a.label || a.id });
-          }
-        } else if (kind === "rule") {
-          for (const p of this.rulePaths()) {
-            const r = this.rule(p);
-            if (r) out.push({ id: r.id, label: r.label || r.id });
-          }
-        } else if (kind === "cutscene") {
-          for (const p of this.cutscenePaths()) {
-            const c = this.cutscene(p);
-            if (c) out.push({ id: c.id, label: c.label || c.id });
-          }
-        } else if (kind === "location") {
-          const walk = (regions) => {
-            for (const r of regions) {
-              for (const l of r.locations) out.push({ id: l.id, label: l.label || l.id });
-              if (r.sub_regions) walk(r.sub_regions);
-            }
-          };
-          walk(this.world.regions);
-        } else if (kind === "dialogue") {
-          for (const p of this.dialoguePaths()) out.push({ id: p, label: this.dialogueLabel(p) });
-        } else if (kind === "faction") {
-          for (const f of this.meta.factions ?? []) out.push({ id: f.id, label: f.label || f.id });
-        } else if (kind === "skill") {
-          for (const sk of this.meta.skills ?? []) out.push({ id: sk.id, label: sk.label || skillLabel(sk.id, this.meta.skills) });
-        } else if (kind === "need") {
-          for (const n of this.meta.needs) out.push({ id: n.id, label: n.label || n.id });
-        } else if (kind === "status") {
-          for (const s of this.meta.statuses ?? []) out.push({ id: s.id, label: s.label || s.id });
-        } else if (kind === "ability") {
-          for (const a of this.meta.abilities ?? []) out.push({ id: a.id, label: a.label || a.id });
-        } else if (kind === "weather") {
-          out.push({ id: "", label: "\u042F\u0441\u043D\u043E" });
-          for (const w of this.meta.weathers ?? []) out.push({ id: w.id, label: w.label || w.id });
-        } else if (kind === "codex") {
-          for (const p of this.codexPaths()) {
-            const c = this.codexEntry(p);
-            if (c) out.push({ id: c.id, label: c.label || c.id });
-          }
-        } else if (kind === "recipe") {
-          for (const p of this.recipePaths()) {
-            const r = this.recipe(p);
-            if (r) out.push({ id: r.id, label: r.label || r.id });
-          }
-        } else if (kind === "emotion") {
-          out.push({ id: DEFAULT_EMOTION.id, label: DEFAULT_EMOTION.label });
-          for (const e of this.meta.emotions ?? []) out.push({ id: e.id, label: e.label || e.id });
-        } else if (kind === "disposition") {
-          for (const f of this.meta.factions ?? []) out.push({ id: f.id, label: `${f.label || f.id} (\u0444\u0440\u0430\u043A\u0446\u0438\u044F)` });
-          for (const o of this.options("npc")) out.push({ id: o.id, label: `${o.label} (NPC)` });
-        } else if (kind === "duration_action") {
-          for (const d of this.meta.duration_actions ?? []) out.push({ id: d.id, label: d.label || d.id });
-        } else if (kind === "itemCategory") {
-          for (const c of this.meta.item_categories ?? []) out.push({ id: c.id, label: c.label || c.id });
-        } else if (kind === "flag") {
-          const seen = /* @__PURE__ */ new Set();
-          for (const f of this.meta.flags ?? []) {
-            out.push({ id: f.id, label: f.label || f.id });
-            seen.add(f.id);
-          }
-          for (const f of this.knownFlags()) if (!seen.has(f)) out.push({ id: f, label: f });
-        }
-        return out.sort((a, b) => a.label.localeCompare(b.label, "ru"));
-      }
-      /** название стадии или журнальной записи квеста (для сводок правил) */
-      questStageLabel(questId, key) {
-        for (const p of this.questPaths()) {
-          const q = this.quest(p);
-          if (q?.id !== questId) continue;
-          const st = q.stages.find((s) => s.id === key);
-          return st?.label ?? key;
-        }
-        return key;
-      }
-      /** src для предпросмотра ассета: файл пакета или внешняя ссылка (итерация 8, блок C) */
-      assetSrc(path) {
-        if (!path) return "";
-        if (isExternalUrl(path)) return path;
-        return `${this.basePath}/${path}`;
-      }
-      /** название по id (для сводок) */
-      labelFor(kind, id) {
-        return this.options(kind).find((o) => o.id === id)?.label ?? id;
-      }
-      /** сохранить бинарный файл (картинку) в кампанию; возвращает путь внутри кампании */
-      async saveBinary(relPath, file) {
-        const buf = await file.arrayBuffer();
-        let bin = "";
-        const bytes = new Uint8Array(buf);
-        for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-        const b64 = btoa(bin);
-        const res = await fetch(this.saveEndpoint(), {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ path: `${this.campaignRel()}/${relPath}`, base64: b64 })
-        });
-        if (!res.ok) throw new Error(`${relPath}: ${res.status} ${await res.text()}`);
-        return relPath;
-      }
-      ids(kind) {
-        const out = [];
-        if (kind === "entity" || kind === "item" || kind === "npc") {
-          for (const p of this.entityPaths()) {
-            const e = this.entity(p);
-            if (!e) continue;
-            if (kind === "entity" || e.type === kind) out.push(e.id);
-          }
-        } else if (kind === "scene") {
-          for (const p of this.scenePaths()) out.push(this.scene(p)?.id ?? "");
-        } else if (kind === "quest") {
-          for (const p of this.questPaths()) out.push(this.quest(p)?.id ?? "");
-        } else if (kind === "arena") {
-          for (const p of this.arenaPaths()) out.push(this.arena(p)?.id ?? "");
-        } else if (kind === "rule") {
-          for (const p of this.rulePaths()) out.push(this.rule(p)?.id ?? "");
-        } else if (kind === "cutscene") {
-          for (const p of this.cutscenePaths()) out.push(this.cutscene(p)?.id ?? "");
-        } else if (kind === "recipe") {
-          for (const p of this.recipePaths()) out.push(this.recipe(p)?.id ?? "");
-        } else if (kind === "codex") {
-          for (const p of this.codexPaths()) out.push(this.codexEntry(p)?.id ?? "");
-        } else if (kind === "location") {
-          const walk = (regions) => {
-            for (const r of regions) {
-              for (const l of r.locations) out.push(l.id);
-              if (r.sub_regions) walk(r.sub_regions);
-            }
-          };
-          walk(this.world.regions);
-        }
-        return out.filter(Boolean).sort();
-      }
-      // ─────────────── миграции и валидация ───────────────
-      /**
-       * Мягкие миграции контента (итерация 8). Старый формат остаётся читаемым:
-       * одиночные location/item в условиях потребностей превращаются в списки,
-       * переходы «в локацию» из сцен — в «открыть карту».
-       */
-      migrateContent() {
-        const notes = [];
-        migrateMeta(this.meta);
-        const soundIds = new Set((this.meta.sounds ?? []).map((s) => s.id));
-        for (const w of this.meta.weathers ?? []) {
-          if (!w.ambient?.length) continue;
-          w.ambient = w.ambient.map((id) => {
-            if (soundIds.has(id)) return id;
-            const alt = id.startsWith("snd_") ? id.replace(/^snd_/, "sfx_") : id.startsWith("sfx_") ? id.replace(/^sfx_/, "snd_") : "";
-            return alt && soundIds.has(alt) ? alt : id;
-          });
-        }
-        for (const p of this.scenePaths()) {
-          const sc = this.scene(p);
-          if (!sc) continue;
-          const before = JSON.stringify(sc.navigation);
-          migrateNavigation(sc, this.world);
-          if (JSON.stringify(sc.navigation) !== before) {
-            notes.push(`\u0421\u0446\u0435\u043D\u0430 \xAB${sc.label}\xBB: \u043F\u0435\u0440\u0435\u0445\u043E\u0434 \xAB\u0432 \u043B\u043E\u043A\u0430\u0446\u0438\u044E\xBB \u0437\u0430\u043C\u0435\u043D\u0451\u043D \u043D\u0430 \xAB\u043E\u0442\u043A\u0440\u044B\u0442\u044C \u043A\u0430\u0440\u0442\u0443\xBB`);
-          }
-        }
-        return notes;
-      }
-      /**
-       * Проверка целостности кампании (итерация 8, А6/блок F).
-       * Возвращает список проблем по-русски — импорт и загрузка не падают,
-       * мастеру показывается отчёт.
-       */
-      validateContent() {
-        const issues = [];
-        const semver = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
-        if (!this.meta.version) issues.push("\u041A\u0430\u043C\u043F\u0430\u043D\u0438\u044F: \u043D\u0435 \u0437\u0430\u043F\u043E\u043B\u043D\u0435\u043D\u0430 \u0432\u0435\u0440\u0441\u0438\u044F (\u043D\u0443\u0436\u043D\u0430 \u0434\u043B\u044F \u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0439 \u0438 \u0441\u043E\u0432\u043C\u0435\u0441\u0442\u0438\u043C\u043E\u0441\u0442\u0438 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u0439)");
-        else if (!semver.test(this.meta.version)) issues.push(`\u041A\u0430\u043C\u043F\u0430\u043D\u0438\u044F: \u0432\u0435\u0440\u0441\u0438\u044F \xAB${this.meta.version}\xBB \u043D\u0435 \u043F\u043E\u0445\u043E\u0436\u0430 \u043D\u0430 semver (\u043E\u0436\u0438\u0434\u0430\u0435\u0442\u0441\u044F \u0432\u0438\u0434 1.4.2)`);
-        const minEngine = this.meta.min_engine ?? this.meta.engine_version;
-        if (minEngine && !/^\d+(\.\d+){0,2}(?:-[0-9A-Za-z.-]+)?$/.test(minEngine)) {
-          issues.push(`\u041A\u0430\u043C\u043F\u0430\u043D\u0438\u044F: \u043C\u0438\u043D\u0438\u043C\u0430\u043B\u044C\u043D\u044B\u0439 \u0434\u0432\u0438\u0436\u043E\u043A \xAB${minEngine}\xBB \u043D\u0435 \u043F\u043E\u0445\u043E\u0436 \u043D\u0430 \u043D\u043E\u043C\u0435\u0440 \u0432\u0435\u0440\u0441\u0438\u0438`);
-        }
-        if (this.meta.save_base_version) {
-          if (!semver.test(this.meta.save_base_version)) issues.push(`\u041A\u0430\u043C\u043F\u0430\u043D\u0438\u044F: \u0433\u0440\u0430\u043D\u0438\u0446\u0430 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u0439 \xAB${this.meta.save_base_version}\xBB \u043D\u0435 \u043F\u043E\u0445\u043E\u0436\u0430 \u043D\u0430 semver`);
-          else if (compareVersions(this.meta.save_base_version, this.meta.version) > 0) {
-            issues.push(`\u041A\u0430\u043C\u043F\u0430\u043D\u0438\u044F: \u0433\u0440\u0430\u043D\u0438\u0446\u0430 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u0439 ${this.meta.save_base_version} \u043D\u043E\u0432\u0435\u0435 \u0432\u0435\u0440\u0441\u0438\u0438 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 ${this.meta.version} \u2014 \u0442\u0430\u043A \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u044F \u043D\u0435 \u043E\u0442\u043A\u0440\u043E\u044E\u0442\u0441\u044F \u043D\u0438 \u0443 \u043A\u043E\u0433\u043E`);
-          }
-        }
-        const scenes = {};
-        for (const p of this.scenePaths()) {
-          const sc = this.scene(p);
-          if (sc) scenes[sc.id] = sc;
-        }
-        const locationIds = new Set(this.ids("location"));
-        const sceneIds = new Set(Object.keys(scenes));
-        const entityIds = new Set(this.ids("entity"));
-        const questIds = new Set(this.ids("quest"));
-        const arenaIds = new Set(this.ids("arena"));
-        const ruleIds = new Set(this.ids("rule"));
-        const cutsceneIds = new Set(this.ids("cutscene"));
-        for (const p of this.cutscenePaths()) {
-          const c = this.cutscene(p);
-          if (!c) continue;
-          if (!c.slides?.length) issues.push(`\u041A\u0430\u0442\u0441\u0446\u0435\u043D\u0430 \xAB${c.label}\xBB: \u043D\u0435\u0442 \u043D\u0438 \u043E\u0434\u043D\u043E\u0433\u043E \u0441\u043B\u0430\u0439\u0434\u0430`);
-        }
-        for (const loc of allLocations(this.world)) {
-          for (const sc of loc.scenes) {
-            if (!sceneIds.has(sc)) issues.push(`\u041B\u043E\u043A\u0430\u0446\u0438\u044F \xAB${loc.label}\xBB: \u0441\u0446\u0435\u043D\u044B \xAB${sc}\xBB \u043D\u0435\u0442 \u0432 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438`);
-          }
-          if (loc.arrival_scene && !loc.scenes.includes(loc.arrival_scene)) {
-            issues.push(`\u041B\u043E\u043A\u0430\u0446\u0438\u044F \xAB${loc.label}\xBB: \u0441\u0446\u0435\u043D\u0430 \u043F\u043E \u043F\u0440\u0438\u0431\u044B\u0442\u0438\u0438 \xAB${loc.arrival_scene}\xBB \u043D\u0435 \u0432\u0445\u043E\u0434\u0438\u0442 \u0432 \u0441\u043F\u0438\u0441\u043E\u043A \u0435\u0451 \u0441\u0446\u0435\u043D`);
-          }
-          if (loc.arena && !arenaIds.has(loc.arena)) {
-            issues.push(`\u041B\u043E\u043A\u0430\u0446\u0438\u044F \xAB${loc.label}\xBB: \u0430\u0440\u0435\u043D\u0430 \xAB${loc.arena}\xBB \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u0430`);
-          }
-          for (const tc of loc.travel_connections) {
-            if (!locationIds.has(tc.to)) issues.push(`\u041B\u043E\u043A\u0430\u0446\u0438\u044F \xAB${loc.label}\xBB: \u0434\u043E\u0440\u043E\u0433\u0430 \u0432\u0435\u0434\u0451\u0442 \u0432 \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0443\u044E \u043B\u043E\u043A\u0430\u0446\u0438\u044E \xAB${tc.to}\xBB`);
-          }
-        }
-        for (const p of this.scenePaths()) {
-          const sc = this.scene(p);
-          if (!sc) continue;
-          if (sc.location && !locationIds.has(sc.location)) {
-            issues.push(`\u0421\u0446\u0435\u043D\u0430 \xAB${sc.label}\xBB: \u043B\u043E\u043A\u0430\u0446\u0438\u044F \xAB${sc.location}\xBB \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u0430`);
-          }
-          for (const nav of sc.navigation) {
-            if (!nav.go_to_scene) continue;
-            const target = scenes[nav.go_to_scene];
-            if (!target) {
-              issues.push(`\u0421\u0446\u0435\u043D\u0430 \xAB${sc.label}\xBB: \u043F\u0435\u0440\u0435\u0445\u043E\u0434 \xAB${nav.label}\xBB \u0432\u0435\u0434\u0451\u0442 \u0432 \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0443\u044E \u0441\u0446\u0435\u043D\u0443 \xAB${nav.go_to_scene}\xBB`);
-            } else if (target.location !== sc.location) {
-              issues.push(
-                `\u0421\u0446\u0435\u043D\u0430 \xAB${sc.label}\xBB: \u043F\u0435\u0440\u0435\u0445\u043E\u0434 \xAB${nav.label}\xBB \u0432\u0435\u0434\u0451\u0442 \u0432 \u0441\u0446\u0435\u043D\u0443 \u0434\u0440\u0443\u0433\u043E\u0439 \u043B\u043E\u043A\u0430\u0446\u0438\u0438 \xAB${target.label}\xBB (\u043C\u0435\u0436\u0434\u0443 \u043B\u043E\u043A\u0430\u0446\u0438\u044F\u043C\u0438 \u2014 \u0442\u043E\u043B\u044C\u043A\u043E \u0447\u0435\u0440\u0435\u0437 \u043A\u0430\u0440\u0442\u0443)`
-              );
-            }
-          }
-          for (const slot of sc.slots) {
-            if (slot.default_entity && !entityIds.has(slot.default_entity)) {
-              issues.push(`\u0421\u0446\u0435\u043D\u0430 \xAB${sc.label}\xBB: \u0432 \u0441\u043B\u043E\u0442\u0435 \u0441\u0442\u043E\u0438\u0442 \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0430\u044F \u0441\u0443\u0449\u043D\u043E\u0441\u0442\u044C \xAB${slot.default_entity}\xBB`);
-            }
-          }
-          if (!sc.states.length) issues.push(`\u0421\u0446\u0435\u043D\u0430 \xAB${sc.label}\xBB: \u043D\u0435\u0442 \u043D\u0438 \u043E\u0434\u043D\u043E\u0433\u043E \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u044F (\u0444\u043E\u043D\u0430)`);
-          for (const st of sc.states) {
-            if (!st.image && !st.art) issues.push(`\u0421\u0446\u0435\u043D\u0430 \xAB${sc.label}\xBB: \u0443 \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u044F \xAB${st.label}\xBB \u043D\u0435\u0442 \u043D\u0438 \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F, \u043D\u0438 \u0432\u0435\u043A\u0442\u043E\u0440\u043D\u043E\u0433\u043E \u0444\u043E\u043D\u0430`);
-          }
-        }
-        for (const p of this.entityPaths()) {
-          const e = this.entity(p);
-          if (!e || e.type !== "npc") continue;
-          if (e.dialogue && !this.textFiles.has(e.dialogue)) {
-            issues.push(`\u041F\u0435\u0440\u0441\u043E\u043D\u0430\u0436 \xAB${e.label}\xBB: \u0434\u0438\u0430\u043B\u043E\u0433 \xAB${e.dialogue}\xBB \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D`);
-          }
-          for (const s of e.schedule ?? []) {
-            if (!sceneIds.has(s.scene)) issues.push(`\u041F\u0435\u0440\u0441\u043E\u043D\u0430\u0436 \xAB${e.label}\xBB: \u0440\u0430\u0441\u043F\u0438\u0441\u0430\u043D\u0438\u0435 \u0441\u0441\u044B\u043B\u0430\u0435\u0442\u0441\u044F \u043D\u0430 \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0443\u044E \u0441\u0446\u0435\u043D\u0443 \xAB${s.scene}\xBB`);
-            else if (scenes[s.scene] && !scenes[s.scene].slots.some((sl) => sl.id === s.slot)) {
-              issues.push(`\u041F\u0435\u0440\u0441\u043E\u043D\u0430\u0436 \xAB${e.label}\xBB: \u0432 \u0441\u0446\u0435\u043D\u0435 \xAB${scenes[s.scene].label}\xBB \u043D\u0435\u0442 \u0441\u043B\u043E\u0442\u0430 \xAB${s.slot}\xBB`);
-            }
-          }
-          for (const ov of e.presence_overrides ?? []) {
-            if (!sceneIds.has(ov.scene)) {
-              issues.push(`\u041F\u0435\u0440\u0441\u043E\u043D\u0430\u0436 \xAB${e.label}\xBB: \u043E\u0441\u043E\u0431\u043E\u0435 \u043C\u0435\u0441\u0442\u043E \u0441\u0441\u044B\u043B\u0430\u0435\u0442\u0441\u044F \u043D\u0430 \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0443\u044E \u0441\u0446\u0435\u043D\u0443 \xAB${ov.scene}\xBB`);
-            }
-          }
-          for (const s of e.trader?.sells ?? []) {
-            if (!entityIds.has(s.item)) issues.push(`\u041F\u0435\u0440\u0441\u043E\u043D\u0430\u0436 \xAB${e.label}\xBB: \u0432 \u043F\u0440\u0438\u043B\u0430\u0432\u043A\u0435 \u043D\u0435\u0442 \u043F\u0440\u0435\u0434\u043C\u0435\u0442\u0430 \xAB${s.item}\xBB`);
-          }
-        }
-        for (const p of this.rulePaths()) {
-          const r = this.rule(p);
-          if (!r) continue;
-          for (const cond of r.conditions ?? []) {
-            if (cond.type === "player_enters_scene" && !sceneIds.has(cond.scene)) {
-              issues.push(`\u041F\u0440\u0430\u0432\u0438\u043B\u043E \xAB${r.label}\xBB: \u0443\u0441\u043B\u043E\u0432\u0438\u0435 \u0441\u0441\u044B\u043B\u0430\u0435\u0442\u0441\u044F \u043D\u0430 \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0443\u044E \u0441\u0446\u0435\u043D\u0443 \xAB${cond.scene}\xBB`);
-            }
-          }
-          for (const ef of r.effects ?? []) {
-            if (ef.type === "start_quest" && !questIds.has(ef.quest)) {
-              issues.push(`\u041F\u0440\u0430\u0432\u0438\u043B\u043E \xAB${r.label}\xBB: \u043A\u0432\u0435\u0441\u0442 \xAB${ef.quest}\xBB \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D`);
-            }
-            if (ef.type === "play_cutscene" && !cutsceneIds.has(ef.cutscene)) {
-              issues.push(`\u041F\u0440\u0430\u0432\u0438\u043B\u043E \xAB${r.label}\xBB: \u043A\u0430\u0442\u0441\u0446\u0435\u043D\u0430 \xAB${ef.cutscene}\xBB \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u0430`);
-            }
-            if (ef.type === "fire_rule" && !ruleIds.has(ef.rule)) {
-              issues.push(`\u041F\u0440\u0430\u0432\u0438\u043B\u043E \xAB${r.label}\xBB: \u044D\u0444\u0444\u0435\u043A\u0442 \u0432\u044B\u0437\u044B\u0432\u0430\u0435\u0442 \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0435\u0435 \u043F\u0440\u0430\u0432\u0438\u043B\u043E \xAB${ef.rule}\xBB`);
-            }
-            if (ef.type === "unlock_recipe" && !this.recipeIds().has(ef.recipe)) {
-              issues.push(`\u041F\u0440\u0430\u0432\u0438\u043B\u043E \xAB${r.label}\xBB: \u043E\u0442\u043A\u0440\u044B\u0432\u0430\u0435\u0442\u0441\u044F \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0438\u0439 \u0440\u0435\u0446\u0435\u043F\u0442 \xAB${ef.recipe}\xBB`);
-            }
-            if (ef.type === "set_entity_state") {
-              if (!entityIds.has(ef.entity)) {
-                issues.push(`\u041F\u0440\u0430\u0432\u0438\u043B\u043E \xAB${r.label}\xBB: \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u0435 \u043E\u0431\u043B\u0438\u043A\u0430 \u043D\u0430\u0437\u043D\u0430\u0447\u0430\u0435\u0442\u0441\u044F \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0435\u043C\u0443 \u043F\u0435\u0440\u0441\u043E\u043D\u0430\u0436\u0443 \xAB${ef.entity}\xBB`);
-              } else if (ef.state && !this.entityStateKeys(ef.entity).has(ef.state)) {
-                issues.push(
-                  `\u041F\u0440\u0430\u0432\u0438\u043B\u043E \xAB${r.label}\xBB: \u0443 \u043F\u0435\u0440\u0441\u043E\u043D\u0430\u0436\u0430 \xAB${ef.entity}\xBB \u043D\u0435\u0442 \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u044F \u043E\u0431\u043B\u0438\u043A\u0430 \xAB${ef.state}\xBB (\u0435\u0441\u0442\u044C: ${[...this.entityStateKeys(ef.entity)].join(", ") || "\u2014"})`
-                );
-              }
-            }
-          }
-        }
-        for (const cyc of this.fireRuleCycles()) {
-          issues.push(
-            `\u041F\u0440\u0430\u0432\u0438\u043B\u0430 \u0432\u044B\u0437\u044B\u0432\u0430\u044E\u0442 \u0434\u0440\u0443\u0433 \u0434\u0440\u0443\u0433\u0430 \u043F\u043E \u043A\u0440\u0443\u0433\u0443: ${cyc.join(" \u2192 ")}. \u0420\u0430\u0437\u043E\u0440\u0432\u0438\u0442\u0435 \u0446\u0435\u043F\u043E\u0447\u043A\u0443: \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u044B\u0445 \u0432\u044B\u0437\u043E\u0432\u043E\u0432 \u043F\u0440\u0430\u0432\u0438\u043B \u043C\u043E\u0436\u0435\u0442 \u0431\u044B\u0442\u044C \u043D\u0435 \u0431\u043E\u043B\u044C\u0448\u0435 ${FIRE_RULE_MAX_DEPTH}, \u0430 \u043F\u0440\u0430\u0432\u0438\u043B\u043E \u043D\u0435 \u0434\u043E\u043B\u0436\u043D\u043E \u0432\u043E\u0437\u0432\u0440\u0430\u0449\u0430\u0442\u044C\u0441\u044F \u0432 \u0441\u0435\u0431\u044F.`
-          );
-        }
-        for (const p of this.questPaths()) {
-          const q = this.quest(p);
-          if (!q) continue;
-          if (!q.stages.length) issues.push(`\u041A\u0432\u0435\u0441\u0442 \xAB${q.label}\xBB: \u043D\u0435\u0442 \u043D\u0438 \u043E\u0434\u043D\u043E\u0439 \u0441\u0442\u0430\u0434\u0438\u0438`);
-          else {
-            const ids = new Set(q.stages.map((s) => s.id));
-            for (const st of q.stages) {
-              for (const t of st.transitions ?? []) {
-                if (!ids.has(t.to)) issues.push(`\u041A\u0432\u0435\u0441\u0442 \xAB${q.label}\xBB: \u043F\u0435\u0440\u0435\u0445\u043E\u0434 \u0441\u0442\u0430\u0434\u0438\u0438 \xAB${st.label ?? st.id}\xBB \u0432 \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0443\u044E \u0441\u0442\u0430\u0434\u0438\u044E \xAB${t.to}\xBB`);
-              }
-            }
-            if (this.meta.starting_scene && !sceneIds.has(this.meta.starting_scene)) {
-              issues.push(`\u041A\u0430\u043C\u043F\u0430\u043D\u0438\u044F: \u0441\u0442\u0430\u0440\u0442\u043E\u0432\u0430\u044F \u0441\u0446\u0435\u043D\u0430 \xAB${this.meta.starting_scene}\xBB \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u0430`);
-            }
-          }
-        }
-        if (!locationIds.has(this.meta.starting_location)) {
-          issues.push(`\u041A\u0430\u043C\u043F\u0430\u043D\u0438\u044F: \u0441\u0442\u0430\u0440\u0442\u043E\u0432\u0430\u044F \u043B\u043E\u043A\u0430\u0446\u0438\u044F \xAB${this.meta.starting_location}\xBB \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u0430`);
-        }
-        if (!entityIds.has(this.meta.default_player)) {
-          issues.push(`\u041A\u0430\u043C\u043F\u0430\u043D\u0438\u044F: \u043F\u0435\u0440\u0441\u043E\u043D\u0430\u0436 \u0438\u0433\u0440\u043E\u043A\u0430 \xAB${this.meta.default_player}\xBB \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D`);
-        }
-        for (const need of this.meta.needs ?? []) {
-          if (need.on_zero_effect && need.on_zero_effect !== "death" && !ruleIds.has(need.on_zero_effect)) {
-            issues.push(`\u041F\u043E\u0442\u0440\u0435\u0431\u043D\u043E\u0441\u0442\u044C \xAB${need.label}\xBB: \u043F\u0440\u0430\u0432\u0438\u043B\u043E \xAB${need.on_zero_effect}\xBB \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E`);
-          }
-        }
-        const designDoc = (this.meta.design_doc ?? "").trim();
-        if (designDoc) {
-          const npcIds = /* @__PURE__ */ new Set();
-          for (const p of this.entityPaths()) {
-            const e = this.entity(p);
-            if (e?.type === "npc") npcIds.add(e.id);
-          }
-          const known = [...sceneIds, ...questIds, ...npcIds];
-          if (known.length && !known.some((id) => designDoc.includes(id))) {
-            const firstScene = this.scene(this.scenePaths()[0] ?? "");
-            issues.push(
-              firstScene ? `\u0414\u0438\u0437\u0430\u0439\u043D-\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442 \u043D\u0435 \u043E\u043F\u0438\u0441\u044B\u0432\u0430\u0435\u0442 \u0441\u0446\u0435\u043D\u0443 \xAB${firstScene.label}\xBB: \u043F\u043E\u043F\u0440\u043E\u0441\u0438\u0442\u0435 \u0430\u0433\u0435\u043D\u0442\u0430 \u0434\u043E\u043F\u043E\u043B\u043D\u0438\u0442\u044C` : "\u0414\u0438\u0437\u0430\u0439\u043D-\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442 \u043D\u0435 \u043E\u043F\u0438\u0441\u044B\u0432\u0430\u0435\u0442 \u043D\u0438 \u043E\u0434\u043D\u043E\u0439 \u0441\u0446\u0435\u043D\u044B, \u043F\u0435\u0440\u0441\u043E\u043D\u0430\u0436\u0430 \u0438\u043B\u0438 \u043A\u0432\u0435\u0441\u0442\u0430 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438: \u043F\u043E\u043F\u0440\u043E\u0441\u0438\u0442\u0435 \u0430\u0433\u0435\u043D\u0442\u0430 \u0434\u043E\u043F\u043E\u043B\u043D\u0438\u0442\u044C"
-            );
-          }
-        }
-        return issues;
-      }
-      // ─────────────── правки ───────────────
-      touch(path, group = "") {
-        const now = Date.now();
-        const prev = this.snapshots.get(path);
-        const sameBurst = group !== "" && this.lastTouch.path === path && this.lastTouch.group === group && now - this.lastTouch.at < 900;
-        if (prev !== void 0 && !sameBurst) {
-          this.undoStack.push({ path, text: prev });
-          if (this.undoStack.length > 100) this.undoStack.shift();
-        }
-        this.lastTouch = { path, group, at: now };
-        this.snapshots.set(path, this.fileText(path));
-        if (this.saved.get(path) === this.fileText(path)) this.dirty.delete(path);
-        else this.dirty.add(path);
-        this.notify();
-      }
-      canUndo() {
-        return this.undoStack.length > 0;
-      }
-      /** откат последнего изменения */
-      undo() {
-        const step = this.undoStack.pop();
-        if (!step) return null;
-        const { path, text } = step;
-        if (path === "campaign.json") this.meta = JSON.parse(text);
-        else if (path === "world.json") this.world = JSON.parse(text);
-        else if (path === "manifest.json") this.manifest = JSON.parse(text);
-        else if (this.textFiles.has(path)) this.textFiles.set(path, text);
-        else this.jsonFiles.set(path, JSON.parse(text));
-        this.snapshots.set(path, text);
-        if (this.saved.get(path) === text) this.dirty.delete(path);
-        else this.dirty.add(path);
-        this.lastTouch = { path: "", group: "", at: 0 };
-        this.notify();
-        return path;
-      }
-      setJson(path, data) {
-        this.jsonFiles.set(path, data);
-        this.touch(path);
-      }
-      setText(path, text) {
-        this.textFiles.set(path, text);
-        this.touch(path);
-      }
-      setMeta(meta) {
-        this.meta = meta;
-        this.touch("campaign.json");
-      }
-      setWorld(world) {
-        this.world = world;
-        this.touch("world.json");
-      }
-      /** создать новый файл и внести в манифест */
-      createFile(section, filename, data) {
-        const dir = section;
-        const path = `${dir}/${filename}`;
-        const list = this.manifest[section] ?? (this.manifest[section] = []);
-        if (!list.includes(filename)) list.push(filename);
-        if (typeof data === "string") this.textFiles.set(path, data);
-        else this.jsonFiles.set(path, data);
-        this.dirty.add(path);
-        this.dirty.add("manifest.json");
-        this.notify();
-        return path;
-      }
-      deleteFile(section, filename) {
-        const dir = section;
-        const path = `${dir}/${filename}`;
-        const list = this.manifest[section] ?? [];
-        const i = list.indexOf(filename);
-        if (i >= 0) list.splice(i, 1);
-        this.jsonFiles.delete(path);
-        if (section === "encounters") this.jsonFiles.delete(`encounters/${filename}`);
-        this.textFiles.delete(path);
-        this.dirty.delete(path);
-        if (section === "encounters") this.dirty.delete(`encounters/${filename}`);
-        this.dirty.add("manifest.json");
-        this.notify();
-      }
-      // ─────────────── сохранение ───────────────
-      fileText(path) {
-        if (path === "campaign.json") return JSON.stringify(this.meta, null, 2);
-        if (path === "world.json") return JSON.stringify(this.world, null, 2);
-        if (path === "manifest.json") return JSON.stringify(this.manifest, null, 2);
-        if (this.textFiles.has(path)) return this.textFiles.get(path);
-        return JSON.stringify(this.jsonFiles.get(path), null, 2);
-      }
-      hasFile(path) {
-        return path === "campaign.json" || path === "world.json" || path === "manifest.json" || this.jsonFiles.has(path) || this.textFiles.has(path);
-      }
-      /** Зафиксировать текущее состояние кампании как исходную базу для диффа изменений */
-      captureBaseline() {
-        this.baseline.clear();
-        for (const p of this.allPaths()) {
-          this.baseline.set(p, this.fileText(p));
-        }
-        this.persistBaseline();
-        this.notify();
-      }
-      /**
-       * Принять один файл в базовый снимок: убрать его из списка ручных правок,
-       * не сбрасывая отслеживание остальных (нужна мастеру ИИ кнопка «убрать
-       * правку» рядом с каждой строкой). Удалённым файлам снимок попросту не нужен.
-       */
-      acceptChangeAsBaseline(path) {
-        if (this.hasFile(path)) this.baseline.set(path, this.fileText(path));
-        else this.baseline.delete(path);
-        this.persistBaseline();
-        this.notify();
-      }
-      /** ключ localStorage, по которому лежит снимок базы правок мастера для этой кампании */
-      get aiBaselineKey() {
-        return aiDiffSnapshotKey(this.basePath);
-      }
-      /**
-       * Сохранить базу правок мастера между сессиями. Снимок живёт в localStorage,
-       * поэтому отслеживание изменений продолжается после закрытия редактора и самой
-       * игры. Если кампания слишком велика для localStorage, слежение остаётся только
-       * в рамках текущей сессии (поведение по умолчанию).
-       */
-      persistBaseline() {
-        try {
-          const payload = JSON.stringify({
-            v: _EditorStore.AI_BASELINE_VERSION,
-            campaign: this.meta?.id ?? "",
-            capturedAt: Date.now(),
-            files: Object.fromEntries(this.baseline)
-          });
-          if (payload.length > _EditorStore.AI_BASELINE_LIMIT) {
-            localStorage.removeItem(this.aiBaselineKey);
-            console.warn("[ai-diff] \u0441\u043D\u0438\u043C\u043E\u043A \u0431\u0430\u0437\u044B \u043F\u0440\u0430\u0432\u043E\u043A \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u0432\u0435\u043B\u0438\u043A \u0434\u043B\u044F localStorage; \u043E\u0442\u0441\u043B\u0435\u0436\u0438\u0432\u0430\u043D\u0438\u0435 \u043D\u0435 \u043F\u0435\u0440\u0435\u0436\u0438\u0432\u0451\u0442 \u043F\u0435\u0440\u0435\u0437\u0430\u043F\u0443\u0441\u043A");
-            return;
-          }
-          localStorage.setItem(this.aiBaselineKey, payload);
-        } catch {
-        }
-      }
-      /**
-       * Восстановить сохранённую базу правок мастера. Возвращает true, если снимок
-       * найден и принят; иначе false — вызывающий код фиксирует новую точку отсчёта.
-       * Чужой кампании снимок не достанется: он кешируется по basePath и сверяется
-       * с id кампании из campaign.json.
-       */
-      restoreBaseline() {
-        try {
-          const raw = localStorage.getItem(this.aiBaselineKey);
-          if (!raw) return false;
-          const data = JSON.parse(raw);
-          if (data.v !== _EditorStore.AI_BASELINE_VERSION) return false;
-          if (typeof data.files !== "object" || data.files === null) return false;
-          if (typeof data.campaign === "string" && data.campaign && this.meta?.id && data.campaign !== this.meta.id) return false;
-          const files = data.files;
-          this.baseline.clear();
-          for (const [p, text] of Object.entries(files)) {
-            if (typeof p === "string" && p && typeof text === "string") this.baseline.set(p, text);
-          }
-          return this.baseline.size > 0;
-        } catch {
-          return false;
-        }
-      }
-      /** Имеются ли зафиксированные данные базового снимка */
-      hasBaseline() {
-        return this.baseline.size > 0;
-      }
-      /**
-       * Список файлов, которые реально изменились относительно исходного состояния
-       * (добавленные, изменённые или удалённые файлы).
-       */
-      /** каноничная строка JSON для сравнения: ключи по алфавиту рекурсивно.
-       *  Защита от ложного «изменилось»: перестановка ключей или перевод
-       *  сериализации (отступы/переносы) не считается правкой мастера (фидбек:
-       *  «просто просмотрел диалог — ИИ-мастер записал как изменение»). */
-      static canonJson(o) {
-        if (Array.isArray(o)) return `[${o.map((x) => _EditorStore.canonJson(x)).join(",")}]`;
-        if (o && typeof o === "object") {
-          return `{${Object.keys(o).sort().map((k) => `${JSON.stringify(k)}:${_EditorStore.canonJson(o[k])}`).join(",")}}`;
-        }
-        return JSON.stringify(o);
-      }
-      textsEqualForDiff(path, a, b) {
-        if (a === b) return true;
-        if (!path.endsWith(".json")) return false;
-        try {
-          return _EditorStore.canonJson(JSON.parse(a)) === _EditorStore.canonJson(JSON.parse(b));
-        } catch {
-          return false;
-        }
-      }
-      getModifiedFiles() {
-        const list = [];
-        const currentPaths = new Set(this.allPaths());
-        for (const p of currentPaths) {
-          const currentText = this.fileText(p);
-          const baseText = this.baseline.get(p);
-          if (baseText === void 0) {
-            list.push({
-              path: p,
-              status: "added",
-              category: this.categorizePath(p),
-              title: this.titleForPath(p)
-            });
-          } else if (!this.textsEqualForDiff(p, baseText, currentText)) {
-            list.push({
-              path: p,
-              status: "modified",
-              category: this.categorizePath(p),
-              title: this.titleForPath(p),
-              diffSummary: this.buildDiffSummary(p, baseText, currentText)
-            });
-          }
-        }
-        for (const [p] of this.baseline) {
-          if (!currentPaths.has(p)) {
-            list.push({
-              path: p,
-              status: "deleted",
-              category: this.categorizePath(p),
-              title: this.titleForPath(p)
-            });
-          }
-        }
-        return list.sort((a, b) => a.path.localeCompare(b.path, "ru"));
-      }
-      categorizePath(path) {
-        if (path === "campaign.json") return "meta";
-        if (path === "world.json") return "world";
-        if (path.startsWith("scenes/")) return "scene";
-        if (path.startsWith("dialogues/")) return "dialogue";
-        if (path.startsWith("entities/")) return "entity";
-        if (path.startsWith("quests/")) return "quest";
-        if (path.startsWith("rules/")) return "rule";
-        if (path.startsWith("recipes/")) return "recipe";
-        if (path.startsWith("arenas/")) return "arena";
-        if (path.startsWith("cutscenes/")) return "cutscene";
-        if (path.startsWith("codex/")) return "codex";
-        return "other";
-      }
-      titleForPath(path) {
-        if (path === "campaign.json") return `\u041F\u0430\u0441\u043F\u043E\u0440\u0442 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 \xAB${this.meta.title || this.meta.id}\xBB`;
-        if (path === "world.json") return "\u041A\u0430\u0440\u0442\u0430 \u043C\u0438\u0440\u0430 \u0438 \u043B\u043E\u043A\u0430\u0446\u0438\u0438";
-        if (path === "manifest.json") return "\u041C\u0430\u043D\u0438\u0444\u0435\u0441\u0442 \u0441\u0442\u0440\u0443\u043A\u0442\u0443\u0440\u044B";
-        if (path.startsWith("scenes/")) {
-          const doc = this.jsonFiles.get(path);
-          return doc?.label ? `\u0421\u0446\u0435\u043D\u0430: ${doc.label}` : path;
-        }
-        if (path.startsWith("entities/")) {
-          const doc = this.jsonFiles.get(path);
-          const kind = doc?.type === "npc" ? "\u041F\u0435\u0440\u0441\u043E\u043D\u0430\u0436" : "\u041F\u0440\u0435\u0434\u043C\u0435\u0442";
-          return doc?.label ? `${kind}: ${doc.label}` : path;
-        }
-        if (path.startsWith("dialogues/")) {
-          const clean = path.replace(/^dialogues\//, "").replace(/\.(ink|dlg\.json)$/, "");
-          return `\u0414\u0438\u0430\u043B\u043E\u0433: ${clean}`;
-        }
-        if (path.startsWith("quests/")) {
-          const doc = this.jsonFiles.get(path);
-          return doc?.label ? `\u041A\u0432\u0435\u0441\u0442: ${doc.label}` : path;
-        }
-        if (path.startsWith("recipes/")) {
-          const doc = this.jsonFiles.get(path);
-          return doc?.label ? `\u0420\u0435\u0446\u0435\u043F\u0442: ${doc.label}` : path;
-        }
-        if (path.startsWith("rules/")) {
-          const doc = this.jsonFiles.get(path);
-          return doc?.label || doc?.id ? `\u041F\u0440\u0430\u0432\u0438\u043B\u043E: ${doc.label || doc.id}` : path;
-        }
-        if (path.startsWith("cutscenes/")) {
-          const doc = this.jsonFiles.get(path);
-          return doc?.label ? `\u041A\u0430\u0442\u0441\u0446\u0435\u043D\u0430: ${doc.label}` : path;
-        }
-        if (path.startsWith("arenas/")) {
-          const doc = this.jsonFiles.get(path);
-          return doc?.label ? `\u0410\u0440\u0435\u043D\u0430: ${doc.label}` : path;
-        }
-        if (path.startsWith("codex/")) {
-          const doc = this.jsonFiles.get(path);
-          return doc?.label ? `\u041A\u043E\u0434\u0435\u043A\u0441: ${doc.label}` : path;
-        }
-        return path;
-      }
-      buildDiffSummary(path, baseText, currentText) {
-        if (path.endsWith(".json")) {
-          try {
-            const baseObj = JSON.parse(baseText);
-            const curObj = JSON.parse(currentText);
-            if (typeof baseObj === "object" && baseObj && typeof curObj === "object" && curObj) {
-              const changedKeys = [];
-              const allKeys = /* @__PURE__ */ new Set([...Object.keys(baseObj), ...Object.keys(curObj)]);
-              for (const k of allKeys) {
-                if (JSON.stringify(baseObj[k]) !== JSON.stringify(curObj[k])) {
-                  changedKeys.push(k);
-                }
-              }
-              if (changedKeys.length > 0 && changedKeys.length <= 4) {
-                return `\u0438\u0437\u043C\u0435\u043D\u0435\u043D\u044B \u043F\u043E\u043B\u044F: ${changedKeys.join(", ")}`;
-              } else if (changedKeys.length > 4) {
-                return `\u0438\u0437\u043C\u0435\u043D\u0435\u043D\u043E ${changedKeys.length} \u043F\u043E\u043B\u0435\u0439 (${changedKeys.slice(0, 3).join(", ")}\u2026)`;
-              }
-            }
-          } catch {
-          }
-        }
-        return void 0;
-      }
-      /**
-       * Сформировать понятную сводку изменений для чата с ИИ
-       */
-      getChangesSummaryText() {
-        const mods = this.getModifiedFiles();
-        if (mods.length === 0) {
-          return `\u041A\u0430\u043C\u043F\u0430\u043D\u0438\u044F \xAB${this.meta.title}\xBB (${this.meta.id}): \u043D\u0435\u0442 \u0438\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u0439 \u043E\u0442\u043D\u043E\u0441\u0438\u0442\u0435\u043B\u044C\u043D\u043E \u0438\u0441\u0445\u043E\u0434\u043D\u043E\u0433\u043E \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u044F.`;
-        }
-        const lines = [
-          `### \u0418\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u044F \u043C\u0430\u0441\u0442\u0435\u0440\u0430 \u0432 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 \xAB${this.meta.title}\xBB (${this.meta.id}):`,
-          `\u0412\u0441\u0435\u0433\u043E \u0437\u0430\u0442\u0440\u043E\u043D\u0443\u0442\u043E \u0444\u0430\u0439\u043B\u043E\u0432: ${mods.length}`,
-          ""
-        ];
-        for (let i = 0; i < mods.length; i++) {
-          const m = mods[i];
-          const statusLabel = m.status === "added" ? "\u041D\u043E\u0432\u044B\u0439" : m.status === "deleted" ? "\u0423\u0434\u0430\u043B\u0451\u043D" : "\u0418\u0437\u043C\u0435\u043D\u0451\u043D";
-          const detail = m.diffSummary ? ` \u2014 ${m.diffSummary}` : "";
-          lines.push(`${i + 1}. [${statusLabel}] ${m.title} (\`${m.path}\`)${detail}`);
-        }
-        lines.push("");
-        lines.push("\u041F\u0440\u0438\u043C\u0435\u043D\u0438 \u044D\u0442\u0438 \u0438\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u044F \u043F\u043E\u0432\u0435\u0440\u0445 \u0441\u0432\u043E\u0435\u0439 \u0432\u0435\u0440\u0441\u0438\u0438 \u043F\u0440\u043E\u0435\u043A\u0442\u0430 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 \u0438 \u043F\u0440\u043E\u0434\u043E\u043B\u0436\u0430\u0439 \u0440\u0430\u0437\u0440\u0430\u0431\u043E\u0442\u043A\u0443 \u0441 \u0438\u0445 \u0443\u0447\u0451\u0442\u043E\u043C.");
-        return lines.join("\n");
-      }
-      allPaths() {
-        return [
-          "campaign.json",
-          "world.json",
-          "manifest.json",
-          ...this.jsonFiles.keys(),
-          ...this.textFiles.keys()
-        ];
-      }
-      /** Сменить каталог назначения (используется при импорте новой кампании). */
-      setBasePath(basePath) {
-        this.basePath = basePath;
-      }
-      /** Задать id новой кампании и пометить метаданные для сохранения. */
-      setCampaignId(id) {
-        this.meta.id = id;
-        this.dirty.add("campaign.json");
-        this.notify();
-      }
-      /** "campaigns/<id>" — относительный путь пакета внутри public/ */
-      campaignRel() {
-        const path = this.basePath.startsWith("http") ? new URL(this.basePath).pathname : this.basePath;
-        return path.replace(/^\//, "");
-      }
-      /** URL dev-эндпоинта сохранения (работает и в браузере, и в node-тестах) */
-      saveEndpoint() {
-        return this.basePath.startsWith("http") ? new URL("/__editor/save", this.basePath).toString() : "/__editor/save";
-      }
-      /** сохранить на диск через dev-эндпоинт vite */
-      async saveToDisk(paths) {
-        const targets = paths ?? [...this.dirty];
-        const campaignRel = this.campaignRel();
-        for (const p of targets) {
-          const res = await fetch(this.saveEndpoint(), {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ path: `${campaignRel}/${p}`, text: this.fileText(p) })
-          });
-          if (!res.ok) throw new Error(`\u0421\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u0435 ${p}: ${res.status} ${await res.text()}`);
-          this.saved.set(p, this.fileText(p));
-          this.dirty.delete(p);
-        }
-        this.notify();
-      }
-    };
-  }
-});
-
 // node_modules/ajv/dist/compile/codegen/code.js
 var require_code = __commonJS({
   "node_modules/ajv/dist/compile/codegen/code.js"(exports) {
@@ -3213,7 +1866,7 @@ var require_keyword = __commonJS({
     function macroKeywordCode(cxt, def) {
       const { gen, keyword, schema: schema2, parentSchema, it } = cxt;
       const macroSchema = def.macro.call(it.self, schema2, parentSchema, it);
-      const schemaRef = useKeyword(gen, keyword, macroSchema);
+      const schemaRef = keywordRef(gen, keyword, macroSchema);
       if (it.opts.validateSchema !== false)
         it.self.validateSchema(macroSchema, true);
       const valid = gen.name("valid");
@@ -3232,7 +1885,7 @@ var require_keyword = __commonJS({
       const { gen, keyword, schema: schema2, parentSchema, $data, it } = cxt;
       checkAsyncKeyword(it, def);
       const validate = !$data && def.compile ? def.compile.call(it.self, schema2, parentSchema, it) : def.validate;
-      const validateRef = useKeyword(gen, keyword, validate);
+      const validateRef = keywordRef(gen, keyword, validate);
       const valid = gen.let("valid");
       cxt.block$data(valid, validateKeyword);
       cxt.ok((_a = def.valid) !== null && _a !== void 0 ? _a : valid);
@@ -3286,7 +1939,7 @@ var require_keyword = __commonJS({
       if (def.async && !schemaEnv.$async)
         throw new Error("async keyword in sync schema");
     }
-    function useKeyword(gen, keyword, result) {
+    function keywordRef(gen, keyword, result) {
       if (result === void 0)
         throw new Error(`keyword "${keyword}" failed to compile`);
       return gen.scopeValue("keyword", typeof result == "function" ? { ref: result } : { ref: result, code: (0, codegen_1.stringify)(result) });
@@ -4345,7 +2998,7 @@ var require_compile = __commonJS({
       const schOrFunc = root.refs[ref];
       if (schOrFunc)
         return schOrFunc;
-      let _sch = resolve2.call(this, root, ref);
+      let _sch = resolve3.call(this, root, ref);
       if (_sch === void 0) {
         const schema2 = (_a = root.localRefs) === null || _a === void 0 ? void 0 : _a[ref];
         const { schemaId } = this.opts;
@@ -4372,7 +3025,7 @@ var require_compile = __commonJS({
     function sameSchemaEnv(s1, s2) {
       return s1.schema === s2.schema && s1.root === s2.root && s1.baseId === s2.baseId;
     }
-    function resolve2(root, ref) {
+    function resolve3(root, ref) {
       let sch;
       while (typeof (sch = this.refs[ref]) == "string")
         ref = sch;
@@ -5202,7 +3855,7 @@ var require_fast_uri = __commonJS({
       }
       return uri;
     }
-    function resolve2(baseURI, relativeURI, options) {
+    function resolve3(baseURI, relativeURI, options) {
       const schemelessOptions = options ? Object.assign({ scheme: "null" }, options) : { scheme: "null" };
       const {
         parsed: baseParsed,
@@ -5571,7 +4224,7 @@ var require_fast_uri = __commonJS({
     var fastUri = {
       SCHEMES,
       normalize,
-      resolve: resolve2,
+      resolve: resolve3,
       resolveComponent,
       equal,
       serialize,
@@ -8733,8 +7386,8 @@ var require_json_schema_2020_12 = __commonJS({
         with$data(this, validation)
       ].forEach((sch) => this.addMetaSchema(sch, void 0, false));
       return this;
-      function with$data(ajv2, sch) {
-        return $data ? ajv2.$dataMetaSchema(sch, META_SUPPORT_DATA) : sch;
+      function with$data(ajv3, sch) {
+        return $data ? ajv3.$dataMetaSchema(sch, META_SUPPORT_DATA) : sch;
       }
     }
     exports.default = addMetaSchema2020;
@@ -8752,7 +7405,7 @@ var require__ = __commonJS({
     var discriminator_1 = require_discriminator();
     var json_schema_2020_12_1 = require_json_schema_2020_12();
     var META_SCHEMA_ID = "https://json-schema.org/draft/2020-12/schema";
-    var Ajv20202 = class extends core_1.default {
+    var Ajv20203 = class extends core_1.default {
       constructor(opts = {}) {
         super({
           ...opts,
@@ -8779,11 +7432,11 @@ var require__ = __commonJS({
         return this.opts.defaultMeta = super.defaultMeta() || (this.getSchema(META_SCHEMA_ID) ? META_SCHEMA_ID : void 0);
       }
     };
-    exports.Ajv2020 = Ajv20202;
-    module.exports = exports = Ajv20202;
-    module.exports.Ajv2020 = Ajv20202;
+    exports.Ajv2020 = Ajv20203;
+    module.exports = exports = Ajv20203;
+    module.exports.Ajv2020 = Ajv20203;
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.default = Ajv20202;
+    exports.default = Ajv20203;
     var validate_1 = require_validate();
     Object.defineProperty(exports, "KeywordCxt", { enumerable: true, get: function() {
       return validate_1.KeywordCxt;
@@ -8818,15 +7471,1599 @@ var require__ = __commonJS({
   }
 });
 
+// src/shared/migrate.ts
+function migrateNeedCondition(c) {
+  const any = c;
+  switch (any.type) {
+    case "in_location": {
+      if (Array.isArray(any.locations)) return c;
+      const one = any.location ?? any.locations ?? "";
+      return { type: "in_location", locations: one ? [one] : [], not: any.not };
+    }
+    case "has_item":
+    case "equipped": {
+      if (Array.isArray(any.items)) return c;
+      const one = any.item ?? any.items ?? "";
+      return { type: any.type, items: one ? [one] : [], not: any.not };
+    }
+    default:
+      return c;
+  }
+}
+function migrateNeedConditions(list) {
+  if (!list) return list;
+  return list.map(migrateNeedCondition);
+}
+function migrateMeta(meta) {
+  for (const need of meta.needs ?? []) {
+    if (need.decay_when) need.decay_when = migrateNeedConditions(need.decay_when);
+    if (need.restore_when) need.restore_when = migrateNeedConditions(need.restore_when);
+  }
+  const cc = meta.char_creation;
+  if (cc) {
+    if (Array.isArray(cc.allowed_professions)) delete cc.allowed_professions;
+    if (!Array.isArray(cc.mandatory_skills)) cc.mandatory_skills = cc.mandatory_skills ? [String(cc.mandatory_skills)] : [];
+    if (!Array.isArray(cc.forbidden_skills)) cc.forbidden_skills = cc.forbidden_skills ? [String(cc.forbidden_skills)] : [];
+  }
+  const legacyBuiltins = [
+    { id: "neutral", label: "\u041E\u0431\u044B\u0447\u043D\u044B\u0439" },
+    { id: "happy", label: "\u0420\u0430\u0434\u043E\u0441\u0442\u044C" },
+    { id: "angry", label: "\u0413\u043D\u0435\u0432" },
+    { id: "sad", label: "\u041F\u0435\u0447\u0430\u043B\u044C" },
+    { id: "fear", label: "\u0421\u0442\u0440\u0430\u0445" }
+  ];
+  meta.emotions = (meta.emotions ?? []).filter(
+    (e) => !legacyBuiltins.some((b) => b.id === e.id && b.label === e.label)
+  );
+  return meta;
+}
+function migrateNavigation(scene, world) {
+  let changed = false;
+  const out = scene.navigation.map((nav) => {
+    if (!nav.area) {
+      changed = true;
+      return { ...nav, area: { x: 0, y: 0, w: 640, h: 360 } };
+    }
+    const legacy = nav.go_to_location;
+    if (!legacy) return nav;
+    changed = true;
+    const next = { ...nav };
+    delete next.go_to_location;
+    if (legacy === scene.location) {
+      const loc = findLocation(world, legacy);
+      const target = loc?.arrival_scene ?? loc?.scenes[0];
+      if (target && target !== scene.id) next.go_to_scene = target;
+      else next.open_map = true;
+    } else {
+      next.open_map = true;
+    }
+    return next;
+  });
+  if (changed) scene.navigation = out;
+  return out;
+}
+function findLocation(world, id) {
+  const walk = (regions) => {
+    for (const r of regions) {
+      const l = r.locations.find((x) => x.id === id);
+      if (l) return l;
+      const sub = r.sub_regions ? walk(r.sub_regions) : void 0;
+      if (sub) return sub;
+    }
+    return void 0;
+  };
+  return walk(world.regions);
+}
+function allLocations(world) {
+  const out = [];
+  const walk = (regions) => {
+    for (const r of regions) {
+      out.push(...r.locations);
+      if (r.sub_regions) walk(r.sub_regions);
+    }
+  };
+  walk(world.regions);
+  return out;
+}
+var init_migrate = __esm({
+  "src/shared/migrate.ts"() {
+  }
+});
+
+// src/shared/aiBaseline.ts
+function aiDiffSnapshotKey(basePath) {
+  return `cf_editor_ai_baseline:${basePath}`;
+}
+var init_aiBaseline = __esm({
+  "src/shared/aiBaseline.ts"() {
+  }
+});
+
+// src/shared/ruleFiles.ts
+function isEncounterFile(obj) {
+  return Array.isArray(obj.encounter_tables);
+}
+function isBareTable(obj) {
+  return !("id" in obj) && !("conditions" in obj) && !("effects" in obj) && Array.isArray(obj.entries);
+}
+function parseRuleFile(file, raw) {
+  const warnings = [];
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    warnings.push(`rules/${file}: \u0444\u0430\u0439\u043B \u043D\u0435 \u044F\u0432\u043B\u044F\u0435\u0442\u0441\u044F \u043D\u0438 \u043F\u0440\u0430\u0432\u0438\u043B\u043E\u043C, \u043D\u0438 \u0442\u0430\u0431\u043B\u0438\u0446\u0435\u0439 \u0432\u0441\u0442\u0440\u0435\u0447 \u2014 \u043F\u0440\u043E\u043F\u0443\u0449\u0435\u043D.`);
+    return { kind: "invalid", warnings };
+  }
+  const obj = raw;
+  if (isEncounterFile(obj) || isBareTable(obj)) {
+    const tables = isEncounterFile(obj) ? obj.encounter_tables : [obj];
+    const clean = tables.filter((t) => !!t && typeof t === "object" && typeof t.id === "string");
+    warnings.push(
+      `rules/${file}: \u044D\u0442\u043E \u0442\u0430\u0431\u043B\u0438\u0446\u0430 \u0432\u0441\u0442\u0440\u0435\u0447, \u0430 \u043D\u0435 \u043F\u0440\u0430\u0432\u0438\u043B\u043E. \u0422\u0430\u043A\u0438\u0435 \u0444\u0430\u0439\u043B\u044B \u043F\u0435\u0440\u0435\u0447\u0438\u0441\u043B\u044F\u044E\u0442 \u0432 manifest.encounters, \u0430 \u043D\u0435 \u0432 manifest.rules; \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043D\u043E \u043A\u0430\u043A \u0432\u0441\u0442\u0440\u0435\u0447${clean.length === 1 ? "\u0430" : clean.length > 1 ? ` (${clean.length})` : ""}.`
+    );
+    return { kind: "encounters", tables: clean, warnings };
+  }
+  const rule = raw;
+  if (!rule.id || typeof rule.id !== "string") {
+    warnings.push(`rules/${file}: \u0443 \u043F\u0440\u0430\u0432\u0438\u043B\u0430 \u043D\u0435\u0442 id \u2014 \u0444\u0430\u0439\u043B \u043F\u0440\u043E\u043F\u0443\u0449\u0435\u043D (\u0438\u043D\u0430\u0447\u0435 \u043E\u043D \u043F\u043E\u043F\u0430\u043B \u0431\u044B \u0432 \u0440\u0435\u0435\u0441\u0442\u0440 \u043F\u043E\u0434 \u043A\u043B\u044E\u0447\u043E\u043C \xABundefined\xBB).`);
+    return { kind: "invalid", warnings };
+  }
+  if (!Array.isArray(rule.conditions)) {
+    warnings.push(`rules/${file}: \u0443 \u043F\u0440\u0430\u0432\u0438\u043B\u0430 \xAB${rule.id}\xBB \u043D\u0435 \u0431\u044B\u043B\u043E \u043C\u0430\u0441\u0441\u0438\u0432\u0430 conditions \u2014 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D \u043F\u0443\u0441\u0442\u044B\u043C.`);
+    rule.conditions = [];
+  }
+  if (!Array.isArray(rule.effects)) {
+    warnings.push(`rules/${file}: \u0443 \u043F\u0440\u0430\u0432\u0438\u043B\u0430 \xAB${rule.id}\xBB \u043D\u0435 \u0431\u044B\u043B\u043E \u043C\u0430\u0441\u0441\u0438\u0432\u0430 effects \u2014 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D \u043F\u0443\u0441\u0442\u044B\u043C.`);
+    rule.effects = [];
+  }
+  if (rule.conditions_any !== void 0 && !Array.isArray(rule.conditions_any)) {
+    warnings.push(`rules/${file}: \u0443 \u043F\u0440\u0430\u0432\u0438\u043B\u0430 \xAB${rule.id}\xBB conditions_any \u043D\u0435 \u043C\u0430\u0441\u0441\u0438\u0432 \u2014 \u043F\u043E\u043B\u0435 \u043E\u0442\u0431\u0440\u043E\u0448\u0435\u043D\u043E.`);
+    delete rule.conditions_any;
+  }
+  return { kind: "rule", rule, warnings };
+}
+var init_ruleFiles = __esm({
+  "src/shared/ruleFiles.ts"() {
+  }
+});
+
+// src/shared/versions.ts
+function readEngineVersion() {
+  if (typeof __CF_ENGINE_VERSION__ === "string" && __CF_ENGINE_VERSION__) return __CF_ENGINE_VERSION__;
+  const fromEnv = globalThis.process?.env?.npm_package_version;
+  return fromEnv || "0.0.0-dev";
+}
+function parseVersion(text) {
+  const m = /^v?\s*(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:-([0-9A-Za-z.-]+))?/.exec(String(text ?? "").trim());
+  if (!m) return { major: 0, minor: 0, patch: 0 };
+  return {
+    major: Number(m[1]),
+    minor: m[2] === void 0 ? 0 : Number(m[2]),
+    patch: m[3] === void 0 ? 0 : Number(m[3]),
+    pre: m[4]
+  };
+}
+function compareVersions(a, b) {
+  const x = parseVersion(a);
+  const y = parseVersion(b);
+  if (x.major !== y.major) return x.major < y.major ? -1 : 1;
+  if (x.minor !== y.minor) return x.minor < y.minor ? -1 : 1;
+  if (x.patch !== y.patch) return x.patch < y.patch ? -1 : 1;
+  if (x.pre === y.pre) return 0;
+  if (x.pre === void 0) return 1;
+  if (y.pre === void 0) return -1;
+  return x.pre < y.pre ? -1 : x.pre > y.pre ? 1 : 0;
+}
+var ENGINE_VERSION;
+var init_versions = __esm({
+  "src/shared/versions.ts"() {
+    ENGINE_VERSION = readEngineVersion();
+  }
+});
+
+// src/core/loader.ts
+function isExternalUrl(path) {
+  return /^(?:https?:)?\/\//i.test(path) || /^(?:asset|tauri|ipc):\/\//i.test(path) || path.startsWith("data:") || path.startsWith("blob:");
+}
+var init_loader = __esm({
+  "src/core/loader.ts"() {
+    init_migrate();
+    init_ruleFiles();
+    init_versions();
+  }
+});
+
+// src/core/pack/capability-modes.ts
+function projectCapabilityMode(project, capabilityId) {
+  const options = isRecord2(project.cap_options) ? project.cap_options : {};
+  const option = isRecord2(options[capabilityId]) ? options[capabilityId] : {};
+  return option.mode === "code" || option.mode === "off" ? option.mode : "core";
+}
+var isRecord2;
+var init_capability_modes = __esm({
+  "src/core/pack/capability-modes.ts"() {
+    isRecord2 = (value) => value !== null && typeof value === "object" && !Array.isArray(value) && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
+  }
+});
+
+// src/core/caps.ts
+function assertEnableable(id, source) {
+  const capability = capabilityById.get(id);
+  if (!capability) {
+    throw new TypeError(`Unknown capability "${id}" in campaign.meta.${source}; check the capability registry.`);
+  }
+  if (!ENABLED_STATUSES.has(capability.status)) {
+    throw new TypeError(`Capability "${id}" cannot be enabled from campaign.meta.${source} (status: ${capability.status}).`);
+  }
+  return capability;
+}
+function parseCapabilityList(value, source) {
+  if (!Array.isArray(value)) {
+    const kind = value === null ? "null" : typeof value;
+    throw new TypeError(`Invalid campaign.meta.${source}: expected an array of capability ids, received ${kind}.`);
+  }
+  const result = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const id of value) {
+    if (typeof id !== "string" || id.trim() === "") {
+      throw new TypeError(`Invalid campaign.meta.${source}: every capability id must be a non-empty string.`);
+    }
+    assertEnableable(id, source);
+    if (!seen.has(id)) {
+      result.push(id);
+      seen.add(id);
+    }
+  }
+  return result;
+}
+function campaignCaps(meta) {
+  if (meta.caps !== void 0) return parseCapabilityList(meta.caps, "caps");
+  const features = meta.features;
+  if (features === void 0) return [...LEGACY_DEFAULT_CAPS];
+  if (Array.isArray(features)) return parseCapabilityList(features, "features");
+  if (features === null || typeof features !== "object") {
+    const kind = features === null ? "null" : typeof features;
+    throw new TypeError(`Unsupported campaign.meta.features format: expected string[] or a boolean map, received ${kind}.`);
+  }
+  const prototype = Object.getPrototypeOf(features);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw new TypeError("Unsupported campaign.meta.features format: expected a plain boolean map.");
+  }
+  const enabled = new Set(LEGACY_DEFAULT_CAPS);
+  for (const [id, value] of Object.entries(features)) {
+    if (typeof value !== "boolean") {
+      throw new TypeError(`Invalid campaign.meta.features["${id}"]: expected a boolean, received ${value === null ? "null" : typeof value}.`);
+    }
+    assertEnableable(id, "features");
+    if (value) enabled.add(id);
+    else enabled.delete(id);
+  }
+  return [...enabled];
+}
+function featureOn(meta, id) {
+  const capability = capabilityById.get(id);
+  if (!capability) throw new TypeError(`Unknown runtime capability "${id}"; check the capability registry.`);
+  return ENABLED_STATUSES.has(capability.status) && campaignCaps(meta).includes(id);
+}
+var CAPABILITY_REGISTRY, capabilityById, LEGACY_DEFAULT_CAPS, ENABLED_STATUSES;
+var init_caps = __esm({
+  "src/core/caps.ts"() {
+    CAPABILITY_REGISTRY = [
+      { "id": "narrative", "title": "\u0413\u0440\u0430\u0444 \u0441\u0446\u0435\u043D, \u0444\u043B\u0430\u0433\u0438, \u0432\u0435\u0442\u0432\u043B\u0435\u043D\u0438\u0435", "pack": "narrative", "status": "stable", "since": 2, "enables": "campaign story graph and branching", "probe": "smoke:core" },
+      { "id": "scenes", "title": "\u0421\u0446\u0435\u043D\u044B \u0438 \u043F\u0435\u0440\u0435\u0445\u043E\u0434\u044B \u043C\u0435\u0436\u0434\u0443 \u043D\u0438\u043C\u0438", "pack": "narrative", "status": "stable", "since": 2, "enables": "scene state and navigation", "probe": "smoke:scene-editor" },
+      { "id": "dialogue", "title": "\u0414\u0438\u0430\u043B\u043E\u0433\u0438 \u0438 \u0432\u0435\u0442\u0432\u044F\u0449\u0438\u0435\u0441\u044F \u0440\u0435\u043F\u043B\u0438\u043A\u0438", "pack": "narrative", "status": "stable", "since": 2, "enables": "Ink dialogue and choices", "probe": "smoke:dlg-ui" },
+      { "id": "map", "title": "\u041A\u0430\u0440\u0442\u0430 \u043C\u0438\u0440\u0430 \u0438 \u043B\u043E\u043A\u0430\u0446\u0438\u0438", "pack": "narrative", "status": "stable", "since": 2, "enables": "world map and location travel", "probe": "smoke:travel-transition" },
+      { "id": "inventory", "title": "\u0418\u043D\u0432\u0435\u043D\u0442\u0430\u0440\u044C \u0438 \u043F\u0440\u0435\u0434\u043C\u0435\u0442\u044B", "pack": "narrative", "status": "stable", "since": 2, "enables": "inventory, equipment, and item use", "probe": "smoke:encumbrance" },
+      { "id": "needs", "title": "\u041F\u043E\u0442\u0440\u0435\u0431\u043D\u043E\u0441\u0442\u0438 \u0438 \u0438\u0445 \u0443\u0431\u044B\u0432\u0430\u043D\u0438\u0435", "pack": "narrative", "status": "stable", "since": 2, "enables": "tracked needs and their recovery", "probe": "smoke:time-semantics" },
+      { "id": "skills", "title": "\u041D\u0430\u0432\u044B\u043A\u0438 \u0438 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438", "pack": "narrative", "status": "stable", "since": 2, "enables": "skill checks and character growth", "probe": "smoke:core" },
+      { "id": "relationships", "title": "\u041E\u0442\u043D\u043E\u0448\u0435\u043D\u0438\u044F \u0441 \u043F\u0435\u0440\u0441\u043E\u043D\u0430\u0436\u0430\u043C\u0438", "pack": "narrative", "status": "stable", "since": 2, "enables": "NPC relationships and disposition", "probe": "smoke:ai-runtime" },
+      { "id": "trade", "title": "\u0422\u043E\u0440\u0433\u043E\u0432\u043B\u044F \u0438 \u0446\u0435\u043D\u044B", "pack": "narrative", "status": "stable", "since": 2, "enables": "trading and prices", "probe": "smoke:currency" },
+      { "id": "combat", "title": "\u041F\u043E\u0448\u0430\u0433\u043E\u0432\u044B\u0439 \u0431\u043E\u0439", "pack": "narrative", "status": "stable", "since": 2, "enables": "turn-based combat", "probe": "smoke:core" },
+      { "id": "quests", "title": "\u041A\u0432\u0435\u0441\u0442\u044B \u0438 \u0441\u0442\u0430\u0434\u0438\u0438", "pack": "narrative", "status": "stable", "since": 2, "enables": "quest stages and journal", "probe": "smoke:quest-journal-runtime" },
+      { "id": "cutscenes", "title": "\u041A\u0430\u0442\u0441\u0446\u0435\u043D\u044B", "pack": "narrative", "status": "stable", "since": 2, "enables": "queued campaign cutscenes", "probe": "smoke:cutscene-queue" },
+      { "id": "fmv", "title": "\u0412\u0435\u0442\u0432\u044F\u0449\u0435\u0435\u0441\u044F \u0432\u0438\u0434\u0435\u043E (FMV)", "pack": "narrative", "status": "experimental", "since": 2, "enables": "branching video with preload and subtitles", "probe": "probe:fmv" },
+      { "id": "codex", "title": "\u041A\u043E\u0434\u0435\u043A\u0441 \u0438 \u0431\u0435\u0441\u0442\u0438\u0430\u0440\u0438\u0439", "pack": "narrative", "status": "stable", "since": 2, "enables": "codex entries and categories", "probe": "smoke:p2" },
+      { "id": "crafting", "title": "\u041A\u0440\u0430\u0444\u0442 \u0438 \u0440\u0435\u0446\u0435\u043F\u0442\u044B", "pack": "narrative", "status": "stable", "since": 2, "enables": "recipes and crafting actions", "probe": "smoke:craft-fail-time" },
+      { "id": "time", "title": "\u0418\u0433\u0440\u043E\u0432\u043E\u0435 \u0432\u0440\u0435\u043C\u044F \u0438 \u043A\u0430\u043B\u0435\u043D\u0434\u0430\u0440\u044C", "pack": "narrative", "status": "stable", "since": 2, "enables": "clock, calendar, and elapsed time", "probe": "smoke:time-semantics" },
+      { "id": "adventure", "title": "Point-and-click \u043F\u0440\u0438\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435", "pack": "adventure", "status": "experimental", "since": 2, "enables": "point-and-click adventure scenes and interactions", "probe": "probe:adventure" },
+      { "id": "state-machine", "title": "\u041F\u043E\u0448\u0430\u0433\u043E\u0432\u044B\u0439 \u0430\u0432\u0442\u043E\u043C\u0430\u0442 \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u0439", "pack": "state-ui", "status": "experimental", "since": 3, "enables": "generic state-machine runtime", "probe": "probe:state-ui" },
+      { "id": "cards", "title": "\u041A\u0430\u0440\u0442\u044B, \u043A\u043E\u043B\u043E\u0434\u044B, \u044D\u0444\u0444\u0435\u043A\u0442\u044B", "pack": "state-ui", "status": "experimental", "since": 3, "enables": "card collections and effects", "probe": "probe:state-ui" },
+      { "id": "auto-battle", "title": "\u0410\u0432\u0442\u043E\u0431\u0430\u0442\u043B\u0435\u0440 \u0438 \u0441\u0438\u043C\u0443\u043B\u044F\u0446\u0438\u044F \u043F\u0430\u0440\u0442\u0438\u0438", "pack": "state-ui", "status": "experimental", "since": 3, "enables": "automated battle simulation", "probe": "probe:state-ui" },
+      { "id": "turn-validation", "title": "\u0421\u0435\u0440\u0432\u0435\u0440\u043D\u0430\u044F \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u0445\u043E\u0434\u0430", "pack": "state-ui", "status": "planned", "since": 3, "enables": "authoritative server-side turn validation", "probe": null },
+      { "id": "grid", "title": "\u0421\u0435\u0442\u043A\u0430 \u0438 \u043A\u043B\u0435\u0442\u043A\u0438", "pack": "grid-strategy", "status": "planned", "since": 3, "enables": "grid cells and coordinates", "probe": null },
+      { "id": "pathfinding", "title": "\u041F\u043E\u0438\u0441\u043A \u043F\u0443\u0442\u0438 A*", "pack": "grid-strategy", "status": "planned", "since": 3, "enables": "A-star pathfinding", "probe": null },
+      { "id": "units", "title": "\u041E\u0442\u0440\u044F\u0434\u044B \u0438 \u044E\u043D\u0438\u0442\u044B", "pack": "grid-strategy", "status": "planned", "since": 3, "enables": "tactical units and squads", "probe": null },
+      { "id": "economy", "title": "\u041F\u043E\u0442\u043E\u043A\u043E\u0432\u0430\u044F \u044D\u043A\u043E\u043D\u043E\u043C\u0438\u043A\u0430", "pack": "grid-strategy", "status": "planned", "since": 3, "enables": "streaming strategy-game economy", "probe": null },
+      { "id": "ai-director", "title": "\u041F\u0440\u043E\u0442\u0438\u0432\u043D\u0438\u043A \u0438 \u0435\u0433\u043E \u043B\u043E\u0433\u0438\u043A\u0430", "pack": "grid-strategy", "status": "planned", "since": 3, "enables": "opponent and director logic", "probe": null },
+      { "id": "realtime-loop", "title": "\u0426\u0438\u043A\u043B \u0440\u0435\u0430\u043B\u044C\u043D\u043E\u0433\u043E \u0432\u0440\u0435\u043C\u0435\u043D\u0438", "pack": "endless-2d", "status": "planned", "since": 4, "enables": "real-time simulation loop", "probe": null },
+      { "id": "physics2d", "title": "\u0422\u0432\u0451\u0440\u0434\u044B\u0435 \u0442\u0435\u043B\u0430 2D", "pack": "endless-2d", "status": "planned", "since": 4, "enables": "2D rigid-body physics", "probe": null },
+      { "id": "procedural-gen", "title": "\u041F\u0440\u043E\u0446\u0435\u0434\u0443\u0440\u043D\u0430\u044F \u0433\u0435\u043D\u0435\u0440\u0430\u0446\u0438\u044F", "pack": "endless-2d", "status": "planned", "since": 4, "enables": "procedural content generation", "probe": null },
+      { "id": "mobile-input", "title": "\u0422\u0430\u0447-\u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u0435 \u0438 \u043C\u043E\u0431\u0438\u043B\u044C\u043D\u044B\u0439 \u044D\u043A\u0440\u0430\u043D", "pack": "endless-2d", "status": "planned", "since": 4, "enables": "touch-first mobile input", "probe": null },
+      { "id": "spatial3d", "title": "3D-\u0441\u0446\u0435\u043D\u0430 \u0438 \u043A\u0430\u043C\u0435\u0440\u0430", "pack": "spatial-3d", "status": "planned", "since": 5, "enables": "3D scene and camera", "probe": null },
+      { "id": "character-controller", "title": "\u041A\u043E\u043D\u0442\u0440\u043E\u043B\u043B\u0435\u0440 \u043F\u0435\u0440\u0441\u043E\u043D\u0430\u0436\u0430", "pack": "spatial-3d", "status": "planned", "since": 5, "enables": "3D character movement", "probe": null },
+      { "id": "skeletal-animation", "title": "\u0421\u043A\u0435\u043B\u0435\u0442\u043D\u0430\u044F \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u044F", "pack": "spatial-3d", "status": "planned", "since": 5, "enables": "skeletal animation", "probe": null },
+      { "id": "triggers", "title": "\u0422\u0440\u0438\u0433\u0433\u0435\u0440\u044B \u0438 \u0437\u043E\u043D\u044B", "pack": "spatial-3d", "status": "planned", "since": 5, "enables": "3D trigger volumes and zones", "probe": null },
+      { "id": "multiplayer-turn", "title": "\u0410\u0441\u0438\u043D\u0445\u0440\u043E\u043D\u043D\u044B\u0435 \u043A\u043E\u043C\u043D\u0430\u0442\u044B", "pack": null, "status": "reserved", "since": 6, "enables": "reserved asynchronous multiplayer sessions", "probe": null },
+      { "id": "multiplayer-realtime", "title": "\u0421\u0435\u0441\u0441\u0438\u0438 \u0432 \u0440\u0435\u0430\u043B\u044C\u043D\u043E\u043C \u0432\u0440\u0435\u043C\u0435\u043D\u0438", "pack": null, "status": "reserved", "since": 6, "enables": "reserved real-time multiplayer sessions", "probe": null }
+    ];
+    capabilityById = new Map(
+      CAPABILITY_REGISTRY.map((capability) => [capability.id, capability])
+    );
+    LEGACY_DEFAULT_CAPS = ["map", "inventory", "needs", "skills", "relationships", "trade", "combat", "time"];
+    ENABLED_STATUSES = /* @__PURE__ */ new Set(["stable", "experimental"]);
+  }
+});
+
+// src/shared/types.ts
+var DEFAULT_EMOTION;
+var init_types = __esm({
+  "src/shared/types.ts"() {
+    init_caps();
+    DEFAULT_EMOTION = { id: "neutral", label: "\u041E\u0431\u044B\u0447\u043D\u044B\u0439" };
+  }
+});
+
+// src/shared/skills.ts
+function skillLabel(id, campaignSkills) {
+  const fromCampaign = campaignSkills?.find((s) => s.id === id)?.label;
+  return fromCampaign ?? BUILTIN_SKILL_LABELS[id] ?? id;
+}
+var BUILTIN_SKILL_LABELS;
+var init_skills = __esm({
+  "src/shared/skills.ts"() {
+    BUILTIN_SKILL_LABELS = {
+      sword: "\u041C\u0435\u0447\u0438",
+      axe: "\u0422\u043E\u043F\u043E\u0440\u044B",
+      spear: "\u041A\u043E\u043F\u044C\u044F",
+      mace: "\u0414\u0440\u043E\u0431\u044F\u0449\u0435\u0435",
+      dagger: "\u041A\u0438\u043D\u0436\u0430\u043B\u044B",
+      bow: "\u041B\u0443\u043A\u0438",
+      crossbow: "\u0410\u0440\u0431\u0430\u043B\u0435\u0442\u044B",
+      throw: "\u041C\u0435\u0442\u0430\u043D\u0438\u0435",
+      brawl: "\u041A\u0443\u043B\u0430\u0447\u043D\u044B\u0439 \u0431\u043E\u0439",
+      shield: "\u0429\u0438\u0442\u044B",
+      dodge: "\u0423\u043A\u043B\u043E\u043D\u0435\u043D\u0438\u0435",
+      stealth: "\u0421\u043A\u0440\u044B\u0442\u043D\u043E\u0441\u0442\u044C",
+      spot: "\u041D\u0430\u0431\u043B\u044E\u0434\u0430\u0442\u0435\u043B\u044C\u043D\u043E\u0441\u0442\u044C",
+      listen: "\u0421\u043B\u0443\u0445",
+      search: "\u041E\u0431\u044B\u0441\u043A",
+      track: "\u0421\u043B\u0435\u0434\u043E\u043F\u044B\u0442\u0441\u0442\u0432\u043E",
+      persuade: "\u0423\u0431\u0435\u0436\u0434\u0435\u043D\u0438\u0435",
+      bargain: "\u0422\u043E\u0440\u0433\u043E\u0432\u043B\u044F",
+      intimidate: "\u0417\u0430\u043F\u0443\u0433\u0438\u0432\u0430\u043D\u0438\u0435",
+      charm: "\u041E\u0431\u0430\u044F\u043D\u0438\u0435",
+      deceive: "\u041E\u0431\u043C\u0430\u043D",
+      etiquette: "\u042D\u0442\u0438\u043A\u0435\u0442",
+      first_aid: "\u041F\u0435\u0440\u0432\u0430\u044F \u043F\u043E\u043C\u043E\u0449\u044C",
+      medicine: "\u041C\u0435\u0434\u0438\u0446\u0438\u043D\u0430",
+      herbalism: "\u0422\u0440\u0430\u0432\u043D\u0438\u0447\u0435\u0441\u0442\u0432\u043E",
+      athletics: "\u0410\u0442\u043B\u0435\u0442\u0438\u043A\u0430",
+      climb: "\u041B\u0430\u0437\u0430\u043D\u0438\u0435",
+      swim: "\u041F\u043B\u0430\u0432\u0430\u043D\u0438\u0435",
+      jump: "\u041F\u0440\u044B\u0436\u043A\u0438",
+      ride: "\u0412\u0435\u0440\u0445\u043E\u0432\u0430\u044F \u0435\u0437\u0434\u0430",
+      survival: "\u0412\u044B\u0436\u0438\u0432\u0430\u043D\u0438\u0435",
+      craft: "\u0420\u0435\u043C\u0435\u0441\u043B\u043E",
+      repair: "\u041F\u043E\u0447\u0438\u043D\u043A\u0430",
+      lore: "\u0417\u043D\u0430\u043D\u0438\u044F",
+      occult: "\u041E\u043A\u043A\u0443\u043B\u044C\u0442\u0438\u0437\u043C",
+      navigate: "\u041E\u0440\u0438\u0435\u043D\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435",
+      sleight: "\u041B\u043E\u0432\u043A\u043E\u0441\u0442\u044C \u0440\u0443\u043A",
+      lockpick: "\u0412\u0437\u043B\u043E\u043C",
+      bite: "\u0423\u043A\u0443\u0441",
+      club: "\u0414\u0443\u0431\u0438\u043D\u044B",
+      claw: "\u041A\u043E\u0433\u0442\u0438"
+    };
+  }
+});
+
+// src/editor/store.ts
+var store_exports = {};
+__export(store_exports, {
+  EditorStore: () => EditorStore,
+  FIRE_RULE_MAX_DEPTH: () => FIRE_RULE_MAX_DEPTH
+});
+function walkEffects(effects, fn) {
+  for (const e of effects ?? []) {
+    fn(e);
+    if (e.type === "skill_check_gate") {
+      walkEffects(e.success_effects ?? [], fn);
+      walkEffects(e.fail_effects ?? [], fn);
+    } else if (e.type === "stat_check") {
+      walkEffects(e.success_effects ?? [], fn);
+      walkEffects(e.fail_effects ?? [], fn);
+    } else if (e.type === "opposed_check") {
+      walkEffects(e.success_effects ?? [], fn);
+      walkEffects(e.fail_effects ?? [], fn);
+    } else if (e.type === "group_stat_check") {
+      walkEffects(e.success_effects ?? [], fn);
+      walkEffects(e.fail_effects ?? [], fn);
+    } else if (e.type === "start_pursuit") {
+      walkEffects(e.on_fail ?? [], fn);
+    }
+  }
+}
+var FIRE_RULE_MAX_DEPTH, EditorStore;
+var init_store = __esm({
+  "src/editor/store.ts"() {
+    init_migrate();
+    init_aiBaseline();
+    init_loader();
+    init_ruleFiles();
+    init_versions();
+    init_capability_modes();
+    init_types();
+    init_skills();
+    FIRE_RULE_MAX_DEPTH = 2;
+    EditorStore = class _EditorStore {
+      basePath;
+      // "/campaigns/ash-of-caerden"
+      project = { kind: "narrative" };
+      packResolution = null;
+      capabilityModes = null;
+      resolveModes;
+      projectOriginal = null;
+      projectOriginalText = null;
+      projectFileExists = false;
+      resolvePack;
+      // до load() — безопасные пустые значения: рендер между сменой кампании
+      // и загрузкой не должен падать (фидбек №4–5 шестого раунда)
+      meta = { id: "", title: "" };
+      world = { regions: [] };
+      manifest = { scenes: [], entities: [], rules: [], arenas: [], quests: [], encounters: [], cutscenes: [], dialogues: [] };
+      /** JSON-документы по путям пакета */
+      jsonFiles = /* @__PURE__ */ new Map();
+      /** текстовые документы (.ink) по путям пакета */
+      textFiles = /* @__PURE__ */ new Map();
+      /** предупреждения загрузки (битые/перепутанные файлы пакета): показывает баннер */
+      loadWarnings = [];
+      dirty = /* @__PURE__ */ new Set();
+      listeners = /* @__PURE__ */ new Set();
+      /** undo: снимки «до изменения» (path + сериализация), максимум 100 шагов */
+      undoStack = [];
+      /** текущая сериализация файлов — чтобы снять снимок «до» в момент touch */
+      snapshots = /* @__PURE__ */ new Map();
+      /** содержимое файлов на диске (на момент загрузки/сохранения) — для точного счётчика «несохранено» */
+      saved = /* @__PURE__ */ new Map();
+      /** исходные снимки файлов на момент загрузки/импорта кампании для фиксации изменений мастера */
+      baseline = /* @__PURE__ */ new Map();
+      lastTouch = { path: "", group: "", at: 0 };
+      /** версия формата сохранённого снимка базы правок мастера (при смене формата старые ключи игнорируются) */
+      static AI_BASELINE_VERSION = 1;
+      /** верхний лимит сохраняемого снимка в символах JSON — страховка от квоты localStorage (~5 МБ в браузерах) */
+      static AI_BASELINE_LIMIT = 4 * 1024 * 1024;
+      constructor(basePath, resolvePack, resolveModes) {
+        this.basePath = basePath;
+        this.resolvePack = resolvePack;
+        this.resolveModes = resolveModes;
+      }
+      setCapabilityMode(capabilityId, mode, availableCaps, requiredCaps = []) {
+        if (!availableCaps.includes(capabilityId)) throw new Error(`\u0412\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u044C \xAB${capabilityId}\xBB \u043D\u0435 \u043F\u0440\u0438\u043D\u0430\u0434\u043B\u0435\u0436\u0438\u0442 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u043D\u043E\u043C\u0443 \u043F\u0430\u043A\u0443.`);
+        if (mode === "off" && requiredCaps.includes(capabilityId)) {
+          throw new Error(`\u041E\u0431\u044F\u0437\u0430\u0442\u0435\u043B\u044C\u043D\u0443\u044E \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u044C \xAB${capabilityId}\xBB \u043D\u0435\u043B\u044C\u0437\u044F \u0432\u044B\u043A\u043B\u044E\u0447\u0438\u0442\u044C.`);
+        }
+        const project = this.projectFileExists ? { ...this.project } : {
+          format: 2,
+          id: this.meta.id || "new-project",
+          title: this.meta.title || "\u041D\u043E\u0432\u044B\u0439 \u043F\u0440\u043E\u0435\u043A\u0442",
+          kind: typeof this.project.kind === "string" ? this.project.kind : "narrative",
+          caps: [...availableCaps],
+          engine: { min: ENGINE_VERSION },
+          entry: "world.json"
+        };
+        const caps = Array.isArray(project.caps) ? project.caps.filter((value) => typeof value === "string") : [...availableCaps];
+        const originallyDeclared = Array.isArray(this.projectOriginal?.caps) && this.projectOriginal.caps.includes(capabilityId);
+        if (!caps.includes(capabilityId)) caps.push(capabilityId);
+        const currentOptions = project.cap_options && typeof project.cap_options === "object" && !Array.isArray(project.cap_options) ? { ...project.cap_options } : {};
+        const originalOptions = this.projectOriginal?.cap_options && typeof this.projectOriginal.cap_options === "object" && !Array.isArray(this.projectOriginal.cap_options) ? this.projectOriginal.cap_options : {};
+        const originalOption = originalOptions[capabilityId];
+        const originalMode = this.projectOriginal ? projectCapabilityMode(this.projectOriginal, capabilityId) : "core";
+        if (mode === originalMode && this.projectOriginal) {
+          if (originalOption === void 0) delete currentOptions[capabilityId];
+          else currentOptions[capabilityId] = originalOption;
+          if (!originallyDeclared) {
+            const index = caps.indexOf(capabilityId);
+            if (index >= 0) caps.splice(index, 1);
+          }
+        } else if (mode === "core") {
+          const currentOption = currentOptions[capabilityId];
+          const version = currentOption && typeof currentOption === "object" && !Array.isArray(currentOption) ? currentOption.version : void 0;
+          if (version === void 0) delete currentOptions[capabilityId];
+          else currentOptions[capabilityId] = { version };
+        } else {
+          const currentOption = currentOptions[capabilityId];
+          const version = currentOption && typeof currentOption === "object" && !Array.isArray(currentOption) ? currentOption.version : void 0;
+          currentOptions[capabilityId] = { mode, version: Number.isInteger(version) && Number(version) > 0 ? version : 1 };
+        }
+        const next = { ...project, caps };
+        if (Object.keys(currentOptions).length) next.cap_options = currentOptions;
+        else delete next.cap_options;
+        const capabilityModes = this.resolveModes?.(next) ?? null;
+        if (capabilityModes?.status === "invalid") throw new Error(capabilityModes.message);
+        this.project = next;
+        this.capabilityModes = capabilityModes;
+        this.projectFileExists = true;
+        this.touch("project.json");
+      }
+      subscribe(fn) {
+        this.listeners.add(fn);
+        return () => this.listeners.delete(fn);
+      }
+      notify() {
+        for (const fn of this.listeners) fn();
+      }
+      async load() {
+        const get = async (rel) => {
+          const res = await fetch(`${this.basePath}/${rel}?t=${Date.now()}`);
+          if (!res.ok) throw new Error(`\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C ${rel}: ${res.status}`);
+          return res;
+        };
+        const getJson = async (rel) => {
+          const text = await (await get(rel)).text();
+          try {
+            return JSON.parse(text);
+          } catch {
+            throw new Error(`\u0424\u0430\u0439\u043B ${rel} \u043E\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442 \u0438\u043B\u0438 \u043F\u043E\u0432\u0440\u0435\u0436\u0434\u0451\u043D (\u043A\u0430\u043C\u043F\u0430\u043D\u0438\u044F \u0437\u0430\u043F\u0438\u0441\u0430\u043D\u0430 \u043D\u0435 \u043F\u043E\u043B\u043D\u043E\u0441\u0442\u044C\u044E?)`);
+          }
+        };
+        this.project = { kind: "narrative" };
+        this.projectOriginal = null;
+        this.projectOriginalText = null;
+        this.projectFileExists = false;
+        const projectResponse = await fetch(`${this.basePath}/project.json?t=${Date.now()}`);
+        if (projectResponse.ok) {
+          const projectText = await projectResponse.text();
+          try {
+            this.project = JSON.parse(projectText);
+            this.projectFileExists = true;
+            this.projectOriginalText = projectText;
+            this.projectOriginal = JSON.parse(projectText);
+          } catch {
+            const contentType = projectResponse.headers.get("content-type") ?? "";
+            if (contentType.includes("text/html") || /^\s*<!doctype html/i.test(projectText)) {
+              this.project = { kind: "narrative" };
+            } else {
+              throw new Error("\u0424\u0430\u0439\u043B project.json \u043F\u043E\u0432\u0440\u0435\u0436\u0434\u0451\u043D.");
+            }
+          }
+        } else if (projectResponse.status === 404) {
+          this.project = { kind: "narrative" };
+        } else {
+          throw new Error(`\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C project.json: ${projectResponse.status}`);
+        }
+        this.packResolution = this.resolvePack?.(this.project) ?? null;
+        if (this.packResolution?.status === "missing") return;
+        this.capabilityModes = this.resolveModes?.(this.project) ?? null;
+        if (this.capabilityModes?.status === "invalid") throw new Error(this.capabilityModes.message);
+        this.meta = await getJson("campaign.json");
+        this.world = await getJson("world.json");
+        this.manifest = await getJson("manifest.json");
+        const jobs = [];
+        const loadJson = (rel) => jobs.push(get(rel).then(async (r) => void this.jsonFiles.set(rel, await r.json())));
+        const loadText = (rel) => jobs.push(get(rel).then(async (r) => void this.textFiles.set(rel, await r.text())));
+        for (const f of this.manifest.scenes) loadJson(`scenes/${f}`);
+        for (const f of this.manifest.entities) loadJson(`entities/${f}`);
+        for (const f of this.manifest.rules) loadJson(`rules/${f}`);
+        for (const f of this.manifest.arenas ?? []) loadJson(`arenas/${f}`);
+        for (const f of this.manifest.quests ?? []) loadJson(`quests/${f}`);
+        for (const f of this.manifest.encounters ?? []) {
+          jobs.push(
+            (async () => {
+              let r = await fetch(`${this.basePath}/encounters/${f}?t=${Date.now()}`);
+              let path = `encounters/${f}`;
+              if (!r.ok) {
+                r = await fetch(`${this.basePath}/rules/${f}?t=${Date.now()}`);
+                path = `rules/${f}`;
+              }
+              if (r.ok) {
+                try {
+                  this.jsonFiles.set(path, await r.json());
+                } catch {
+                }
+              }
+            })()
+          );
+        }
+        for (const f of this.manifest.cutscenes ?? []) loadJson(`cutscenes/${f}`);
+        for (const f of this.manifest.recipes ?? []) loadJson(`recipes/${f}`);
+        for (const f of this.manifest.codex ?? []) loadJson(`codex/${f}`);
+        for (const f of this.manifest.dialogues) loadText(`dialogues/${f}`);
+        for (const f of this.manifest.dialogues) {
+          const rel = `dialogues/${f.replace(/\.ink$/, ".dlg.json")}`;
+          jobs.push(
+            fetch(`${this.basePath}/${rel}?t=${Date.now()}`).then(async (r) => {
+              if (r.ok && (r.headers.get("content-type") ?? "").includes("json")) {
+                this.jsonFiles.set(rel, await r.json());
+              }
+            }).catch(() => void 0)
+          );
+        }
+        await Promise.all(jobs);
+        this.sanitizeRules();
+        this.migrateContent();
+        for (const p of this.allPaths()) {
+          this.snapshots.set(p, this.fileText(p));
+          this.saved.set(p, this.fileText(p));
+        }
+        if (!this.restoreBaseline()) this.captureBaseline();
+      }
+      /**
+       * Разбор файлов из manifest.rules: таблицы встреч уходят в manifest.encounters,
+       * файлы без id отбрасываются, у правил восстанавливаются массивы conditions/
+       * effects. Всё предупреждениями в loadWarnings — их показывает баннер редактора.
+       */
+      sanitizeRules() {
+        this.loadWarnings = [];
+        const kept = [];
+        const seenIds = /* @__PURE__ */ new Set();
+        for (const f of this.manifest.rules) {
+          const rel = `rules/${f}`;
+          const verdict = parseRuleFile(f, this.jsonFiles.get(rel));
+          if (verdict.warnings.length) this.loadWarnings.push(...verdict.warnings);
+          if (verdict.kind === "rule") {
+            if (seenIds.has(verdict.rule.id)) {
+              this.loadWarnings.push(`rules/${f}: \u0434\u0443\u0431\u043B\u044C id \xAB${verdict.rule.id}\xBB \u2014 \u0444\u0430\u0439\u043B \u0438\u0441\u043A\u043B\u044E\u0447\u0451\u043D \u0438\u0437 manifest.rules.`);
+              continue;
+            }
+            seenIds.add(verdict.rule.id);
+            this.jsonFiles.set(rel, verdict.rule);
+            kept.push(f);
+          } else if (verdict.kind === "encounters") {
+            this.jsonFiles.set(rel, { encounter_tables: verdict.tables });
+            if (!this.manifest.encounters) this.manifest.encounters = [];
+            if (!this.manifest.encounters.includes(f)) this.manifest.encounters.push(f);
+          }
+        }
+        const dropped = this.manifest.rules.length - kept.length;
+        if (dropped > 0) this.manifest.rules = kept;
+      }
+      // ─────────────── доступ с типами ───────────────
+      scenePaths() {
+        return this.manifest.scenes.map((f) => `scenes/${f}`);
+      }
+      entityPaths() {
+        return this.manifest.entities.map((f) => `entities/${f}`);
+      }
+      rulePaths() {
+        return this.manifest.rules.map((f) => `rules/${f}`);
+      }
+      arenaPaths() {
+        return (this.manifest.arenas ?? []).map((f) => `arenas/${f}`);
+      }
+      questPaths() {
+        return (this.manifest.quests ?? []).map((f) => `quests/${f}`);
+      }
+      /**
+       * Персонаж, который ведёт этот диалог (ссылка `dialogue` в сущности NPC).
+       * Нужен, чтобы в списках вместо имени файла стояло человеческое имя.
+       */
+      npcForDialogue(inkPath) {
+        for (const p of this.entityPaths()) {
+          const e = this.entity(p);
+          if (e?.type === "npc" && e.dialogue === inkPath) return e;
+        }
+        return void 0;
+      }
+      /** Читаемое имя диалога: подпись документа → имя ведущего персонажа → русское имя или имя файла словами. */
+      dialogueLabel(inkPath) {
+        const doc = this.jsonFiles.get(inkPath.replace(/\.ink$/, ".dlg.json"));
+        if (doc?.label) return doc.label;
+        const npc = this.npcForDialogue(inkPath);
+        if (npc) return npc.label;
+        const base = inkPath.replace("dialogues/", "").replace(/\.ink$/, "");
+        const DIALOGUE_RU = {
+          heart: "\u0421\u0435\u0440\u0434\u0446\u0435",
+          core: "\u042F\u0434\u0440\u043E",
+          choir: "\u0425\u043E\u0440",
+          clock: "\u0427\u0430\u0441\u044B",
+          guard: "\u0421\u0442\u0440\u0430\u0436\u0430",
+          abbot: "\u041D\u0430\u0441\u0442\u043E\u044F\u0442\u0435\u043B\u044C"
+        };
+        if (DIALOGUE_RU[base.toLowerCase()]) return DIALOGUE_RU[base.toLowerCase()];
+        const allEnts = this.entityPaths().map((p) => this.entity(p));
+        for (const ent of allEnts) {
+          if (ent && (ent.id === base || ent.id === `item_${base}` || ent.id === `npc_${base}`) && ent.label) {
+            return ent.label;
+          }
+        }
+        return base.replace(/[_-]+/g, " ").replace(/^./, (ch) => ch.toUpperCase());
+      }
+      dialoguePaths() {
+        return this.manifest.dialogues.map((f) => `dialogues/${f}`);
+      }
+      cutscenePaths() {
+        return (this.manifest.cutscenes ?? []).map((f) => `cutscenes/${f}`);
+      }
+      recipePaths() {
+        return (this.manifest.recipes ?? []).map((f) => `recipes/${f}`);
+      }
+      codexPaths() {
+        return (this.manifest.codex ?? []).map((f) => `codex/${f}`);
+      }
+      scene(path) {
+        return this.jsonFiles.get(path);
+      }
+      entity(path) {
+        const e = this.jsonFiles.get(path);
+        if (e && e.type === "npc" && typeof e.description !== "string") {
+          ;
+          e.description = "";
+        }
+        return e;
+      }
+      rule(path) {
+        return this.jsonFiles.get(path);
+      }
+      arena(path) {
+        return this.jsonFiles.get(path);
+      }
+      quest(path) {
+        return this.jsonFiles.get(path);
+      }
+      cutscene(path) {
+        return this.jsonFiles.get(path);
+      }
+      recipe(path) {
+        return this.jsonFiles.get(path);
+      }
+      codexEntry(path) {
+        return this.jsonFiles.get(path);
+      }
+      /** id всех рецептов кампании (для ссылок unlock_recipe) */
+      recipeIds() {
+        return new Set(this.recipePaths().map((p) => this.recipe(p)?.id).filter((x) => !!x));
+      }
+      /**
+       * Ключи состояний облика НПЦ: его собственные портреты и спрайты сцены
+       * плюс общий реестр состояний meta.emotions. Пустая строка — обычный облик.
+       */
+      entityStateKeys(entityId) {
+        const out = /* @__PURE__ */ new Set(["", DEFAULT_EMOTION.id]);
+        for (const e of this.meta.emotions ?? []) out.add(e.id);
+        const npc = this.entityPaths().map((p) => this.entity(p)).find((e) => e?.id === entityId);
+        if (npc && npc.type === "npc") {
+          for (const k of Object.keys(npc.portrait ?? {})) out.add(k);
+          for (const k of Object.keys(npc.scene_sprite_states ?? {})) out.add(k);
+          for (const k of Object.keys(npc.combat_figure_states ?? {})) out.add(k);
+        }
+        return out;
+      }
+      /**
+       * Циклы правил через эффект fire_rule (прямой вызов себя и транзитивные
+       * петли). Возвращает список замкнутых цепочек для отчёта «Проверить кампанию».
+       */
+      fireRuleCycles() {
+        const edges = /* @__PURE__ */ new Map();
+        for (const p of this.rulePaths()) {
+          const r = this.rule(p);
+          if (!r) continue;
+          const to = [];
+          walkEffects(r.effects ?? [], (e) => {
+            if (e.type === "fire_rule") to.push(e.rule);
+          });
+          edges.set(r.id, to);
+        }
+        const cycles = [];
+        const state = /* @__PURE__ */ new Map();
+        const stack = [];
+        const labels = /* @__PURE__ */ new Map();
+        for (const p of this.rulePaths()) {
+          const r = this.rule(p);
+          if (r) labels.set(r.id, r.label || r.id);
+        }
+        const visit = (id) => {
+          const st = state.get(id) ?? 0;
+          if (st === 2) return;
+          if (st === 1) {
+            const from = stack.indexOf(id);
+            if (from >= 0) cycles.push([...stack.slice(from), id]);
+            return;
+          }
+          state.set(id, 1);
+          stack.push(id);
+          for (const next of edges.get(id) ?? []) visit(next);
+          stack.pop();
+          state.set(id, 2);
+        };
+        for (const id of edges.keys()) visit(id);
+        return cycles.map((c) => c.map((id) => `\xAB${labels.get(id) ?? id}\xBB`));
+      }
+      /** списки id для подсказок в полях */
+      /** все флаги, упомянутые в правилах/квестах/ink — для подсказок в конструкторах */
+      knownFlags() {
+        const flags = /* @__PURE__ */ new Set();
+        const scan = (o) => {
+          if (Array.isArray(o)) {
+            o.forEach(scan);
+            return;
+          }
+          if (o && typeof o === "object") {
+            const r = o;
+            if (typeof r.flag === "string") flags.add(r.flag);
+            for (const v of Object.values(r)) scan(v);
+          }
+        };
+        for (const p of this.rulePaths()) scan(this.rule(p));
+        for (const p of this.questPaths()) scan(this.quest(p));
+        for (const [, text] of this.textFiles) {
+          for (const m of text.matchAll(/(?:get_flag|set_flag)\("([^"]+)"\)/g)) flags.add(m[1]);
+        }
+        return [...flags].sort();
+      }
+      /** пары id+label для выпадающих списков (в UI мастер видит названия, не id) */
+      options(kind) {
+        const out = [];
+        if (kind === "currency") {
+          for (const c of this.meta.currencies ?? []) out.push({ id: c.id, label: c.label });
+        } else if (kind === "entity" || kind === "item" || kind === "npc") {
+          for (const p of this.entityPaths()) {
+            const e = this.entity(p);
+            if (!e) continue;
+            if (kind === "entity" || e.type === kind) out.push({ id: e.id, label: e.label || e.id });
+          }
+        } else if (kind === "scene") {
+          for (const p of this.scenePaths()) {
+            const sc = this.scene(p);
+            if (sc) out.push({ id: sc.id, label: sc.label || sc.id });
+          }
+        } else if (kind === "quest") {
+          for (const p of this.questPaths()) {
+            const q = this.quest(p);
+            if (q) out.push({ id: q.id, label: q.label || q.id });
+          }
+        } else if (kind === "arena") {
+          for (const p of this.arenaPaths()) {
+            const a = this.arena(p);
+            if (a) out.push({ id: a.id, label: a.label || a.id });
+          }
+        } else if (kind === "rule") {
+          for (const p of this.rulePaths()) {
+            const r = this.rule(p);
+            if (r) out.push({ id: r.id, label: r.label || r.id });
+          }
+        } else if (kind === "cutscene") {
+          for (const p of this.cutscenePaths()) {
+            const c = this.cutscene(p);
+            if (c) out.push({ id: c.id, label: c.label || c.id });
+          }
+        } else if (kind === "location") {
+          const walk = (regions) => {
+            for (const r of regions) {
+              for (const l of r.locations) out.push({ id: l.id, label: l.label || l.id });
+              if (r.sub_regions) walk(r.sub_regions);
+            }
+          };
+          walk(this.world.regions);
+        } else if (kind === "dialogue") {
+          for (const p of this.dialoguePaths()) out.push({ id: p, label: this.dialogueLabel(p) });
+        } else if (kind === "faction") {
+          for (const f of this.meta.factions ?? []) out.push({ id: f.id, label: f.label || f.id });
+        } else if (kind === "skill") {
+          for (const sk of this.meta.skills ?? []) out.push({ id: sk.id, label: sk.label || skillLabel(sk.id, this.meta.skills) });
+        } else if (kind === "need") {
+          for (const n of this.meta.needs) out.push({ id: n.id, label: n.label || n.id });
+        } else if (kind === "status") {
+          for (const s of this.meta.statuses ?? []) out.push({ id: s.id, label: s.label || s.id });
+        } else if (kind === "ability") {
+          for (const a of this.meta.abilities ?? []) out.push({ id: a.id, label: a.label || a.id });
+        } else if (kind === "weather") {
+          out.push({ id: "", label: "\u042F\u0441\u043D\u043E" });
+          for (const w of this.meta.weathers ?? []) out.push({ id: w.id, label: w.label || w.id });
+        } else if (kind === "codex") {
+          for (const p of this.codexPaths()) {
+            const c = this.codexEntry(p);
+            if (c) out.push({ id: c.id, label: c.label || c.id });
+          }
+        } else if (kind === "recipe") {
+          for (const p of this.recipePaths()) {
+            const r = this.recipe(p);
+            if (r) out.push({ id: r.id, label: r.label || r.id });
+          }
+        } else if (kind === "emotion") {
+          out.push({ id: DEFAULT_EMOTION.id, label: DEFAULT_EMOTION.label });
+          for (const e of this.meta.emotions ?? []) out.push({ id: e.id, label: e.label || e.id });
+        } else if (kind === "disposition") {
+          for (const f of this.meta.factions ?? []) out.push({ id: f.id, label: `${f.label || f.id} (\u0444\u0440\u0430\u043A\u0446\u0438\u044F)` });
+          for (const o of this.options("npc")) out.push({ id: o.id, label: `${o.label} (NPC)` });
+        } else if (kind === "duration_action") {
+          for (const d of this.meta.duration_actions ?? []) out.push({ id: d.id, label: d.label || d.id });
+        } else if (kind === "itemCategory") {
+          for (const c of this.meta.item_categories ?? []) out.push({ id: c.id, label: c.label || c.id });
+        } else if (kind === "flag") {
+          const seen = /* @__PURE__ */ new Set();
+          for (const f of this.meta.flags ?? []) {
+            out.push({ id: f.id, label: f.label || f.id });
+            seen.add(f.id);
+          }
+          for (const f of this.knownFlags()) if (!seen.has(f)) out.push({ id: f, label: f });
+        }
+        return out.sort((a, b) => a.label.localeCompare(b.label, "ru"));
+      }
+      /** название стадии или журнальной записи квеста (для сводок правил) */
+      questStageLabel(questId, key) {
+        for (const p of this.questPaths()) {
+          const q = this.quest(p);
+          if (q?.id !== questId) continue;
+          const st = q.stages.find((s) => s.id === key);
+          return st?.label ?? key;
+        }
+        return key;
+      }
+      /** src для предпросмотра ассета: файл пакета или внешняя ссылка (итерация 8, блок C) */
+      assetSrc(path) {
+        if (!path) return "";
+        if (isExternalUrl(path)) return path;
+        return `${this.basePath}/${path}`;
+      }
+      /** название по id (для сводок) */
+      labelFor(kind, id) {
+        return this.options(kind).find((o) => o.id === id)?.label ?? id;
+      }
+      /** сохранить бинарный файл (картинку) в кампанию; возвращает путь внутри кампании */
+      async saveBinary(relPath, file) {
+        const buf = await file.arrayBuffer();
+        let bin = "";
+        const bytes = new Uint8Array(buf);
+        for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+        const b64 = btoa(bin);
+        const res = await fetch(this.saveEndpoint(), {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ path: `${this.campaignRel()}/${relPath}`, base64: b64 })
+        });
+        if (!res.ok) throw new Error(`${relPath}: ${res.status} ${await res.text()}`);
+        return relPath;
+      }
+      ids(kind) {
+        const out = [];
+        if (kind === "entity" || kind === "item" || kind === "npc") {
+          for (const p of this.entityPaths()) {
+            const e = this.entity(p);
+            if (!e) continue;
+            if (kind === "entity" || e.type === kind) out.push(e.id);
+          }
+        } else if (kind === "scene") {
+          for (const p of this.scenePaths()) out.push(this.scene(p)?.id ?? "");
+        } else if (kind === "quest") {
+          for (const p of this.questPaths()) out.push(this.quest(p)?.id ?? "");
+        } else if (kind === "arena") {
+          for (const p of this.arenaPaths()) out.push(this.arena(p)?.id ?? "");
+        } else if (kind === "rule") {
+          for (const p of this.rulePaths()) out.push(this.rule(p)?.id ?? "");
+        } else if (kind === "cutscene") {
+          for (const p of this.cutscenePaths()) out.push(this.cutscene(p)?.id ?? "");
+        } else if (kind === "recipe") {
+          for (const p of this.recipePaths()) out.push(this.recipe(p)?.id ?? "");
+        } else if (kind === "codex") {
+          for (const p of this.codexPaths()) out.push(this.codexEntry(p)?.id ?? "");
+        } else if (kind === "location") {
+          const walk = (regions) => {
+            for (const r of regions) {
+              for (const l of r.locations) out.push(l.id);
+              if (r.sub_regions) walk(r.sub_regions);
+            }
+          };
+          walk(this.world.regions);
+        }
+        return out.filter(Boolean).sort();
+      }
+      // ─────────────── миграции и валидация ───────────────
+      /**
+       * Мягкие миграции контента (итерация 8). Старый формат остаётся читаемым:
+       * одиночные location/item в условиях потребностей превращаются в списки,
+       * переходы «в локацию» из сцен — в «открыть карту».
+       */
+      migrateContent() {
+        const notes = [];
+        migrateMeta(this.meta);
+        const soundIds = new Set((this.meta.sounds ?? []).map((s) => s.id));
+        for (const w of this.meta.weathers ?? []) {
+          if (!w.ambient?.length) continue;
+          w.ambient = w.ambient.map((id) => {
+            if (soundIds.has(id)) return id;
+            const alt = id.startsWith("snd_") ? id.replace(/^snd_/, "sfx_") : id.startsWith("sfx_") ? id.replace(/^sfx_/, "snd_") : "";
+            return alt && soundIds.has(alt) ? alt : id;
+          });
+        }
+        for (const p of this.scenePaths()) {
+          const sc = this.scene(p);
+          if (!sc) continue;
+          const before = JSON.stringify(sc.navigation);
+          migrateNavigation(sc, this.world);
+          if (JSON.stringify(sc.navigation) !== before) {
+            notes.push(`\u0421\u0446\u0435\u043D\u0430 \xAB${sc.label}\xBB: \u043F\u0435\u0440\u0435\u0445\u043E\u0434 \xAB\u0432 \u043B\u043E\u043A\u0430\u0446\u0438\u044E\xBB \u0437\u0430\u043C\u0435\u043D\u0451\u043D \u043D\u0430 \xAB\u043E\u0442\u043A\u0440\u044B\u0442\u044C \u043A\u0430\u0440\u0442\u0443\xBB`);
+          }
+        }
+        return notes;
+      }
+      /**
+       * Проверка целостности кампании (итерация 8, А6/блок F).
+       * Возвращает список проблем по-русски — импорт и загрузка не падают,
+       * мастеру показывается отчёт.
+       */
+      validateContent() {
+        const issues = [];
+        const semver = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
+        if (!this.meta.version) issues.push("\u041A\u0430\u043C\u043F\u0430\u043D\u0438\u044F: \u043D\u0435 \u0437\u0430\u043F\u043E\u043B\u043D\u0435\u043D\u0430 \u0432\u0435\u0440\u0441\u0438\u044F (\u043D\u0443\u0436\u043D\u0430 \u0434\u043B\u044F \u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0439 \u0438 \u0441\u043E\u0432\u043C\u0435\u0441\u0442\u0438\u043C\u043E\u0441\u0442\u0438 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u0439)");
+        else if (!semver.test(this.meta.version)) issues.push(`\u041A\u0430\u043C\u043F\u0430\u043D\u0438\u044F: \u0432\u0435\u0440\u0441\u0438\u044F \xAB${this.meta.version}\xBB \u043D\u0435 \u043F\u043E\u0445\u043E\u0436\u0430 \u043D\u0430 semver (\u043E\u0436\u0438\u0434\u0430\u0435\u0442\u0441\u044F \u0432\u0438\u0434 1.4.2)`);
+        const minEngine = this.meta.min_engine ?? this.meta.engine_version;
+        if (minEngine && !/^\d+(\.\d+){0,2}(?:-[0-9A-Za-z.-]+)?$/.test(minEngine)) {
+          issues.push(`\u041A\u0430\u043C\u043F\u0430\u043D\u0438\u044F: \u043C\u0438\u043D\u0438\u043C\u0430\u043B\u044C\u043D\u044B\u0439 \u0434\u0432\u0438\u0436\u043E\u043A \xAB${minEngine}\xBB \u043D\u0435 \u043F\u043E\u0445\u043E\u0436 \u043D\u0430 \u043D\u043E\u043C\u0435\u0440 \u0432\u0435\u0440\u0441\u0438\u0438`);
+        }
+        if (this.meta.save_base_version) {
+          if (!semver.test(this.meta.save_base_version)) issues.push(`\u041A\u0430\u043C\u043F\u0430\u043D\u0438\u044F: \u0433\u0440\u0430\u043D\u0438\u0446\u0430 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u0439 \xAB${this.meta.save_base_version}\xBB \u043D\u0435 \u043F\u043E\u0445\u043E\u0436\u0430 \u043D\u0430 semver`);
+          else if (compareVersions(this.meta.save_base_version, this.meta.version) > 0) {
+            issues.push(`\u041A\u0430\u043C\u043F\u0430\u043D\u0438\u044F: \u0433\u0440\u0430\u043D\u0438\u0446\u0430 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u0439 ${this.meta.save_base_version} \u043D\u043E\u0432\u0435\u0435 \u0432\u0435\u0440\u0441\u0438\u0438 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 ${this.meta.version} \u2014 \u0442\u0430\u043A \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u044F \u043D\u0435 \u043E\u0442\u043A\u0440\u043E\u044E\u0442\u0441\u044F \u043D\u0438 \u0443 \u043A\u043E\u0433\u043E`);
+          }
+        }
+        const scenes = {};
+        for (const p of this.scenePaths()) {
+          const sc = this.scene(p);
+          if (sc) scenes[sc.id] = sc;
+        }
+        const locationIds = new Set(this.ids("location"));
+        const sceneIds = new Set(Object.keys(scenes));
+        const entityIds = new Set(this.ids("entity"));
+        const questIds = new Set(this.ids("quest"));
+        const arenaIds = new Set(this.ids("arena"));
+        const ruleIds = new Set(this.ids("rule"));
+        const cutsceneIds = new Set(this.ids("cutscene"));
+        for (const p of this.cutscenePaths()) {
+          const c = this.cutscene(p);
+          if (!c) continue;
+          if (!c.slides?.length) issues.push(`\u041A\u0430\u0442\u0441\u0446\u0435\u043D\u0430 \xAB${c.label}\xBB: \u043D\u0435\u0442 \u043D\u0438 \u043E\u0434\u043D\u043E\u0433\u043E \u0441\u043B\u0430\u0439\u0434\u0430`);
+        }
+        for (const loc of allLocations(this.world)) {
+          for (const sc of loc.scenes) {
+            if (!sceneIds.has(sc)) issues.push(`\u041B\u043E\u043A\u0430\u0446\u0438\u044F \xAB${loc.label}\xBB: \u0441\u0446\u0435\u043D\u044B \xAB${sc}\xBB \u043D\u0435\u0442 \u0432 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438`);
+          }
+          if (loc.arrival_scene && !loc.scenes.includes(loc.arrival_scene)) {
+            issues.push(`\u041B\u043E\u043A\u0430\u0446\u0438\u044F \xAB${loc.label}\xBB: \u0441\u0446\u0435\u043D\u0430 \u043F\u043E \u043F\u0440\u0438\u0431\u044B\u0442\u0438\u0438 \xAB${loc.arrival_scene}\xBB \u043D\u0435 \u0432\u0445\u043E\u0434\u0438\u0442 \u0432 \u0441\u043F\u0438\u0441\u043E\u043A \u0435\u0451 \u0441\u0446\u0435\u043D`);
+          }
+          if (loc.arena && !arenaIds.has(loc.arena)) {
+            issues.push(`\u041B\u043E\u043A\u0430\u0446\u0438\u044F \xAB${loc.label}\xBB: \u0430\u0440\u0435\u043D\u0430 \xAB${loc.arena}\xBB \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u0430`);
+          }
+          for (const tc of loc.travel_connections) {
+            if (!locationIds.has(tc.to)) issues.push(`\u041B\u043E\u043A\u0430\u0446\u0438\u044F \xAB${loc.label}\xBB: \u0434\u043E\u0440\u043E\u0433\u0430 \u0432\u0435\u0434\u0451\u0442 \u0432 \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0443\u044E \u043B\u043E\u043A\u0430\u0446\u0438\u044E \xAB${tc.to}\xBB`);
+          }
+        }
+        for (const p of this.scenePaths()) {
+          const sc = this.scene(p);
+          if (!sc) continue;
+          if (sc.location && !locationIds.has(sc.location)) {
+            issues.push(`\u0421\u0446\u0435\u043D\u0430 \xAB${sc.label}\xBB: \u043B\u043E\u043A\u0430\u0446\u0438\u044F \xAB${sc.location}\xBB \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u0430`);
+          }
+          for (const nav of sc.navigation) {
+            if (!nav.go_to_scene) continue;
+            const target = scenes[nav.go_to_scene];
+            if (!target) {
+              issues.push(`\u0421\u0446\u0435\u043D\u0430 \xAB${sc.label}\xBB: \u043F\u0435\u0440\u0435\u0445\u043E\u0434 \xAB${nav.label}\xBB \u0432\u0435\u0434\u0451\u0442 \u0432 \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0443\u044E \u0441\u0446\u0435\u043D\u0443 \xAB${nav.go_to_scene}\xBB`);
+            } else if (target.location !== sc.location) {
+              issues.push(
+                `\u0421\u0446\u0435\u043D\u0430 \xAB${sc.label}\xBB: \u043F\u0435\u0440\u0435\u0445\u043E\u0434 \xAB${nav.label}\xBB \u0432\u0435\u0434\u0451\u0442 \u0432 \u0441\u0446\u0435\u043D\u0443 \u0434\u0440\u0443\u0433\u043E\u0439 \u043B\u043E\u043A\u0430\u0446\u0438\u0438 \xAB${target.label}\xBB (\u043C\u0435\u0436\u0434\u0443 \u043B\u043E\u043A\u0430\u0446\u0438\u044F\u043C\u0438 \u2014 \u0442\u043E\u043B\u044C\u043A\u043E \u0447\u0435\u0440\u0435\u0437 \u043A\u0430\u0440\u0442\u0443)`
+              );
+            }
+          }
+          for (const slot of sc.slots) {
+            if (slot.default_entity && !entityIds.has(slot.default_entity)) {
+              issues.push(`\u0421\u0446\u0435\u043D\u0430 \xAB${sc.label}\xBB: \u0432 \u0441\u043B\u043E\u0442\u0435 \u0441\u0442\u043E\u0438\u0442 \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0430\u044F \u0441\u0443\u0449\u043D\u043E\u0441\u0442\u044C \xAB${slot.default_entity}\xBB`);
+            }
+          }
+          if (!sc.states.length) issues.push(`\u0421\u0446\u0435\u043D\u0430 \xAB${sc.label}\xBB: \u043D\u0435\u0442 \u043D\u0438 \u043E\u0434\u043D\u043E\u0433\u043E \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u044F (\u0444\u043E\u043D\u0430)`);
+          for (const st of sc.states) {
+            if (!st.image && !st.art) issues.push(`\u0421\u0446\u0435\u043D\u0430 \xAB${sc.label}\xBB: \u0443 \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u044F \xAB${st.label}\xBB \u043D\u0435\u0442 \u043D\u0438 \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F, \u043D\u0438 \u0432\u0435\u043A\u0442\u043E\u0440\u043D\u043E\u0433\u043E \u0444\u043E\u043D\u0430`);
+          }
+        }
+        for (const p of this.entityPaths()) {
+          const e = this.entity(p);
+          if (!e || e.type !== "npc") continue;
+          if (e.dialogue && !this.textFiles.has(e.dialogue)) {
+            issues.push(`\u041F\u0435\u0440\u0441\u043E\u043D\u0430\u0436 \xAB${e.label}\xBB: \u0434\u0438\u0430\u043B\u043E\u0433 \xAB${e.dialogue}\xBB \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D`);
+          }
+          for (const s of e.schedule ?? []) {
+            if (!sceneIds.has(s.scene)) issues.push(`\u041F\u0435\u0440\u0441\u043E\u043D\u0430\u0436 \xAB${e.label}\xBB: \u0440\u0430\u0441\u043F\u0438\u0441\u0430\u043D\u0438\u0435 \u0441\u0441\u044B\u043B\u0430\u0435\u0442\u0441\u044F \u043D\u0430 \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0443\u044E \u0441\u0446\u0435\u043D\u0443 \xAB${s.scene}\xBB`);
+            else if (scenes[s.scene] && !scenes[s.scene].slots.some((sl) => sl.id === s.slot)) {
+              issues.push(`\u041F\u0435\u0440\u0441\u043E\u043D\u0430\u0436 \xAB${e.label}\xBB: \u0432 \u0441\u0446\u0435\u043D\u0435 \xAB${scenes[s.scene].label}\xBB \u043D\u0435\u0442 \u0441\u043B\u043E\u0442\u0430 \xAB${s.slot}\xBB`);
+            }
+          }
+          for (const ov of e.presence_overrides ?? []) {
+            if (!sceneIds.has(ov.scene)) {
+              issues.push(`\u041F\u0435\u0440\u0441\u043E\u043D\u0430\u0436 \xAB${e.label}\xBB: \u043E\u0441\u043E\u0431\u043E\u0435 \u043C\u0435\u0441\u0442\u043E \u0441\u0441\u044B\u043B\u0430\u0435\u0442\u0441\u044F \u043D\u0430 \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0443\u044E \u0441\u0446\u0435\u043D\u0443 \xAB${ov.scene}\xBB`);
+            }
+          }
+          for (const s of e.trader?.sells ?? []) {
+            if (!entityIds.has(s.item)) issues.push(`\u041F\u0435\u0440\u0441\u043E\u043D\u0430\u0436 \xAB${e.label}\xBB: \u0432 \u043F\u0440\u0438\u043B\u0430\u0432\u043A\u0435 \u043D\u0435\u0442 \u043F\u0440\u0435\u0434\u043C\u0435\u0442\u0430 \xAB${s.item}\xBB`);
+          }
+        }
+        for (const p of this.rulePaths()) {
+          const r = this.rule(p);
+          if (!r) continue;
+          for (const cond of r.conditions ?? []) {
+            if (cond.type === "player_enters_scene" && !sceneIds.has(cond.scene)) {
+              issues.push(`\u041F\u0440\u0430\u0432\u0438\u043B\u043E \xAB${r.label}\xBB: \u0443\u0441\u043B\u043E\u0432\u0438\u0435 \u0441\u0441\u044B\u043B\u0430\u0435\u0442\u0441\u044F \u043D\u0430 \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0443\u044E \u0441\u0446\u0435\u043D\u0443 \xAB${cond.scene}\xBB`);
+            }
+          }
+          for (const ef of r.effects ?? []) {
+            if (ef.type === "start_quest" && !questIds.has(ef.quest)) {
+              issues.push(`\u041F\u0440\u0430\u0432\u0438\u043B\u043E \xAB${r.label}\xBB: \u043A\u0432\u0435\u0441\u0442 \xAB${ef.quest}\xBB \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D`);
+            }
+            if (ef.type === "play_cutscene" && !cutsceneIds.has(ef.cutscene)) {
+              issues.push(`\u041F\u0440\u0430\u0432\u0438\u043B\u043E \xAB${r.label}\xBB: \u043A\u0430\u0442\u0441\u0446\u0435\u043D\u0430 \xAB${ef.cutscene}\xBB \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u0430`);
+            }
+            if (ef.type === "fire_rule" && !ruleIds.has(ef.rule)) {
+              issues.push(`\u041F\u0440\u0430\u0432\u0438\u043B\u043E \xAB${r.label}\xBB: \u044D\u0444\u0444\u0435\u043A\u0442 \u0432\u044B\u0437\u044B\u0432\u0430\u0435\u0442 \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0435\u0435 \u043F\u0440\u0430\u0432\u0438\u043B\u043E \xAB${ef.rule}\xBB`);
+            }
+            if (ef.type === "unlock_recipe" && !this.recipeIds().has(ef.recipe)) {
+              issues.push(`\u041F\u0440\u0430\u0432\u0438\u043B\u043E \xAB${r.label}\xBB: \u043E\u0442\u043A\u0440\u044B\u0432\u0430\u0435\u0442\u0441\u044F \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0438\u0439 \u0440\u0435\u0446\u0435\u043F\u0442 \xAB${ef.recipe}\xBB`);
+            }
+            if (ef.type === "set_entity_state") {
+              if (!entityIds.has(ef.entity)) {
+                issues.push(`\u041F\u0440\u0430\u0432\u0438\u043B\u043E \xAB${r.label}\xBB: \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u0435 \u043E\u0431\u043B\u0438\u043A\u0430 \u043D\u0430\u0437\u043D\u0430\u0447\u0430\u0435\u0442\u0441\u044F \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0435\u043C\u0443 \u043F\u0435\u0440\u0441\u043E\u043D\u0430\u0436\u0443 \xAB${ef.entity}\xBB`);
+              } else if (ef.state && !this.entityStateKeys(ef.entity).has(ef.state)) {
+                issues.push(
+                  `\u041F\u0440\u0430\u0432\u0438\u043B\u043E \xAB${r.label}\xBB: \u0443 \u043F\u0435\u0440\u0441\u043E\u043D\u0430\u0436\u0430 \xAB${ef.entity}\xBB \u043D\u0435\u0442 \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u044F \u043E\u0431\u043B\u0438\u043A\u0430 \xAB${ef.state}\xBB (\u0435\u0441\u0442\u044C: ${[...this.entityStateKeys(ef.entity)].join(", ") || "\u2014"})`
+                );
+              }
+            }
+          }
+        }
+        for (const cyc of this.fireRuleCycles()) {
+          issues.push(
+            `\u041F\u0440\u0430\u0432\u0438\u043B\u0430 \u0432\u044B\u0437\u044B\u0432\u0430\u044E\u0442 \u0434\u0440\u0443\u0433 \u0434\u0440\u0443\u0433\u0430 \u043F\u043E \u043A\u0440\u0443\u0433\u0443: ${cyc.join(" \u2192 ")}. \u0420\u0430\u0437\u043E\u0440\u0432\u0438\u0442\u0435 \u0446\u0435\u043F\u043E\u0447\u043A\u0443: \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u044B\u0445 \u0432\u044B\u0437\u043E\u0432\u043E\u0432 \u043F\u0440\u0430\u0432\u0438\u043B \u043C\u043E\u0436\u0435\u0442 \u0431\u044B\u0442\u044C \u043D\u0435 \u0431\u043E\u043B\u044C\u0448\u0435 ${FIRE_RULE_MAX_DEPTH}, \u0430 \u043F\u0440\u0430\u0432\u0438\u043B\u043E \u043D\u0435 \u0434\u043E\u043B\u0436\u043D\u043E \u0432\u043E\u0437\u0432\u0440\u0430\u0449\u0430\u0442\u044C\u0441\u044F \u0432 \u0441\u0435\u0431\u044F.`
+          );
+        }
+        for (const p of this.questPaths()) {
+          const q = this.quest(p);
+          if (!q) continue;
+          if (!q.stages.length) issues.push(`\u041A\u0432\u0435\u0441\u0442 \xAB${q.label}\xBB: \u043D\u0435\u0442 \u043D\u0438 \u043E\u0434\u043D\u043E\u0439 \u0441\u0442\u0430\u0434\u0438\u0438`);
+          else {
+            const ids = new Set(q.stages.map((s) => s.id));
+            for (const st of q.stages) {
+              for (const t of st.transitions ?? []) {
+                if (!ids.has(t.to)) issues.push(`\u041A\u0432\u0435\u0441\u0442 \xAB${q.label}\xBB: \u043F\u0435\u0440\u0435\u0445\u043E\u0434 \u0441\u0442\u0430\u0434\u0438\u0438 \xAB${st.label ?? st.id}\xBB \u0432 \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0443\u044E \u0441\u0442\u0430\u0434\u0438\u044E \xAB${t.to}\xBB`);
+              }
+            }
+            if (this.meta.starting_scene && !sceneIds.has(this.meta.starting_scene)) {
+              issues.push(`\u041A\u0430\u043C\u043F\u0430\u043D\u0438\u044F: \u0441\u0442\u0430\u0440\u0442\u043E\u0432\u0430\u044F \u0441\u0446\u0435\u043D\u0430 \xAB${this.meta.starting_scene}\xBB \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u0430`);
+            }
+          }
+        }
+        if (!locationIds.has(this.meta.starting_location)) {
+          issues.push(`\u041A\u0430\u043C\u043F\u0430\u043D\u0438\u044F: \u0441\u0442\u0430\u0440\u0442\u043E\u0432\u0430\u044F \u043B\u043E\u043A\u0430\u0446\u0438\u044F \xAB${this.meta.starting_location}\xBB \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u0430`);
+        }
+        if (!entityIds.has(this.meta.default_player)) {
+          issues.push(`\u041A\u0430\u043C\u043F\u0430\u043D\u0438\u044F: \u043F\u0435\u0440\u0441\u043E\u043D\u0430\u0436 \u0438\u0433\u0440\u043E\u043A\u0430 \xAB${this.meta.default_player}\xBB \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D`);
+        }
+        for (const need of this.meta.needs ?? []) {
+          if (need.on_zero_effect && need.on_zero_effect !== "death" && !ruleIds.has(need.on_zero_effect)) {
+            issues.push(`\u041F\u043E\u0442\u0440\u0435\u0431\u043D\u043E\u0441\u0442\u044C \xAB${need.label}\xBB: \u043F\u0440\u0430\u0432\u0438\u043B\u043E \xAB${need.on_zero_effect}\xBB \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E`);
+          }
+        }
+        const designDoc = (this.meta.design_doc ?? "").trim();
+        if (designDoc) {
+          const npcIds = /* @__PURE__ */ new Set();
+          for (const p of this.entityPaths()) {
+            const e = this.entity(p);
+            if (e?.type === "npc") npcIds.add(e.id);
+          }
+          const known = [...sceneIds, ...questIds, ...npcIds];
+          if (known.length && !known.some((id) => designDoc.includes(id))) {
+            const firstScene = this.scene(this.scenePaths()[0] ?? "");
+            issues.push(
+              firstScene ? `\u0414\u0438\u0437\u0430\u0439\u043D-\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442 \u043D\u0435 \u043E\u043F\u0438\u0441\u044B\u0432\u0430\u0435\u0442 \u0441\u0446\u0435\u043D\u0443 \xAB${firstScene.label}\xBB: \u043F\u043E\u043F\u0440\u043E\u0441\u0438\u0442\u0435 \u0430\u0433\u0435\u043D\u0442\u0430 \u0434\u043E\u043F\u043E\u043B\u043D\u0438\u0442\u044C` : "\u0414\u0438\u0437\u0430\u0439\u043D-\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442 \u043D\u0435 \u043E\u043F\u0438\u0441\u044B\u0432\u0430\u0435\u0442 \u043D\u0438 \u043E\u0434\u043D\u043E\u0439 \u0441\u0446\u0435\u043D\u044B, \u043F\u0435\u0440\u0441\u043E\u043D\u0430\u0436\u0430 \u0438\u043B\u0438 \u043A\u0432\u0435\u0441\u0442\u0430 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438: \u043F\u043E\u043F\u0440\u043E\u0441\u0438\u0442\u0435 \u0430\u0433\u0435\u043D\u0442\u0430 \u0434\u043E\u043F\u043E\u043B\u043D\u0438\u0442\u044C"
+            );
+          }
+        }
+        return issues;
+      }
+      // ─────────────── правки ───────────────
+      touch(path, group = "") {
+        if (path.startsWith("quests/") && projectCapabilityMode(this.project, "quests") === "off") {
+          const previous = this.snapshots.get(path);
+          if (previous !== void 0) this.jsonFiles.set(path, JSON.parse(previous));
+          this.notify();
+          return;
+        }
+        const now = Date.now();
+        const prev = this.snapshots.get(path);
+        const sameBurst = group !== "" && this.lastTouch.path === path && this.lastTouch.group === group && now - this.lastTouch.at < 900;
+        if (prev !== void 0 && !sameBurst) {
+          this.undoStack.push({ path, text: prev });
+          if (this.undoStack.length > 100) this.undoStack.shift();
+        }
+        this.lastTouch = { path, group, at: now };
+        this.snapshots.set(path, this.fileText(path));
+        if (this.saved.get(path) === this.fileText(path)) this.dirty.delete(path);
+        else this.dirty.add(path);
+        this.notify();
+      }
+      canUndo() {
+        return this.undoStack.length > 0;
+      }
+      /** откат последнего изменения */
+      undo() {
+        const step = this.undoStack.pop();
+        if (!step) return null;
+        const { path, text } = step;
+        if (path === "campaign.json") this.meta = JSON.parse(text);
+        else if (path === "project.json") {
+          this.project = JSON.parse(text);
+          this.projectFileExists = true;
+          this.capabilityModes = this.resolveModes?.(this.project) ?? null;
+        } else if (path === "world.json") this.world = JSON.parse(text);
+        else if (path === "manifest.json") this.manifest = JSON.parse(text);
+        else if (this.textFiles.has(path)) this.textFiles.set(path, text);
+        else this.jsonFiles.set(path, JSON.parse(text));
+        this.snapshots.set(path, text);
+        if (this.saved.get(path) === text) this.dirty.delete(path);
+        else this.dirty.add(path);
+        this.lastTouch = { path: "", group: "", at: 0 };
+        this.notify();
+        return path;
+      }
+      setJson(path, data) {
+        if (path === "project.json") {
+          this.project = data;
+          this.projectFileExists = true;
+          this.capabilityModes = this.resolveModes?.(this.project) ?? null;
+        } else {
+          this.jsonFiles.set(path, data);
+        }
+        this.touch(path);
+      }
+      setText(path, text) {
+        this.textFiles.set(path, text);
+        this.touch(path);
+      }
+      setMeta(meta) {
+        this.meta = meta;
+        this.touch("campaign.json");
+      }
+      setWorld(world) {
+        this.world = world;
+        this.touch("world.json");
+      }
+      /** создать новый файл и внести в манифест */
+      createFile(section, filename, data) {
+        if (section === "quests" && projectCapabilityMode(this.project, "quests") === "off") return "";
+        const dir = section;
+        const path = `${dir}/${filename}`;
+        const list = this.manifest[section] ?? (this.manifest[section] = []);
+        if (!list.includes(filename)) list.push(filename);
+        if (typeof data === "string") this.textFiles.set(path, data);
+        else this.jsonFiles.set(path, data);
+        this.dirty.add(path);
+        this.dirty.add("manifest.json");
+        this.notify();
+        return path;
+      }
+      deleteFile(section, filename) {
+        if (section === "quests" && projectCapabilityMode(this.project, "quests") === "off") return;
+        const dir = section;
+        const path = `${dir}/${filename}`;
+        const list = this.manifest[section] ?? [];
+        const i = list.indexOf(filename);
+        if (i >= 0) list.splice(i, 1);
+        this.jsonFiles.delete(path);
+        if (section === "encounters") this.jsonFiles.delete(`encounters/${filename}`);
+        this.textFiles.delete(path);
+        this.dirty.delete(path);
+        if (section === "encounters") this.dirty.delete(`encounters/${filename}`);
+        this.dirty.add("manifest.json");
+        this.notify();
+      }
+      // ─────────────── сохранение ───────────────
+      fileText(path) {
+        if (path === "project.json") {
+          if (this.projectOriginal && this.projectOriginalText !== null && JSON.stringify(this.project) === JSON.stringify(this.projectOriginal)) {
+            return this.projectOriginalText;
+          }
+          return JSON.stringify(this.project, null, 2);
+        }
+        if (path === "campaign.json") return JSON.stringify(this.meta, null, 2);
+        if (path === "world.json") return JSON.stringify(this.world, null, 2);
+        if (path === "manifest.json") return JSON.stringify(this.manifest, null, 2);
+        if (this.textFiles.has(path)) return this.textFiles.get(path);
+        return JSON.stringify(this.jsonFiles.get(path), null, 2);
+      }
+      hasFile(path) {
+        return path === "project.json" && this.projectFileExists || path === "campaign.json" || path === "world.json" || path === "manifest.json" || this.jsonFiles.has(path) || this.textFiles.has(path);
+      }
+      /** Зафиксировать текущее состояние кампании как исходную базу для диффа изменений */
+      captureBaseline() {
+        this.baseline.clear();
+        for (const p of this.allPaths()) {
+          this.baseline.set(p, this.fileText(p));
+        }
+        this.persistBaseline();
+        this.notify();
+      }
+      /**
+       * Принять один файл в базовый снимок: убрать его из списка ручных правок,
+       * не сбрасывая отслеживание остальных (нужна мастеру ИИ кнопка «убрать
+       * правку» рядом с каждой строкой). Удалённым файлам снимок попросту не нужен.
+       */
+      acceptChangeAsBaseline(path) {
+        if (this.hasFile(path)) this.baseline.set(path, this.fileText(path));
+        else this.baseline.delete(path);
+        this.persistBaseline();
+        this.notify();
+      }
+      /** ключ localStorage, по которому лежит снимок базы правок мастера для этой кампании */
+      get aiBaselineKey() {
+        return aiDiffSnapshotKey(this.basePath);
+      }
+      /**
+       * Сохранить базу правок мастера между сессиями. Снимок живёт в localStorage,
+       * поэтому отслеживание изменений продолжается после закрытия редактора и самой
+       * игры. Если кампания слишком велика для localStorage, слежение остаётся только
+       * в рамках текущей сессии (поведение по умолчанию).
+       */
+      persistBaseline() {
+        try {
+          const payload = JSON.stringify({
+            v: _EditorStore.AI_BASELINE_VERSION,
+            campaign: this.meta?.id ?? "",
+            capturedAt: Date.now(),
+            files: Object.fromEntries(this.baseline)
+          });
+          if (payload.length > _EditorStore.AI_BASELINE_LIMIT) {
+            localStorage.removeItem(this.aiBaselineKey);
+            console.warn("[ai-diff] \u0441\u043D\u0438\u043C\u043E\u043A \u0431\u0430\u0437\u044B \u043F\u0440\u0430\u0432\u043E\u043A \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u0432\u0435\u043B\u0438\u043A \u0434\u043B\u044F localStorage; \u043E\u0442\u0441\u043B\u0435\u0436\u0438\u0432\u0430\u043D\u0438\u0435 \u043D\u0435 \u043F\u0435\u0440\u0435\u0436\u0438\u0432\u0451\u0442 \u043F\u0435\u0440\u0435\u0437\u0430\u043F\u0443\u0441\u043A");
+            return;
+          }
+          localStorage.setItem(this.aiBaselineKey, payload);
+        } catch {
+        }
+      }
+      /**
+       * Восстановить сохранённую базу правок мастера. Возвращает true, если снимок
+       * найден и принят; иначе false — вызывающий код фиксирует новую точку отсчёта.
+       * Чужой кампании снимок не достанется: он кешируется по basePath и сверяется
+       * с id кампании из campaign.json.
+       */
+      restoreBaseline() {
+        try {
+          const raw = localStorage.getItem(this.aiBaselineKey);
+          if (!raw) return false;
+          const data = JSON.parse(raw);
+          if (data.v !== _EditorStore.AI_BASELINE_VERSION) return false;
+          if (typeof data.files !== "object" || data.files === null) return false;
+          if (typeof data.campaign === "string" && data.campaign && this.meta?.id && data.campaign !== this.meta.id) return false;
+          const files = data.files;
+          this.baseline.clear();
+          for (const [p, text] of Object.entries(files)) {
+            if (typeof p === "string" && p && typeof text === "string") this.baseline.set(p, text);
+          }
+          return this.baseline.size > 0;
+        } catch {
+          return false;
+        }
+      }
+      /** Имеются ли зафиксированные данные базового снимка */
+      hasBaseline() {
+        return this.baseline.size > 0;
+      }
+      /**
+       * Список файлов, которые реально изменились относительно исходного состояния
+       * (добавленные, изменённые или удалённые файлы).
+       */
+      /** каноничная строка JSON для сравнения: ключи по алфавиту рекурсивно.
+       *  Защита от ложного «изменилось»: перестановка ключей или перевод
+       *  сериализации (отступы/переносы) не считается правкой мастера (фидбек:
+       *  «просто просмотрел диалог — ИИ-мастер записал как изменение»). */
+      static canonJson(o) {
+        if (Array.isArray(o)) return `[${o.map((x) => _EditorStore.canonJson(x)).join(",")}]`;
+        if (o && typeof o === "object") {
+          return `{${Object.keys(o).sort().map((k) => `${JSON.stringify(k)}:${_EditorStore.canonJson(o[k])}`).join(",")}}`;
+        }
+        return JSON.stringify(o);
+      }
+      textsEqualForDiff(path, a, b) {
+        if (a === b) return true;
+        if (!path.endsWith(".json")) return false;
+        try {
+          return _EditorStore.canonJson(JSON.parse(a)) === _EditorStore.canonJson(JSON.parse(b));
+        } catch {
+          return false;
+        }
+      }
+      getModifiedFiles() {
+        const list = [];
+        const currentPaths = new Set(this.allPaths());
+        for (const p of currentPaths) {
+          const currentText = this.fileText(p);
+          const baseText = this.baseline.get(p);
+          if (baseText === void 0) {
+            list.push({
+              path: p,
+              status: "added",
+              category: this.categorizePath(p),
+              title: this.titleForPath(p)
+            });
+          } else if (!this.textsEqualForDiff(p, baseText, currentText)) {
+            list.push({
+              path: p,
+              status: "modified",
+              category: this.categorizePath(p),
+              title: this.titleForPath(p),
+              diffSummary: this.buildDiffSummary(p, baseText, currentText)
+            });
+          }
+        }
+        for (const [p] of this.baseline) {
+          if (!currentPaths.has(p)) {
+            list.push({
+              path: p,
+              status: "deleted",
+              category: this.categorizePath(p),
+              title: this.titleForPath(p)
+            });
+          }
+        }
+        return list.sort((a, b) => a.path.localeCompare(b.path, "ru"));
+      }
+      categorizePath(path) {
+        if (path === "project.json" || path === "campaign.json") return "meta";
+        if (path === "world.json") return "world";
+        if (path.startsWith("scenes/")) return "scene";
+        if (path.startsWith("dialogues/")) return "dialogue";
+        if (path.startsWith("entities/")) return "entity";
+        if (path.startsWith("quests/")) return "quest";
+        if (path.startsWith("rules/")) return "rule";
+        if (path.startsWith("recipes/")) return "recipe";
+        if (path.startsWith("arenas/")) return "arena";
+        if (path.startsWith("cutscenes/")) return "cutscene";
+        if (path.startsWith("codex/")) return "codex";
+        return "other";
+      }
+      titleForPath(path) {
+        if (path === "project.json") return "\u0420\u0435\u0436\u0438\u043C\u044B \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u0435\u0439 \u043F\u0440\u043E\u0435\u043A\u0442\u0430";
+        if (path === "campaign.json") return `\u041F\u0430\u0441\u043F\u043E\u0440\u0442 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 \xAB${this.meta.title || this.meta.id}\xBB`;
+        if (path === "world.json") return "\u041A\u0430\u0440\u0442\u0430 \u043C\u0438\u0440\u0430 \u0438 \u043B\u043E\u043A\u0430\u0446\u0438\u0438";
+        if (path === "manifest.json") return "\u041C\u0430\u043D\u0438\u0444\u0435\u0441\u0442 \u0441\u0442\u0440\u0443\u043A\u0442\u0443\u0440\u044B";
+        if (path.startsWith("scenes/")) {
+          const doc = this.jsonFiles.get(path);
+          return doc?.label ? `\u0421\u0446\u0435\u043D\u0430: ${doc.label}` : path;
+        }
+        if (path.startsWith("entities/")) {
+          const doc = this.jsonFiles.get(path);
+          const kind = doc?.type === "npc" ? "\u041F\u0435\u0440\u0441\u043E\u043D\u0430\u0436" : "\u041F\u0440\u0435\u0434\u043C\u0435\u0442";
+          return doc?.label ? `${kind}: ${doc.label}` : path;
+        }
+        if (path.startsWith("dialogues/")) {
+          const clean = path.replace(/^dialogues\//, "").replace(/\.(ink|dlg\.json)$/, "");
+          return `\u0414\u0438\u0430\u043B\u043E\u0433: ${clean}`;
+        }
+        if (path.startsWith("quests/")) {
+          const doc = this.jsonFiles.get(path);
+          return doc?.label ? `\u041A\u0432\u0435\u0441\u0442: ${doc.label}` : path;
+        }
+        if (path.startsWith("recipes/")) {
+          const doc = this.jsonFiles.get(path);
+          return doc?.label ? `\u0420\u0435\u0446\u0435\u043F\u0442: ${doc.label}` : path;
+        }
+        if (path.startsWith("rules/")) {
+          const doc = this.jsonFiles.get(path);
+          return doc?.label || doc?.id ? `\u041F\u0440\u0430\u0432\u0438\u043B\u043E: ${doc.label || doc.id}` : path;
+        }
+        if (path.startsWith("cutscenes/")) {
+          const doc = this.jsonFiles.get(path);
+          return doc?.label ? `\u041A\u0430\u0442\u0441\u0446\u0435\u043D\u0430: ${doc.label}` : path;
+        }
+        if (path.startsWith("arenas/")) {
+          const doc = this.jsonFiles.get(path);
+          return doc?.label ? `\u0410\u0440\u0435\u043D\u0430: ${doc.label}` : path;
+        }
+        if (path.startsWith("codex/")) {
+          const doc = this.jsonFiles.get(path);
+          return doc?.label ? `\u041A\u043E\u0434\u0435\u043A\u0441: ${doc.label}` : path;
+        }
+        return path;
+      }
+      buildDiffSummary(path, baseText, currentText) {
+        if (path.endsWith(".json")) {
+          try {
+            const baseObj = JSON.parse(baseText);
+            const curObj = JSON.parse(currentText);
+            if (typeof baseObj === "object" && baseObj && typeof curObj === "object" && curObj) {
+              const changedKeys = [];
+              const allKeys = /* @__PURE__ */ new Set([...Object.keys(baseObj), ...Object.keys(curObj)]);
+              for (const k of allKeys) {
+                if (JSON.stringify(baseObj[k]) !== JSON.stringify(curObj[k])) {
+                  changedKeys.push(k);
+                }
+              }
+              if (changedKeys.length > 0 && changedKeys.length <= 4) {
+                return `\u0438\u0437\u043C\u0435\u043D\u0435\u043D\u044B \u043F\u043E\u043B\u044F: ${changedKeys.join(", ")}`;
+              } else if (changedKeys.length > 4) {
+                return `\u0438\u0437\u043C\u0435\u043D\u0435\u043D\u043E ${changedKeys.length} \u043F\u043E\u043B\u0435\u0439 (${changedKeys.slice(0, 3).join(", ")}\u2026)`;
+              }
+            }
+          } catch {
+          }
+        }
+        return void 0;
+      }
+      /**
+       * Сформировать понятную сводку изменений для чата с ИИ
+       */
+      getChangesSummaryText() {
+        const mods = this.getModifiedFiles();
+        if (mods.length === 0) {
+          return `\u041A\u0430\u043C\u043F\u0430\u043D\u0438\u044F \xAB${this.meta.title}\xBB (${this.meta.id}): \u043D\u0435\u0442 \u0438\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u0439 \u043E\u0442\u043D\u043E\u0441\u0438\u0442\u0435\u043B\u044C\u043D\u043E \u0438\u0441\u0445\u043E\u0434\u043D\u043E\u0433\u043E \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u044F.`;
+        }
+        const lines = [
+          `### \u0418\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u044F \u043C\u0430\u0441\u0442\u0435\u0440\u0430 \u0432 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 \xAB${this.meta.title}\xBB (${this.meta.id}):`,
+          `\u0412\u0441\u0435\u0433\u043E \u0437\u0430\u0442\u0440\u043E\u043D\u0443\u0442\u043E \u0444\u0430\u0439\u043B\u043E\u0432: ${mods.length}`,
+          ""
+        ];
+        for (let i = 0; i < mods.length; i++) {
+          const m = mods[i];
+          const statusLabel = m.status === "added" ? "\u041D\u043E\u0432\u044B\u0439" : m.status === "deleted" ? "\u0423\u0434\u0430\u043B\u0451\u043D" : "\u0418\u0437\u043C\u0435\u043D\u0451\u043D";
+          const detail = m.diffSummary ? ` \u2014 ${m.diffSummary}` : "";
+          lines.push(`${i + 1}. [${statusLabel}] ${m.title} (\`${m.path}\`)${detail}`);
+        }
+        lines.push("");
+        lines.push("\u041F\u0440\u0438\u043C\u0435\u043D\u0438 \u044D\u0442\u0438 \u0438\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u044F \u043F\u043E\u0432\u0435\u0440\u0445 \u0441\u0432\u043E\u0435\u0439 \u0432\u0435\u0440\u0441\u0438\u0438 \u043F\u0440\u043E\u0435\u043A\u0442\u0430 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 \u0438 \u043F\u0440\u043E\u0434\u043E\u043B\u0436\u0430\u0439 \u0440\u0430\u0437\u0440\u0430\u0431\u043E\u0442\u043A\u0443 \u0441 \u0438\u0445 \u0443\u0447\u0451\u0442\u043E\u043C.");
+        return lines.join("\n");
+      }
+      allPaths() {
+        return [
+          ...this.projectFileExists ? ["project.json"] : [],
+          "campaign.json",
+          "world.json",
+          "manifest.json",
+          ...this.jsonFiles.keys(),
+          ...this.textFiles.keys()
+        ];
+      }
+      /** Сменить каталог назначения (используется при импорте новой кампании). */
+      setBasePath(basePath) {
+        this.basePath = basePath;
+      }
+      /** Задать id новой кампании и пометить метаданные для сохранения. */
+      setCampaignId(id) {
+        this.meta.id = id;
+        this.dirty.add("campaign.json");
+        this.notify();
+      }
+      /** "campaigns/<id>" — относительный путь пакета внутри public/ */
+      campaignRel() {
+        const path = this.basePath.startsWith("http") ? new URL(this.basePath).pathname : this.basePath;
+        return path.replace(/^\//, "");
+      }
+      /** URL dev-эндпоинта сохранения (работает и в браузере, и в node-тестах) */
+      saveEndpoint() {
+        return this.basePath.startsWith("http") ? new URL("/__editor/save", this.basePath).toString() : "/__editor/save";
+      }
+      /** сохранить на диск через dev-эндпоинт vite */
+      async saveToDisk(paths) {
+        const targets = paths ?? [...this.dirty];
+        const campaignRel = this.campaignRel();
+        for (const p of targets) {
+          const res = await fetch(this.saveEndpoint(), {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ path: `${campaignRel}/${p}`, text: this.fileText(p) })
+          });
+          if (!res.ok) throw new Error(`\u0421\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u0435 ${p}: ${res.status} ${await res.text()}`);
+          this.saved.set(p, this.fileText(p));
+          this.dirty.delete(p);
+        }
+        this.notify();
+      }
+    };
+  }
+});
+
 // docs/campaign.schema.json
 var campaign_schema_default;
 var init_campaign_schema = __esm({
   "docs/campaign.schema.json"() {
     campaign_schema_default = {
       $schema: "https://json-schema.org/draft/2020-12/schema",
-      $id: "https://chronicle-forge.local/docs/campaign.schema.json",
-      title: "Chronicle Forge \u2014 \u043C\u043E\u043D\u043E\u043B\u0438\u0442\u043D\u0430\u044F \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u044F \u0438 \u0441\u0445\u0435\u043C\u044B \u0444\u0430\u0439\u043B\u043E\u0432 \u043F\u0430\u043A\u0435\u0442\u0430",
-      description: "\u041C\u043E\u043D\u043E\u043B\u0438\u0442\u043D\u044B\u0439 JSON Chronicle Forge: \u043E\u0431\u044F\u0437\u0430\u0442\u0435\u043B\u044C\u043D\u044B\u0435 \u043A\u043B\u044E\u0447\u0438 campaign, world, scenes, entities, rules, quests, arenas, cutscenes, dialogues; \u043D\u0435\u043E\u0431\u044F\u0437\u0430\u0442\u0435\u043B\u044C\u043D\u044B\u0435 encounters, recipes, codex. \u0412 $defs \u0442\u0430\u043A\u0436\u0435 CampaignIndexEntry, CampaignManifest \u0438 EncounterFileDef \u0434\u043B\u044F \u0440\u0435\u0435\u0441\u0442\u0440\u0430 \u0438 \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u044B\u0445 \u0444\u0430\u0439\u043B\u043E\u0432 Campaign Package. \u0421\u0433\u0435\u043D\u0435\u0440\u0438\u0440\u043E\u0432\u0430\u043D\u043E \u0438\u0437 src/shared/types.ts (scripts/gen-schema.mts). \u0413\u0430\u0439\u0434 \u0434\u043B\u044F \u0418\u0418-\u0433\u0435\u043D\u0435\u0440\u0430\u0442\u043E\u0440\u043E\u0432: docs/ai-campaign-guide.md.",
+      $id: "https://narthex.local/docs/campaign.schema.json",
+      title: "Narthex \u2014 \u043C\u043E\u043D\u043E\u043B\u0438\u0442\u043D\u0430\u044F \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u044F \u0438 \u0441\u0445\u0435\u043C\u044B \u0444\u0430\u0439\u043B\u043E\u0432 \u043F\u0430\u043A\u0435\u0442\u0430",
+      description: "\u041C\u043E\u043D\u043E\u043B\u0438\u0442\u043D\u044B\u0439 JSON Narthex: \u043E\u0431\u044F\u0437\u0430\u0442\u0435\u043B\u044C\u043D\u044B\u0435 \u043A\u043B\u044E\u0447\u0438 campaign, world, scenes, entities, rules, quests, arenas, cutscenes, dialogues; \u043D\u0435\u043E\u0431\u044F\u0437\u0430\u0442\u0435\u043B\u044C\u043D\u044B\u0435 encounters, recipes, codex. \u0412 $defs \u0442\u0430\u043A\u0436\u0435 CampaignIndexEntry, CampaignManifest \u0438 EncounterFileDef \u0434\u043B\u044F \u0440\u0435\u0435\u0441\u0442\u0440\u0430 \u0438 \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u044B\u0445 \u0444\u0430\u0439\u043B\u043E\u0432 Campaign Package. \u0421\u0433\u0435\u043D\u0435\u0440\u0438\u0440\u043E\u0432\u0430\u043D\u043E \u0438\u0437 src/shared/types.ts (scripts/gen-schema.mts). \u0413\u0430\u0439\u0434 \u0434\u043B\u044F \u0418\u0418-\u0433\u0435\u043D\u0435\u0440\u0430\u0442\u043E\u0440\u043E\u0432: docs/ai-campaign-guide.md.",
       $ref: "#/$defs/MonolithDoc",
       $defs: {
         TimeOfDayThresholds: {
@@ -13032,6 +13269,10 @@ var init_campaign_schema = __esm({
           ],
           additionalProperties: false
         },
+        CapabilityId: {
+          type: "string",
+          description: "\u041F\u0440\u043E\u0444\u0438\u043B\u044C \u043C\u0435\u0445\u0430\u043D\u0438\u043A \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 (\u0431\u043B\u043E\u043A 1 \u0422\u0417 \xAB\u0413\u0438\u0431\u043A\u0438\u0439 \u0434\u0432\u0438\u0436\u043E\u043A\xBB). \u041A\u0430\u0436\u0434\u043E\u0435 \u043F\u043E\u043B\u0435 \u2014\n\u0432\u044B\u043A\u043B\u044E\u0447\u0430\u0442\u0435\u043B\u044C \u043F\u043E\u0434\u0441\u0438\u0441\u0442\u0435\u043C\u044B; \u041E\u0422\u0421\u0423\u0422\u0421\u0422\u0412\u0423\u042E\u0429\u0415\u0415 \u043F\u043E\u043B\u0435 (\u0438\u043B\u0438 \u0432\u0435\u0441\u044C `features`) \u043E\u0437\u043D\u0430\u0447\u0430\u0435\u0442,\n\u0447\u0442\u043E \u043C\u0435\u0445\u0430\u043D\u0438\u043A\u0430 \u0412\u041A\u041B\u042E\u0427\u0415\u041D\u0410 \u2014 \u0441\u0442\u0430\u0440\u044B\u0435 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 \u0440\u0430\u0431\u043E\u0442\u0430\u044E\u0442 \u0431\u0435\u0437 \u0438\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u0439.\n\u0422\u0443\u043C\u0431\u043B\u0435\u0440\u044B \u0441\u043A\u0440\u044B\u0432\u0430\u044E\u0442 \u043F\u043E\u0434\u0441\u0438\u0441\u0442\u0435\u043C\u0443 \u0438 \u0432 \u0434\u0432\u0438\u0436\u043A\u0435, \u0438 \u0432 \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0435 \u0438\u0433\u0440\u043E\u043A\u0430."
+        },
         CampaignFeatures: {
           type: "object",
           properties: {
@@ -13068,8 +13309,7 @@ var init_campaign_schema = __esm({
               description: "\u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435 \u0447\u0430\u0441\u043E\u0432 \u0438 \u0432\u0440\u0435\u043C\u0435\u043D\u0438 \u0441\u0443\u0442\u043E\u043A (\u0445\u043E\u0434 \u0432\u0440\u0435\u043C\u0435\u043D\u0438 \u043E\u0441\u0442\u0430\u0451\u0442\u0441\u044F)"
             }
           },
-          additionalProperties: false,
-          description: "\u041F\u0440\u043E\u0444\u0438\u043B\u044C \u043C\u0435\u0445\u0430\u043D\u0438\u043A \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 (\u0431\u043B\u043E\u043A 1 \u0422\u0417 \xAB\u0413\u0438\u0431\u043A\u0438\u0439 \u0434\u0432\u0438\u0436\u043E\u043A\xBB). \u041A\u0430\u0436\u0434\u043E\u0435 \u043F\u043E\u043B\u0435 \u2014\n\u0432\u044B\u043A\u043B\u044E\u0447\u0430\u0442\u0435\u043B\u044C \u043F\u043E\u0434\u0441\u0438\u0441\u0442\u0435\u043C\u044B; \u041E\u0422\u0421\u0423\u0422\u0421\u0422\u0412\u0423\u042E\u0429\u0415\u0415 \u043F\u043E\u043B\u0435 (\u0438\u043B\u0438 \u0432\u0435\u0441\u044C `features`) \u043E\u0437\u043D\u0430\u0447\u0430\u0435\u0442,\n\u0447\u0442\u043E \u043C\u0435\u0445\u0430\u043D\u0438\u043A\u0430 \u0412\u041A\u041B\u042E\u0427\u0415\u041D\u0410 \u2014 \u0441\u0442\u0430\u0440\u044B\u0435 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 \u0440\u0430\u0431\u043E\u0442\u0430\u044E\u0442 \u0431\u0435\u0437 \u0438\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u0439.\n\u0422\u0443\u043C\u0431\u043B\u0435\u0440\u044B \u0441\u043A\u0440\u044B\u0432\u0430\u044E\u0442 \u043F\u043E\u0434\u0441\u0438\u0441\u0442\u0435\u043C\u0443 \u0438 \u0432 \u0434\u0432\u0438\u0436\u043A\u0435, \u0438 \u0432 \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0435 \u0438\u0433\u0440\u043E\u043A\u0430."
+          additionalProperties: false
         },
         FontDef: {
           type: "object",
@@ -15111,9 +15351,16 @@ var init_campaign_schema = __esm({
               },
               description: "\u0442\u0440\u0435\u043A(\u0438) \u0431\u043E\u044F \u043F\u043E \u0443\u043C\u043E\u043B\u0447\u0430\u043D\u0438\u044E (\u0435\u0441\u043B\u0438 \u0443 \u0430\u0440\u0435\u043D\u044B \u043D\u0435\u0442 \u0441\u0432\u043E\u0435\u0433\u043E arena.music)"
             },
+            caps: {
+              type: "array",
+              items: {
+                $ref: "#/$defs/CapabilityId"
+              },
+              description: "\u042F\u0432\u043D\u043E \u0432\u043A\u043B\u044E\u0447\u0451\u043D\u043D\u044B\u0435 \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u0438; \u043F\u0440\u0438 \u043E\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u0438 \u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044F legacy-\u043F\u043E\u043B\u0435 features."
+            },
             features: {
               $ref: "#/$defs/CampaignFeatures",
-              description: "\u043F\u0440\u043E\u0444\u0438\u043B\u044C \u043C\u0435\u0445\u0430\u043D\u0438\u043A: \u0447\u0442\u043E \u0432\u043A\u043B\u044E\u0447\u0435\u043D\u043E \u0432 \u044D\u0442\u043E\u0439 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 (\u043D\u0435\u0442 \u043F\u043E\u043B\u044F \u2014 \u0432\u0441\u0451 \u0432\u043A\u043B\u044E\u0447\u0435\u043D\u043E)"
+              description: "\u043F\u0440\u043E\u0444\u0438\u043B\u044C \u043C\u0435\u0445\u0430\u043D\u0438\u043A: legacy-\u043F\u0435\u0440\u0435\u043A\u043B\u044E\u0447\u0430\u0442\u0435\u043B\u0438, \u0447\u0438\u0442\u0430\u044E\u0442\u0441\u044F \u0447\u0435\u0440\u0435\u0437 caps.ts"
             },
             fonts: {
               type: "array",
@@ -15184,7 +15431,7 @@ var init_campaign_schema = __esm({
             },
             metaprogress: {
               $ref: "#/$defs/MetaProgressDef",
-              description: "\u041C\u0435\u0442\u0430-\u043F\u0440\u043E\u0433\u0440\u0435\u0441\u0441 \u043C\u0435\u0436\u0434\u0443 \u0437\u0430\u0431\u0435\u0433\u0430\u043C\u0438 (\u0430\u0443\u0434\u0438\u0442 B8b): \u0434\u043E\u0441\u0442\u0438\u0436\u0435\u043D\u0438\u044F, \u043C\u0435\u0442\u0430\u0432\u0430\u043B\u044E\u0442\u044B \u0438\n\u043F\u043E\u0441\u0442\u043E\u044F\u043D\u043D\u044B\u0435 \u0443\u0441\u0438\u043B\u0435\u043D\u0438\u044F. \u0421\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u0435 \u2014 \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u044B\u043C \u043A\u043B\u044E\u0447\u043E\u043C localStorage\n`chronicle-forge:meta:<campaignId>`, \u0436\u0438\u0432\u0451\u0442 \u043F\u0435\u0440\u0435\u043A\u0440\u0451\u0441\u0442\u043D\u043E \u043C\u0435\u0436\u0434\u0443 \u0441\u0435\u0439\u0432\u0430\u043C\u0438.\n\u041E\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u0435 \u0431\u043B\u043E\u043A\u0430 \u2014 \u043C\u0435\u0442\u0430-\u043F\u0440\u043E\u0433\u0440\u0435\u0441\u0441\u0430 \u043D\u0435\u0442 (\u043C\u0430\u0441\u0442\u0435\u0440 \u043C\u043E\u0436\u0435\u0442 \u043E\u043F\u0443\u0441\u0442\u0438\u0442\u044C \u0432\u0435\u0441\u044C \u043F\u043B\u0430\u0441\u0442)."
+              description: "\u041C\u0435\u0442\u0430-\u043F\u0440\u043E\u0433\u0440\u0435\u0441\u0441 \u043C\u0435\u0436\u0434\u0443 \u0437\u0430\u0431\u0435\u0433\u0430\u043C\u0438 (\u0430\u0443\u0434\u0438\u0442 B8b): \u0434\u043E\u0441\u0442\u0438\u0436\u0435\u043D\u0438\u044F, \u043C\u0435\u0442\u0430\u0432\u0430\u043B\u044E\u0442\u044B \u0438\n\u043F\u043E\u0441\u0442\u043E\u044F\u043D\u043D\u044B\u0435 \u0443\u0441\u0438\u043B\u0435\u043D\u0438\u044F. \u0421\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u0435 \u2014 \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u044B\u043C \u043A\u043B\u044E\u0447\u043E\u043C localStorage\n`narthex:meta:<campaignId>`, \u0436\u0438\u0432\u0451\u0442 \u043F\u0435\u0440\u0435\u043A\u0440\u0451\u0441\u0442\u043D\u043E \u043C\u0435\u0436\u0434\u0443 \u0441\u0435\u0439\u0432\u0430\u043C\u0438.\n\u041E\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u0435 \u0431\u043B\u043E\u043A\u0430 \u2014 \u043C\u0435\u0442\u0430-\u043F\u0440\u043E\u0433\u0440\u0435\u0441\u0441\u0430 \u043D\u0435\u0442 (\u043C\u0430\u0441\u0442\u0435\u0440 \u043C\u043E\u0436\u0435\u0442 \u043E\u043F\u0443\u0441\u0442\u0438\u0442\u044C \u0432\u0435\u0441\u044C \u043F\u043B\u0430\u0441\u0442)."
             },
             generators: {
               $ref: "#/$defs/GeneratorsDef",
@@ -19730,7 +19977,7 @@ __export(campaignAudit_exports, {
 function validateSchema(typeName, value, label) {
   let validator = schemaValidators.get(typeName);
   if (!validator) {
-    validator = ajv.compile({ $ref: `${schema.$id}#/$defs/${typeName}` });
+    validator = ajv2.compile({ $ref: `${schema.$id}#/$defs/${typeName}` });
     schemaValidators.set(typeName, validator);
   }
   if (validator(value)) return [];
@@ -20288,7 +20535,7 @@ async function validateCampaign(store, lastPlaytest) {
 }
 function formatCampaignAuditReport(report) {
   const lines = [
-    `\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 Chronicle Forge \u2014 ${new Date(report.checkedAt).toLocaleString()}`,
+    `\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 Narthex \u2014 ${new Date(report.checkedAt).toLocaleString()}`,
     "",
     "\u0421\u0422\u0420\u0423\u041A\u0422\u0423\u0420\u0410 \u0418 \u0421\u0421\u042B\u041B\u041A\u0418",
     ...report.structure.length ? report.structure.map((finding) => `${finding.severity.toUpperCase()}: ${finding.message}`) : ["\u041F\u0420\u041E\u0411\u041B\u0415\u041C \u041D\u0415\u0422"],
@@ -20307,16 +20554,16 @@ function auditCounts(report) {
     info: findings.filter((finding) => finding.severity === "info").length
   };
 }
-var import__, schema, ajv, schemaValidators, MEDIA_EXTENSION, ENGINE_INK_FNS;
+var import__2, schema, ajv2, schemaValidators, MEDIA_EXTENSION, ENGINE_INK_FNS;
 var init_campaignAudit = __esm({
   "src/editor/campaignAudit.ts"() {
-    import__ = __toESM(require__(), 1);
+    import__2 = __toESM(require__(), 1);
     init_campaign_schema();
     init_charcreate();
     init_types();
     schema = campaign_schema_default;
-    ajv = new import__.default({ allErrors: true, strict: false });
-    ajv.addSchema(schema);
+    ajv2 = new import__2.default({ allErrors: true, strict: false });
+    ajv2.addSchema(schema);
     schemaValidators = /* @__PURE__ */ new Map();
     MEDIA_EXTENSION = /\.(?:avif|gif|jpe?g|png|svg|webp|aac|flac|m4a|mp3|ogg|opus|wav|mp4|mov|webm|otf|ttf|woff2?)(?:[?#].*)?$/i;
     ENGINE_INK_FNS = /* @__PURE__ */ new Set([
@@ -20374,9 +20621,335 @@ var init_campaignAudit = __esm({
 });
 
 // scripts/campaign-audit.mts
-import { existsSync, readFileSync, readdirSync, statSync } from "fs";
-import { join, resolve, extname } from "path";
+import { existsSync as existsSync2, readFileSync as readFileSync2, readdirSync, statSync as statSync2 } from "fs";
+import { join, resolve as resolve2, extname } from "path";
 import { inflateSync } from "zlib";
+
+// scripts/campaign-fmv-audit.mts
+var import__ = __toESM(require__(), 1);
+import { existsSync, readFileSync, statSync } from "node:fs";
+import { resolve } from "node:path";
+
+// packs/narrative/schema/fmv.schema.json
+var fmv_schema_default = {
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  $id: "fmv.schema.json",
+  title: "Narrative branching FMV scene",
+  type: "object",
+  required: ["version", "id", "start", "fragments"],
+  additionalProperties: false,
+  properties: {
+    version: { const: 1 },
+    id: { type: "string", pattern: "^[a-z][a-z0-9_]*$" },
+    start: { type: "string", minLength: 1 },
+    fragments: {
+      type: "array",
+      minItems: 2,
+      items: { $ref: "#/$defs/fragment" }
+    }
+  },
+  $defs: {
+    subtitle: {
+      type: "object",
+      required: ["start_ms", "end_ms", "text"],
+      additionalProperties: false,
+      properties: {
+        start_ms: { type: "integer", minimum: 0 },
+        end_ms: { type: "integer", minimum: 1 },
+        text: { type: "string", minLength: 1 }
+      }
+    },
+    choice: {
+      type: "object",
+      required: ["id", "text", "next"],
+      additionalProperties: true,
+      properties: {
+        id: { type: "string", pattern: "^[a-z][a-z0-9_]*$" },
+        text: { type: "string", minLength: 1 },
+        next: { type: "string", minLength: 1 },
+        once: { type: "boolean" },
+        conds: { type: "array", items: { type: "object" } },
+        sections: { type: "array", items: { type: "object" } }
+      }
+    },
+    fragment: {
+      type: "object",
+      required: ["id", "src", "poster", "duration_ms", "subtitles"],
+      additionalProperties: false,
+      properties: {
+        id: { type: "string", pattern: "^[a-z][a-z0-9_]*$" },
+        src: { type: "string", minLength: 1 },
+        poster: { type: "string", minLength: 1 },
+        duration_ms: { type: "integer", minimum: 1 },
+        subtitles: {
+          type: "array",
+          items: { $ref: "#/$defs/subtitle" }
+        },
+        choices: {
+          type: "array",
+          minItems: 1,
+          items: { $ref: "#/$defs/choice" }
+        }
+      }
+    }
+  }
+};
+
+// scripts/campaign-fmv-audit.mts
+var idPattern = /^[a-z][a-z0-9_]*$/;
+var filePattern = /^[a-z][a-z0-9_-]*\.json$/;
+var narrativeConditionSchema = {
+  oneOf: [
+    {
+      type: "object",
+      properties: { type: { const: "flag" }, flag: { type: "string", minLength: 1 }, not: { type: "boolean" } },
+      required: ["type", "flag"],
+      additionalProperties: false
+    },
+    {
+      type: "object",
+      properties: { type: { const: "flag_set" }, flag: { type: "string", minLength: 1 }, not: { type: "boolean" } },
+      required: ["type", "flag"],
+      additionalProperties: false
+    },
+    {
+      type: "object",
+      properties: { type: { const: "quest" }, quest: { type: "string", minLength: 1 }, stage: { type: "string" }, not: { type: "boolean" } },
+      required: ["type", "quest"],
+      additionalProperties: false
+    },
+    {
+      type: "object",
+      properties: { type: { const: "has_item" }, item: { type: "string", minLength: 1 }, not: { type: "boolean" } },
+      required: ["type", "item"],
+      additionalProperties: false
+    },
+    {
+      type: "object",
+      properties: { type: { const: "item_ge" }, item: { type: "string", minLength: 1 }, count: { type: "number", minimum: 0 }, not: { type: "boolean" } },
+      required: ["type", "item"],
+      additionalProperties: false
+    },
+    {
+      type: "object",
+      properties: { type: { const: "player_enters_location" }, location: { type: "string", minLength: 1 }, not: { type: "boolean" } },
+      required: ["type", "location"],
+      additionalProperties: false
+    }
+  ]
+};
+var narrativeEffectSchema = {
+  oneOf: [
+    {
+      type: "object",
+      properties: { type: { const: "set_flag" }, flag: { type: "string", minLength: 1 } },
+      required: ["type", "flag"],
+      additionalProperties: false
+    },
+    {
+      type: "object",
+      properties: { type: { const: "start_quest" }, quest: { type: "string", minLength: 1 } },
+      required: ["type", "quest"],
+      additionalProperties: false
+    },
+    {
+      type: "object",
+      properties: { type: { const: "add_item" }, item: { type: "string", minLength: 1 }, qty: { type: "number" } },
+      required: ["type", "item"],
+      additionalProperties: false
+    },
+    {
+      type: "object",
+      properties: { type: { const: "remove_item" }, item: { type: "string", minLength: 1 }, qty: { type: "number" } },
+      required: ["type", "item"],
+      additionalProperties: false
+    },
+    {
+      type: "object",
+      properties: { type: { const: "journal_update" }, quest: { type: "string", minLength: 1 }, text_key: { type: "string", minLength: 1 } },
+      required: ["type", "quest", "text_key"],
+      additionalProperties: false
+    }
+  ]
+};
+var narrativeStepSchema = {
+  type: "object",
+  properties: {
+    kind: { const: "effect" },
+    effect: narrativeEffectSchema
+  },
+  additionalProperties: false,
+  anyOf: [
+    { required: ["effect"] },
+    { not: { required: ["kind"] } }
+  ]
+};
+var narrativeSectionSchema = {
+  type: "object",
+  properties: {
+    conds: { type: "array", items: narrativeConditionSchema },
+    steps: { type: "array", items: narrativeStepSchema },
+    else_steps: { type: "array", items: narrativeStepSchema }
+  },
+  additionalProperties: false
+};
+function makeStrictFmvSchema() {
+  const schema2 = JSON.parse(JSON.stringify(fmv_schema_default));
+  const defs = schema2.$defs;
+  const choice = defs.choice;
+  const properties = choice.properties;
+  choice.additionalProperties = false;
+  properties.conds = { type: "array", items: narrativeConditionSchema };
+  properties.sections = { type: "array", items: narrativeSectionSchema };
+  return schema2;
+}
+var ajv = new import__.default({ allErrors: true, strict: false });
+var validateFmvDocument = ajv.compile(makeStrictFmvSchema());
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function schemaErrors(label) {
+  return (validateFmvDocument.errors ?? []).map((error) => {
+    const at = error.instancePath || "/";
+    return `\u0421\u0445\u0435\u043C\u0430 FMV ${label}${at}: ${error.message ?? "\u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435 \u043D\u0435\u0434\u043E\u043F\u0443\u0441\u0442\u0438\u043C\u043E"}`;
+  });
+}
+function safeManifestFiles(manifest, errors) {
+  if (!isRecord(manifest) || !Object.hasOwn(manifest, "fmv")) return [];
+  const files = manifest.fmv;
+  if (!Array.isArray(files)) {
+    errors.push("\u0421\u0445\u0435\u043C\u0430 manifest.json/fmv: \u0434\u043E\u043B\u0436\u043D\u043E \u0431\u044B\u0442\u044C \u043C\u0430\u0441\u0441\u0438\u0432\u043E\u043C \u0438\u043C\u0451\u043D FMV-\u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u043E\u0432");
+    return [];
+  }
+  const safe = [];
+  const seen = /* @__PURE__ */ new Set();
+  files.forEach((file, index) => {
+    if (typeof file !== "string" || !filePattern.test(file)) {
+      errors.push(`\u0421\u0445\u0435\u043C\u0430 manifest.json/fmv/${index}: \u043E\u0436\u0438\u0434\u0430\u0435\u0442\u0441\u044F \u0431\u0435\u0437\u043E\u043F\u0430\u0441\u043D\u043E\u0435 \u0438\u043C\u044F \u0444\u0430\u0439\u043B\u0430 \u0432\u0438\u0434\u0430 fmv_name.json`);
+      return;
+    }
+    if (seen.has(file)) {
+      errors.push(`FMV manifest.json/fmv: \u0444\u0430\u0439\u043B \xAB${file}\xBB \u043F\u0435\u0440\u0435\u0447\u0438\u0441\u043B\u0435\u043D \u043F\u043E\u0432\u0442\u043E\u0440\u043D\u043E`);
+      return;
+    }
+    seen.add(file);
+    safe.push(file);
+  });
+  return safe;
+}
+function addDocumentSemantics(label, document, errors) {
+  if (!validateFmvDocument(document)) {
+    errors.push(...schemaErrors(label));
+    return false;
+  }
+  const start = document.start;
+  const fragments = document.fragments;
+  const fragmentIds = /* @__PURE__ */ new Set();
+  for (const fragment of fragments) {
+    const fragmentId = fragment.id;
+    if (fragmentIds.has(fragmentId)) errors.push(`FMV ${label}: \u043F\u043E\u0432\u0442\u043E\u0440\u043D\u044B\u0439 id \u0444\u0440\u0430\u0433\u043C\u0435\u043D\u0442\u0430 \xAB${fragmentId}\xBB`);
+    fragmentIds.add(fragmentId);
+  }
+  if (!fragmentIds.has(start)) errors.push(`FMV ${label}: \u0441\u0442\u0430\u0440\u0442\u043E\u0432\u044B\u0439 \u0444\u0440\u0430\u0433\u043C\u0435\u043D\u0442 \xAB${start}\xBB \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D`);
+  for (const fragment of fragments) {
+    const fragmentId = fragment.id;
+    const duration = fragment.duration_ms;
+    const subtitles = fragment.subtitles;
+    for (const [index, subtitle] of subtitles.entries()) {
+      const from = subtitle.start_ms;
+      const to = subtitle.end_ms;
+      if (from >= to || to > duration) {
+        errors.push(`FMV ${label}/fragments/${fragmentId}/subtitles/${index}: \u0438\u043D\u0442\u0435\u0440\u0432\u0430\u043B \u0434\u043E\u043B\u0436\u0435\u043D \u0443\u0434\u043E\u0432\u043B\u0435\u0442\u0432\u043E\u0440\u044F\u0442\u044C 0 \u2264 start_ms < end_ms \u2264 duration_ms (${duration})`);
+      }
+    }
+    const choices = fragment.choices ?? [];
+    const choiceIds = /* @__PURE__ */ new Set();
+    for (const [index, choice] of choices.entries()) {
+      const choiceId = choice.id;
+      const next = choice.next;
+      if (choiceIds.has(choiceId)) errors.push(`FMV ${label}/fragments/${fragmentId}: \u043F\u043E\u0432\u0442\u043E\u0440\u043D\u044B\u0439 id \u0432\u044B\u0431\u043E\u0440\u0430 \xAB${choiceId}\xBB`);
+      choiceIds.add(choiceId);
+      if (!fragmentIds.has(next)) {
+        errors.push(`FMV ${label}/fragments/${fragmentId}/choices/${index}: \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0438\u0439 \u0444\u0440\u0430\u0433\u043C\u0435\u043D\u0442 \xAB${next}\xBB \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D`);
+      }
+    }
+  }
+  return true;
+}
+function auditCampaignFmv(campaignRoot, manifest, jsonFiles) {
+  const errors = [];
+  const documents = /* @__PURE__ */ new Map();
+  const mediaPaths = /* @__PURE__ */ new Set();
+  const files = safeManifestFiles(manifest, errors);
+  const loaded = [];
+  for (const file of files) {
+    const relative = `fmv/${file}`;
+    const absolute = resolve(campaignRoot, "fmv", file);
+    if (!absolute.startsWith(`${resolve(campaignRoot)}/`) || !existsSync(absolute) || !statSync(absolute).isFile()) {
+      errors.push(`FMV ${relative}: \u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D`);
+      continue;
+    }
+    try {
+      const value = JSON.parse(readFileSync(absolute, "utf8"));
+      documents.set(relative, value);
+      loaded.push({ path: relative, value });
+      if (isRecord(value) && Array.isArray(value.fragments)) {
+        for (const fragment of value.fragments) {
+          if (!isRecord(fragment)) continue;
+          for (const key of ["src", "poster"]) {
+            if (typeof fragment[key] === "string") mediaPaths.add(fragment[key]);
+          }
+        }
+      }
+    } catch (error) {
+      errors.push(`FMV ${relative}: JSON \u043D\u0435 \u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044F (${String(error)})`);
+    }
+  }
+  const documentsById = /* @__PURE__ */ new Map();
+  for (const entry of loaded) {
+    if (!isRecord(entry.value)) {
+      errors.push(`\u0421\u0445\u0435\u043C\u0430 FMV ${entry.path}/: \u0434\u043E\u043B\u0436\u043D\u043E \u0431\u044B\u0442\u044C \u043E\u0431\u044A\u0435\u043A\u0442\u043E\u043C`);
+      continue;
+    }
+    const valid = addDocumentSemantics(entry.path, entry.value, errors);
+    if (!valid) continue;
+    const id = entry.value.id;
+    const previous = documentsById.get(id);
+    if (previous) {
+      errors.push(`FMV: id \u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442\u0430 \xAB${id}\xBB \u043F\u043E\u0432\u0442\u043E\u0440\u044F\u0435\u0442\u0441\u044F \u0432 ${previous} \u0438 ${entry.path}`);
+    } else {
+      documentsById.set(id, entry.path);
+    }
+  }
+  for (const [path, value] of jsonFiles) {
+    if (!path.startsWith("scenes/") || !isRecord(value) || !Object.hasOwn(value, "fmv")) continue;
+    const id = value.fmv;
+    if (typeof id !== "string" || !idPattern.test(id)) {
+      errors.push(`\u0421\u0445\u0435\u043C\u0430 ${path}/fmv: \u043E\u0436\u0438\u0434\u0430\u0435\u0442\u0441\u044F id FMV \u0432\u0438\u0434\u0430 fmv_scene`);
+      continue;
+    }
+    if (!documentsById.has(id)) {
+      errors.push(`FMV ${path}/fmv: \u0434\u043E\u043A\u0443\u043C\u0435\u043D\u0442 \xAB${id}\xBB \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D \u0441\u0440\u0435\u0434\u0438 manifest.json/fmv`);
+    }
+  }
+  return { documents, mediaPaths: [...mediaPaths].sort(), errors };
+}
+function withoutFmvExtension(store) {
+  const view = Object.assign(Object.create(Object.getPrototypeOf(store)), store);
+  const manifest = isRecord(store.manifest) ? { ...store.manifest } : store.manifest;
+  if (isRecord(manifest)) delete manifest.fmv;
+  view.manifest = manifest;
+  view.jsonFiles = new Map(store.jsonFiles);
+  for (const [path, value] of view.jsonFiles) {
+    if (!path.startsWith("scenes/") || !isRecord(value) || !Object.hasOwn(value, "fmv")) continue;
+    const scene = { ...value };
+    delete scene.fmv;
+    view.jsonFiles.set(path, scene);
+  }
+  return view;
+}
+
+// scripts/campaign-audit.mts
 function paeth(a, b, c) {
   const p = a + b - c;
   const pa = Math.abs(p - a);
@@ -20610,12 +21183,12 @@ function installFetchShim() {
     let rel = decodePath(String(input));
     if (rel.startsWith(STORE_BASE)) rel = rel.slice(STORE_BASE.length);
     rel = rel.replace(/^\/+/, "");
-    const abs = resolve(CAMPAIGN_ROOT, rel);
+    const abs = resolve2(CAMPAIGN_ROOT, rel);
     void init;
-    if (!abs.startsWith(CAMPAIGN_ROOT) || !existsSync(abs) || !statSync(abs).isFile()) {
+    if (!abs.startsWith(CAMPAIGN_ROOT) || !existsSync2(abs) || !statSync2(abs).isFile()) {
       return { ok: false, status: 404, headers: { get: () => null }, blob: async () => new Blob([]) };
     }
-    const buf = readFileSync(abs);
+    const buf = readFileSync2(abs);
     const blob = new Blob([buf]);
     blobPaths.set(blob, rel);
     return {
@@ -20694,32 +21267,58 @@ function parseArgs(argv) {
     console.error("\u0418\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435: npm run audit:campaign -- <\u043F\u0430\u043F\u043A\u0430 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438> [--json]");
     process.exit(2);
   }
-  const abs = resolve(process.cwd(), root);
-  if (!existsSync(join(abs, "campaign.json"))) {
+  const abs = resolve2(process.cwd(), root);
+  if (!existsSync2(join(abs, "campaign.json"))) {
     console.error(`\u041D\u0435 \u043F\u043E\u0445\u043E\u0436\u0435 \u043D\u0430 \u043F\u0430\u043F\u043A\u0443 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 (\u043D\u0435\u0442 campaign.json): ${abs}`);
     process.exit(2);
   }
   return { root: abs, json };
 }
+async function inspectFmvMedia(store, paths) {
+  const findings = [];
+  for (const path of paths) {
+    if (!path || path.startsWith("/") || path.includes("\\") || path.split("/").includes("..")) {
+      findings.push({ severity: "error", message: `\u041D\u0435\u0434\u043E\u043F\u0443\u0441\u0442\u0438\u043C\u044B\u0439 FMV-\u043F\u0443\u0442\u044C \u043C\u0435\u0434\u0438\u0430: \xAB${path}\xBB. \u0418\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0439\u0442\u0435 \u043E\u0442\u043D\u043E\u0441\u0438\u0442\u0435\u043B\u044C\u043D\u044B\u0439 \u043F\u0443\u0442\u044C \u0432\u043D\u0443\u0442\u0440\u0438 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438.` });
+      continue;
+    }
+    try {
+      const url = `${store.basePath}/${path.split("/").map(encodeURIComponent).join("/")}`;
+      let response = await fetch(url, { method: "HEAD", cache: "no-store" });
+      if (response.status === 405 || response.status === 501) response = await fetch(url, { method: "GET", cache: "no-store" });
+      const contentType = (response.headers.get("content-type") ?? "").toLowerCase();
+      if (!response.ok || contentType.includes("text/html")) {
+        findings.push({ severity: "error", message: `\u041D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D FMV-\u043C\u0435\u0434\u0438\u0430\u0444\u0430\u0439\u043B \xAB${path}\xBB.` });
+        continue;
+      }
+      const expected = mimeByExt[extname(path.split(/[?#]/, 1)[0]).toLowerCase()];
+      if (expected && contentType && !contentType.startsWith(expected) && !contentType.includes("application/octet-stream")) {
+        findings.push({ severity: "warning", message: `FMV-\u0444\u0430\u0439\u043B \xAB${path}\xBB \u043E\u0442\u0434\u0430\u0451\u0442\u0441\u044F \u043A\u0430\u043A ${contentType}, \u043E\u0436\u0438\u0434\u0430\u043B\u0441\u044F ${expected}; \u043F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0434\u0435\u043D\u0438\u0435.` });
+      }
+    } catch {
+      findings.push({ severity: "error", message: `\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C FMV-\u043C\u0435\u0434\u0438\u0430 \xAB${path}\xBB.` });
+    }
+  }
+  return findings;
+}
 async function main() {
   const { root, json } = parseArgs(process.argv);
-  CAMPAIGN_ROOT = resolve(root);
+  CAMPAIGN_ROOT = resolve2(root);
   installFetchShim();
   installImageShims();
   const { EditorStore: EditorStore2 } = await Promise.resolve().then(() => (init_store(), store_exports));
   const { validateCampaign: validateCampaign2, formatCampaignAuditReport: formatCampaignAuditReport2, auditCounts: auditCounts2 } = await Promise.resolve().then(() => (init_campaignAudit(), campaignAudit_exports));
   const store = new EditorStore2(STORE_BASE);
-  const readJson = (p) => JSON.parse(readFileSync(join(CAMPAIGN_ROOT, p), "utf-8"));
+  const readJson = (p) => JSON.parse(readFileSync2(join(CAMPAIGN_ROOT, p), "utf-8"));
   store.meta = readJson("campaign.json");
   store.world = readJson("world.json");
-  store.manifest = existsSync(join(CAMPAIGN_ROOT, "manifest.json")) ? readJson("manifest.json") : {};
+  store.manifest = existsSync2(join(CAMPAIGN_ROOT, "manifest.json")) ? readJson("manifest.json") : {};
   const JSON_DIRS = ["scenes", "entities", "rules", "quests", "arenas", "cutscenes", "recipes", "codex", "encounters"];
   for (const dir of [...JSON_DIRS, "dialogues"]) {
     const full = join(CAMPAIGN_ROOT, dir);
-    if (!existsSync(full)) continue;
+    if (!existsSync2(full)) continue;
     for (const name of readdirSync(full)) {
       const sub = join(full, name);
-      if (!statSync(sub).isFile()) continue;
+      if (!statSync2(sub).isFile()) continue;
       const rel = `${dir}/${name}`;
       if (name.endsWith(".json")) {
         try {
@@ -20728,11 +21327,32 @@ async function main() {
           console.error(`\u041F\u0440\u0435\u0434\u0443\u043F\u0440\u0435\u0436\u0434\u0435\u043D\u0438\u0435: ${rel} \u043D\u0435 \u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044F \u043A\u0430\u043A JSON (${String(e)}) \u2014 \u0443\u0447\u0442\u0435\u043D\u043E \u043A\u0430\u043A \u0431\u0438\u0442\u044B\u0439.`);
         }
       } else if (name.endsWith(".ink") || name.endsWith(".md")) {
-        store.textFiles.set(rel, readFileSync(sub, "utf-8"));
+        store.textFiles.set(rel, readFileSync2(sub, "utf-8"));
       }
     }
   }
-  const report = await validateCampaign2(store, null);
+  const fmvAudit = auditCampaignFmv(CAMPAIGN_ROOT, store.manifest, store.jsonFiles);
+  const coreStore = withoutFmvExtension(store);
+  const report = await validateCampaign2(coreStore, null);
+  report.structure.push(...fmvAudit.errors.map((message) => ({ severity: "error", message })));
+  const isNonLocalFmvRef = (path) => /^(?:(?:https?|asset|tauri|ipc):\/\/|\/\/|(?:data|blob):)/i.test(path);
+  const localFmvMedia = fmvAudit.mediaPaths.filter((path) => !isNonLocalFmvRef(path));
+  const nonLocalFmvMedia = fmvAudit.mediaPaths.filter(isNonLocalFmvRef);
+  const fmvMediaFindings = await inspectFmvMedia(store, localFmvMedia);
+  report.media.push(...fmvMediaFindings);
+  if (localFmvMedia.length > 0) {
+    const missingFmvMedia = fmvMediaFindings.filter((finding) => finding.severity === "error").length;
+    report.media.push({
+      severity: "info",
+      message: `\u041F\u0440\u043E\u0432\u0435\u0440\u0435\u043D\u043E FMV-\u0441\u0441\u044B\u043B\u043E\u043A \u043D\u0430 \u043B\u043E\u043A\u0430\u043B\u044C\u043D\u044B\u0435 \u043C\u0435\u0434\u0438\u0430: ${localFmvMedia.length}; ${missingFmvMedia === 0 ? "\u0432\u0441\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u044B" : `\u043E\u0448\u0438\u0431\u043E\u043A ${missingFmvMedia}`}.`
+    });
+  }
+  if (nonLocalFmvMedia.length > 0) {
+    report.media.push({
+      severity: "warning",
+      message: `FMV \u0441\u043E\u0434\u0435\u0440\u0436\u0438\u0442 ${nonLocalFmvMedia.length} \u0432\u043D\u0435\u0448\u043D\u0438\u0445 \u0438\u043B\u0438 \u0432\u0441\u0442\u0440\u043E\u0435\u043D\u043D\u044B\u0445 \u043C\u0435\u0434\u0438\u0430-\u0441\u0441\u044B\u043B\u043E\u043A, \u043A\u043E\u0442\u043E\u0440\u044B\u0435 headless-\u0430\u0443\u0434\u0438\u0442 \u043D\u0435 \u043C\u043E\u0436\u0435\u0442 \u043F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u043D\u0430 \u043B\u043E\u043A\u0430\u043B\u044C\u043D\u043E\u043C \u0434\u0438\u0441\u043A\u0435.`
+    });
+  }
   for (const [path, note] of imageNotes) {
     report.media.push({
       severity: "warning",
@@ -20743,7 +21363,7 @@ async function main() {
     console.log(JSON.stringify(report, null, 2));
   } else {
     console.log(`Headless-\u0430\u0443\u0434\u0438\u0442 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438: ${CAMPAIGN_ROOT}`);
-    console.log(`\u0424\u0430\u0439\u043B\u043E\u0432 \u0432 \u043F\u043E\u043A\u0440\u044B\u0442\u0438\u0438: json ${store.jsonFiles.size}, ink/md ${store.textFiles.size}`);
+    console.log(`\u0424\u0430\u0439\u043B\u043E\u0432 \u0432 \u043F\u043E\u043A\u0440\u044B\u0442\u0438\u0438: json ${store.jsonFiles.size + fmvAudit.documents.size}, ink/md ${store.textFiles.size}`);
     console.log(formatCampaignAuditReport2(report));
   }
   const counts = auditCounts2(report);

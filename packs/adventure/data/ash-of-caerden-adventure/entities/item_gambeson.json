@@ -1,0 +1,15 @@
+{
+  "id": "item_gambeson",
+  "type": "item",
+  "category": "armor",
+  "label": "Стёганка",
+  "description": "Плотная стёганая куртка. Держит скользящий удар и осеннюю сырость.",
+  "weight": 3.0,
+  "value": {
+    "silver": 10
+  },
+  "stackable": false,
+  "armor_data": {
+    "points": 1
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "format": 2,
+  "id": "broken-off-required",
+  "title": "Выключен обязательный жанр",
+  "kind": "narrative",
+  "caps": ["narrative", "scenes"],
+  "cap_options": {
+    "narrative": { "mode": "off" }
+  },
+  "languages": ["ru"],
+  "default_language": "ru",
+  "engine": { "min": "0.9.0" },
+  "entry": "world.json"
+}

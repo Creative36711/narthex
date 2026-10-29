@@ -8,9 +8,11 @@
  *  4. монолог/диалог/редактор: зеркала и формы;
  *  5. монолит: экспорт/импорт календаря и реестра погод; схема.
  */
+import { scenePlayerSource } from './scene-sources.mts'
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 import { tickToDate, formatDate } from '../src/core/time'
 import type { CampaignData, RuleDef } from '../src/shared/types'
 
@@ -113,13 +115,13 @@ const DPM = meta.calendar!.days_per_month! // 30
     }],
   } as never)
   check('4 диалог: эффект погоды в ink', ink.includes('~ set_weather("weather_cold_rain")'))
-  const ext = readFileSync('src/core/dialogue.ts', 'utf8')
+  const ext = readFileSync('packs/narrative/dialogue.ts', 'utf8')
   check('4 externals: weather_is и set_weather привязаны', ext.includes("bind('weather_is'") && ext.includes("bind('set_weather'"))
 
   const hud = readFileSync('src/player/HUD.tsx', 'utf8')
   check('4 HUD: строка даты под часами', hud.includes('hud-date') && hud.includes('formatDate'))
   check('4 HUD: метка погоды', hud.includes('hud-weather'))
-  const scene = readFileSync('src/player/SceneScreen.tsx', 'utf8')
+  const scene = scenePlayerSource()
   // слой погоды рисует AtmosphereLayer (src/player/Atmosphere.tsx): сцена отдаёт
   // ему имя оверлея из реестра, класс собирается уже там
   const atmos = readFileSync('src/player/Atmosphere.tsx', 'utf8')

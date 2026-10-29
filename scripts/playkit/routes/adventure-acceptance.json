@@ -1,0 +1,40 @@
+{
+  "seed": "3101",
+  "steps": [
+    { "do": "adventure_cursor", "mode": "walk" },
+    { "do": "adventure_click", "x": 520, "y": 560, "label": "walk to the herb path" },
+    { "do": "expect", "adventure_scene": "scene_gates_front" },
+    { "do": "snapshot", "label": "walked to the path" },
+
+    { "do": "adventure_cursor", "mode": "look" },
+    { "do": "adventure_click", "x": 850, "y": 340, "label": "inspect the gate sigils" },
+    { "do": "snapshot", "label": "inspected the gate" },
+
+    { "do": "adventure_cursor", "mode": "take" },
+    { "do": "adventure_click", "x": 510, "y": 540, "label": "take first herb" },
+    { "do": "adventure_click", "x": 570, "y": 540, "label": "take second herb" },
+    { "do": "expect", "adventure_item": { "item": "item_herb", "quantity": 2 } },
+    { "do": "snapshot", "label": "collected two herbs" },
+
+    { "do": "adventure_combine", "first": "item_herb", "second": "item_herb" },
+    { "do": "expect", "adventure_item": { "item": "item_healing_salve", "quantity": 1 } },
+    { "do": "snapshot", "label": "crafted healing salve" },
+
+    { "do": "adventure_cursor", "mode": "talk" },
+    { "do": "adventure_click", "x": 350, "y": 430, "label": "speak with the gate guard" },
+    { "do": "expect", "dialogue_open": true },
+    { "do": "snapshot", "label": "conversation with the guard" },
+    { "do": "choose", "index": 0 },
+    { "do": "dialogue_close" },
+
+    { "do": "adventure_cursor", "mode": "walk" },
+    { "do": "adventure_click", "x": 900, "y": 560, "label": "walk to the gate" },
+    { "do": "adventure_open_riddle", "riddle": "gate_sigils" },
+    { "do": "adventure_solve_riddle", "riddle": "gate_sigils", "solution": ["oak", "ash", "sun"] },
+    { "do": "expect", "adventure_message_contains": "последовательность не совпала" },
+    { "do": "snapshot", "label": "wrong gate sequence rejected" },
+    { "do": "adventure_solve_riddle", "riddle": "gate_sigils", "solution": ["ash", "oak", "sun"] },
+    { "do": "expect", "adventure_ending": "ending_gate_unlocked" },
+    { "do": "snapshot", "label": "ending gate unlocked" }
+  ]
+}

@@ -105,6 +105,16 @@ export function migrateMusicRules(music: string | MusicRule[] | undefined): Musi
 export function migrateNavigation(scene: SceneDef, world: WorldDef): NavigationZone[] {
   let changed = false
   const out = scene.navigation.map((nav) => {
+    /**
+     * D-072: area обязательна по схеме, но проект мог прийти извне или быть
+     * старым. Без координат зона заполняет всю сцену — игрок всё равно может
+     * уйти, а приложение не падает на `nav.area.x` (найдено в браузере 26.10
+     * на проекте fmv-crossing).
+     */
+    if (!nav.area) {
+      changed = true
+      return { ...nav, area: { x: 0, y: 0, w: 640, h: 360 } }
+    }
     const legacy = (nav as NavigationZone & { go_to_location?: string }).go_to_location
     if (!legacy) return nav
     changed = true

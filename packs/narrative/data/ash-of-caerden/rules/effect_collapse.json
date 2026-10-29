@@ -1,0 +1,12 @@
+{
+  "id": "effect_collapse",
+  "label": "Обморок от истощения",
+  "once": false,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    { "type": "show_message", "text": "Ноги подкашиваются, и вы падаете без сил. Несколько часов проходят в тяжёлом забытьи." },
+    { "type": "advance_time", "ticks": 4 },
+    { "type": "change_need", "need": "energy", "delta": 50 }
+  ]
+}

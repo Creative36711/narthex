@@ -1,0 +1,1285 @@
+{
+  "version": 2,
+  "label": "Пепельный круг — последняя рука",
+  "nodes": [
+    {
+      "id": "main",
+      "label": "Начало партии",
+      "sections": [
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_match_started",
+              "not": true
+            }
+          ],
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Три раунда. В начале каждого у вас две искры энергии и три карты: «Щит» стоит одну, «Выпад» — одну, «Тяжёлый удар» — две. Смотритель раскрывает намерение до вашего выбора. Наберите пять очков, чтобы взять корону.",
+                "action": true
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_match_started"
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r3_done"
+            }
+          ],
+          "steps": [],
+          "goto": "finale"
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r2_done"
+            }
+          ],
+          "steps": [],
+          "goto": "round_three"
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_done"
+            }
+          ],
+          "steps": [],
+          "goto": "round_two"
+        },
+        {
+          "steps": [],
+          "goto": "round_one"
+        }
+      ],
+      "choices": []
+    },
+    {
+      "id": "round_one",
+      "label": "Ход 1",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Ход 1 из 3. Смотритель поднимает тяжёлый молот: следующий удар будет сокрушительным."
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Карта «Щит» — закрыть тяжёлый удар (1 энергия).",
+          "once": true,
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Щит принимает удар. Каменная кромка звенит, но ваша фишка остаётся на поле.",
+                    "action": true
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "stone_r1_high"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "stone_r1_done"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "round_two"
+        },
+        {
+          "text": "Карта «Выпад» — проверить его замах (1 энергия).",
+          "once": true,
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Вы успеваете задеть рукав, но молот всё же раскалывает край вашей фишки.",
+                    "action": true
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "stone_r1_mid"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "stone_r1_done"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "round_two"
+        },
+        {
+          "text": "Карта «Тяжёлый удар» — перебить замах (2 энергии).",
+          "once": true,
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Вы бьёте первыми, однако Смотритель уже держит оборону. Очко уходит ему.",
+                    "action": true
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "stone_r1_zero"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "stone_r1_done"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "round_two"
+        }
+      ]
+    },
+    {
+      "id": "round_two",
+      "label": "Ход 2",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Ход 2 из 3. Смотритель прячет руку за каменной пластиной: ждёт прямой атаки."
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Карта «Выпад» — обмануть защиту (1 энергия).",
+          "once": true,
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Короткий выпад проходит под щитом. Вы забираете темп и очко.",
+                    "action": true
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "stone_r2_high"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "stone_r2_done"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "round_three"
+        },
+        {
+          "text": "Карта «Щит» — выждать и сохранить позицию (1 энергия).",
+          "once": true,
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Вы не поддаётесь на приманку. Смотритель вынужден первым открыть линию атаки.",
+                    "action": true
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "stone_r2_mid"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "stone_r2_done"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "round_three"
+        },
+        {
+          "text": "Карта «Тяжёлый удар» — вложить обе искры в силовой ход (2 энергии).",
+          "once": true,
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Пластина гасит удар. Смотритель получает очко, но его стойка становится предсказуемой.",
+                    "action": true
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "stone_r2_zero"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "stone_r2_done"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "round_three"
+        }
+      ]
+    },
+    {
+      "id": "round_three",
+      "label": "Ход 3",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Ход 3 из 3. Смотритель показывает финт, затем переводит клинок к открытой стороне стола."
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Карта «Тяжёлый удар» — наказать открытый фланг (2 энергии).",
+          "once": true,
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Вы не покупаетесь на финт и ставите последнюю карту точно в открывшееся окно.",
+                    "action": true
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "stone_r3_high"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "stone_r3_done"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "finale"
+        },
+        {
+          "text": "Карта «Щит» — переждать финт и удержать стол (1 энергия).",
+          "once": true,
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Вы закрываете линию клинка, но упускаете шанс на решающий удар.",
+                    "action": true
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "stone_r3_mid"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "stone_r3_done"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "finale"
+        },
+        {
+          "text": "Карта «Выпад» — ответить на первый жест (1 энергия).",
+          "once": true,
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Смотритель уводит клинок в сторону. Последнее очко остаётся за ним.",
+                    "action": true
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "stone_r3_zero"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "stone_r3_done"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "finale"
+        }
+      ]
+    },
+    {
+      "id": "finale",
+      "label": "Финал партии",
+      "sections": [
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_high"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r2_high"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r3_high"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_table_perfect"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "game_over_victory",
+                "message": "Партия завершена: 6 из 6, идеальная рука."
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_high"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r2_high"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r3_mid"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_table_crown"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "game_over_victory",
+                "message": "Партия завершена: 5 из 6, корона ваша."
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_high"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r2_high"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r3_zero"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_table_draw"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "game_over_victory",
+                "message": "Партия завершена: 4 из 6, ничья."
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_high"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r2_mid"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r3_high"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_table_crown"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "game_over_victory",
+                "message": "Партия завершена: 5 из 6, корона ваша."
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_high"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r2_mid"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r3_mid"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_table_draw"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "game_over_victory",
+                "message": "Партия завершена: 4 из 6, ничья."
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_high"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r2_mid"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r3_zero"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_table_draw"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "game_over_victory",
+                "message": "Партия завершена: 3 из 6, ничья."
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_high"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r2_zero"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r3_high"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_table_draw"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "game_over_victory",
+                "message": "Партия завершена: 4 из 6, ничья."
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_high"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r2_zero"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r3_mid"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_table_draw"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "game_over_victory",
+                "message": "Партия завершена: 3 из 6, ничья."
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_high"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r2_zero"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r3_zero"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_table_lesson"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "game_over_victory",
+                "message": "Партия завершена: 2 из 6, Смотритель взял последнюю руку."
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_mid"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r2_high"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r3_high"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_table_crown"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "game_over_victory",
+                "message": "Партия завершена: 5 из 6, корона ваша."
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_mid"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r2_high"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r3_mid"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_table_draw"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "game_over_victory",
+                "message": "Партия завершена: 4 из 6, ничья."
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_mid"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r2_high"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r3_zero"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_table_draw"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "game_over_victory",
+                "message": "Партия завершена: 3 из 6, ничья."
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_mid"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r2_mid"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r3_high"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_table_draw"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "game_over_victory",
+                "message": "Партия завершена: 4 из 6, ничья."
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_mid"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r2_mid"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r3_mid"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_table_draw"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "game_over_victory",
+                "message": "Партия завершена: 3 из 6, ничья."
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_mid"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r2_mid"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r3_zero"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_table_lesson"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "game_over_victory",
+                "message": "Партия завершена: 2 из 6, Смотритель взял последнюю руку."
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_mid"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r2_zero"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r3_high"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_table_draw"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "game_over_victory",
+                "message": "Партия завершена: 3 из 6, ничья."
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_mid"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r2_zero"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r3_mid"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_table_lesson"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "game_over_victory",
+                "message": "Партия завершена: 2 из 6, Смотритель взял последнюю руку."
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_mid"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r2_zero"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r3_zero"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_table_lesson"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "game_over_victory",
+                "message": "Партия завершена: 1 из 6, Смотритель взял последнюю руку."
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_zero"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r2_high"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r3_high"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_table_draw"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "game_over_victory",
+                "message": "Партия завершена: 4 из 6, ничья."
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_zero"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r2_high"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r3_mid"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_table_draw"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "game_over_victory",
+                "message": "Партия завершена: 3 из 6, ничья."
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_zero"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r2_high"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r3_zero"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_table_lesson"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "game_over_victory",
+                "message": "Партия завершена: 2 из 6, Смотритель взял последнюю руку."
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_zero"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r2_mid"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r3_high"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_table_draw"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "game_over_victory",
+                "message": "Партия завершена: 3 из 6, ничья."
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_zero"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r2_mid"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r3_mid"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_table_lesson"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "game_over_victory",
+                "message": "Партия завершена: 2 из 6, Смотритель взял последнюю руку."
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_zero"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r2_mid"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r3_zero"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_table_lesson"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "game_over_victory",
+                "message": "Партия завершена: 1 из 6, Смотритель взял последнюю руку."
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_zero"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r2_zero"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r3_high"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_table_lesson"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "game_over_victory",
+                "message": "Партия завершена: 2 из 6, Смотритель взял последнюю руку."
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_zero"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r2_zero"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r3_mid"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_table_lesson"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "game_over_victory",
+                "message": "Партия завершена: 1 из 6, Смотритель взял последнюю руку."
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "stone_r1_zero"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r2_zero"
+            },
+            {
+              "type": "flag",
+              "flag": "stone_r3_zero"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "stone_table_lesson"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "game_over_victory",
+                "message": "Партия завершена: 0 из 6, Смотритель взял последнюю руку."
+              }
+            }
+          ]
+        }
+      ],
+      "choices": []
+    }
+  ]
+}

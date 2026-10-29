@@ -1,0 +1,17 @@
+{
+  "id": "item_herb_bush",
+  "type": "item",
+  "category": "container",
+  "label": "Заросли горной травы",
+  "description": "Пахучие кусты у края опушки.",
+  "weight": 100,
+  "stackable": false,
+  "on_interact": {
+    "effects": [
+      { "type": "add_item", "item": "item_herb", "quantity": 3 },
+      { "type": "set_flag", "flag": "herbs_gathered" },
+      { "type": "advance_time", "ticks": 1 }
+    ],
+    "message": "Вы потратили час и собрали три пучка горной травы."
+  }
+}

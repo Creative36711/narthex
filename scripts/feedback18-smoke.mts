@@ -17,6 +17,7 @@
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 
 const mem = new Map<string, string>()
 ;(globalThis as any).localStorage = {
@@ -119,7 +120,12 @@ const f = (p: string) => readFileSync(p, 'utf8')
 // ── 12. сцена не чёрная ──
 {
   const ss = f('src/player/SceneScreen.tsx')
-  check('12 ошибка фона видна на экране', ss.includes('bgError') && ss.includes('scene-bg-note'))
+  // D-076: игроку не показывают путь к файлу. Ошибка фона уводит на нейтральный
+  // фон, причина остаётся в console.error; технической плашки больше нет.
+  check('12 ошибка фона уводит на нейтральный фон', ss.includes('bgError') && ss.includes('scene-bg-fallback'))
+  check('12 причина ошибки фона уходит в console.error', ss.includes('console.error(`[сцена] фон не загрузился'))
+  const obsoleteNoteSelector = ['scene', 'bg', 'note'].join('-')
+  check('12 технической плашки с путём к файлу нет', !ss.includes(obsoleteNoteSelector))
   const css = f('src/index.css')
   check('12 сцена не схлопывается (ширина всегда полная)', css.includes('.scene-stage') && css.includes('width: 100%;'))
 }

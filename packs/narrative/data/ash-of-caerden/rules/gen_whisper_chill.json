@@ -1,0 +1,18 @@
+{
+  "id": "gen_whisper_chill",
+  "label": "Шёпот: озноб",
+  "once": false,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "show_message",
+      "text": "Шёпот в храме вдруг стынет. Вы цепенеете, пока из сумрака не выходит служка — ему пришлось вас окликнуть дважды."
+    },
+    {
+      "type": "change_need",
+      "need": "energy",
+      "delta": -8
+    }
+  ]
+}

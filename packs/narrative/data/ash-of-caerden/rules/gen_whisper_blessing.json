@@ -1,0 +1,18 @@
+{
+  "id": "gen_whisper_blessing",
+  "label": "Шёпот: дар пепла",
+  "once": false,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "show_message",
+      "text": "В тишине храма слышится шёпот — тёплый, как угасающие угли. На миг легчает дышать."
+    },
+    {
+      "type": "meta_currency",
+      "id": "ash",
+      "amount": 1
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "bounds": {
+    "min_x": 0,
+    "min_y": 0,
+    "max_x": 40,
+    "max_y": 20
+  },
+  "spawn": {
+    "x": 2,
+    "y": 10
+  },
+  "movement_speed": 100,
+  "player_radius": 1,
+  "walls": [
+    {
+      "id": "stone-wall",
+      "x": 13,
+      "y": 0,
+      "width": 2,
+      "height": 20
+    }
+  ],
+  "zones": [
+    {
+      "id": "checkpoint",
+      "x": 6,
+      "y": 8,
+      "width": 2,
+      "height": 4,
+      "state": "checkpoint-activated"
+    }
+  ]
+}
