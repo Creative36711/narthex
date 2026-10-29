@@ -1,6 +1,6 @@
 # GOLD-1.6c — Align cf-play with the current PackHost API
 
-**Status:** the in-scope CLI/adapter fix is implemented and verified on both datasets. The Master accepted the documented exceptions on 2026-10-29: `npm run playthrough:golden` rc=1 for the non-404 missing pre-save autosave, and `npm run check:audit-bundle` rc=1 for the unchanged out-of-scope stale audit bundle, are recorded but do not block GOLD-1.6c acceptance or the squash merge. No protected paths were changed. Decision: `docs/decisions/GOLD-1.6c.md` (accepted).
+**Status:** the in-scope CLI/adapter fix is implemented and verified on both datasets. The Master accepted the documented exceptions on 2026-10-29; PR #150 was squash-merged to `main` at 19:33:17Z (merge commit `93a749699de92104162a14b946558c77d7375ca4`). The post-merge main-push `golden-playthrough` job is recorded below as failed at its golden/browser step; the local non-404 autosave failure and out-of-scope audit-bundle freshness failure are the explicitly accepted exceptions. These are not reported as passes and do not reverse task acceptance under the explicit decision. No protected paths were changed. Decision: `docs/decisions/GOLD-1.6c.md` (accepted).
 
 - Dispatch: `4086f0cf-5705-813a-9321-c57b69b398ff`
 - Original implementation run: `05030ef4-ef13-44dd-9962-9ab75f9a97ef`; acceptance/merge follow-up run: `7de7fe91-74c9-45c1-a7ec-0a976bcf1bb8`.
@@ -45,14 +45,17 @@
 
 ## PR and CI
 
-- Master scope decision accepted 2026-10-29: the autosave/save-load and audit-bundle failures are to be recorded but do not block the requested PR merge; see `docs/decisions/GOLD-1.6c.md`.
-- PR #150: https://github.com/Creative36711/narthex/pull/150 — **OPEN before the authorized squash merge**, CI-tested head `63deef9e99302eaacdfec71a653822529e728208`.
-- `golden-playthrough` run [40939119293](https://github.com/Creative36711/narthex/actions/runs/40939119293/job/123677463490), job `123677463490`: **failure** at “Run golden import, audit, playkit and browser save/load”. The evidence artifact uploaded; detailed run logs were not inspected. This is recorded as a red PR check, not reclassified as a pass; the Master explicitly allowed the underlying non-404 pre-save-autosave failure.
-- `visual` / screenshots run [40939118963](https://github.com/Creative36711/narthex/actions/runs/40939118963/job/123677461117), job `123677461117`: **failure** at “Проверить свежесть бандла аудита до сборки”; later visual checks were skipped. This matches the documented, unchanged out-of-scope audit-bundle freshness failure, which is explicitly allowed by the decision.
-- Both PR checks remain red, but are accepted exceptions. Squash merge is authorized; record the merge SHA and main-push `golden-playthrough` run/result below after GitHub completes it.
+- Master scope decision accepted 2026-10-29: the autosave/save-load and audit-bundle failures are recorded but do not block the requested PR merge; see `docs/decisions/GOLD-1.6c.md`.
+- PR #150: https://github.com/Creative36711/narthex/pull/150 — **MERGED via squash** at `2026-10-29T19:33:17Z`; merge commit `93a749699de92104162a14b946558c77d7375ca4`.
+- Latest pre-merge `golden-playthrough` PR run [40940859736](https://github.com/Creative36711/narthex/actions/runs/40940859736/job/123683552832), job `123683552832`: **failure** at “Run golden import, audit, playkit and browser save/load”; evidence upload succeeded. Accepted non-404 autosave exception; not reported as a pass.
+- Latest pre-merge visual run [40940859733](https://github.com/Creative36711/narthex/actions/runs/40940859733/job/123683553012), job `123683553012`: **failure** at “Проверить свежесть бандла аудита до сборки”; the accepted out-of-scope audit-bundle freshness exception.
+- Post-merge main-push `golden-playthrough` run [40941142271](https://github.com/Creative36711/narthex/actions/runs/40941142271/job/123684528959), job `123684528959`: **failure** at “Run golden import, audit, playkit and browser save/load”; `Upload GOLD-1.6 evidence` succeeded. The task-requested push run ID and job result are recorded, not represented as green. Artifact `GOLD-1.6-40941142271`, id `12927062296` (15,729,058 bytes).
+- Post-merge main-push visual run [40941142198](https://github.com/Creative36711/narthex/actions/runs/40941142198/job/123684529279), job `123684529279`: **failure** at “Проверить свежесть бандла аудита до сборки”; later visual checks skipped.
+- **Task acceptance: check=0 under the Master's explicit decision.** The local `playthrough:golden` rc=1 at `06-before-save` and `check:audit-bundle` rc=1 remain factual failures, accepted as non-blocking exceptions. No red CI job is claimed as passed.
 
 ## Artifacts
 
 - Report: `_tools/reports/GOLD-1.6c.md`
-- JSONL log: `_tools/reports/GOLD-1.6c.log` (at least 20 valid records; include baseline, importer, bundle, checks and golden-run evidence).
-- Decision: `docs/decisions/GOLD-1.6c.md`.
+- JSONL log: `_tools/reports/GOLD-1.6c.log` (at least 20 valid records; includes baseline, importer, bundle, PR, merge, main-push and golden-run evidence).
+- Drive copy of the log: https://drive.google.com/file/d/1AkQUVeIl51GhYBP30t1LrXKHgLKPT5oy/view?usp=drivesdk
+- Decision: `docs/decisions/GOLD-1.6c.md` (accepted 2026-10-29).
