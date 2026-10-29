@@ -1,0 +1,37 @@
+{"event":"log_metadata","recorded_at":"2026-10-29T20:40:42Z","sequence_semantics":"chronological execution order; source observation timestamps are retained only when read directly from evidence logs"}
+{"seq":1,"event":"task_start","task":"GOLD-1.8c","dispatch_id":"4086f0cf-5705-81d8-ac79-c8a814dba78d","run_id":"e3308254-906d-479f-a89f-8c9284bbee2e","branch":"arena/0478fff9-narthex","head":"0d8b69d014b3f795862fa23841794b84f7729c52","base":"origin/main"}
+{"seq":2,"event":"scope_check","result":"clean at origin/main; no task files existed; no campaign or source changes"}
+{"seq":3,"event":"archive_source","commit":"71dbbc1056fd34679cf9017ee7dc5ecff29d666c","url":"https://codeload.github.com/Creative36711/campaign-1/tar.gz/71dbbc1056fd34679cf9017ee7dc5ecff29d666c"}
+{"seq":4,"event":"archive_download","path":"/tmp/gold18c-campaign-1.tar.gz","bytes":188669895,"sha256":"d424a914ed2714e9c643f428e5a8eba515cbc0aaba3b3a2d4746362ccad3cf4b","matches_manifest":true}
+{"seq":5,"event":"archive_extract","path":"/tmp/gold18c-campaign1","files":1290,"result":"read-only temporary extraction; .golden tree untouched"}
+{"seq":6,"event":"archive_project_check","root_project_json":false,"root_campaign_json":true,"root_manifest_json":true,"root_world_json":true}
+{"seq":7,"event":"campaign_metadata","id":"b7305faa-8e10-4d26-96bb-f1b5ed5e493f","title":"Каркас: Дело о седьмой помпе","min_engine":"0.8.0","engine_version":"0.8.0"}
+{"seq":8,"event":"contract_choice","kind":"narrative","caps_count":15,"caps_source":"stable narrative entries from docs/contracts/caps.json and packs/narrative/data/ash-of-caerden/project.json","fmv":"excluded"}
+{"seq":9,"event":"project_bytes","path":"/tmp/gold18c-project.json","bytes":510,"sha256":"489cf44da06347eede87db3df5472cf80afea8d02d6c7ec83dbb90d100efa5dd"}
+{"seq":10,"event":"schema_validation","validator":"Ajv2020 against docs/contracts/project.schema.json","result":"pass","errors":0}
+{"seq":11,"event":"capability_validation","resolver":"resolveProjectCapabilityModes","result":"ready","active_caps":15,"required_narrative_cap":"present"}
+{"seq":12,"event":"kind_resolution","resolver":"resolveProjectPackForStudio","status":"ready","pack_id":"narrative"}
+{"seq":13,"event":"http_player_probe","url":"http://127.0.0.1:44671/campaigns/b7305faa-8e10-4d26-96bb-f1b5ed5e493f/project.json","status":200,"content_type":"application/json; charset=utf-8","route_requests":1}
+{"seq":14,"event":"player_parse_probe","module":"src/player/adventureRuntime.ts#loadPlayerPackSession via Vite SSR","response_json_calls":1,"pack_resolution":"ready/narrative","threw":false,"returned_null":true,"reason":"narrative session factory is not registered; loader currently registers adventure only"}
+{"seq":15,"event":"missing_file_matrix","http_status":404,"json_calls":0,"player_result":"null","threw":false}
+{"seq":16,"event":"invalid_json_matrix","http_status":200,"json_calls":1,"player_result":"null","threw":false}
+{"seq":17,"event":"missing_kind_matrix","http_status":200,"resolver":"missing","player_result":"null","threw":false}
+{"seq":18,"event":"bad_caps_matrix","mode_resolver":"invalid","player_loader_reads_caps":false,"threw":false}
+{"seq":19,"event":"browser_baseline_gold14","source":"_tools/reports/GOLD-1.4.log:18,20,31","observed_at":"2026-10-29T14:45:31.872Z","scene_gate_404s":2,"source_commit":"71dbbc1056fd34679cf9017ee7dc5ecff29d666c"}
+{"seq":20,"event":"browser_baseline_gold14_full_run","source":"_tools/reports/GOLD-1.4.log:78","observed_at":"2026-10-29T14:46:01.820Z","project_json_404s":5}
+{"seq":21,"event":"browser_baseline_gold16","source":"_tools/reports/GOLD-1.6.log:459,506","scene_gate_404s":2,"full_run_404s":5,"same_archive_sha256":"d424a914ed2714e9c643f428e5a8eba515cbc0aaba3b3a2d4746362ccad3cf4b"}
+{"seq":22,"event":"existing_golden_ci","workflow":"golden-playthrough","github_run_id":"40924355797","status":"success","duration":"1m58s","run_url":"https://github.com/Creative36711/narthex/actions/runs/40924355797"}
+{"seq":23,"event":"latest_prior_golden_ci","workflow":"golden-playthrough","github_run_id":"40945413575","status":"failure","failed_step":"Run golden import, audit, playkit and browser save/load","detail":"check annotation reports exit code 1; detailed log unavailable"}
+{"seq":24,"event":"current_branch_dispatch_attempt","command":"gh workflow run 400919893 --ref arena/0478fff9-narthex","result":"HTTP 403 Resource not accessible by integration","new_run_created":false}
+{"seq":25,"event":"ci_log_download_attempt","run_id":"40945413575","result":"EOF from GitHub Actions results/artifact endpoint; restricted host not accessible"}
+{"seq":26,"event":"npm_install","command":"npm ci","exit_code":0,"audit_advisories":{"moderate":1,"high":1,"critical":2}}
+{"seq":27,"event":"contracts_check","command":"npm run check:contracts","exit_code":1,"first_failure":"featureOn реализован в caps.ts, а не в types.ts","scope":"existing source check; no source changes made"}
+{"seq":28,"event":"content_integrity","source":"/tmp/gold18c-project.json","report_block_matches":true,"bytes":510,"sha256":"489cf44da06347eede87db3df5472cf80afea8d02d6c7ec83dbb90d100efa5dd"}
+{"seq":29,"event":"404_result","scene_entry_baseline":2,"full_run_baseline":5,"after_task":"unchanged campaign archive still has no project.json; no zero/zero claim"}
+{"seq":30,"event":"diff_scope","expected_files":["_tools/reports/GOLD-1.8c.md","_tools/reports/GOLD-1.8c.log"],"campaign_and_protected_paths":"unchanged"}
+{"seq":31,"event":"report_written","path":"_tools/reports/GOLD-1.8c.md"}
+{"seq":32,"event":"jsonl_written","path":"_tools/reports/GOLD-1.8c.log","minimum_lines":20}
+{"seq":33,"event":"pr_created","number":153,"url":"https://github.com/Creative36711/narthex/pull/153","base":"main","head":"arena/0478fff9-narthex","title":"GOLD-1.8c: document campaign-1 project.json contract"}
+{"seq":34,"event":"pr_visual_ci","workflow":"visual","github_run_id":"40951341722","job":"screenshots","status":"failure","started_at":"2026-10-29T20:41:58Z","completed_at":"2026-10-29T20:42:15Z","failed_step":"Проверить свежесть бандла аудита до сборки","browser_steps":"skipped"}
+{"seq":35,"event":"audit_bundle_check","command":"npm run check:audit-bundle","exit_code":1,"failure":"public/ai/campaign-audit.mjs is stale relative to scripts/campaign-audit.mts","committed_bytes":981858,"committed_sha256":"1348888ef4974477e0b50f04833a6c1b11dfb1a8f3e7b53cc9e3b11071929a7a","generated_bytes":981858,"generated_sha256":"c857e5f4988fc33ef8d371c93a38617f81aedb32c1f7548b0f25a8a9895ea67f","first_differing_byte":145633,"repair_not_run":"public/ai/*.mjs is protected"}
+{"seq":36,"event":"report_updated","reason":"record PR-triggered visual failure and exact audit bundle freshness diagnosis"}
