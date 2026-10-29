@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Browser proof for GOLD-1.5: reach three endings from the pinned campaign
- * through real scene interactions and currently available dialogue choices.
+ * Browser proof for GOLD-1.10: reach three endings from the manifest-pinned
+ * campaign through real scene interactions and currently available dialogue choices.
  * The imported .golden tree is read-only; this runner never writes game state.
  */
 import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
@@ -10,23 +10,19 @@ import { fileURLToPath } from 'node:url'
 import { execFileSync, spawn } from 'node:child_process'
 import { setTimeout as delay } from 'node:timers/promises'
 import { launchChromium, chromiumVersion } from '../visual/local-browser.mjs'
+import { readGoldenManifest, verifyImportedTree } from './manifest-pin.mjs'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const CAMPAIGN_ROOT = join(ROOT, '.golden', 'karkas')
 const MANIFEST_PATH = join(ROOT, '.golden', 'manifest.json')
-const OUTPUT_DIR = join(ROOT, '_tools', 'reports', 'GOLD-1.5')
-const LOG_PATH = join(ROOT, '_tools', 'reports', 'GOLD-1.5.log')
-const REPORT_PATH = join(ROOT, '_tools', 'reports', 'GOLD-1.5.md')
+const TASK = 'GOLD-1.10'
+const OUTPUT_DIR = join(ROOT, '_tools', 'reports', TASK)
+const LOG_PATH = join(ROOT, '_tools', 'reports', `${TASK}.log`)
+const REPORT_PATH = join(ROOT, '_tools', 'reports', `${TASK}.md`)
 const PORT = Number(process.env.GOLDEN_PORT || 4174)
 const BASE_URL = `http://127.0.0.1:${PORT}`
 const WIDTH = 1440
 const HEIGHT = 900
-const EXPECTED_PIN = {
-  repository: 'Creative36711/campaign-1',
-  commit: '71dbbc1056fd34679cf9017ee7dc5ecff29d666c',
-  archiveSha256: 'd424a914ed2714e9c643f428e5a8eba515cbc0aaba3b3a2d4746362ccad3cf4b',
-  treeSha256: '132a5c09987aff80c9dfe2f69f1195e642295f666fc906545f00d5fccce62c76',
-}
 const EXPECTED_ENDING_IDS = ['ending_pump', 'ending_vein', 'ending_closed']
 const UNREACHED_REASONS = {
   ending_silence_kell: 'Не запускался маршрут взрыва затвора с гибелью Келла; в этом прогоне выбраны другие три финала.',
@@ -37,18 +33,10 @@ const UNREACHED_REASONS = {
   ending_death: 'Смерть героя намеренно не вызывалась; это не один из трёх проверяемых маршрутов.',
 }
 
-const manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8'))
+const manifest = readGoldenManifest(MANIFEST_PATH, CAMPAIGN_ROOT)
 const campaign = JSON.parse(readFileSync(join(CAMPAIGN_ROOT, 'campaign.json'), 'utf8'))
-if (
-  manifest.repository !== EXPECTED_PIN.repository ||
-  manifest.commit !== EXPECTED_PIN.commit ||
-  manifest.sha256 !== EXPECTED_PIN.archiveSha256 ||
-  manifest.tree?.archive_sha256 !== EXPECTED_PIN.archiveSha256 ||
-  manifest.tree?.sha256 !== EXPECTED_PIN.treeSha256 ||
-  !existsSync(join(CAMPAIGN_ROOT, 'manifest.json'))
-) {
-  throw new Error('Pinned .golden/karkas tree/manifest is missing or mismatched; run npm run golden:import first.')
-}
+const SAVE_KEY = `chronicle-forge:save:${campaign.id}`
+const META_KEY = `chronicle-forge:meta:${campaign.id}`
 const campaignEndings = Array.isArray(campaign.endings) ? campaign.endings : []
 for (const id of EXPECTED_ENDING_IDS) {
   if (!campaignEndings.some((ending) => ending.id === id)) {
@@ -193,7 +181,25 @@ async function waitForServer(timeoutMs = 60000) {
   throw new Error(`Vite did not answer at ${BASE_URL} within ${timeoutMs} ms`)
 }
 async function waitForPaint() {
-  await page.waitForFunction(() => [...document.images].every((image) => image.complete), undefined, { timeout: 15000 }).catch(() => {})
+  await page.waitForFunction(() => [...document.images].every((image) => image.complete), undefined, { timeout: 15000 })
+  await page.waitForFunction(() => {
+    const ready = (root, imageSelector, artSelector, fallbackSelector) => {
+      if (!root) return null
+      if (fallbackSelector && root.querySelector(fallbackSelector)) return false
+      const image = imageSelector ? root.querySelector(imageSelector) : null
+      if (image) return image.complete && image.naturalWidth > 0 && image.naturalHeight > 0
+      return artSelector ? !!root.querySelector(artSelector) : true
+    }
+    const ending = ready(document.querySelector('.end-overlay'), 'img.end-bg', '.end-bg svg', '.end-bg-fallback')
+    if (ending !== null) return ending
+    const map = ready(document.querySelector('.map-screen'), 'img.map-bg', 'svg.map-bg, .map-bg svg', '.map-bg-fallback')
+    if (map !== null) return map
+    const scene = ready(document.querySelector('.scene-stage'), 'img.scene-bg', '.scene-bg svg', '.scene-bg-fallback')
+    if (scene !== null) return scene
+    const menu = ready(document.querySelector('.main-menu'), 'img.menu-bg', '', '')
+    if (menu !== null) return menu
+    return true
+  }, undefined, { timeout: 15000 })
   await page.waitForTimeout(350)
 }
 async function measureScreen() {
@@ -314,7 +320,7 @@ async function waitForScene(sceneId, timeout = 25000) {
       const state = envelope?.state ?? envelope
       return state?.scene === `scene_${id}` && !!image?.complete && image.naturalWidth > 0
     } catch { return false }
-  }, { id: bareId, saveKey: `narthex:save:${campaign.id}` }, { timeout })
+  }, { id: bareId, saveKey: SAVE_KEY }, { timeout })
   lastKnownSceneId = `scene_${bareId}`
   await waitForPaint()
 }
@@ -742,7 +748,7 @@ async function readRuntimeState() {
         game_over: state?.game_over ?? null,
       }
     } catch { return null }
-  }, `narthex:save:${campaign.id}`)
+  }, SAVE_KEY)
 }
 const itemDefinitions = new Map()
 function importedItemLabel(itemId) {
@@ -809,7 +815,7 @@ async function startFreshRun(firstRun) {
   if (firstRun) {
     await page.getByRole('button', { name: 'Новый забег', exact: true }).click()
     await page.locator('.char-create').waitFor({ state: 'visible', timeout: 15000 })
-    await page.locator('.char-name').fill('Дознаватель GOLD-1.5')
+    await page.locator('.char-name').fill('Дознаватель GOLD-1.10')
     await page.getByRole('button', { name: /Помповый мастер/ }).first().click()
     await page.getByRole('button', { name: /Боец ярусов/ }).first().click()
     const readSkill = async (row) => Number((await row.locator('.char-stat-val').innerText()).replace(/[^\d]/g, ''))
@@ -874,7 +880,7 @@ async function startFreshRun(firstRun) {
       throw new Error(`Character build did not reach planned skill values: ${JSON.stringify(skillSnapshot)}`)
     }
     if (skillSnapshot.validationProblems.length) throw new Error(`Character build is invalid: ${JSON.stringify(skillSnapshot.validationProblems)}`)
-    log('character_build', { name: 'Дознаватель GOLD-1.5', profession: 'prof_wright', calling: 'call_fighter', skillSnapshot, transfers })
+    log('character_build', { name: 'Дознаватель GOLD-1.10', profession: 'prof_wright', calling: 'call_fighter', skillSnapshot, transfers })
     await page.getByRole('button', { name: 'Начать забег', exact: true }).click()
   } else {
     await page.locator('.end-overlay').waitFor({ state: 'visible', timeout: 15000 })
@@ -965,7 +971,7 @@ async function finishEnding(expectedId) {
       const raw = localStorage.getItem(key)
       return raw ? JSON.parse(raw) : null
     } catch { return null }
-  }, `narthex:meta:${campaign.id}`)
+  }, META_KEY)
   const endingsSeen = Array.isArray(metaResult?.endings) ? metaResult.endings : []
   if (!endingsSeen.includes(expectedId)) {
     throw new Error(`The runtime ending ID is not present in the campaign meta-history: expected=${expectedId}, seen=${JSON.stringify(endingsSeen)}`)
@@ -984,6 +990,7 @@ async function finishEnding(expectedId) {
     elapsedMs,
     elapsedSeconds: Number((elapsedMs / 1000).toFixed(2)),
     finalDialogue: routeLastDialogue,
+    endingAction: routeActions.at(-1) ?? null,
     screenshot: finalCheckpoint.screenshot,
     metaEndingsSeen: endingsSeen,
     routeActions,
@@ -1057,22 +1064,28 @@ function dialogueCell(value) {
   const lines = value.spokenLines?.length ? value.spokenLines : [value.choice]
   return `**${markdownCell(value.choice)}** — ${lines.map((line) => `“${markdownCell(line)}”`).join(' ')}`
 }
+function actionCell(value) {
+  if (!value) return '—'
+  const details = value.choiceId ? `; ${value.choiceId}` : ''
+  return `\`${markdownCell(value.action)}\` (step ${value.step}${details})`
+}
 function buildReport(results, diagnostics, allEndingRows, verdict) {
-  const rows = results.map((result) => `| \`${result.endingId}\` | \`${result.scene}\` | ${result.stepCount} | ${result.elapsedSeconds.toFixed(2)} s | ${dialogueCell(result.finalDialogue)} |`).join('\n')
+  const rows = results.map((result) => `| \`${result.endingId}\` | \`${result.scene}\` | ${actionCell(result.endingAction)} | ${result.stepCount} | ${result.elapsedSeconds.toFixed(2)} s | ${dialogueCell(result.finalDialogue)} |`).join('\n')
   const allRows = allEndingRows.map((row) => `| \`${row.id}\` | ${row.reached ? 'reached' : 'unreached'} | ${markdownCell(row.reason ?? row.title)} |`).join('\n')
   const consoleText = diagnostics.consoleErrors.length
     ? diagnostics.consoleErrors.map((error) => `- **${error.run} / ${error.stage}:** \`${markdownCell(error.text)}\``).join('\n')
     : '- None.'
   const screenshotRows = results.map((result) => `- \`${result.screenshot.path}\` — ${result.screenshot.width}×${result.screenshot.height}, ${result.screenshot.bytes} bytes`).join('\n')
-  return `# GOLD-1.5 — Campaign ending reachability\n\n` +
+  return `# GOLD-1.10 — Campaign ending reachability\n\n` +
     `**Verdict: ${verdict}.** Three distinct ending data IDs were reached consecutively in one Chromium browser context; no flags, scenes, or ending states were set by the runner.\n\n` +
     `- Branch: \`${execFileSync('git', ['branch', '--show-current'], { cwd: ROOT, encoding: 'utf8' }).trim()}\`\n` +
     `- Campaign: ${campaign.title} (\`${campaign.id}\`)\n` +
-    `- Pinned commit: \`${manifest.commit}\`; archive SHA-256: \`${manifest.sha256}\`; imported tree SHA-256: \`${manifest.tree.sha256}\`\n` +
+    `- Pin: \`${manifest.repository}@${manifest.commit}\`; archive URL: ${manifest.url}\n` +
+    `- Archive: ${manifest.size_bytes} bytes; SHA-256: \`${manifest.sha256}\`; tree SHA-256: \`${manifest.tree.sha256}\`\n` +
     `- Browser: ${chromiumVersion()}; viewport: ${WIDTH}×${HEIGHT}; same tab/context for all three runs\n` +
     `- Imported ending data: ${campaignEndings.length}; reached: ${results.length}; distinct reached IDs: ${new Set(results.map((result) => result.endingId)).size}\n\n` +
     `## Reached endings\n\n` +
-    `| Ending ID | Scene | Step count | Elapsed time | Final dialogue |\n|---|---|---:|---:|---|\n${rows}\n\n` +
+    `| Ending ID | Scene | UI action reaching ending | Step count | Elapsed time | Final dialogue |\n|---|---|---|---:|---:|---|\n${rows}\n\n` +
     `## All campaign endings\n\n` +
     `| Ending ID | Status | Reason / title |\n|---|---|---|\n${allRows}\n\n` +
     `## Browser diagnostics\n\n` +
@@ -1091,15 +1104,21 @@ async function main() {
   activeRun = 'setup'
   activeStage = 'setup'
   log('run_start', {
-    task: 'GOLD-1.5',
+    task: TASK,
     branch: execFileSync('git', ['branch', '--show-current'], { cwd: ROOT, encoding: 'utf8' }).trim(),
     head: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim(),
     baseUrl: BASE_URL,
     viewport: `${WIDTH}x${HEIGHT}`,
     campaignId: campaign.id,
     campaignTitle: campaign.title,
+    saveStorageKey: SAVE_KEY,
+    metaStorageKey: META_KEY,
+    campaignRepository: manifest.repository,
     campaignCommit: manifest.commit,
+    archiveUrl: manifest.url,
+    archiveBytes: manifest.size_bytes,
     archiveSha256: manifest.sha256,
+    treeArchiveSha256: manifest.tree.archive_sha256,
     treeSha256: manifest.tree.sha256,
     startingScene: campaign.starting_scene,
     startingLocation: campaign.starting_location,
@@ -1109,6 +1128,8 @@ async function main() {
     dialogueChoiceTargets: DIALOGUE_CHOICE_TARGETS,
     dialogueChoiceIdConvention: 'runtime:<npc>#<node>[<0-based-live-index>]',
   })
+  const verifiedTree = await verifyImportedTree(manifest, CAMPAIGN_ROOT)
+  log('imported_tree_verified', verifiedTree)
   server = spawn(process.execPath, [
     join(ROOT, 'node_modules', 'vite', 'bin', 'vite.js'),
     '--host', '127.0.0.1', '--port', String(PORT), '--strictPort',
@@ -1205,7 +1226,7 @@ async function main() {
     report: relative(ROOT, REPORT_PATH).split(sep).join('/'),
     screenshots: results.map((result) => result.screenshot.path),
   })
-  console.log(`GOLD-1.5 ${verdict}: ${results.map((result) => result.endingId).join(', ')}`)
+  console.log(`${TASK} ${verdict}: ${results.map((result) => result.endingId).join(', ')}`)
   console.log(`Report: ${relative(ROOT, REPORT_PATH).split(sep).join('/')}`)
   console.log(`Log: ${relative(ROOT, LOG_PATH).split(sep).join('/')}`)
   if (verdict !== 'PASS') process.exitCode = 1
