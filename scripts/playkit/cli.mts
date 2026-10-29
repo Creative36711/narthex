@@ -222,6 +222,8 @@ interface Observation {
   visible: Array<{ slot: string; entity: string | null; label: string; kind: string; action: 'talk' | 'use' | 'inspect' | 'none' }>
   /** куда можно уйти одним переходом (только реальные дороги) */
   exits: Array<{ location: string; label: string; cost: number | null }>
+  /** реальные хотспоты перехода в другую сцену этой кампании */
+  navigation: Array<{ scene: string; label: string }>
   /** открытый диалог: реплики и варианты ответа */
   dialogue: null | {
     npc: string
@@ -323,6 +325,13 @@ function makeObserver(engine: AnyObj, campaign: AnyObj, adventure?: PlaykitAdven
           .filter((l) => l.cost !== null)
       : []
 
+    const navigation = (Array.isArray(scene?.navigation) ? scene.navigation : []).flatMap((zone: AnyObj) => {
+      const target = typeof zone.go_to_scene === 'string' ? zone.go_to_scene : ''
+      return target && campaign.scenes?.[target]
+        ? [{ scene: target, label: String(zone.label ?? target) }]
+        : []
+    })
+
     const dialogueUI = engine.dialogue as AnyObj | null
     const dialogue = dialogueUI
       ? {
@@ -358,6 +367,7 @@ function makeObserver(engine: AnyObj, campaign: AnyObj, adventure?: PlaykitAdven
       locationLabel: String(location?.label ?? ''),
       visible: occupants,
       exits,
+      navigation,
       dialogue,
       combat: combatView(),
       hud: {
@@ -539,6 +549,18 @@ function act(engine: AnyObj, campaign: AnyObj, action: AnyObj, adventure?: Playk
     if (cost === null) return { ok: false, detail: `нет перехода в ${to}` }
     engine.travelTo(to)
     return { ok: true, detail: `переход → ${to} (${cost} тик.)` }
+  }
+
+  if (kind === 'move') {
+    const to = String(action.to ?? '')
+    const scene = engine.currentScene()
+    const navigation = (Array.isArray(scene?.navigation) ? scene.navigation : []) as AnyObj[]
+    const zone = navigation.find((candidate) => candidate.go_to_scene === to)
+    if (!zone) return { ok: false, detail: `нет перехода в сцену ${to}` }
+    const moved = engine.navigate(zone)
+    return moved
+      ? { ok: true, detail: `переход в сцену → ${to}` }
+      : { ok: false, detail: `переход в сцену ${to} заблокирован` }
   }
 
   if (kind === 'wait') {
@@ -1015,7 +1037,50 @@ async function cmdRun(config: RunConfig, script: AnyObj): Promise<RunResult> {
   return result
 }
 
-function chooseAction(rng: () => number, observation: Observation, mode: 'fuzz' | 'explore', visited: Set<string>): AnyObj | null {
+function navigationProgressSignature(engine: AnyObj): string {
+  const state = { ...(engine.state as AnyObj) }
+  delete state.log
+
+  const dialogue = engine.dialogue as AnyObj | null
+  const combat = engine.combat as AnyObj | null
+  return sha256(
+    stableJson({
+      state,
+      dialogue: dialogue
+        ? {
+            npc: String(dialogue.npc?.id ?? ''),
+            choices: ((dialogue.choices ?? []) as AnyObj[]).map((choice) => String(choice.text ?? '')),
+            finished: !!dialogue.finished,
+          }
+        : null,
+      combat: combat
+        ? {
+            round: Number(combat.round ?? 0),
+            result: combat.result ? String(combat.result) : null,
+            units: ((combat.combatants ?? []) as AnyObj[]).map((unit) => ({
+              id: String(unit.id ?? ''),
+              hp: Number(unit.hp ?? 0),
+              dead: !!unit.dead,
+            })),
+          }
+        : null,
+    }),
+  )
+}
+
+function navigationAttemptKey(from: string, to: string, progressSignature: string): string {
+  return JSON.stringify([from, to, progressSignature])
+}
+
+function chooseAction(
+  rng: () => number,
+  observation: Observation,
+  mode: 'fuzz' | 'explore',
+  visitedLocations: Set<string>,
+  visitedScenes: Set<string>,
+  attemptedNavigations: Set<string>,
+  progressSignature: string,
+): AnyObj | null {
   const options: AnyObj[] = []
   if (observation.combat) {
     if (observation.combat.result) return { do: 'combat_close' }
@@ -1031,14 +1096,21 @@ function chooseAction(rng: () => number, observation: Observation, mode: 'fuzz' 
     for (const item of observation.visible) {
       if (item.entity && item.action !== 'none') options.push({ do: 'interact', entity: item.entity })
     }
+    for (const navigation of observation.navigation) {
+      const fresh = !visitedScenes.has(navigation.scene)
+      const attempted = attemptedNavigations.has(navigationAttemptKey(observation.scene, navigation.scene, progressSignature))
+      if (mode === 'fuzz' || (fresh && !attempted)) options.push({ do: 'move', to: navigation.scene })
+    }
     for (const exit of observation.exits) options.push({ do: 'travel', to: exit.location })
     options.push({ do: 'wait', ticks: 1 })
   }
   if (!options.length) return null
   if (mode === 'explore') {
-    // жадный обход: сначала локации, где ещё не были, потом всё подряд
-    const fresh = options.find((o) => o.do === 'travel' && !visited.has(o.to))
-    if (fresh) return fresh
+    // Сначала уходим в новую сцену по хотспоту, затем посещаем новую локацию.
+    const freshNavigation = options.find((option) => option.do === 'move')
+    if (freshNavigation) return freshNavigation
+    const freshLocation = options.find((option) => option.do === 'travel' && !visitedLocations.has(option.to))
+    if (freshLocation) return freshLocation
   }
   return options[Math.floor(rng() * options.length)]!
 }
@@ -1052,6 +1124,7 @@ async function cmdSearch(config: RunConfig, mode: 'fuzz' | 'explore', stepsLimit
   let status: RunResult['status'] = 'ok'
   let stale = 0
   let lastSignature = ''
+  const attemptedNavigations = new Set<string>()
 
   const record = (action: AnyObj | null, detail: string) => {
     const observation = observe(steps.length)
@@ -1071,10 +1144,14 @@ async function cmdSearch(config: RunConfig, mode: 'fuzz' | 'explore', stepsLimit
   for (let i = 0; i < stepsLimit; i++) {
     const observation = steps[steps.length - 1]!.observation as Observation
     if (observation.over) break
-    const action = chooseAction(rng, observation, mode, seen.locations)
+    const progressSignature = navigationProgressSignature(engine)
+    const action = chooseAction(rng, observation, mode, seen.locations, seen.scenes, attemptedNavigations, progressSignature)
     if (!action) {
       status = 'softlock'
       break
+    }
+    if (action.do === 'move') {
+      attemptedNavigations.add(navigationAttemptKey(observation.scene, String(action.to), progressSignature))
     }
     const outcome = act(engine, campaign, action)
     if (!outcome.ok) stale++
@@ -1214,9 +1291,10 @@ async function cmdCheck(
       status: sweepResult.status,
       seeds: (sweepResult.stats as AnyObj)?.seeds,
       finals: (sweepResult.stats as AnyObj)?.finals,
+      endings: (sweepResult.stats as AnyObj)?.endings,
       deaths: (sweepResult.stats as AnyObj)?.deaths,
     },
-    coverage: { visited: visited.size, total: graph.reachability.scenes.reachable.length, uncovered },
+    coverage: { visited: visited.size, total: graph.reachability.scenes.reachable.length, seen: [...visited].sort(), uncovered },
   }
 
   const text: string[] = []
@@ -1239,12 +1317,15 @@ async function cmdCheck(
   text.push('')
   text.push('## Матрица seed\'ов')
   text.push(`seed'ов ${(sweepResult.stats as AnyObj)?.seeds ?? 0} · исходы ${JSON.stringify((sweepResult.stats as AnyObj)?.finals ?? {})}`)
+  const endings = ((sweepResult.stats as AnyObj)?.endings ?? []) as string[]
+  if (endings.length) text.push(`концовки: ${endings.join(', ')}`)
   if (Object.keys(((sweepResult.stats as AnyObj)?.deaths ?? {}) as AnyObj).length) {
     text.push(`смерти: ${JSON.stringify((sweepResult.stats as AnyObj)?.deaths)}`)
   }
   text.push('')
   text.push('## Покрытие')
   text.push(`посещено ${visited.size} из ${graph.reachability.scenes.reachable.length} достижимых сцен`)
+  if (visited.size) text.push(`сцены: ${[...visited].sort().join(', ')}`)
   if (uncovered.length) text.push(`не покрыто: ${uncovered.slice(0, 15).join(', ')}${uncovered.length > 15 ? ` … ещё ${uncovered.length - 15}` : ''}`)
 
   if (config.outDir) {
@@ -1464,6 +1545,7 @@ async function cmdSweep(config: RunConfig, seeds: [number, number], stepsLimit: 
       ok: runs.length - bad.length,
       failed: bad.length,
       finals,
+      endings: [...endings].sort(),
       deaths,
     },
     hashes: { transcript: '', run: '' },
@@ -1475,9 +1557,11 @@ async function cmdSweep(config: RunConfig, seeds: [number, number], stepsLimit: 
   lines.push(`seed'ов ${runs.length} · успешных ${runs.length - bad.length} · проблемных ${bad.length} · движок ${first.engine}`)
   lines.push('')
   lines.push(`Посещено сцен: ${scenes.size} · локаций: ${locations.size} · диалогов: ${dialogues.size} · концовок: ${endings.size}`)
+  lines.push(`Сцены: ${[...scenes].sort().join(', ') || 'нет'}`)
   lines.push('')
   lines.push('## Исходы')
-  for (const [type, count] of Object.entries(finals).sort((a, b) => b[1] - a[1])) lines.push(`- ${type}: ${count}`)
+  const reportedFinals = { ...finals, open: finals.open ?? 0 }
+  for (const [type, count] of Object.entries(reportedFinals).sort((a, b) => b[1] - a[1])) lines.push(`- ${type}: ${count}`)
   if (Object.keys(deaths).length) {
     lines.push('', '## Причины смерти')
     for (const [reason, count] of Object.entries(deaths).sort((a, b) => b[1] - a[1])) lines.push(`- ${reason}: ${count}`)
