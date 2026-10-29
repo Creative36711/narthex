@@ -31,3 +31,7 @@
 {"seq":30,"event":"diff_scope","expected_files":["_tools/reports/GOLD-1.8c.md","_tools/reports/GOLD-1.8c.log"],"campaign_and_protected_paths":"unchanged"}
 {"seq":31,"event":"report_written","path":"_tools/reports/GOLD-1.8c.md"}
 {"seq":32,"event":"jsonl_written","path":"_tools/reports/GOLD-1.8c.log","minimum_lines":20}
+{"seq":33,"event":"pr_created","number":153,"url":"https://github.com/Creative36711/narthex/pull/153","base":"main","head":"arena/0478fff9-narthex","title":"GOLD-1.8c: document campaign-1 project.json contract"}
+{"seq":34,"event":"pr_visual_ci","workflow":"visual","github_run_id":"40951341722","job":"screenshots","status":"failure","started_at":"2026-10-29T20:41:58Z","completed_at":"2026-10-29T20:42:15Z","failed_step":"Проверить свежесть бандла аудита до сборки","browser_steps":"skipped"}
+{"seq":35,"event":"audit_bundle_check","command":"npm run check:audit-bundle","exit_code":1,"failure":"public/ai/campaign-audit.mjs is stale relative to scripts/campaign-audit.mts","committed_bytes":981858,"committed_sha256":"1348888ef4974477e0b50f04833a6c1b11dfb1a8f3e7b53cc9e3b11071929a7a","generated_bytes":981858,"generated_sha256":"c857e5f4988fc33ef8d371c93a38617f81aedb32c1f7548b0f25a8a9895ea67f","first_differing_byte":145633,"repair_not_run":"public/ai/*.mjs is protected"}
+{"seq":36,"event":"report_updated","reason":"record PR-triggered visual failure and exact audit bundle freshness diagnosis"}
