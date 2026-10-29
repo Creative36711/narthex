@@ -1,0 +1,73 @@
+[2026-10-29T20:22:16Z] GOLD-1.8b evidence, branch=arena/a6712d93-narthex HEAD=4f4241b6dc5ffe5e7d7ddd8aed7f53623bdff54b
+[2026-10-29T20:22:16Z] campaign-1 main=71dbbc1056fd34679cf9017ee7dc5ecff29d666c committed=2026-10-29T13:51:09Z openPRs=0
+[2026-10-29T20:22:17Z] manifest: commit=71dbbc1056fd34679cf9017ee7dc5ecff29d666c bytes=188669895 sha256=d424a914ed2714e9c643f428e5a8eba515cbc0aaba3b3a2d4746362ccad3cf4b
+[2026-10-29T20:22:17Z] clean slate: rm -rf .golden/karkas
+[2026-10-29T20:22:17Z] run 1/2 (fresh download): npm run golden:import
+    
+    > chronicle-forge@0.8.0 golden:import
+    > tsx scripts/golden-import.mts
+    
+    download: verified 188669895 bytes from https://codeload.github.com/Creative36711/campaign-1/tar.gz/71dbbc1056fd34679cf9017ee7dc5ecff29d666c
+    GOLDEN import: complete
+    archive: commit=71dbbc1056fd34679cf9017ee7dc5ecff29d666c bytes=188669895 sha256=d424a914ed2714e9c643f428e5a8eba515cbc0aaba3b3a2d4746362ccad3cf4b
+    tree: files=1290 directories=32 bytes=192491387 sha256=132a5c09987aff80c9dfe2f69f1195e642295f666fc906545f00d5fccce62c76
+    target: .golden/karkas/
+    manifest: unchanged
+    rc=0
+[2026-10-29T20:22:24Z] archive contents after run1: project.json=0 campaign.json=1 files=1290
+[2026-10-29T20:22:24Z] clean slate: rm -rf .golden/karkas
+[2026-10-29T20:22:24Z] run 2/2 (independent fresh download): npm run golden:import
+    
+    > chronicle-forge@0.8.0 golden:import
+    > tsx scripts/golden-import.mts
+    
+    download: verified 188669895 bytes from https://codeload.github.com/Creative36711/campaign-1/tar.gz/71dbbc1056fd34679cf9017ee7dc5ecff29d666c
+    GOLDEN import: complete
+    archive: commit=71dbbc1056fd34679cf9017ee7dc5ecff29d666c bytes=188669895 sha256=d424a914ed2714e9c643f428e5a8eba515cbc0aaba3b3a2d4746362ccad3cf4b
+    tree: files=1290 directories=32 bytes=192491387 sha256=132a5c09987aff80c9dfe2f69f1195e642295f666fc906545f00d5fccce62c76
+    target: .golden/karkas/
+    manifest: unchanged
+    rc=0
+[2026-10-29T20:22:35Z] audit: npm run audit:campaign -- .golden/karkas
+    
+    > chronicle-forge@0.8.0 audit:campaign
+    > tsx scripts/campaign-audit.mts .golden/karkas
+    
+    Headless-аудит кампании: /home/user/narthex/.golden/karkas
+    Файлов в покрытии: json 319, ink/md 11
+    Проверка Chronicle Forge — 10/29/2026, 8:22:38 PM
+    
+    СТРУКТУРА И ССЫЛКИ
+    ПРОБЛЕМ НЕТ
+    МЕДИА И ФАЙЛЫ
+    INFO: Проверено ссылок на локальные медиа в контенте кампании: 887; все найдены. Проверка покрывает только упомянутые в данных пути — файлы на диске без ссылок не считаются и не удаляются.
+    ПЛЕЙТЕСТ
+    INFO: После текущей версии кампании плейтест не запускался.
+    INFO: Эта проверка не симулирует игровой маршрут. Для проверки взаимодействий используйте кнопку «Плейтест».
+    Итого: 0 ошибок, 0 предупреждений, 3 заметок
+    rc=0
+[2026-10-29T20:22:38Z] check: node public/ai/cf-play.mjs check .golden/karkas
+    # Проверка кампании · Каркас: Дело о седьмой помпе
+    
+    ✓ проверка пройдена
+    
+    ## Статика
+    12 сцен · 5 локаций · 11 диалогов · 118 узлов ink
+    ошибок 0 · предупреждений 0
+    
+    ## Маршруты
+    маршрутов нет (/home/user/narthex/.golden/karkas/routes) — прогон только по seed'ам
+    
+    ## Матрица seed'ов
+    seed'ов 5 · исходы {"death":5}
+    концовки: ending_death, ending_flood
+    смерти: {"death: Семьдесят два часа вышли. Восьмой ярус ушёл под тяжёлую воду.":4,"death: Вы пали в бою.":1}
+    
+    ## Покрытие
+    посещено 4 из 12 достижимых сцен
+    сцены: scene_dry_row, scene_gate_hall, scene_office, scene_pump_hall
+    не покрыто: scene_archive, scene_drift, scene_face, scene_flood_gallery, scene_gate_office, scene_pump_room, scene_pump_shaft, scene_sluice
+    rc=0
+[2026-10-29T20:22:40Z] rcs: import=0/0 audit=0 cfplay=0
+[2026-10-29T20:22:40Z] browser run NOT executed: chromium binaries=0, playwright deps=none
+[2026-10-29T20:22:40Z] git status --porcelain .golden = 0 lines; repo = 0 lines
