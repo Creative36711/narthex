@@ -1,40 +1,47 @@
 #!/usr/bin/env node
 /**
- * Reproducible browser route for GOLD-1.2. It serves the pinned, ignored
- * .golden/karkas tree through Playwright routing; it never copies/edits it.
+ * Reproducible browser route for GOLD-1.2 and the GOLD-1.4 save/load probe.
+ * The pinned, ignored .golden/karkas tree is served through Playwright routing;
+ * the runner never copies or edits campaign files.
  *
- *   npm run golden:import
- *   npm run golden:play
+ *   node scripts/golden/play.mjs       # original GOLD-1.2 route
+ *   npm run golden:save-load            # route + save, page reload, slot load
  *
- * Artifacts: _tools/reports/GOLD-1.2.log and _tools/reports/GOLD-1.2/*.png.
+ * GOLD-1.4 artifacts: _tools/reports/GOLD-1.4.log and
+ * _tools/reports/GOLD-1.4/*.png.
  */
 import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { extname, dirname, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { spawn } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
 import { setTimeout as delay } from 'node:timers/promises'
 import { launchChromium, chromiumVersion } from '../visual/local-browser.mjs'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const CAMPAIGN_ROOT = join(ROOT, '.golden', 'karkas')
 const MANIFEST_PATH = join(ROOT, '.golden', 'manifest.json')
-const OUTPUT_DIR = join(ROOT, '_tools', 'reports', 'GOLD-1.2')
-const LOG_PATH = join(ROOT, '_tools', 'reports', 'GOLD-1.2.log')
+const SAVE_LOAD_MODE = process.argv.includes('--save-load')
+const TASK = SAVE_LOAD_MODE ? 'GOLD-1.4' : 'GOLD-1.2'
+const OUTPUT_DIR = join(ROOT, '_tools', 'reports', TASK)
+const LOG_PATH = join(ROOT, '_tools', 'reports', `${TASK}.log`)
 const PORT = Number(process.env.GOLDEN_PORT || 4173)
 const BASE_URL = `http://127.0.0.1:${PORT}`
 const WIDTH = 1440
 const HEIGHT = 900
+const SAVE_SLOT = 1
+const BRANCH = execFileSync('git', ['branch', '--show-current'], { cwd: ROOT, encoding: 'utf8' }).trim()
 
 const manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8'))
 const campaign = JSON.parse(readFileSync(join(CAMPAIGN_ROOT, 'campaign.json'), 'utf8'))
 if (
   manifest.repository !== 'Creative36711/campaign-1' ||
-  manifest.commit !== '8edbaa385d77a88bfb2af8aad4fc4a93dbede8b1' ||
-  manifest.sha256 !== '76787085add7aac55fd216d4d739a1edf48f1a250d66026f3b02164ded817a88' ||
+  manifest.commit !== '71dbbc1056fd34679cf9017ee7dc5ecff29d666c' ||
+  manifest.sha256 !== 'd424a914ed2714e9c643f428e5a8eba515cbc0aaba3b3a2d4746362ccad3cf4b' ||
   manifest.tree?.archive_sha256 !== manifest.sha256 ||
+  manifest.tree?.sha256 !== '132a5c09987aff80c9dfe2f69f1195e642295f666fc906545f00d5fccce62c76' ||
   !existsSync(join(CAMPAIGN_ROOT, 'manifest.json'))
 ) {
-  throw new Error('Pinned GOLD-1 campaign tree/manifest is missing or does not match the task pin; run npm run golden:import first.')
+  throw new Error('Pinned GOLD-1 campaign tree/manifest is missing or does not match .golden/manifest.json; run npm run golden:import first.')
 }
 
 mkdirSync(OUTPUT_DIR, { recursive: true })
@@ -272,7 +279,8 @@ async function clickButton(name, options = {}) {
   await locator.click({ timeout: options.timeout ?? 15000 })
 }
 
-async function settleStoryOverlays(maxMs = 30000) {
+async function settleStoryOverlays(maxMs = 30000, options = {}) {
+  const includeDialogue = options.includeDialogue !== false
   const deadline = Date.now() + maxMs
   let passes = 0
   while (Date.now() < deadline && passes++ < 80) {
@@ -331,7 +339,7 @@ async function settleStoryOverlays(maxMs = 30000) {
     }
 
     const dialogue = page.locator('.dialogue-overlay')
-    if (await dialogue.count()) {
+    if (includeDialogue && await dialogue.count()) {
       const button = dialogue.getByRole('button').last()
       if (await button.count()) {
         await button.click({ timeout: 1500 })
@@ -342,11 +350,16 @@ async function settleStoryOverlays(maxMs = 30000) {
     }
 
     await page.waitForTimeout(450)
-    const lateOverlay = page.locator('.cutscene-overlay, .scene-narrative-overlay, .message-overlay, .dialogue-overlay, .cf-postcard, .postcard-overlay, .postcard-layer')
+    const allOverlays = '.cutscene-overlay, .scene-narrative-overlay, .message-overlay, .dialogue-overlay, .cf-postcard, .postcard-overlay, .postcard-layer'
+    const nonDialogueOverlays = '.cutscene-overlay, .scene-narrative-overlay, .message-overlay, .cf-postcard, .postcard-overlay, .postcard-layer'
+    const lateOverlay = page.locator(includeDialogue ? allOverlays : nonDialogueOverlays)
     if (await lateOverlay.count()) continue
     return true
   }
-  throw new Error(`Story overlays did not settle in ${maxMs} ms; visible=${await page.locator('.cutscene-overlay, .scene-narrative-overlay, .message-overlay, .dialogue-overlay').count()}`)
+  const visibleSelector = includeDialogue
+    ? '.cutscene-overlay, .scene-narrative-overlay, .message-overlay, .dialogue-overlay'
+    : '.cutscene-overlay, .scene-narrative-overlay, .message-overlay'
+  throw new Error(`Story overlays did not settle in ${maxMs} ms; visible=${await page.locator(visibleSelector).count()}`)
 }
 
 async function waitForScene(sceneId, timeout = 20000) {
@@ -362,6 +375,142 @@ function parseHudMinutes(value) {
   const match = value.match(/День\s+(\d+)\s*,\s*(\d{2}):(\d{2})/)
   if (!match) return null
   return ((Number(match[1]) - 1) * 24 + Number(match[2])) * 60 + Number(match[3])
+}
+
+const AUTO_SAVE_KEY = `narthex:save:${campaign.id}`
+const MANUAL_SAVE_KEY = `narthex:save:${campaign.id}@${SAVE_SLOT}`
+
+/** Read the browser's persisted envelope without changing it. */
+async function readStoredSnapshot(key, source) {
+  const snapshot = await page.evaluate(({ key, source }) => {
+    const raw = localStorage.getItem(key)
+    if (!raw) return { source, key, present: false }
+    let envelope
+    try { envelope = JSON.parse(raw) } catch (error) {
+      return { source, key, present: false, parseError: String(error) }
+    }
+    const state = envelope?.state ?? envelope
+    const flags = state?.flags && typeof state.flags === 'object' ? state.flags : {}
+    const sortedFlags = Object.fromEntries(Object.entries(flags).sort(([a], [b]) => a.localeCompare(b)))
+    const setFlags = Object.entries(sortedFlags)
+      .filter(([, value]) => Boolean(value))
+      .map(([name, value]) => ({ name, value }))
+    return {
+      source,
+      key,
+      present: true,
+      campaignId: envelope?.campaign_id ?? state?.campaign_id ?? null,
+      saveVersion: envelope?.save_version ?? state?.save_version ?? null,
+      campaignVersion: envelope?.campaign_version ?? null,
+      createdAt: envelope?.created_at ?? null,
+      updatedAt: envelope?.updated_at ?? null,
+      scene: state?.scene ?? null,
+      location: state?.location ?? null,
+      tick: Number.isFinite(state?.tick) ? state.tick : null,
+      flags: sortedFlags,
+      setFlags,
+      rawChars: raw.length,
+      hudTime: document.querySelector('.hud-time')?.textContent?.trim() ?? null,
+    }
+  }, { key, source })
+  snapshot.hudMinutes = parseHudMinutes(snapshot.hudTime)
+  return snapshot
+}
+
+function compareSnapshots(before, after, stage) {
+  const beforeFlags = before.flags ?? {}
+  const afterFlags = after.flags ?? {}
+  const flagNames = [...new Set([...Object.keys(beforeFlags), ...Object.keys(afterFlags)])].sort()
+  const flagChanges = flagNames.flatMap((name) => {
+    const beforePresent = Object.hasOwn(beforeFlags, name)
+    const afterPresent = Object.hasOwn(afterFlags, name)
+    const beforeValue = beforePresent ? beforeFlags[name] : null
+    const afterValue = afterPresent ? afterFlags[name] : null
+    const beforeSet = Boolean(beforeValue)
+    const afterSet = Boolean(afterValue)
+    if (JSON.stringify(beforeValue) === JSON.stringify(afterValue) && beforePresent === afterPresent) return []
+    return [{
+      stage,
+      flag: name,
+      before: beforeValue,
+      after: afterValue,
+      lost: beforeSet && !afterSet,
+      gained: !beforeSet && afterSet,
+    }]
+  })
+  const time = {
+    beforeTick: before.tick ?? null,
+    afterTick: after.tick ?? null,
+    tickDelta: Number.isFinite(before.tick) && Number.isFinite(after.tick) ? after.tick - before.tick : null,
+    beforeHudTime: before.hudTime ?? null,
+    afterHudTime: after.hudTime ?? null,
+    beforeHudMinutes: before.hudMinutes ?? null,
+    afterHudMinutes: after.hudMinutes ?? null,
+    hudMinutesDelta: Number.isFinite(before.hudMinutes) && Number.isFinite(after.hudMinutes)
+      ? after.hudMinutes - before.hudMinutes
+      : null,
+  }
+  const scene = { before: before.scene ?? null, after: after.scene ?? null, same: before.scene === after.scene }
+  const location = { before: before.location ?? null, after: after.location ?? null, same: before.location === after.location }
+  const discrepancies = [
+    ...flagChanges.map((item) => ({ kind: 'flag', ...item })),
+    ...(scene.same ? [] : [{ kind: 'scene', stage, before: scene.before, after: scene.after }]),
+    ...(location.same ? [] : [{ kind: 'location', stage, before: location.before, after: location.after }]),
+    ...(time.tickDelta === 0 || time.tickDelta === null ? [] : [{ kind: 'game-time-tick', stage, before: time.beforeTick, after: time.afterTick, delta: time.tickDelta }]),
+    ...(time.hudMinutesDelta === 0 || time.hudMinutesDelta === null ? [] : [{ kind: 'game-time-hud-minutes', stage, before: time.beforeHudMinutes, after: time.afterHudMinutes, delta: time.hudMinutesDelta }]),
+  ]
+  return {
+    stage,
+    beforeSource: before.source,
+    afterSource: after.source,
+    flagChanges,
+    scene,
+    location,
+    time,
+    discrepancyCount: discrepancies.length,
+    discrepancies,
+  }
+}
+
+async function revealDialogueChoices(dialogue) {
+  const skip = dialogue.getByRole('button', { name: /Пропустить/ }).first()
+  if (await skip.count()) await skip.click({ timeout: 5000 })
+  await page.waitForFunction(() => {
+    const overlay = document.querySelector('.dialogue-overlay')
+    return !!overlay?.querySelector('.dialogue-choices .choice-btn')
+  }, undefined, { timeout: 10000 })
+}
+
+async function chooseDialogue(text) {
+  const dialogue = page.locator('.dialogue-overlay')
+  await dialogue.waitFor({ state: 'visible', timeout: 10000 })
+  await revealDialogueChoices(dialogue)
+  const option = dialogue.getByRole('button', { name: new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }).first()
+  await option.waitFor({ state: 'visible', timeout: 10000 })
+  const label = (await option.innerText()).replace(/\s+/g, ' ').trim()
+  await option.click()
+  recordAction('choose_dialogue_option', { choice: text, button: label })
+  await page.waitForTimeout(200)
+  return dialogue
+}
+
+async function endDialogueIfOpen(dialogue) {
+  if (!(await dialogue.count())) return
+  if (!(await dialogue.isVisible().catch(() => false))) return
+  await revealDialogueChoices(dialogue)
+  const end = dialogue.getByRole('button', { name: /Закончить разговор/ }).last()
+  if (await end.count()) {
+    await end.click()
+    recordAction('end_dialogue')
+  } else {
+    const leave = dialogue.getByRole('button', { name: /Мне пора/ }).last()
+    if (await leave.count()) {
+      await leave.click()
+      recordAction('leave_dialogue')
+      await page.waitForTimeout(150)
+      if (await dialogue.isVisible().catch(() => false)) await endDialogueIfOpen(dialogue)
+    }
+  }
 }
 
 async function resolveInvestigationOutcome(attempt) {
@@ -430,9 +579,9 @@ async function audioProbe() {
 
 async function main() {
   log('run_start', {
-    task: 'GOLD-1.2',
-    command: 'npm run golden:import && npm run golden:play',
-    branch: 'arena/c3f319a1-narthex',
+    task: TASK,
+    command: SAVE_LOAD_MODE ? 'npm run golden:import && npm run golden:save-load' : 'npm run golden:import && npm run golden:play',
+    branch: BRANCH,
     baseUrl: BASE_URL,
     viewport: `${WIDTH}x${HEIGHT}`,
     campaignId: campaign.id,
@@ -564,6 +713,22 @@ async function main() {
   await waitForScene('pump_hall')
   const machineCheckpoint = await checkpoint('04-machine-hall', 'Машинный зал седьмой помпы', 'scene_pump_hall', '04-machine-hall.png')
 
+  let dialogueCheckpoint = null
+  if (SAVE_LOAD_MODE) {
+    beginStep('04a-dialogue-choice', 'Диалог с Ирой: выбран вопрос о ночи тринадцатого')
+    const iraSlot = page.locator('.slot-hotspot').filter({ hasText: /пульта/ }).first()
+    await iraSlot.waitFor({ state: 'visible', timeout: 10000 })
+    await iraSlot.click()
+    recordAction('interact_with_ira', { slotLabel: 'Девушка у пульта', entity: 'npc_ira' })
+    const dialogue = await chooseDialogue('Расскажи, что случилось в ночь тринадцатого.')
+    await settleStoryOverlays(20000, { includeDialogue: false })
+    await revealDialogueChoices(dialogue)
+    await endDialogueIfOpen(dialogue)
+    await dialogue.waitFor({ state: 'detached', timeout: 10000 })
+    await settleStoryOverlays(20000, { includeDialogue: false })
+    dialogueCheckpoint = await checkpoint('04a-dialogue-choice', 'Диалог завершён; флаг ira_story ожидается до сохранения', 'scene_pump_hall')
+  }
+
   beginStep('05-first-clue', 'Первая улика: осмотр привода')
   const beforeClueTime = await page.locator('.hud-time').innerText().catch(() => null)
   const attempts = []
@@ -594,6 +759,17 @@ async function main() {
     if (clueFound) break
     if (attempt < 8) await page.waitForTimeout(300)
   }
+  if (SAVE_LOAD_MODE && clueFound) {
+    const clueOutcome = page.locator('.message-overlay:not(.itemdlg-overlay)').first()
+    if (await clueOutcome.count()) {
+      const ok = clueOutcome.getByRole('button', { name: 'Ок', exact: true })
+      if (await ok.count()) await ok.click()
+      else await clueOutcome.click()
+      recordAction('dismiss_clue_success_message')
+      await page.waitForTimeout(250)
+    }
+    await settleStoryOverlays(10000, { includeDialogue: false })
+  }
   const clueCheckpoint = await checkpoint('05-first-clue', 'Первая улика после осмотра привода', 'scene_pump_hall', '05-first-clue.png')
   const afterClueTime = await page.locator('.hud-time').innerText().catch(() => null)
   const startMinutes = parseHudMinutes(gateCheckpoint.hudTime)
@@ -605,13 +781,144 @@ async function main() {
     atMenuExit: finalMenuAudio,
     observedPlayback: initialMenuAudio.playbackObserved || postGestureAudio.playbackObserved || finalMenuAudio.playbackObserved,
   }
+
+  let persistence = null
+  let beforeSaveCheckpoint = null
+  let reloadMenuCheckpoint = null
+  let resumeCheckpoint = null
+  let afterLoadCheckpoint = null
+  if (SAVE_LOAD_MODE && clueFound) {
+    beginStep('06-before-save', 'Контроль состояния и кадр перед сохранением')
+    await waitForPaint()
+    const beforeSaveRuntime = await readStoredSnapshot(AUTO_SAVE_KEY, 'autosave/runtime snapshot before manual save')
+    if (!beforeSaveRuntime.present) throw new Error(`No pre-save autosave found at ${AUTO_SAVE_KEY}`)
+    recordAction('state_before_save', { snapshot: beforeSaveRuntime })
+    beforeSaveCheckpoint = await checkpoint('06-before-save', 'Машинный зал и найденная улика до записи в слот', 'scene_pump_hall', 'before-save.png')
+
+    await page.getByRole('button', { name: 'Сохранения', exact: true }).click()
+    const savesPanel = page.locator('.panel-overlay')
+    await savesPanel.waitFor({ state: 'visible', timeout: 10000 })
+    const saveRow = page.locator('.save-slot-row').filter({ hasText: `Слот ${SAVE_SLOT}` }).first()
+    await saveRow.getByRole('button', { name: 'Записать', exact: true }).click()
+    await page.waitForFunction((key) => {
+      try { return !!localStorage.getItem(key) } catch { return false }
+    }, MANUAL_SAVE_KEY, { timeout: 10000 })
+    const savedSlot = await readStoredSnapshot(MANUAL_SAVE_KEY, `manual slot ${SAVE_SLOT} immediately after save`)
+    if (!savedSlot.present) throw new Error(`Manual slot ${SAVE_SLOT} was not persisted at ${MANUAL_SAVE_KEY}`)
+    recordAction('manual_save_written', { slot: SAVE_SLOT, snapshot: savedSlot })
+
+    const requiredFlags = ['case_opened', 'gate_intro_done', 'met_ira', 'ira_story', 'clue_glove']
+    const requiredFlagValues = Object.fromEntries(requiredFlags.map((name) => [name, savedSlot.flags?.[name] ?? null]))
+    const missingRequiredFlags = requiredFlags.filter((name) => savedSlot.flags?.[name] !== true)
+    if (missingRequiredFlags.length) {
+      throw new Error(`Expected route/dialogue/clue flags were not true in the saved slot: ${JSON.stringify({ missingRequiredFlags, requiredFlagValues })}`)
+    }
+
+    const saveComparison = compareSnapshots(beforeSaveRuntime, savedSlot, 'save serialization')
+    log('save_comparison', saveComparison)
+
+    beginStep('07-page-reload', 'Перезагрузка вкладки после записи слота')
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await page.locator('.main-menu .campaign-title').waitFor({ state: 'visible', timeout: 30000 })
+    await waitForPaint()
+    reloadMenuCheckpoint = await checkpoint('07-after-reload-menu', 'Главное меню после page.reload()', null, 'after-reload-menu.png')
+
+    beginStep('07a-continue-autosave', 'Загрузка автосохранения после перезагрузки')
+    await page.getByRole('button', { name: 'Продолжить', exact: true }).click()
+    await waitForScene('pump_hall', 25000)
+    await settleStoryOverlays(20000)
+    await waitForScene('pump_hall')
+    const afterReloadContinue = await readStoredSnapshot(AUTO_SAVE_KEY, 'autosave/runtime after reload and Continue')
+    if (!afterReloadContinue.present) throw new Error(`Autosave missing after Continue at ${AUTO_SAVE_KEY}`)
+    recordAction('state_after_reload_continue', { snapshot: afterReloadContinue })
+    const reloadComparison = compareSnapshots(beforeSaveRuntime, afterReloadContinue, 'page reload + Continue rehydration')
+    log('reload_continue_comparison', reloadComparison)
+    resumeCheckpoint = await checkpoint('07a-after-reload-continue', 'Сцена и время после восстановления автосохранения', 'scene_pump_hall')
+
+    beginStep('08-load-manual-slot', `Загрузка слота ${SAVE_SLOT} после перезагрузки`)
+    await page.getByRole('button', { name: 'Сохранения', exact: true }).click()
+    await savesPanel.waitFor({ state: 'visible', timeout: 10000 })
+    const loadRow = page.locator('.save-slot-row').filter({ hasText: `Слот ${SAVE_SLOT}` }).first()
+    await loadRow.getByRole('button', { name: 'Загрузить', exact: true }).click()
+    await savesPanel.waitFor({ state: 'detached', timeout: 10000 })
+    await waitForScene('pump_hall', 25000)
+    await waitForPaint()
+    const afterLoadRuntime = await readStoredSnapshot(AUTO_SAVE_KEY, `autosave/runtime after loading manual slot ${SAVE_SLOT}`)
+    if (!afterLoadRuntime.present) throw new Error(`No autosave/runtime snapshot after loading manual slot ${SAVE_SLOT}`)
+    recordAction('state_after_manual_load', { slot: SAVE_SLOT, snapshot: afterLoadRuntime })
+    afterLoadCheckpoint = await checkpoint('08-after-load', `Сцена после загрузки ручного слота ${SAVE_SLOT}`, 'scene_pump_hall', 'after-load.png')
+    const loadComparison = compareSnapshots(savedSlot, afterLoadRuntime, `manual slot ${SAVE_SLOT} load/rehydration`)
+    log('load_comparison', loadComparison)
+
+    const allComparisons = [saveComparison, reloadComparison, loadComparison]
+    const discrepancies = allComparisons.flatMap((comparison) => comparison.discrepancies)
+    const loadedFlagValues = Object.fromEntries(requiredFlags.map((name) => [name, afterLoadRuntime.flags?.[name] ?? null]))
+    const missingLoadedFlags = requiredFlags.filter((name) => afterLoadRuntime.flags?.[name] !== true)
+    if (missingLoadedFlags.length) {
+      throw new Error(`Expected flags missing after rehydration: ${JSON.stringify({ missingLoadedFlags, loadedFlagValues })}`)
+    }
+    persistence = {
+      autoSaveKey: AUTO_SAVE_KEY,
+      manualSaveKey: MANUAL_SAVE_KEY,
+      slot: SAVE_SLOT,
+      requiredFlags,
+      requiredFlagValuesBeforeLoad: requiredFlagValues,
+      requiredFlagValuesAfterLoad: loadedFlagValues,
+      observedAbsentFlags: ['pump_seen'].map((name) => ({
+        flag: name,
+        scene: 'scene_pump_hall',
+        step: '04-machine-hall',
+        beforeSave: beforeSaveRuntime.flags?.[name] ?? null,
+        saved: savedSlot.flags?.[name] ?? null,
+        afterLoad: afterLoadRuntime.flags?.[name] ?? null,
+        interpretation: 'не был установлен до сохранения; не является потерей при сохранении/загрузке',
+      })),
+      flagsSetBeforeSave: savedSlot.setFlags,
+      flagsSetAfterLoad: afterLoadRuntime.setFlags,
+      beforeSaveRuntime,
+      savedSlot,
+      afterReloadContinue,
+      afterLoadRuntime,
+      comparisons: allComparisons,
+      discrepancies,
+      discrepancyCount: discrepancies.length,
+      verdict: discrepancies.length === 0 ? 'потерь нет' : 'есть численные расхождения',
+    }
+    log('persistence_result', persistence)
+  }
+
+  const checkpoints = [
+    menuCheckpoint, heroCheckpoint, gateCheckpoint, mapCheckpoint, machineCheckpoint,
+    dialogueCheckpoint, clueCheckpoint, beforeSaveCheckpoint, reloadMenuCheckpoint, resumeCheckpoint, afterLoadCheckpoint,
+  ].filter(Boolean)
+  const pageErrors = events.filter((item) => item.type === 'pageerror')
+  const consoleErrors = events.filter((item) => item.type === 'console_error')
+  const emptyBackgrounds = checkpoints.reduce((total, checkpointItem) => total + (checkpointItem.emptyBackgrounds ?? 0), 0)
+  const browserErrorSummary = {
+    pageerrorCount: pageErrors.length,
+    pageerrors: pageErrors.map(({ step, text }) => ({ step, text })),
+    consoleErrorCount: consoleErrors.length,
+    consoleErrors: consoleErrors.map(({ step, text }) => ({ step, text })),
+    httpErrorCount: events.filter((item) => item.type === 'http_error').length,
+    requestFailureCount: events.filter((item) => item.type === 'request_failed').length,
+    emptyBackgrounds,
+    checkpointCount: checkpoints.length,
+  }
+  log('browser_error_summary', browserErrorSummary)
+
   const summary = {
+    task: TASK,
     menu: menuCheckpoint,
     hero: heroCheckpoint,
     gate: gateCheckpoint,
     routeMap: mapCheckpoint,
     machineHall: machineCheckpoint,
+    dialogueChoice: dialogueCheckpoint,
     firstClue: clueCheckpoint,
+    beforeSave: beforeSaveCheckpoint,
+    afterReloadMenu: reloadMenuCheckpoint,
+    afterReloadContinue: resumeCheckpoint,
+    afterLoad: afterLoadCheckpoint,
     sound: soundSummary,
     clueFound,
     clueAttempts: attempts,
@@ -620,12 +927,14 @@ async function main() {
     observedGameMinutes: gameMinutes,
     targetGameMinutes: 60,
     projectJson404Count: route404Project,
-    result: clueFound ? 'route-complete' : 'stop-no-clue-after-8-investigations',
+    persistence,
+    browser: browserErrorSummary,
+    result: !clueFound ? 'stop-no-clue-after-8-investigations' : (persistence?.verdict ?? 'route-complete'),
   }
   log('run_summary', summary)
   console.log(`ARTIFACTS: ${relative(ROOT, LOG_PATH).split(sep).join('/')} ; ${relative(ROOT, OUTPUT_DIR).split(sep).join('/')}/`)
 
-  if (!clueFound) process.exitCode = 1
+  if (!clueFound || browserErrorSummary.pageerrorCount > 0 || emptyBackgrounds > 0 || (SAVE_LOAD_MODE && !persistence)) process.exitCode = 1
 }
 
 try {

@@ -133,7 +133,8 @@
     "sync:ai-kit": "tsx scripts/pack-ai-kit.mts --copy",
     "tauri": "tauri",
     "version:bump": "tsx scripts/version.mts bump",
-    "visual:shots": "node scripts/visual/shots.mjs"
+    "visual:shots": "node scripts/visual/shots.mjs",
+    "golden:save-load": "node scripts/golden/save-load.mjs"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
