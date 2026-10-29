@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Chronicle Forge",
-  "version": "0.8.0",
-  "identifier": "app.chronicleforge.desktop",
+  "productName": "Narthex",
+  "version": "../package.json",
+  "identifier": "app.narthex.desktop",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Chronicle Forge",
+        "title": "Narthex",
         "width": 1440,
         "height": 900,
         "resizable": true,

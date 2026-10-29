@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "cards": [
+    { "id": "jab", "title": "Jab", "cost": 1, "effects": [{ "type": "damage", "amount": 3 }] },
+    { "id": "guard", "title": "Guard", "cost": 1, "effects": [{ "type": "block", "amount": 2 }] },
+    { "id": "heavy", "title": "Heavy Strike", "cost": 2, "effects": [{ "type": "damage", "amount": 5 }] },
+    { "id": "counter", "title": "Counter", "cost": 2, "effects": [{ "type": "block", "amount": 1 }, { "type": "damage", "amount": 3 }] }
+  ],
+  "decks": [
+    { "id": "starter", "title": "Starter Deck", "cards": ["jab", "guard", "heavy", "counter"] },
+    { "id": "raiders", "title": "Raiders Deck", "cards": ["jab", "jab", "guard", "heavy"] }
+  ],
+  "battle": {
+    "player_deck": "starter",
+    "opponent_deck": "raiders",
+    "player_hp": 12,
+    "opponent_hp": 12,
+    "energy_per_turn": 2,
+    "max_rounds": 6
+  }
+}

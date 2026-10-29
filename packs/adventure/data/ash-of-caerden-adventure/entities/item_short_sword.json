@@ -1,0 +1,18 @@
+{
+  "id": "item_short_sword",
+  "type": "item",
+  "category": "weapon",
+  "label": "Короткий меч",
+  "description": "Стандартный короткий меч наёмника. Верный спутник в дороге.",
+  "weight": 1.0,
+  "value": { "silver": 25 },
+  "stackable": false,
+  "weapon_data": {
+    "skill": "sword",
+    "damage": "1d6+1",
+    "damage_bonus": true,
+    "range": 1,
+    "attacks_per_round": 1,
+    "parry_capable": true
+  }
+}

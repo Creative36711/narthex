@@ -36,6 +36,8 @@ function json(path: string): any {
 }
 function walkJsonFiles(dir: string, prefix = ''): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    // .cf-play/ — отчёты прогона (в .gitignore), не содержимое пакета
+    if (entry.name === '.cf-play' || entry.name.startsWith('.')) return []
     const rel = prefix ? `${prefix}/${entry.name}` : entry.name
     return entry.isDirectory() ? walkJsonFiles(join(dir, entry.name), rel) : entry.name.endsWith('.json') ? [rel] : []
   })
@@ -64,28 +66,42 @@ assert.ok(Array.isArray(index), 'public/campaigns/index.json должен быт
 for (const [i, entry] of index.entries()) validate('CampaignIndexEntry', entry, `campaigns/index.json[${i}]`)
 assert.equal(new Set(index.map((entry) => entry.id)).size, index.length, 'В campaigns/index.json повторяются id кампаний')
 // Реестр — это то, что доступно ИГРОКУ. На диске рядом может лежать
-// полигон для смоуков: каталог без записи в index.json, но обязательно с
-// маркером smoke-fixture.json (иначе это забытая, а не убранная кампания).
+// полигон разработки: каталог без записи в index.json, но обязательно с
+// маркером dev-fixture.json (старое имя smoke-fixture.json тоже годится —
+// docs/agents/dev-campaigns.md). Без маркера это забытая кампания.
 const registered = index.map((entry) => entry.id as string)
 for (const id of registered) {
   assert.ok(dirs.includes(id), `Кампания «${id}» внесена в campaigns/index.json, но каталога нет`)
 }
 for (const id of dirs) {
   if (registered.includes(id)) continue
-  const marker = join(campaignsDir, id, 'smoke-fixture.json')
-  assert.ok(existsSync(marker), `Каталог campaigns/${id} не внесён в реестр и не помечен как полигон смоуков (smoke-fixture.json)`)
-  const fixture = json(marker) as { reason?: unknown }
-  assert.ok(typeof fixture.reason === 'string' && fixture.reason, `campaigns/${id}/smoke-fixture.json: нет описания, зачем лежит каталог`)
+  const modern = join(campaignsDir, id, 'dev-fixture.json')
+  const legacy = join(campaignsDir, id, 'smoke-fixture.json')
+  const marker = existsSync(modern) ? modern : legacy
+  assert.ok(existsSync(marker), `Каталог campaigns/${id} не внесён в реестр и не помечен как внутренний полигон (dev-fixture.json)`)
+  const fixture = json(marker) as { reason?: unknown; visibility?: unknown }
+  assert.ok(typeof fixture.reason === 'string' && fixture.reason, `campaigns/${id}: в маркере нет описания, зачем лежит каталог`)
+  assert.equal(fixture.visibility, 'internal', `campaigns/${id}: маркер обязан явно указывать visibility: internal`)
+  const meta = json(join(campaignsDir, id, 'campaign.json')) as { title?: unknown }
+  assert.ok(typeof meta.title === 'string' && meta.title.startsWith('[DEV]'), `campaigns/${id}: заголовок внутреннего полигона обязан начинаться с «[DEV]» — иначе агент примет его за играбельную кампанию`)
 }
 let moduleCount = 0
 for (const campaignId of dirs) {
   const base = join(campaignsDir, campaignId)
   const meta = json(join(base, 'campaign.json'))
   const world = json(join(base, 'world.json'))
-  const manifest = json(join(base, 'manifest.json')) as CampaignManifest
+  const manifest = json(join(base, 'manifest.json')) as CampaignManifest & { fmv?: string[] }
+  // FMV-пак расширяет манифест и сцену полями `fmv`, которых нет в базовом
+  // контракте narrative (там additionalProperties: false). Типы не расширяем —
+  // это дело отдельного пакета; здесь снимаем расширения перед валидацией и
+  // проверяем их отдельно, чтобы не ослаблять оракул.
+  const fmvFiles = manifest.fmv ?? []
+  assert.ok(Array.isArray(fmvFiles) && fmvFiles.every((f) => typeof f === 'string'),
+    `${campaignId}/manifest.json: fmv должен быть массивом имён файлов`)
+  const { fmv: _fmvInManifest, ...narrativeManifest } = manifest
   validate('CampaignMeta', meta, `${campaignId}/campaign.json`)
   validate('WorldDef', world, `${campaignId}/world.json`)
-  validate('CampaignManifest', manifest, `${campaignId}/manifest.json`)
+  validate('CampaignManifest', narrativeManifest, `${campaignId}/manifest.json`)
   assert.equal(meta.id, campaignId, `${campaignId}/campaign.json: id кампании не совпадает с каталогом`)
 
   const store = new EditorStore(`/campaigns/${campaignId}`)
@@ -97,6 +113,15 @@ for (const campaignId of dirs) {
     assert.ok(!rel.startsWith('/') && !rel.split('/').includes('..'), `${campaignId}/manifest.json содержит небезопасный путь ${rel}`)
     assert.ok(!referencedJson.has(rel), `${campaignId}/manifest.json перечисляет файл повторно: ${rel}`)
     referencedJson.add(rel)
+  }
+
+  // FMV-фрагменты не входят в MonolithDoc и не имеют валидатора в общей схеме —
+  // их проверяет scripts/fmv-probe.mts. Но файлы обязаны числиться в manifest,
+  // иначе они станут сиротами при публикации пакета.
+  for (const file of fmvFiles) {
+    const rel = `fmv/${file}`
+    registerJson(rel)
+    assert.ok(existsSync(join(base, rel)), `${campaignId}: FMV-фрагмент ${rel} указан в manifest, но файла нет`)
   }
 
   const buckets: Array<[keyof CampaignManifest, string, string]> = [
@@ -114,7 +139,16 @@ for (const campaignId of dirs) {
       const rel = `${directory}/${file}`
       registerJson(rel)
       const value = json(join(base, rel))
-      validate(typeName, value, `${campaignId}/${rel}`)
+      // `fmv` на сцене — ссылка на видеофрагмент FMV-пака; базовый SceneDef
+      // его не знает. Проверяем отдельно, общую схему не ослабляем.
+      if (typeName === 'SceneDef' && typeof value.fmv === 'string') {
+        assert.ok(fmvFiles.length > 0,
+          `${campaignId}/${rel}: сцена ссылается на FMV, но manifest.fmv пуст`)
+        const { fmv: _sceneFmv, ...narrativeScene } = value
+        validate(typeName, narrativeScene, `${campaignId}/${rel}`)
+      } else {
+        validate(typeName, value, `${campaignId}/${rel}`)
+      }
       store.jsonFiles.set(rel, value)
       moduleCount++
     }
@@ -165,26 +199,39 @@ for (const campaignId of dirs) {
     }
     moduleCount++
   }
-  // smoke-fixture.json — служебная пометка каталога (полигон смоуков), не
-  // модуль пакета: в manifest.json её не быть не может
-  const allJson = walkJsonFiles(base).filter((rel) => rel !== 'smoke-fixture.json').sort()
+  // Служебные файлы полигона разработки — не модули narrative-пакета:
+  //   dev-fixture.json / smoke-fixture.json — маркер «внутренний полигон»;
+  //   adventure.json — данные пака adventure (его читает
+  //     scripts/adventure-mechanics-probe.mts, а не manifest.json);
+  //   project.json — метаданные проекта формата 2 (kind/caps), не копируются
+  //     в public через publish:campaigns и не числятся в manifest.json.
+  // В manifest.json их быть не может.
+  const nonModuleJson = new Set(['dev-fixture.json', 'smoke-fixture.json', 'adventure.json', 'project.json'])
+  const allJson = walkJsonFiles(base).filter((rel) => !nonModuleJson.has(rel)).sort()
   assert.deepEqual(allJson, [...referencedJson].sort(), `${campaignId}: JSON-файлы и manifest.json не синхронизированы (есть сироты/пропуски)` )
 
   const issues = store.validateContent()
   assert.deepEqual(issues, [], `${campaignId}: модульный Campaign Package имеет битые ссылки:\n${issues.join('\n')}`)
   const { doc, warnings } = exportMonolith(store)
   assert.deepEqual(warnings, [], `${campaignId}: экспорт потерял/пропустил модульные данные:\n${warnings.join('\n')}`)
-  validate('MonolithDoc', doc, `${campaignId}: экспортированный MonolithDoc`)
+  // FMV-поле сцены — расширение пака, а не часть MonolithDoc. Снимаем его
+  // перед валидацией базового формата; само расширение уже проверено выше.
+  const stripFmv = (d: unknown) => {
+    const copy = JSON.parse(JSON.stringify(d))
+    if (copy?.scenes) for (const scene of Object.values(copy.scenes) as Array<{ fmv?: string }>) delete scene.fmv
+    return copy
+  }
+  validate('MonolithDoc', stripFmv(doc), `${campaignId}: экспортированный MonolithDoc`)
 
   const imported = new EditorStore(`/campaigns/${campaignId}`)
   const importWarnings = importMonolith(imported, doc)
   assert.deepEqual(importWarnings, [], `${campaignId}: импорт MonolithDoc создал предупреждения:\n${importWarnings.join('\n')}`)
   const roundTrip = exportMonolith(imported).doc
-  validate('MonolithDoc', roundTrip, `${campaignId}: MonolithDoc после импорта`)
-  const expectedCanonical = JSON.parse(JSON.stringify(repairMonolith(doc).doc))
-  assert.deepEqual(JSON.parse(JSON.stringify(roundTrip)), expectedCanonical, `${campaignId}: Campaign Package → MonolithDoc → Campaign Package → MonolithDoc изменил данные вне нормализованных значений по умолчанию`)
+  validate('MonolithDoc', stripFmv(roundTrip), `${campaignId}: MonolithDoc после импорта`)
+  const expectedCanonical = stripFmv(JSON.parse(JSON.stringify(repairMonolith(doc).doc)))
+  assert.deepEqual(stripFmv(JSON.parse(JSON.stringify(roundTrip))), expectedCanonical, `${campaignId}: Campaign Package → MonolithDoc → Campaign Package → MonolithDoc изменил данные вне нормализованных значений по умолчанию`)
 
-  // .chronicle — ZIP того же модульного пакета; повторный импорт обязан
+  // .narthex — ZIP того же модульного пакета; повторный импорт обязан
   // полностью удалить старые модули, отсутствующие в новом manifest.
   const archive = new JSZip()
   for (const path of store.allPaths()) archive.file(path, store.fileText(path))
@@ -192,8 +239,8 @@ for (const campaignId of dirs) {
   const archiveStore = new EditorStore(`/campaigns/${campaignId}`)
   archiveStore.jsonFiles.set('scenes/orphan_from_previous_package.json', { id: 'orphan' })
   await importChronicle(archiveStore, archiveBuffer as unknown as File)
-  assert.equal(archiveStore.jsonFiles.has('scenes/orphan_from_previous_package.json'), false, `${campaignId}: импорт .chronicle оставил старый модуль-сироту`)
-  assert.deepEqual(exportMonolith(archiveStore).doc, doc, `${campaignId}: архив .chronicle отличается от модульного пакета`)
+  assert.equal(archiveStore.jsonFiles.has('scenes/orphan_from_previous_package.json'), false, `${campaignId}: импорт .narthex оставил старый модуль-сироту`)
+  assert.deepEqual(exportMonolith(archiveStore).doc, doc, `${campaignId}: архив .narthex отличается от модульного пакета`)
 }
 
 const guide = readFileSync(join(root, 'docs/ai-campaign-guide.md'), 'utf8')
@@ -220,6 +267,12 @@ console.log(`✓ Проверена JSON Schema Draft 2020-12: ${Object.keys(sch
   const guide = readFileSync(join(root, 'docs/ai-campaign-guide.md'), 'utf8')
   const schemaText = readFileSync(join(root, 'docs/campaign.schema.json'), 'utf8')
   const designTemplate = readFileSync(join(root, 'docs/ai-design-template.md'), 'utf8')
+  const playkitDoc = readFileSync(join(root, 'docs/playkit-agent.md'), 'utf8')
+  assert.equal(
+    readFileSync(join(root, 'public/ai/PLAYKIT.md'), 'utf8'),
+    playkitDoc,
+    'public/ai/PLAYKIT.md рассинхронизирован: копия docs/playkit-agent.md',
+  )
   for (const [src, dst] of [
     [guide, join(root, 'public/ai/campaign-guide.md')],
     [schemaText, join(root, 'public/ai/campaign.schema.json')],

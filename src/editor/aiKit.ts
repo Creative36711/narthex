@@ -13,6 +13,10 @@ export const AI_KIT_FILES = [
   // собирается из scripts/campaign-audit.mts командой build:ai-bundle (один
   // файл, ноль зависимостей, поведение = «Проверке кампании» в редакторе)
   { name: 'campaign-audit.mjs', title: 'Аудит кампании из командной строки: node campaign-audit.mjs <папка> (без репозитория движка)' },
+  // движок как инструмент: граф, диалоги, прогоны, приёмка — один файл, ноль
+  // зависимостей; собирается командой build:playkit-bundle из scripts/playkit
+  { name: 'cf-play.mjs', title: 'Плейкит: check/graph/dialogue/run/explore/fuzz/sweep/verify без репозитория движка' },
+  { name: 'PLAYKIT.md', title: 'Инструкция агенту: как проверять кампанию плейкитом и что считается приёмкой' },
 ] as const
 
 /**

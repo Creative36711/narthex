@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "campaigns": [
+    {
+      "pack": "narrative",
+      "data": "ash-of-caerden",
+      "campaign": "ash-of-caerden"
+    },
+    {
+      "pack": "narrative",
+      "data": "fmv-crossing",
+      "campaign": "fmv-crossing"
+    },
+    {
+      "pack": "adventure",
+      "data": "ash-of-caerden-adventure",
+      "campaign": "ash-of-caerden-adventure"
+    },
+    {
+      "pack": "state-ui",
+      "data": "stone-tablet-siege",
+      "campaign": "stone-tablet-siege"
+    }
+  ]
+}

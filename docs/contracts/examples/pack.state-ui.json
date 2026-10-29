@@ -1,0 +1,84 @@
+{
+  "id": "state-ui",
+  "title": "State-Machine & UI",
+  "version": "0.1.0",
+  "runtime": "turn",
+  "provides": {
+    "kind": false,
+    "schema": "schema/state-ui.schema.json",
+    "seams": [
+      {
+        "id": "on_turn_begin",
+        "kind": "sim",
+        "signature": "(ctx: EngineCtx) => void",
+        "description": "Вызывается в начале каждого хода до применения автомата состояний.",
+        "caps": ["state-machine"]
+      },
+      {
+        "id": "render_card",
+        "kind": "view",
+        "signature": "(ctx: RenderCtx, card: Card) => void",
+        "description": "Рисует одну карту на столе. Не меняет состояние.",
+        "caps": ["cards"]
+      }
+    ],
+    "panels": [
+      {
+        "id": "state-table",
+        "title": "Таблица состояний",
+        "slot": "left",
+        "schema": "schema/state.schema.json",
+        "caps": ["state-machine"],
+        "order": 10
+      },
+      {
+        "id": "hand",
+        "title": "Рука",
+        "slot": "bottom",
+        "schema": "schema/hand.schema.json",
+        "caps": ["cards"],
+        "order": 20
+      }
+    ],
+    "validators": [
+      {
+        "id": "state-machine-acyclic",
+        "title": "Автомат без циклов",
+        "severity": "error",
+        "description": "Переходы состояний не образуют циклов без выхода.",
+        "caps": ["state-machine"]
+      },
+      {
+        "id": "card-cost-affordable",
+        "title": "Цена карты не превышает бюджет",
+        "severity": "warn",
+        "description": "Каждая колода может оплатить хотя бы одну карту из руки.",
+        "caps": ["cards"]
+      }
+    ],
+    "probes": [
+      {
+        "id": "turn-determinism",
+        "title": "Детерминизм хода",
+        "kind": "run",
+        "budget_ms": 10000,
+        "checks": [
+          "один и тот же входной набор даёт одинаковый результат",
+          "ход завершается за лимит бюджета"
+        ],
+        "caps": ["state-machine"]
+      }
+    ]
+  },
+  "saves": {
+    "namespace": "state-ui",
+    "version": 1,
+    "migrations": 0
+  },
+  "requires": {
+    "core": ">=1.0.0",
+    "packs": ["narrative"],
+    "caps": ["time"]
+  },
+  "caps": ["state-machine", "cards", "auto-battle", "turn-validation"]
+}

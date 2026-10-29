@@ -1,0 +1,13 @@
+{
+  "scenes": ["scene_fmv_crossing.json"],
+  "entities": ["player_mercenary.json"],
+  "rules": [],
+  "dialogues": [],
+  "arenas": [],
+  "quests": [],
+  "encounters": [],
+  "cutscenes": [],
+  "recipes": [],
+  "codex": [],
+  "fmv": ["fmv_crossing.json"]
+}

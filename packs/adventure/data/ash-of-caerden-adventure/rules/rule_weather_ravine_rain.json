@@ -1,0 +1,21 @@
+{
+  "id": "rule_weather_ravine_rain",
+  "label": "Дождь в Волчьей балке",
+  "once": true,
+  "conditions": [
+    {
+      "type": "player_enters_location",
+      "location": "loc_ravine"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_weather",
+      "weather": "weather_cold_rain"
+    },
+    {
+      "type": "show_message",
+      "text": "Над балкой сгущаются тучи, и вскоре зарядил холодный дождь. Капли выбивают дробь по камням."
+    }
+  ]
+}

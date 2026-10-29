@@ -1,0 +1,15 @@
+{
+  "id": "item_water_barrel",
+  "type": "item",
+  "category": "container",
+  "label": "Бочка с водой",
+  "description": "Дождевая бочка у стены. Вода чистая.",
+  "weight": 100,
+  "stackable": false,
+  "on_interact": {
+    "effects": [
+      { "type": "change_need", "need": "thirst", "delta": 40 }
+    ],
+    "message": "Вы напились холодной воды из бочки."
+  }
+}

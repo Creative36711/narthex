@@ -1,0 +1,24 @@
+{
+  "format": 2,
+  "id": "river-of-ash",
+  "title": "Река пепла",
+  "kind": "narrative",
+  "caps": ["narrative", "scenes", "dialogue", "map", "inventory", "combat", "quests"],
+  "cap_options": {
+    "combat": { "version": 1 }
+  },
+  "languages": ["ru", "en"],
+  "default_language": "ru",
+  "locales": "locales",
+  "engine": {
+    "min": "0.9.0",
+    "tested": "0.9.3"
+  },
+  "entry": "world.json",
+  "manifest": "manifest.json",
+  "license": "CC-BY-4.0",
+  "authors": [{ "name": "Мастер" }],
+  "x-studio": {
+    "lastOpenedPanel": "scenes"
+  }
+}

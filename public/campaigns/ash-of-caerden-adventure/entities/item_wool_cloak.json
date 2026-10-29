@@ -1,0 +1,12 @@
+{
+  "id": "item_wool_cloak",
+  "type": "item",
+  "category": "misc",
+  "label": "Шерстяной плащ",
+  "description": "Плотный дорожный плащ из валяной шерсти. Пока он с собой — ночной холод не страшен.",
+  "weight": 1.5,
+  "value": {
+    "silver": 8
+  },
+  "stackable": false
+}

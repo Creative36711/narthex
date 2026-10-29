@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://narthex.local/contracts/project.schema.json",
+  "title": "Project manifest v2",
+  "description": "Корневой файл проекта платформы: project.json. Определяет тип проекта (kind), включённые возможности (caps), их режимы и версии (cap_options), языки проекта и код в швах. Семантические правила, которые нельзя выразить в JSON Schema, проверяет scripts/contracts-check.mts: kind→caps, совместимость рантаймов, статусы возможностей, язык по умолчанию, режимы и версии.",
+  "type": "object",
+  "required": [
+    "format",
+    "id",
+    "kind",
+    "caps",
+    "engine",
+    "entry"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "format": {
+      "const": 2,
+      "description": "Версия формата проекта. 1 — старый пакет campaign.json без этого файла."
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{1,63}$",
+      "description": "Стабильный id проекта: латиница, цифры, дефис. Не меняется после публикации."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "kind": {
+      "enum": [
+        "narrative",
+        "state-ui",
+        "grid-strategy",
+        "endless-2d",
+        "spatial-3d"
+      ],
+      "description": "Шаблон проекта. Обязан совпадать с одним из kinds в caps.json; определяет, какие панели студии откроются."
+    },
+    "caps": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "description": "Включённые возможности. Только id из caps.json со статусом stable или experimental."
+    },
+    "cap_options": {
+      "type": "object",
+      "description": "Режим и версия поведения по возможностям. Ключ — id возможности из caps. core — работает система, code — работает код в шве, off — данные остаются, поведение выключено.",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Версия поведения возможности, на которую рассчитан проект. Движок держит старую и новую версии параллельно на время депрекации."
+          },
+          "mode": {
+            "enum": [
+              "core",
+              "code",
+              "off"
+            ],
+            "description": "core — система, code — код в объявленном шве, off — данные без поведения."
+          }
+        }
+      }
+    },
+    "languages": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+      },
+      "description": "Языки, на которых проект есть или планируется. default_language обязан входить в этот список."
+    },
+    "default_language": {
+      "type": "string",
+      "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$",
+      "description": "Язык исходного текста проекта. Является также языком фолбэка."
+    },
+    "locales": {
+      "type": "string",
+      "minLength": 1,
+      "default": "locales",
+      "description": "Каталог переводов: locales/<lang>.json. Ключи строк — стабильные ID по структуре, а не текст."
+    },
+    "code": {
+      "type": "object",
+      "description": "Код проекта в объявленных швах. Обязателен, если хотя бы одна возможность включена в режиме code.",
+      "required": [
+        "entry"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "entry": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Точка входа кода относительно корня проекта."
+        },
+        "sandbox": {
+          "enum": [
+            "worker"
+          ],
+          "description": "Песочница исполнения. Пока единственная: отдельный воркер без DOM и сети."
+        }
+      }
+    },
+    "engine": {
+      "type": "object",
+      "required": [
+        "min"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "min": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "tested": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Версия движка, на которой проект реально прогонялся."
+        }
+      }
+    },
+    "entry": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Файл состояния мира относительно корня проекта. Обычно world.json."
+    },
+    "manifest": {
+      "type": "string",
+      "minLength": 1,
+      "default": "manifest.json",
+      "description": "Список файлов проекта. По умолчанию manifest.json рядом с project.json."
+    },
+    "license": {
+      "type": "string",
+      "minLength": 1,
+      "description": "SPDX-идентификатор или 'custom:<ссылка на текст лицензии>'."
+    },
+    "authors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "url": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "homepage": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "patternProperties": {
+    "^x-[a-z0-9-]+$": {
+      "description": "Расширения вендора: всё, что начинается с x-, ядро игнорирует и сохраняет при пересохранении."
+    }
+  }
+}

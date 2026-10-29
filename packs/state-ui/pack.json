@@ -1,0 +1,96 @@
+{
+  "id": "state-ui",
+  "title": "Автоматы состояний и интерфейсы",
+  "version": "0.1.0",
+  "runtime": "turn",
+  "provides": {
+    "kind": false,
+    "schema": "schema/state-machine.schema.json",
+    "seams": [
+      {
+        "id": "state-machine.step",
+        "kind": "sim",
+        "signature": "(machine: StateMachineDefinition, current: StateId, event: string) => StateId",
+        "description": "Чистый детерминированный переход автомата по одному событию; без доступа к ядру и внешним побочным эффектам.",
+        "caps": ["state-machine"]
+      },
+      {
+        "id": "cards.play",
+        "kind": "sim",
+        "signature": "(state: CardBattleState, actor: BattleActor, cardId: string, cards: CardDefinition[]) => CardBattleState",
+        "description": "Чистое применение эффектов одной карты к неизменяемому снимку боя.",
+        "caps": ["cards"]
+      },
+      {
+        "id": "auto-battle.resolve",
+        "kind": "sim",
+        "signature": "(state: CardBattleState, cards: CardDefinition[], maxRounds: number) => CardBattleState",
+        "description": "Детерминированное разрешение небольшого автобоя по авторским картам и колодам.",
+        "caps": ["auto-battle"]
+      }
+    ],
+    "panels": [
+      {
+        "id": "state-machine-table",
+        "title": "Автомат состояний",
+        "slot": "left",
+        "schema": "schema/state-machine.schema.json",
+        "caps": ["state-machine"],
+        "order": 10
+      },
+      {
+        "id": "cards-decks-table",
+        "title": "Карты и колоды",
+        "slot": "right",
+        "schema": "schema/cards.schema.json",
+        "caps": ["cards"],
+        "order": 20
+      }
+    ],
+    "validators": [
+      {
+        "id": "state-machine-reachable",
+        "title": "Граф автомата достижим",
+        "severity": "error",
+        "description": "Начальное состояние объявлено, ссылки переходов существуют и все состояния достижимы; терминальные состояния не имеют исходящих переходов.",
+        "caps": ["state-machine"]
+      },
+      {
+        "id": "cards-decks-valid",
+        "title": "Карты и колоды согласованы",
+        "severity": "error",
+        "description": "Карты имеют корректные эффекты, колоды ссылаются на известные карты, а автобой использует объявленные колоды.",
+        "caps": ["cards", "auto-battle"]
+      }
+    ],
+    "probes": [
+      {
+        "id": "state-machine-turn-cycle",
+        "title": "Состояния, карты и детерминированный автобой",
+        "kind": "run",
+        "budget_ms": 180000,
+        "checks": [
+          "данные автомата проходят JSON Schema и семантический валидатор",
+          "одинаковый набор событий даёт одинаковую конечную последовательность состояний",
+          "карты и колоды проходят JSON Schema и проверку ссылок",
+          "явные случайные значения воспроизводят перемешивание, взятие и розыгрыш карты с эффектом",
+          "автобой завершает детерминированную симуляцию по конечному числу раундов",
+          "панели показывают автомат, карты и колоды без записи в источник",
+          "public/ai/cf-play.mjs завершает настоящий пошаговый прогон без провалов"
+        ],
+        "caps": ["state-machine", "cards", "auto-battle"]
+      }
+    ]
+  },
+  "saves": {
+    "namespace": "state-ui",
+    "version": 1,
+    "migrations": 0
+  },
+  "requires": {
+    "core": ">=1.0.0",
+    "packs": [],
+    "caps": []
+  },
+  "caps": ["state-machine", "cards", "auto-battle", "turn-validation"]
+}

@@ -10,6 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+out/
 *.local
 
 # Editor directories and files
@@ -27,5 +28,11 @@ dist-ssr
 src-tauri/target/
 src-tauri/gen/
 
-# Golden campaign cache (external repo, not hosted by platform)
+# AI-кит для кампаний (собирается npm run pack:ai-kit)
+dist-ai
+
+# Отчёты cf-play — артефакт прогона, а не содержимое пакета
+.cf-play/
+
+# Золотая кампания: архив тянется скриптом, в git не попадает
 .golden/

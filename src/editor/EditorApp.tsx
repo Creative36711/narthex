@@ -48,9 +48,13 @@ import { PlaytestDebugPanel } from './PlaytestDebugPanel'
 import type { CharChoice } from '../core/charcreate'
 import { EditorBookPanel } from './EditorBookPanel'
 import { DesignDocPanel } from './DesignDocPanel'
+import { PackCatalogPanel } from './PackCatalogPanel'
+import { PackPanelWorkbench } from './PackPanelWorkbench'
+import { PackMissingNotice } from './PackMissingNotice'
+import { resolveProjectModesForStudio, resolveProjectPackForStudio } from './packCatalog'
 
 /**
- * Chronicle Forge — Editor Mode (Фаза 4, ТЗ 5).
+ * Narthex — Editor Mode (Фаза 4, ТЗ 5).
  * Работает поверх dev-сервера vite: сохранение пишет файлы кампании на диск.
  */
 
@@ -63,6 +67,8 @@ const MENUS: Array<{ id: string; label: string; items: SectionItem[] }> = [
     label: 'Проект',
     items: [
       { id: 'campaign', label: 'Кампания и реестры' },
+      { id: 'packs', label: 'Каталог паков' },
+      { id: 'panels', label: 'Панели пака' },
       { id: 'design', label: 'Дизайн-документ' },
     ],
   },
@@ -164,7 +170,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   const fileInput = useRef<HTMLInputElement>(null)
   const folderInput = useRef<HTMLInputElement>(null)
 
-  const store = useMemo(() => new EditorStore(base), [base])
+  const store = useMemo(() => new EditorStore(base, resolveProjectPackForStudio, resolveProjectModesForStudio), [base])
 
   const loaded = readyStore === store
 
@@ -299,7 +305,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   // иначе «Кампаний пока нет» → «Создать» даёт React «Rendered more hooks…».
   useEffect(() => {
     if (!loaded || !base || error || testCampaign) return
-    if (['campaign', 'world', 'combat', 'design'].includes(section)) return
+    if (['campaign', 'world', 'combat', 'design', 'packs'].includes(section)) return
     if (selected) return
     let first: string | undefined
     try {
@@ -478,13 +484,13 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         <div className="panel no-campaign-panel">
           <div className="brand-row">
             <span className="brand">
-              <Ico n="forge" /> Редактор Chronicle Forge
+              <Ico n="forge" /> Редактор Narthex
             </span>
           </div>
           <h2>Кампаний пока нет</h2>
           <p>
             В <code>public/campaigns</code> пока нет кампаний. Создайте первую вручную, импортируйте JSON или подготовьте задание для внешнего ИИ;
-            готовую кампанию можно вернуть одним файлом <code>.chronicle</code>.
+            готовую кампанию можно вернуть одним файлом <code>.narthex</code>.
           </p>
           <div className="menu-buttons">
             <button className="btn btn-primary" onClick={() => void newCampaign()} disabled={!!busy}>
@@ -494,12 +500,12 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
               Импортировать JSON
             </button>
             <button className="btn" onClick={() => fileInput.current?.click()} disabled={!!busy}>
-              Импортировать .chronicle
+              Импортировать .narthex
             </button>
             <input
               ref={fileInput}
               type="file"
-              accept=".chronicle,application/zip"
+              accept=".narthex,.chronicle,application/zip"
               hidden
               onChange={(e) => {
                 const file = e.target.files?.[0]
@@ -549,6 +555,9 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       </div>
     )
   if (!loaded) return <div className="screen-center"><div className="loading">Загрузка кампании в редактор…</div></div>
+  if (store.packResolution?.status === 'missing') {
+    return <PackMissingNotice diagnostic={store.packResolution.diagnostic} onExit={onExit} />
+  }
 
   const recordPlaytestResult = async () => {
     const notes = await askTextArea('Результат плейтеста', {
@@ -777,6 +786,11 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       const { doc, warnings } = exportMonolith(store)
       const problems = [...warnings, ...store.validateContent()]
       const campaign = campaignFromMonolith(doc)
+      const capabilityModes = resolveProjectModesForStudio(store.project)
+      if (capabilityModes.status === 'invalid') problems.push(capabilityModes.message)
+      else if (capabilityModes.activeCaps !== null) campaign.meta.caps = capabilityModes.activeCaps
+      const runtimeMeta = campaign.meta as typeof campaign.meta & { project_cap_options?: unknown }
+      runtimeMeta.project_cap_options = store.project.cap_options
       campaign.basePath = base
       if (startSceneId) {
         let foundLoc = ''
@@ -828,12 +842,12 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     const res = await askChecked(
       external.length
         ? `Экспорт «${store.meta.title}». В кампании ${external.length} внешних ссылок (картинки/звук с чужого сервера).`
-        : `Экспорт «${store.meta.title}» одним файлом .chronicle.`,
+        : `Экспорт «${store.meta.title}» одним файлом .narthex.`,
       'Вшить внешние ссылки в пакет (кампания станет автономной)',
       'Экспорт',
     )
     if (!res.ok) return
-    setBusy('Экспорт .chronicle…')
+    setBusy('Экспорт .narthex…')
     try {
       const notes: string[] = []
       if (res.checked) {
@@ -841,7 +855,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         notes.push(...(await embedExternalAssets(store)))
       }
       const blob = await exportChronicle(store)
-      downloadBlob(blob, `${store.meta.id}.chronicle`)
+      downloadBlob(blob, `${store.meta.id}.narthex`)
       if (notes.length) {
         void showList(
           `Пакет собран (${notes.length} внешних файлов)`,
@@ -906,7 +920,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       const sameId = !!identity.id && normalizeCampaignId(identity.id) === normalizeCampaignId(stableId)
       if (!sameId) {
         const importSeparately = await askConfirm(
-          `.chronicle содержит ID «${identity.id || 'не задан'}» для «${identity.title}», а сейчас открыта кампания «${store.meta.title}» с ID «${stableId}». Импортировать файл как отдельную кампанию? При выборе обновления содержимое заменится, но ID открытой кампании сохранится.`,
+          `.narthex содержит ID «${identity.id || 'не задан'}» для «${identity.title}», а сейчас открыта кампания «${store.meta.title}» с ID «${stableId}». Импортировать файл как отдельную кампанию? При выборе обновления содержимое заменится, но ID открытой кампании сохранится.`,
           'Импортировать отдельно',
           'Обновить открытую',
         )
@@ -938,7 +952,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         const contentIssues = store.validateContent()
         if (canOfferEngineVersionRepair(store.meta, contentIssues)) {
           const correctVersion = await askConfirm(
-            `В пакете версия кампании ${store.meta.version} совпадает с min_engine «${requiredEngine}», но Chronicle Forge сейчас ${ENGINE_VERSION}. Формат пакета поддерживается, а проверка содержимого не нашла ошибок. Похоже, генератор скопировал версию кампании в поле версии движка. Заменить min_engine и устаревшее engine_version на ${ENGINE_VERSION}? Версия кампании останется ${store.meta.version}.`,
+            `В пакете версия кампании ${store.meta.version} совпадает с min_engine «${requiredEngine}», но Narthex сейчас ${ENGINE_VERSION}. Формат пакета поддерживается, а проверка содержимого не нашла ошибок. Похоже, генератор скопировал версию кампании в поле версии движка. Заменить min_engine и устаревшее engine_version на ${ENGINE_VERSION}? Версия кампании останется ${store.meta.version}.`,
             `Исправить на ${ENGINE_VERSION}`,
             'Оставить требование',
           )
@@ -1046,7 +1060,8 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
     return true
   })
-  const hasList = !['campaign', 'world', 'combat', 'design'].includes(section)
+  const hasList = !['campaign', 'world', 'combat', 'design', 'packs', 'panels'].includes(section)
+  const questsOff = store.capabilityModes?.status === 'ready' && store.capabilityModes.modes.quests === 'off'
   const sel = selected && items.some((i) => i.path === selected) ? selected : null
   // счётчики в заголовках групп — мастер сразу видит, сколько документов в «полочке»
   const groupCounts = new Map<string, number>()
@@ -1058,7 +1073,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     <div className={`editor-root ed-theme-${edTheme}`}>
       <header className="editor-topbar">
         <span className="editor-brand">
-          <Ico n="forge" /> Chronicle Forge <span className="editor-brand-sub">· редактор</span>
+          <Ico n="forge" /> Narthex <span className="editor-brand-sub">· редактор</span>
         </span>
         <select
           className="editor-theme-select"
@@ -1105,7 +1120,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
             <button className="editor-toolbar-item" onClick={newCampaign}><Ico n="plus" /> Новая кампания</button>
             <div className="editor-toolbar-divider" />
             <div className="editor-toolbar-divider" />
-            <button className="editor-toolbar-item" onClick={() => fileInput.current?.click()}><Ico n="up" /> Импорт .chronicle / патча…</button>
+            <button className="editor-toolbar-item" onClick={() => fileInput.current?.click()}><Ico n="up" /> Импорт .narthex / патча…</button>
             <button className="editor-toolbar-item" onClick={() => folderInput.current?.click()}><Ico n="folder" /> Импорт папки проекта…</button>
             <button className="editor-toolbar-item" onClick={doImportJson}><Ico n="up" /> Импорт из JSON</button>
             <div className="editor-toolbar-divider" />
@@ -1115,10 +1130,10 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
               disabled={modifiedCount === 0}
               data-tip={modifiedCount > 0 ? `Экспортировать только изменённые файлы (${modifiedCount}) в микро-архив` : 'Нет изменений относительно исходной базы'}
             >
-              <Ico n="download" /> Экспорт правок для ИИ (.chronicle)
+              <Ico n="download" /> Экспорт правок для ИИ (.narthex)
               {modifiedCount > 0 && <span className="ai-btn-badge">{modifiedCount}</span>}
             </button>
-            <button className="editor-toolbar-item" onClick={doExport}><Ico n="download" /> Экспорт всей кампании (.chronicle)</button>
+            <button className="editor-toolbar-item" onClick={doExport}><Ico n="download" /> Экспорт всей кампании (.narthex)</button>
             <button className="editor-toolbar-item" onClick={doExportJson}><Ico n="download" /> Экспорт JSON (монолит)</button>
             <div className="editor-toolbar-divider" />
             <button className="editor-toolbar-item danger" onClick={deleteCampaign}><Ico n="trash" /> Удалить кампанию</button>
@@ -1162,7 +1177,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         <input
           ref={fileInput}
           type="file"
-          accept=".chronicle,.zip"
+          accept=".narthex,.chronicle,.zip"
           hidden
           onChange={(e) => {
             const f = e.target.files?.[0]
@@ -1282,10 +1297,10 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
                   <button className="btn btn-small" onClick={() => createNew('npc')}>+ NPC</button>
                 </>
               ) : (
-                <button className="btn btn-small" onClick={() => createNew()}>+ создать</button>
+                <button className="btn btn-small" onClick={() => createNew()} disabled={section === 'quests' && questsOff} title={section === 'quests' && questsOff ? 'Квесты выключены и доступны только для чтения' : undefined}>+ создать</button>
               )}
               {sel && (
-                <button className="btn btn-small ce-del" onClick={removeSelected}><Ico n="close" /> </button>
+                <button className="btn btn-small ce-del" onClick={removeSelected} disabled={section === 'quests' && questsOff} title={section === 'quests' && questsOff ? 'Квесты выключены и доступны только для чтения' : undefined}><Ico n="close" /> </button>
               )}
             </div>
           </aside>
@@ -1293,13 +1308,21 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
 
         <main className="editor-main">
           {section === 'campaign' && <CampaignEditor key={`c-${base}`} store={store} />}
+          {section === 'packs' && <PackCatalogPanel store={store} />}
+          {section === 'panels' && <PackPanelWorkbench key={`pp-${base}`} store={store} />}
           {section === 'design' && <DesignDocPanel key={`d-${base}`} store={store} onEditWithAi={() => openAiTask()} />}
           {section === 'combat' && <CombatRulesEditor key={`cb-${base}`} store={store} />}
           {section === 'world' && <WorldEditor key={`w-${base}`} store={store} />}
           {section === 'scenes' && sel && <SceneEditor key={sel} store={store} path={sel} onPlaytestScene={(sceneId) => void playtest(sceneId)} />}
           {section === 'entities' && sel && <EntityEditor key={sel} store={store} path={sel} />}
           {section === 'rules' && sel && <RuleEditor key={sel} store={store} path={sel} />}
-          {section === 'quests' && sel && <QuestEditor key={sel} store={store} path={sel} />}
+          {section === 'quests' && sel && questsOff ? (
+            <section className="panel" style={{ maxWidth: 1080, margin: '20px auto', padding: 24 }}>
+              <strong>Квесты выключены · только чтение</strong>
+              <p className="muted">Данные сохранены без изменений. Включите «Квесты и стадии» в разделе «Проект → Каталог паков», чтобы продолжить редактирование.</p>
+              <pre style={{ overflow: 'auto', whiteSpace: 'pre-wrap' }}>{JSON.stringify(store.jsonFiles.get(sel), null, 2) ?? 'Нет данных'}</pre>
+            </section>
+          ) : section === 'quests' && sel ? <QuestEditor key={sel} store={store} path={sel} /> : null}
           {section === 'dialogues' && sel && <DialogueHost key={sel} store={store} path={sel} />}
           {section === 'arenas' && sel && <ArenaEditor key={sel} store={store} path={sel} />}
           {section === 'cutscenes' && sel && <CutsceneEditor key={sel} store={store} path={sel} />}

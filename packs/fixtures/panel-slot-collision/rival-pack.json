@@ -1,0 +1,32 @@
+{
+  "id": "fixture-rival",
+  "title": "Фикстура-соперник",
+  "version": "1.0.0",
+  "runtime": "turn",
+  "provides": {
+    "kind": false,
+    "schema": "schema/fixture.schema.json",
+    "panels": [
+      {
+        "id": "panel-rival",
+        "title": "Панель соперника",
+        "slot": "right",
+        "caps": ["adventure"],
+        "order": 5
+      }
+    ],
+    "validators": [],
+    "probes": []
+  },
+  "saves": {
+    "namespace": "fixture-rival",
+    "version": 1,
+    "migrations": 0
+  },
+  "requires": {
+    "core": ">=1.0.0",
+    "packs": [],
+    "caps": []
+  },
+  "caps": ["adventure"]
+}

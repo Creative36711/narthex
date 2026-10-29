@@ -3,11 +3,18 @@ import { join } from 'node:path'
 import assert from 'node:assert'
 import { inkToDlgDoc } from '../src/editor/inkImport'
 import { generateInk } from '../src/editor/dialogueDoc'
-import { sanitizeInkSource } from '../src/core/dialogue'
+import { sanitizeInkSource } from '../packs/narrative/index'
 import { Compiler } from 'inkjs/full'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 import { repairState } from '../src/core/savemigrate'
 import type { CampaignData, EntityDef, GameState, SceneDef } from '../src/shared/types'
+import { skipIfMissingFixture } from './fixture-guard.mts'
+
+skipIfMissingFixture(
+  '_ai-temp/campaing',
+  'экипировка, диалоги, условия и починка сохранений на кампании сценариста',
+)
 
 console.log('--- Смоук-тест раунда 32: Экипировка, Диалоги, Вера Сокол, Условия ---')
 

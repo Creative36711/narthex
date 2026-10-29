@@ -17,11 +17,13 @@
  *  9. §9 дизайн-дока: skill_check ветвится в ink (1/0), set_entity_state и
  *     open_trade документированы как внешние вызовы.
  */
+import { scenePlayerSource } from './scene-sources.mts'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 import { repairState, type ReportCtx } from '../src/core/savemigrate'
-import { drainStory, type DialogueLine } from '../src/core/dialogue'
+import { drainStory, type DialogueLine } from '../packs/narrative/index'
 import { EditorStore } from '../src/editor/store'
 import { validateCampaign } from '../src/editor/campaignAudit'
 import type { GameState } from '../src/shared/types'
@@ -169,19 +171,22 @@ const ctx = (): ReportCtx & { texts: string[] } => {
 
 // ── 8. заголовок сцены без дубля локации ──
 {
-  const scene = f('src/player/SceneScreen.tsx')
-  check('8 дубль «Локация — Локация — День» убран', scene.includes('scene.label === loc?.location.label'))
+  const scene = scenePlayerSource()
+  check('8 дубль «Локация — Локация — День» убран',
+    scene.includes('function formatSceneSubtitle') &&
+      scene.includes('sLabel.toLowerCase() !== lLabel.toLowerCase()') &&
+      scene.includes('return null'))
 }
 
 // ── 9. §9 дизайн-дока: внешние вызовы, которых не хватало ──
 {
-  const dlg = f('src/core/dialogue.ts')
+  const dlg = f('packs/narrative/dialogue.ts')
   check('9 skill_check возвращает 1/0 для ветвления в ink', /bind\('skill_check'[\s\S]{0,400}return .*success \? 1 : 0/.test(dlg))
   check('9 появился внешний вызов set_entity_state', dlg.includes("bind('set_entity_state'"))
   check('9 open_trade доступен из ink', dlg.includes("bind('open_trade'"))
-  // set_entity_state принимает состояние, описанное в кампании
-  const engine = f('src/core/engine.ts')
-  check('9 set_entity_state проходит проверку состояний', engine.includes("case 'set_entity_state'"))
+  // Обработчик эффекта живёт в модуле effects после разбиения core engine.
+  const effects = f('src/core/effects.ts')
+  check('9 set_entity_state проходит проверку состояний', effects.includes("case 'set_entity_state'"))
 }
 
 // ── чемодан: правила стиля ink и подписи реестров ──

@@ -1,0 +1,3 @@
+неясно / Arena закрепила `arena/2a65bc58-narthex`, а не `nar/NAR-4.14`; кроме того, origin/main уже содержит историческую строку `real-campaign` в NAR-4.3 и копии референса в NAR-4.9/docs/phases, тогда как scope ограничивает новые evidence-файлы.
+решил / Оставаться на закреплённой ветке; измерить один current workload `real-engine-20ms-ticks`, сравнить median/p95 с NAR-4.3, перечислить исторические совпадения без переписывания baseline, не вводить пороги и не начинать Phase 4.
+откат / До мержа удалить только `_tools/reports/NAR-4.14.md` и `docs/decisions/NAR-4.14.md`; после мержа revert только docs-only commit, не трогая source, исходные baseline-отчёты, пороги или phase state.

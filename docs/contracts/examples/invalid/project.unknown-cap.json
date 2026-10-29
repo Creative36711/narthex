@@ -1,0 +1,14 @@
+{
+  "format": 2,
+  "id": "broken-example",
+  "title": "Плохой пример: возможность, которой нет в реестре",
+  "kind": "narrative",
+  "caps": [
+    "narrative",
+    "unseen-capability"
+  ],
+  "engine": {
+    "min": "0.9.0"
+  },
+  "entry": "world.json"
+}

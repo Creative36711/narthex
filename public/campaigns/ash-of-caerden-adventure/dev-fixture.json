@@ -1,0 +1,42 @@
+{
+  "visibility": "internal",
+  "audience": "agents-and-smokes-only",
+  "created_by": "NAR-2, карточка 2.3-Б",
+  "used_by": [
+    "scripts/adventure-mechanics-probe.mts",
+    "npm run check:campaigns",
+    "scripts/visual/playthrough.mjs",
+    "cf-play check public/campaigns/ash-of-caerden-adventure"
+  ],
+  "reason": "Те же данные narrative под видом проекта kind: adventure — проверяет шов «движок / пак». Намеренно НЕ внесён в реестр. id исправлен 26.10 (D-072): раньше совпадал с narrative, из-за чего выбор adventure в браузере грузил narrative-сцену.",
+  "remove_rule": "Удалять вместе с паком adventure и publications.json; не трогать без карточки миссии.",
+  "known_absent_images": [
+    "assets/img/arenas/camp_topdown.jpg",
+    "assets/img/arenas/cellar_topdown.jpg",
+    "assets/img/arenas/forest_road_topdown.jpg",
+    "assets/img/arenas/gates_topdown.jpg",
+    "assets/img/arenas/market_topdown.jpg",
+    "assets/img/maps/caerden_valley.jpg",
+    "assets/img/npc/aldric_neutral.jpg",
+    "assets/img/npc/bandit_neutral.jpg",
+    "assets/img/npc/bran_neutral.jpg",
+    "assets/img/npc/corvin_neutral.jpg",
+    "assets/img/npc/lena_neutral.jpg",
+    "assets/img/npc/maeva_neutral.jpg",
+    "assets/img/npc/player_portrait.jpg",
+    "assets/img/npc/rat_token.jpg",
+    "assets/img/npc/yorek_neutral.jpg",
+    "assets/img/scenes/barracks.jpg",
+    "assets/img/scenes/forest_edge.jpg",
+    "assets/img/scenes/gates_front_day.jpg",
+    "assets/img/scenes/gates_front_night.jpg",
+    "assets/img/scenes/guardroom.jpg",
+    "assets/img/scenes/market_day.jpg",
+    "assets/img/scenes/market_night.jpg",
+    "assets/img/scenes/mine_deep.jpg",
+    "assets/img/scenes/mine_entrance.jpg",
+    "assets/img/scenes/ravine_camp.jpg",
+    "assets/img/scenes/tavern_hall.jpg",
+    "assets/img/scenes/temple.jpg"
+  ]
+}

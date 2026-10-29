@@ -17,7 +17,7 @@ function check(label: string, ok: boolean, extra = '') {
   if (!ok) failed++
 }
 
-// Зафиксированный контрпример из загруженного .chronicle: исходные presets
+// Зафиксированный контрпример из загруженного .narthex: исходные presets
 // тратят 57/52/54 из 35 статов и 140–155 из 80 очков навыков.
 const professions: ProfessionDef[] = [
   {

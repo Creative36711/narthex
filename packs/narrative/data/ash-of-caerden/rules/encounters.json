@@ -1,0 +1,41 @@
+{
+  "encounter_tables": [
+    {
+      "id": "enc_road_forest",
+      "rolls": 1,
+      "entries": [
+        { "weight": 55, "type": "nothing" },
+        {
+          "weight": 15,
+          "type": "combat",
+          "enemies": [{ "entity": "npc_bandit", "count_min": 1, "count_max": 2 }],
+          "arena": "arena_forest_road",
+          "intro": "На полпути из-за деревьев выходят люди с дубинами. «Кошелёк или жизнь», — как водится."
+        },
+        {
+          "weight": 15,
+          "type": "skill_check",
+          "skill": "spot",
+          "difficulty": 40,
+          "message": "У обочины что-то виднеется в траве…",
+          "success_effects": [
+            { "type": "add_item", "item": "item_herb", "quantity": 2 },
+            { "type": "show_message", "text": "Намётанный глаз замечает кустики горной травы. +2 пучка." }
+          ],
+          "fail_effects": [
+            { "type": "show_message", "text": "…но это лишь старое воронье гнездо, сброшенное ветром." }
+          ]
+        },
+        {
+          "weight": 15,
+          "type": "event",
+          "effects": [
+            { "type": "change_need", "need": "energy", "delta": -10 },
+            { "type": "advance_time", "ticks": 1 }
+          ],
+          "message": "Тропа раскисла после дождей. Вы сбились с пути и потеряли час, выбираясь из бурелома."
+        }
+      ]
+    }
+  ]
+}
