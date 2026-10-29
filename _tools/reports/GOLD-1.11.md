@@ -93,7 +93,7 @@ No optional project.json 404 was observed.
 - `npm run lint`: FAIL, rc=1, 1,514 repository warnings and 5 errors; the changed runner's targeted lint passes.
 - `npm run check:module-size`: FAIL, rc=1, 15 existing modules exceed the configured limits; no such modules are changed in this task.
 - `npm run check:decisions`: FAIL, rc=1, pre-existing unsupported status text in `docs/decisions/GOLD-1.6c.md`; that file is outside this change and remains unchanged.
-- PR/merge CI run IDs: pending checks.
+- PR #158 checks for implementation commit `9702389`: `golden-playthrough` run **40976221554**, job **123804786935**, conclusion **success**; `visual`/`screenshots` run **40976221669**, job **123804787621**, conclusion **failure** at `Проверить свежесть бандла аудита до сборки`. The visual job stopped before its build/screenshot steps because the existing audit-bundle freshness gate failed; this task changes no audit bundle or workflow.
 - Scope: only `package.json`, `scripts/golden/soak.mjs`, and the permitted GOLD-1.11 report/log/screenshots are included.
 
 ## Failures
