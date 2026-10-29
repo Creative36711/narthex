@@ -134,7 +134,10 @@
     "tauri": "tauri",
     "version:bump": "tsx scripts/version.mts bump",
     "visual:shots": "node scripts/visual/shots.mjs",
-    "golden:save-load": "node scripts/golden/save-load.mjs"
+    "golden:save-load": "node scripts/golden/save-load.mjs",
+    "golden:import": "tsx scripts/golden-import.mts",
+    "golden:play": "node scripts/golden/play.mjs",
+    "golden:endings": "node scripts/golden/endings.mjs"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
