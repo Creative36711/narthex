@@ -45,7 +45,7 @@ export const DEFAULT_SETTINGS: PlayerSettings = {
   camera_parallax: true,
 }
 
-const KEY = 'narthex:settings'
+const KEY = 'chronicle-forge:settings'
 const listeners = new Set<(s: PlayerSettings) => void>()
 let cache: PlayerSettings | null = null
 

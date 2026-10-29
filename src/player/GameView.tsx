@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { SyntheticEvent } from 'react'
 import type { GameEngine } from '../core/engine'
 import { HUD } from './HUD'
 import { SceneScreen } from './SceneScreen'
@@ -20,11 +19,8 @@ import { CutscenePlayer } from '../shared/CutscenePlayer'
 import { BannerLayer, PostcardLayer } from './Atmosphere'
 import { setAudioCampaign, playUi, refreshAmbient, stopAllLoops } from '../shared/audio'
 import { refreshMusic, setMenuMode, stopMusic, applyMusicVolume } from '../shared/music'
-import { featureOn, type MusicTrackDef, type SceneDef } from '../shared/types'
+import { featureOn, type MusicTrackDef } from '../shared/types'
 import { Ico } from '../shared/icons'
-import { AdventureScreen } from './AdventureScreen'
-import { FmvScreen } from './FmvScreen'
-import { loadPlayerPackSession, type AdventureSession } from './adventureRuntime'
 
 interface Props {
   engine: GameEngine
@@ -39,57 +35,8 @@ interface Props {
 
 type PanelId = 'map' | 'inventory' | 'character' | 'log' | 'help' | 'craft' | 'codex' | 'saves' | 'meta' | null
 
-function recoverBrokenPortrait(event: SyntheticEvent<HTMLDivElement>) {
-  const image = event.target
-  if (!(image instanceof HTMLImageElement)) return
-  const portrait = image.closest('.dialogue-portrait')
-  if (!portrait && !image.matches('.message-portrait, .slot-portrait')) return
-  const failedSrc = image.currentSrc || image.src || '(empty src)'
-  console.error(`Failed to load resource: portrait fallback ${failedSrc}`)
-  if (portrait) {
-    image.remove()
-    if (!portrait.querySelector('.dialogue-portrait-placeholder')) {
-      const fallback = document.createElement('div')
-      fallback.className = 'dialogue-portrait-placeholder'
-      fallback.setAttribute('aria-hidden', 'true')
-      fallback.dataset.assetFallback = failedSrc
-      fallback.textContent = '👤'
-      portrait.prepend(fallback)
-    }
-    return
-  }
-  if (image.matches('.slot-portrait')) {
-    const fallback = document.createElement('span')
-    fallback.className = 'slot-marker slot-marker-npc slot-portrait-fallback'
-    fallback.style.cssText = 'opacity:1;transform:scale(1);background:color-mix(in srgb,var(--gold) 20%,transparent)'
-    fallback.setAttribute('aria-hidden', 'true')
-    fallback.dataset.assetFallback = failedSrc
-    const glyph = document.createElement('span')
-    glyph.className = 'slot-marker-glyph'
-    glyph.textContent = '◆'
-    fallback.append(glyph)
-    image.replaceWith(fallback)
-    return
-  }
-  image.parentElement?.setAttribute('data-asset-fallback', failedSrc)
-  image.remove()
-}
-
 export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoadSlot, debugPanelOpen = false, onGamePanelOpen }: Props) {
   const [panel, setPanel] = useState<PanelId>(null)
-  const [packSession, setPackSession] = useState<AdventureSession | null>(null)
-  const gameViewRef = useRef<HTMLDivElement>(null)
-  // Никакого скрытия ошибок на уровне DOM: техническую плашку убрали из
-  // SceneScreen (D-076), а не маскируем её наблюдателем за мутациями —
-  // иначе настоящая поломка у витринного проекта тоже стала бы невидимой.
-  useEffect(() => {
-    let active = true
-    setPackSession(null)
-    void loadPlayerPackSession(engine)
-      .then((session) => { if (active) setPackSession(session) })
-      .catch((error) => console.error('[narthex] pack screen could not open:', error))
-    return () => { active = false }
-  }, [engine])
   // GameView owns the subscription so embedded playtests update just like the normal player.
   const [, invalidate] = useState(0)
   useEffect(() => engine.subscribe(() => invalidate((n) => n + 1)), [engine])
@@ -108,7 +55,6 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
   }, [engine, engine.state.player.hp])
   // транзитные подсказки (получено/потеряно): каждая гаснет по таймеру
   const cutscene = engine.cutscene
-  const fmvScene = engine.currentScene() as (SceneDef & { fmv?: string }) | undefined
   const isIntroActive = engine.isSceneIntroActive()
   const isPostcardActive = !cutscene && !isIntroActive && !!engine.postcard
   const isMessageActive = !cutscene && !engine.dialogue && !engine.combat && !isIntroActive && !isPostcardActive && !!engine.messages[0]
@@ -180,7 +126,7 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
   }, [])
 
   return (
-    <div ref={gameViewRef} className={`game-view ${damageFlash ? 'player-damage-flash' : ''}`} onErrorCapture={recoverBrokenPortrait}>
+    <div className={`game-view ${damageFlash ? 'player-damage-flash' : ''}`}>
       <HUD
         engine={engine}
         onOpenMap={() => openPanel('map')}
@@ -194,11 +140,7 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
         onOpenHelp={() => openPanel('help')}
         onExitToMenu={onExitToMenu}
       />
-      {fmvScene?.fmv
-        ? <FmvScreen engine={engine} scene={fmvScene} onContinue={() => openPanel('map')} />
-        : packSession
-          ? <AdventureScreen engine={engine} session={packSession} />
-          : <SceneScreen engine={engine} onOpenMap={() => openPanel('map')} />}
+      <SceneScreen engine={engine} onOpenMap={() => openPanel('map')} />
 
       {!cutscene && !engine.combat && !engine.dialogue && !engine.trade && <PartyPanel engine={engine} />}
 

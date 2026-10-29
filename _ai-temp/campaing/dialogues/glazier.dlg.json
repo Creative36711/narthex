@@ -1,0 +1,425 @@
+{
+  "version": 2,
+  "label": "Сыч, стекольщик",
+  "nodes": [
+    {
+      "id": "Начало",
+      "label": "Первая встреча",
+      "sections": [
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "glazier_downed"
+            }
+          ],
+          "steps": [],
+          "goto": "end"
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "glazier_robbed"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Короб с бирюзовым светом снова выныривает из темноты штрека. Человек узнаёт тебя раньше, чем ты его.",
+                "voice": "assets/voice/narr_glazier_2.mp3",
+                "action": true
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Зря ты так, дознаватель. Внизу Надзора нет.",
+                "voice": "assets/voice/glazier_7.mp3",
+                "emotion": "angry"
+              }
+            }
+          ],
+          "goto": "end"
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "glazier_beaten"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Короб с бирюзовым светом снова выныривает из темноты штрека. Человек узнаёт тебя раньше, чем ты его.",
+                "voice": "assets/voice/narr_glazier_2.mp3",
+                "action": true
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Зря ты так, дознаватель. Внизу Надзора нет.",
+                "voice": "assets/voice/glazier_7.mp3",
+                "emotion": "angry"
+              }
+            }
+          ],
+          "goto": "end"
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "glazier_met"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Короб с бирюзовым светом снова выныривает из темноты штрека. Человек узнаёт тебя раньше, чем ты его.",
+                "action": true,
+                "voice": "assets/voice/narr_glazier_2.mp3"
+              }
+            }
+          ],
+          "else_steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Из бокового штрека выходит человек с заплечным коробом, обмотанным мешковиной. Сквозь мешковину сочится бирюзовый свет.",
+                "action": true,
+                "sfx": "snd_cloth",
+                "voice": "assets/voice/narr_glazier_1.mp3"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Тихо, дознаватель. Ты меня не видел, я тебя не видел. Внизу так договариваются.",
+                "emotion": "thoughtful",
+                "voice": "assets/voice/glazier_1.mp3"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "glazier_met"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "glazier_trades"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Что у тебя в коробе?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Стекло. Жильное. Наверху за осколок дают больше, чем за ведро угля и ведро воды вместе. А здесь его никто не считает: помпа стоит, смены нет. Сычом меня зовут, если что.",
+                    "emotion": "calm",
+                    "voice": "assets/voice/glazier_2.mp3"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "glazier_box"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "learn_name",
+                    "entity": "npc_glazier"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "unlock_codex",
+                    "entry": "codex_glass"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "glazier_box",
+              "not": true
+            }
+          ]
+        },
+        {
+          "text": "Кому ты его несёшь?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "glazier_asked"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "glazier_named",
+              "not": true
+            },
+            {
+              "type": "flag",
+              "flag": "glazier_asked",
+              "not": true
+            }
+          ],
+          "check": {
+            "skill": "persuade",
+            "difficulty": 45,
+            "success": {
+              "sections": [
+                {
+                  "steps": [
+                    {
+                      "kind": "line",
+                      "line": {
+                        "text": "Скупщику в Сухом ряду? Нет, выше. Квитанции без печати, подпись с завитком. Такой завиток я видел только на нарядах из конторы.",
+                        "emotion": "thoughtful",
+                        "voice": "assets/voice/glazier_3.mp3"
+                      }
+                    },
+                    {
+                      "kind": "effect",
+                      "effect": {
+                        "type": "set_flag",
+                        "flag": "glazier_named"
+                      }
+                    },
+                    {
+                      "kind": "effect",
+                      "effect": {
+                        "type": "fire_rule",
+                        "rule": "rule_glazier_named"
+                      }
+                    }
+                  ]
+                }
+              ],
+              "goto": "stay"
+            },
+            "fail": {
+              "sections": [
+                {
+                  "steps": [
+                    {
+                      "kind": "line",
+                      "line": {
+                        "text": "Кому надо, тому и несу. Ты спрашиваешь, как наверху, а мы внизу.",
+                        "emotion": "angry",
+                        "voice": "assets/voice/glazier_4.mp3"
+                      }
+                    }
+                  ]
+                }
+              ],
+              "goto": "stay"
+            }
+          }
+        },
+        {
+          "text": "Что продаёшь?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Осколок — двенадцать марок. Бинт и вода дороже, чем наверху: сюда их никто, кроме меня, не носит.",
+                    "emotion": "calm",
+                    "voice": "assets/voice/glazier_5.mp3"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "open_trade",
+                    "npc": "npc_glazier"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end"
+        },
+        {
+          "text": "Короб на землю. Именем Надзора.",
+          "sections": [],
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "glazier_robbed",
+              "not": true
+            },
+            {
+              "type": "flag",
+              "flag": "glazier_beaten",
+              "not": true
+            }
+          ],
+          "check": {
+            "skill": "intimidate",
+            "difficulty": 50,
+            "success": {
+              "sections": [
+                {
+                  "steps": [
+                    {
+                      "kind": "line",
+                      "line": {
+                        "text": "Ладно, ладно! Забирай осколок, мне шея дороже стекла. А короб не трогай — он не мой.",
+                        "emotion": "afraid",
+                        "voice": "assets/voice/glazier_6.mp3"
+                      }
+                    },
+                    {
+                      "kind": "effect",
+                      "effect": {
+                        "type": "set_flag",
+                        "flag": "glazier_robbed"
+                      }
+                    },
+                    {
+                      "kind": "effect",
+                      "effect": {
+                        "type": "clear_flag",
+                        "flag": "glazier_trades"
+                      }
+                    },
+                    {
+                      "kind": "effect",
+                      "effect": {
+                        "type": "add_item",
+                        "item": "item_vein_shard",
+                        "qty": 1
+                      }
+                    },
+                    {
+                      "kind": "effect",
+                      "effect": {
+                        "type": "change_disposition",
+                        "target": "npc_glazier",
+                        "delta": -15
+                      }
+                    }
+                  ]
+                }
+              ],
+              "goto": "end"
+            },
+            "fail": {
+              "sections": [
+                {
+                  "steps": [
+                    {
+                      "kind": "line",
+                      "line": {
+                        "text": "Зря ты так, дознаватель. Внизу Надзора нет.",
+                        "emotion": "angry",
+                        "voice": "assets/voice/glazier_7.mp3"
+                      }
+                    },
+                    {
+                      "kind": "effect",
+                      "effect": {
+                        "type": "clear_flag",
+                        "flag": "glazier_trades"
+                      }
+                    },
+                    {
+                      "kind": "effect",
+                      "effect": {
+                        "type": "fire_rule",
+                        "rule": "rule_glazier_fight"
+                      }
+                    }
+                  ]
+                }
+              ],
+              "goto": "end"
+            }
+          }
+        },
+        {
+          "text": "Показать ему вещь.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "present_item",
+                    "ok": "Вещь",
+                    "fail": "Вещь",
+                    "required": ""
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end",
+          "conds": []
+        },
+        {
+          "text": "Иди своей дорогой.",
+          "sections": [],
+          "goto": "end"
+        }
+      ]
+    },
+    {
+      "id": "Вещь",
+      "label": "Показал вещь",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Не покупаю. Стекло — да, а это неси в Сухой ряд.",
+                "voice": "assets/voice/glazier_8.mp3",
+                "emotion": "calm"
+              }
+            }
+          ]
+        }
+      ],
+      "goto": "Начало",
+      "choices": []
+    }
+  ]
+}

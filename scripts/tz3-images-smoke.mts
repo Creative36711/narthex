@@ -8,11 +8,9 @@
  *  4. редактор: секции «Спрайт в сцене» и «В бою», масштаб в слоте;
  *  5. монолит и схема гоняют новые поля.
  */
-import { scenePlayerSource } from './scene-sources.mts'
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
-import '../packs/narrative/operations'
 import type { CampaignData, NpcDef } from '../src/shared/types'
 
 const mem = new Map<string, string>()
@@ -89,7 +87,7 @@ const withFigures: CampaignData = {
 
 // ── 3. сцена ──
 {
-  const scene = scenePlayerSource()
+  const scene = readFileSync('src/player/SceneScreen.tsx', 'utf8')
   check('3 сцена: спрайт вместо портрета', scene.includes('scene_sprite') && scene.includes('slot-sprite'))
   check('3 сцена: фолбэк на портрет', scene.includes('slot-portrait'))
   check('3 сцена: масштаб слота', scene.includes('sprite_scale'))

@@ -4,7 +4,6 @@
  */
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
-import '../packs/narrative/operations'
 import { newCharChoice } from '../src/core/charcreate'
 import type { CampaignData, HeroPortraitLayerDef, ItemDef } from '../src/shared/types'
 

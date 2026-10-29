@@ -1,5 +1,4 @@
 import { GameEngine } from '../src/core/engine'
-import '../packs/narrative/operations'
 import type { CampaignData, ItemDef } from '../src/shared/types'
 import { DEFAULT_DICE_RULES } from '../src/shared/types'
 

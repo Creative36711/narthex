@@ -13,7 +13,6 @@
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
-import '../packs/narrative/operations'
 import { skillCheck } from '../src/core/brp'
 import { PRNG } from '../src/core/prng'
 import { migrateNeedCondition } from '../src/shared/migrate'
@@ -146,7 +145,7 @@ console.log(`Кампания: ${campaign.meta.title}`)
   check('A4 карта во весь экран', /\.overlay\s*\{[^}]*position: fixed[^}]*inset: 0/.test(cssMap) && /\.map-screen\s*\{[^}]*height: 100%/.test(cssMap) && map.includes('map-viewport'))
   check('A4 есть зум и пан', map.includes('onWheel') && map.includes('onPointerMove') && map.includes('clampPan'))
   check('A4 названия скрыты по умолчанию', map.includes('show-labels') && map.includes('readLabels'))
-  check('A4 состояние галочки в localStorage', map.includes('narthex:map-labels') && map.includes('writeLabels'))
+  check('A4 состояние галочки в localStorage', map.includes('chronicle-forge:map-labels') && map.includes('writeLabels'))
   const css = readFileSync('src/index.css', 'utf8')
   check('A4 подпись видна при наведении', css.includes('.map-pin:hover .pin-label'))
 }

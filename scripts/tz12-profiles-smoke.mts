@@ -47,7 +47,7 @@ const campaign = await loadCampaign(base)
 
 // ── 1. обратная совместимость ──
 {
-  check('1 дефолт — фирменный профиль Narthex', DEFAULT_PROFILE === 'forge' && resolveProfile(null).id === 'forge')
+  check('1 дефолт — фирменный профиль Chronicle Forge', DEFAULT_PROFILE === 'forge' && resolveProfile(null).id === 'forge')
   const noTheme = { ...campaign, meta: { ...campaign.meta, theme: undefined } }
   check('1 кампания без theme: фирменный профиль, атмосфера вкл', resolveProfile(noTheme.meta).id === 'forge' && atmosphereOn(noTheme.meta) === true)
   const vars = themeVars(noTheme) as Record<string, string>
@@ -134,7 +134,7 @@ const campaign = await loadCampaign(base)
   check('5 схема знает VisualProfileId', schema.includes('VisualProfileId'))
   check('5 схема знает все id каталога', VISUAL_PROFILES.every((p) => schema.includes(`"${p.id}"`)))
   const guide = readFileSync('docs/ai-campaign-guide.md', 'utf8')
-  check('5 гайд ИИ объясняет фирменный профиль', guide.includes('"forge"') && guide.includes('Narthex') && guide.includes('по умолчанию'))
+  check('5 гайд ИИ объясняет фирменный профиль', guide.includes('"forge"') && guide.includes('Chronicle Forge') && guide.includes('по умолчанию'))
   check('5 гайд перечисляет каталог', ['epic-fantasy', 'gothic-horror', 'cyberpunk', 'historical'].every((id) => guide.includes(id)))
   const app = readFileSync('src/App.tsx', 'utf8')
   check('5 плеер применяет класс профиля', app.includes('profileClass') && app.includes('cf-themed'))

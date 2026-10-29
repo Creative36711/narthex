@@ -10,7 +10,7 @@ const pkg = createRequire(import.meta.url)('./package.json') as { version: strin
 /**
  * Dev-плагин редактора: сохранение файлов кампании на диск.
  * POST /__editor/save  { path: "campaigns/<id>/scenes/x.json", text?: string, base64?: string }
- * В продакшене/Tauri сохранение идёт через экспорт .narthex (или Tauri fs в будущем).
+ * В продакшене/Tauri сохранение идёт через экспорт .chronicle (или Tauri fs в будущем).
  */
 const MIME: Record<string, string> = {
   '.json': 'application/json; charset=utf-8',
@@ -88,7 +88,7 @@ function editorSavePlugin(): Plugin {
         }
       })
 
-      // Список файлов нужен, чтобы отличить точный повтор .narthex от пакета,
+      // Список файлов нужен, чтобы отличить точный повтор .chronicle от пакета,
       // в котором изменились не только файлы, но и их состав.
       server.middlewares.use('/__editor/campaign-files', (req, res) => {
         if (req.method !== 'GET') {

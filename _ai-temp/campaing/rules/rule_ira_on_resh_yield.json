@@ -1,0 +1,28 @@
+{
+  "id": "rule_ira_on_resh_yield",
+  "label": "Ира: Реш уступил у помпы",
+  "once": true,
+  "trigger": "always",
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "resh_allows_pump"
+    },
+    {
+      "type": "in_party",
+      "entity": "npc_ira"
+    }
+  ],
+  "effects": [
+    {
+      "type": "start_dialogue",
+      "entity": "npc_ira",
+      "dialogue_knot": "П_уступил"
+    },
+    {
+      "type": "change_disposition",
+      "target": "npc_ira",
+      "delta": 3
+    }
+  ]
+}

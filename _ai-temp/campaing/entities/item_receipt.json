@@ -1,0 +1,17 @@
+{
+  "id": "item_receipt",
+  "type": "item",
+  "category": "clue",
+  "label": "Квитанция стекольщика",
+  "description": "Мятая квитанция без печати: «принято стекла жильного», вес и подпись — петля с завитком. Сыч клянётся, что такой же завиток стоит на нарядах из конторы.",
+  "weight": 0,
+  "stackable": false,
+  "value": {
+    "mark": 0
+  },
+  "quest_item": true,
+  "portrait": {
+    "neutral": "assets/img/items/item_receipt.jpg"
+  },
+  "image": "assets/img/items/item_receipt.jpg"
+}

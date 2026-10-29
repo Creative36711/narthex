@@ -1,0 +1,31 @@
+{
+  "id": "rule_party_ira_body",
+  "label": "Ира узнаёт брата у затвора",
+  "once": true,
+  "chapter": "ch_deep",
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "guard_found_now"
+    },
+    {
+      "type": "in_party",
+      "entity": "npc_ira"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "ira_told_brother"
+    }
+  ],
+  "effects": [
+    {
+      "type": "clear_flag",
+      "flag": "guard_found_now"
+    },
+    {
+      "type": "start_dialogue",
+      "entity": "npc_ira",
+      "dialogue_knot": "У_тела"
+    }
+  ]
+}

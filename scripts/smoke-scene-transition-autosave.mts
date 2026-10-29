@@ -10,7 +10,6 @@ const store: Record<string, string> = {}
 }
 
 import { GameEngine, openSave } from '../src/core/engine.js'
-import '../packs/narrative/operations'
 import type { CampaignPackage } from '../src/shared/types.js'
 
 // Создаём минимальную кампанию с двумя сценами в одной локации

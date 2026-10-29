@@ -1,0 +1,25 @@
+{
+  "id": "rule_zero_rest",
+  "label": "Сон кончился",
+  "once": false,
+  "manual": true,
+  "conditions": [
+    {
+      "type": "not",
+      "condition": {
+        "type": "has_status",
+        "status": "status_weary"
+      }
+    }
+  ],
+  "effects": [
+    {
+      "type": "change_fatigue",
+      "delta": 25
+    },
+    {
+      "type": "show_message",
+      "text": "Веки липнут. Ты начинаешь видеть то, чего нет даже внизу."
+    }
+  ]
+}

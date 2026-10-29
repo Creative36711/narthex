@@ -1,0 +1,90 @@
+{
+  "id": "item_filter",
+  "type": "item",
+  "category": "gear",
+  "label": "Дыхатель мастера",
+  "description": "Маска с жильным фильтром и двумя банками. Ниже восьмого яруса без неё считают вдохи, а не часы. Севшие банки не защищают — их переснаряжают углём и сукном.",
+  "weight": 0.7,
+  "stackable": false,
+  "value": {
+    "mark": 28
+  },
+  "equip_slot": "mask",
+  "quest_item": true,
+  "sounds": {
+    "equip": "snd_latch",
+    "unequip": "snd_cloth",
+    "use": "snd_vent"
+  },
+  "image": "assets/img/items/item_filter.jpg",
+  "portrait": {
+    "neutral": "assets/img/items/item_filter.jpg"
+  },
+  "interact_hint": "Проверить клапаны и банки",
+  "interact_options": [
+    {
+      "label": "Проверить клапаны и банки",
+      "hint": "две сменные обоймы с дроблёным углём",
+      "sound": "snd_vent",
+      "once": true,
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Резина клапана пахнет маслом, стёкла очков затянуты медной сеткой. По бокам — две банки с дроблёным углём и промасленным сукном: первая примет на себя штольню девятого яруса, вторая — слепой забой."
+        }
+      ]
+    },
+    {
+      "label": "Переснарядить банки",
+      "hint": "два угля и сукно; в пути руки могут подвести",
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "filter_exhausted"
+        },
+        {
+          "type": "has_item",
+          "item": "item_coal",
+          "min_quantity": 2
+        },
+        {
+          "type": "has_item",
+          "item": "item_cloth",
+          "min_quantity": 1
+        }
+      ],
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "repair",
+          "difficulty": 25,
+          "success_effects": [
+            {
+              "type": "advance_time",
+              "ticks": 1
+            },
+            {
+              "type": "fire_rule",
+              "rule": "rule_reset_filter"
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "remove_item",
+              "item": "item_coal",
+              "quantity": 1
+            },
+            {
+              "type": "advance_time",
+              "ticks": 1
+            },
+            {
+              "type": "show_message",
+              "text": "Уголь крошится мимо обоймы, сукно ложится криво — горсть угля пропала зря. На верстаке в конторе или на скамье в Сухом ряду, при свете и на ровном, вышло бы наверняка."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

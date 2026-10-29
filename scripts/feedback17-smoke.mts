@@ -12,7 +12,6 @@
  *  7. новая кампания: первая сцена с фоном, сцена без арта — не чёрный экран;
  *  8. озвучка: повтор фразы при сбое/застревании (диалог не «с середины»).
  */
-import { scenePlayerSource } from './scene-sources.mts'
 import { existsSync, readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import {
@@ -84,10 +83,8 @@ const demo = await loadCampaign(base)
   // слой погоды вынесен в Atmosphere.tsx (AtmosphereLayer) — проверяем фактическое
   // место сборки класса и то, что сцена отдаёт ему погоду кампании
   const atmos = readFileSync('src/player/Atmosphere.tsx', 'utf8')
-  const player = scenePlayerSource()
-  check('3 плеер передаёт погодный оверлей в слой атмосферы',
-    player.includes('weather?.overlay') && player.includes('overlay={weather.overlay}') &&
-      atmos.includes('const type = config.type') && atmos.includes('BUILTIN_CANVAS_TYPES.includes(type)'))
+  const player = readFileSync('src/player/SceneScreen.tsx', 'utf8')
+  check('3 плеер рисует класс по имени оверлея', atmos.includes('weather-${overlay}') && player.includes('<AtmosphereLayer') && player.includes('weather?.overlay'))
 }
 
 // ── 4. JSON-окна до низа ──

@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict'
 import { GameEngine } from '../src/core/engine.ts'
-import '../packs/narrative/operations'
 import { evalCondition } from '../src/core/conditions.ts'
 import type { CampaignData, NavigationZone, NpcDef } from '../src/shared/types.ts'
 

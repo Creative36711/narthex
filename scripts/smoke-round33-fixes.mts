@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import { BUILTIN_STAT_LABELS, statLabel, STAT_HINTS } from '../src/shared/skills.ts'
 import { GameEngine } from '../src/core/engine.ts'
-import '../packs/narrative/operations'
 
 console.log('Testing Round 33 Fixes: Stat Labels, Dice Inputs, Fonts and Guide...')
 

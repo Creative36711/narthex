@@ -1,0 +1,24 @@
+{
+  "id": "rule_air_shelter_on",
+  "label": "Сухой ряд: вентиляция",
+  "once": false,
+  "manual": false,
+  "trigger": "enter_scene",
+  "chapter": "ch_deep",
+  "conditions": [
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_dry_row"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "air_shelter"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "air_shelter"
+    }
+  ]
+}

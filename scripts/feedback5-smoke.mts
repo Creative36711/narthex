@@ -5,7 +5,6 @@
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
-import '../packs/narrative/operations'
 import { effectiveSlotType } from '../src/editor/slotTypes'
 
 const mem = new Map<string, string>()

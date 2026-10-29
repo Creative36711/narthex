@@ -15,7 +15,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
   }
 
   componentDidCatch(error: Error, info: unknown) {
-    console.error('[narthex] сбой приложения:', error, info)
+    console.error('[chronicle] сбой приложения:', error, info)
   }
 
   private errorText(): string {

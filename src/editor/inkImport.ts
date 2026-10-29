@@ -11,7 +11,7 @@
  * (не побуквенно: комментарии и форматирование не переживают).
  */
 import { generateInk, inkToTokens, newDlgDoc } from './dialogueDoc'
-import { cleanDialogueLine } from '../../packs/narrative/index'
+import { cleanDialogueLine } from '../core/dialogue'
 import type { DlgCheck, DlgChoice, DlgCond, DlgDoc, DlgEffect, DlgLine, DlgNode, DlgSection, DlgStep } from './dialogueDoc'
 
 export interface InkImportResult {

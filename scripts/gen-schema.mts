@@ -218,10 +218,10 @@ register('EncounterFileDef')
 
 const schema = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
-  $id: 'https://narthex.local/docs/campaign.schema.json',
-  title: 'Narthex — монолитная кампания и схемы файлов пакета',
+  $id: 'https://chronicle-forge.local/docs/campaign.schema.json',
+  title: 'Chronicle Forge — монолитная кампания и схемы файлов пакета',
   description:
-    'Монолитный JSON Narthex: обязательные ключи campaign, world, scenes, entities, rules, quests, arenas, cutscenes, dialogues; необязательные encounters, recipes, codex. ' +
+    'Монолитный JSON Chronicle Forge: обязательные ключи campaign, world, scenes, entities, rules, quests, arenas, cutscenes, dialogues; необязательные encounters, recipes, codex. ' +
     'В $defs также CampaignIndexEntry, CampaignManifest и EncounterFileDef для реестра и отдельных файлов Campaign Package. ' +
     'Сгенерировано из src/shared/types.ts (scripts/gen-schema.mts). Гайд для ИИ-генераторов: docs/ai-campaign-guide.md.',
   $ref: `#/$defs/${ROOT_TYPE}`,

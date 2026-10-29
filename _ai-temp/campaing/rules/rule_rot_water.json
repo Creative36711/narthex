@@ -1,0 +1,37 @@
+{
+  "id": "rule_rot_water",
+  "label": "Тяжёлая вода на коже",
+  "once": false,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_flood_gallery"
+    },
+    {
+      "type": "random_chance",
+      "probability": 0.35
+    },
+    {
+      "type": "not",
+      "condition": {
+        "type": "equipped",
+        "item": "item_filter"
+      }
+    }
+  ],
+  "effects": [
+    {
+      "type": "apply_status",
+      "target": "player",
+      "status": "status_rot",
+      "duration": 36
+    },
+    {
+      "type": "show_message",
+      "text": "Над водой у мостков стоит ржавая испарина. Без маски ты вдыхаешь её полной грудью — и чувствуешь, как тяжесть оседает под кожей."
+    }
+  ],
+  "chapter": "ch_deep",
+  "trigger": "enter_scene"
+}

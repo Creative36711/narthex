@@ -1,0 +1,72 @@
+{
+  "id": "item_niche",
+  "type": "item",
+  "category": "container",
+  "label": "Ниша в кладке",
+  "description": "Узкая ниша, где мастера прячут то, что нельзя носить в кармане наряда.",
+  "weight": 0,
+  "stackable": false,
+  "value": {
+    "mark": 0
+  },
+  "interact_options": [
+    {
+      "label": "Обыскать нишу",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "add_item",
+          "item": "item_note",
+          "quantity": 1
+        },
+        {
+          "type": "set_flag",
+          "flag": "clue_note"
+        },
+        {
+          "type": "change_variable",
+          "var": "clues",
+          "delta": 1
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_heavy_water"
+        },
+        {
+          "type": "show_message",
+          "text": "В нише завёрнутая в вощёную бумагу записка мастера."
+        },
+        {
+          "type": "set_flag",
+          "flag": "niche_searched"
+        }
+      ],
+      "once": true,
+      "sound": "snd_paper",
+      "hint": "один камень в кладке сидит неплотно"
+    },
+    {
+      "label": "Заглянуть в нишу",
+      "hint": "уже осмотрено",
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "niche_searched"
+        }
+      ],
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Ниша пуста: мастер прятал здесь только записку."
+        }
+      ]
+    }
+  ],
+  "interact_hint": "Обыскать нишу",
+  "portrait": {
+    "neutral": "assets/img/items/item_niche.jpg"
+  }
+}

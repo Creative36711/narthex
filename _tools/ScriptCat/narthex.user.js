@@ -67,6 +67,8 @@
     mergeGraceMs: 90000, // сколько ждём мерж, прежде чем нажать кнопки за агента
     arenaResendMax: 1, // один минимальный повтор после ошибки Arena; второй отказ — пауза
     arenaRetryMs: 180000, // ошибка старше трёх минут уже не про нашу отправку
+    maxReloadAttempts: 3, // максимум автоматических перезагрузок страницы при ошибке Arena
+    reloadCountPrefix: "cf-auto-error-reload-count:", // префикс ключа счётчика перезагрузок
     continueWaitMs: 20000, // после Merged ждём Continue: без неё агент не получит новую ветку
     prCardWaitMs: 8000, // карточка PR может отрисоваться позже ответа
     prWaitMs: 300000, // общий предел ожидания мержа
@@ -3260,6 +3262,26 @@
               ntfy: "quiet",
             });
           }
+          return true;
+        }
+        const isReloadable = /something went wrong|please try again/i.test(eaten.text || "");
+        if (isReloadable) {
+          const reloadKey = `${C.reloadCountPrefix}${expect.dispatchId || expect.ref || "unknown"}`;
+          const count = Number(await GM_getValue(reloadKey, 0)) || 0;
+          if (count < C.maxReloadAttempts) {
+            await GM_setValue(reloadKey, count + 1);
+            log(
+              `Ошибка Arena «${eaten.text}»: перезагрузка страницы (попытка ${count + 1} из ${C.maxReloadAttempts}) и повтор отправки.`,
+              true,
+              { ntfy: "quiet" },
+            );
+            location.reload();
+            return true;
+          }
+          await pause(
+            `Ошибка Arena «${eaten.text}» повторился ${C.maxReloadAttempts} раз. Страница не восстанавливается автоматически; требуется Мастер.`,
+            { kind: "arena-error", ref: eaten.messageId },
+          );
           return true;
         }
         pause(

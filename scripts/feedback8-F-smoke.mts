@@ -194,7 +194,7 @@ const warns1 = importMonolith(store2, JSON.parse(JSON.stringify(doc0)))
   check('F5 гайд объясняет катсцены и диалоги', g.includes('cutscenes') && g.includes('dialogues'))
   check('F5 в гайде есть токены диалогов', g.includes('{счёт:item_silver}') && g.includes('{здоровье}'))
   check('F5 в гайде есть минимальный полный пример', g.includes('Минимальный полный пример') && g.includes('"campaign"'))
-  check('F5 гайд требует настоящие медиа-файлы вместо art и синтеза (D-077)', g.includes('D-077') && g.includes('assets/voice/') && g.includes('реальные записи'))
+  check('F5 гайд для ИИ без бинарников (требование блока F/H)', g.includes('без единого бинарного файла'))
 }
 
 // ── UI: кнопки редактора ──

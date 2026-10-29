@@ -1,0 +1,67 @@
+{
+  "id": "rule_filter_exhausted",
+  "label": "Дыхатель: вторая банка отработана на подъёме",
+  "once": false,
+  "manual": false,
+  "chapter": "ch_deep",
+  "trigger": "enter_scene",
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "filter_bank_2"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "filter_exhausted"
+    },
+    {
+      "type": "or",
+      "conditions": [
+        {
+          "type": "player_enters_location",
+          "location": "loc_gate"
+        },
+        {
+          "type": "player_enters_location",
+          "location": "loc_pump7"
+        },
+        {
+          "type": "player_enters_location",
+          "location": "loc_surface"
+        },
+        {
+          "type": "player_enters_location",
+          "location": "loc_ward8"
+        }
+      ]
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "filter_exhausted"
+    },
+    {
+      "type": "show_message",
+      "text": "Вторая банка села на подъёме: маска свистит впустую. Пока банки не переснаряжены, на восьмом и девятом ярусах дыхание убывает и в маске. Нужны два угля и кусок сукна: на скамье в Сухом ряду или на верстаке в конторе у шлюза — наверняка, в пути — если не подведут руки."
+    },
+    {
+      "type": "play_sound",
+      "sound": "sfx_gasp",
+      "volume": 0.7
+    },
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_filter_spent.jpg",
+      "text": "Банки сели. Считай вдохи.",
+      "preset": "шёпот",
+      "seconds": 5,
+      "camera": {
+        "zoom": 1.08,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 6
+      }
+    }
+  ]
+}

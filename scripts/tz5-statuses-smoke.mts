@@ -13,7 +13,6 @@
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
-import '../packs/narrative/operations'
 import { evalCondition } from '../src/core/conditions'
 import { EditorStore } from '../src/editor/store'
 import { exportMonolith, importMonolith, parseMonolith } from '../src/editor/monolith'
@@ -183,7 +182,7 @@ function withStatuses(): CampaignData {
   check('5 ink: условие has_status', ink.includes('has_status("status_poison")'))
   check('5 ink: эффект remove_status', ink.includes('~ remove_status("status_poison")'))
   check('5 ink: эффект apply_status с длительностью', ink.includes('~ apply_status("status_poison", 4)'))
-  const dlg = readFileSync('packs/narrative/dialogue.ts', 'utf8')
+  const dlg = readFileSync('src/core/dialogue.ts', 'utf8')
   check('5 externals привязаны', dlg.includes("bind('has_status'") && dlg.includes("bind('apply_status'"))
 }
 

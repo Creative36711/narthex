@@ -1,0 +1,46 @@
+{
+  "id": "rule_ira_sluice_talk",
+  "label": "Ира у затвора",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_sluice"
+    },
+    {
+      "type": "in_party",
+      "entity": "npc_ira"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "ira_sluice_talk"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "ira_sluice_talk"
+    },
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_ira_sluice.jpg",
+      "text": "Ира смотрит на штурвал затвора.",
+      "preset": "шёпот",
+      "seconds": 5,
+      "camera": {
+        "zoom": 1.08,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 6
+      }
+    },
+    {
+      "type": "start_dialogue",
+      "entity": "npc_ira",
+      "dialogue_knot": "У_затвора"
+    }
+  ],
+  "chapter": "ch_deep",
+  "trigger": "enter_scene"
+}

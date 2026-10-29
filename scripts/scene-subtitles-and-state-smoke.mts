@@ -1,4 +1,3 @@
-import '../packs/narrative/operations'
 import { readFileSync } from 'node:fs'
 
 function must(cond: boolean, msg: string) {

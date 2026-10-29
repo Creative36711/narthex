@@ -1,5 +1,5 @@
 /**
- * Narthex — типы формата кампании (Campaign Package).
+ * Chronicle Forge — типы формата кампании (Campaign Package).
  * Соответствуют ТЗ, раздел 3.
  */
 
@@ -190,7 +190,7 @@ export interface MetaUnlockDef {
 }
 
 /**
- * Снимок мета-хранилища кампании (localStorage `narthex:meta:<id>`):
+ * Снимок мета-хранилища кампании (localStorage `chronicle-forge:meta:<id>`):
  * счётчики забегов, метавалюты, открытые достижения, купленные усиления,
  * суммарная статистика всех забегов.
  */
@@ -582,9 +582,6 @@ export interface ItemCategoryDef {
  * что механика ВКЛЮЧЕНА — старые кампании работают без изменений.
  * Тумблеры скрывают подсистему и в движке, и в интерфейсе игрока.
  */
-export type CapabilityId = string
-export type CampaignFeatureList = CapabilityId[]
-
 export interface CampaignFeatures {
   /** карта мира и путешествия между локациями */
   map?: boolean
@@ -604,12 +601,10 @@ export interface CampaignFeatures {
   time?: boolean
 }
 
-/** Accepted legacy profile encodings: feature-name list or boolean feature map. */
-export type CampaignFeatureProfile = CampaignFeatures | CampaignFeatureList
-
-// Runtime implementation lives with the capability registry; this re-export
-// preserves imports in the editor and player until their UI wiring is migrated.
-export { featureOn } from '../core/caps'
+/** механика включена, если поле отсутствует или истинно */
+export function featureOn(meta: CampaignMeta, key: keyof CampaignFeatures): boolean {
+  return meta.features?.[key] !== false
+}
 
 /** Эффективный стартовый тик забега: единая точка (движок, HUD-дедлайн и
  *  условие elapsed_ge), чтобы «умолчание» не разъезжалось. Историческое
@@ -1066,9 +1061,7 @@ export interface CampaignMeta {
   default_music?: string[]
   /** трек(и) боя по умолчанию (если у арены нет своего arena.music) */
   combat_music?: string[]
-  /** Явно включённые возможности; при отсутствии читается legacy-поле features. */
-  caps?: CapabilityId[]
-  /** профиль механик: legacy-переключатели, читаются через caps.ts */
+  /** профиль механик: что включено в этой кампании (нет поля — всё включено) */
   features?: CampaignFeatures
   /** реестр шрифтов кампании (блок 2 ТЗ) */
   fonts?: FontDef[]
@@ -1108,7 +1101,7 @@ export interface CampaignMeta {
   /**
    * Мета-прогресс между забегами (аудит B8b): достижения, метавалюты и
    * постоянные усиления. Сохранение — отдельным ключом localStorage
-   * `narthex:meta:<campaignId>`, живёт перекрёстно между сейвами.
+   * `chronicle-forge:meta:<campaignId>`, живёт перекрёстно между сейвами.
    * Отсутствие блока — мета-прогресса нет (мастер может опустить весь пласт).
    */
   metaprogress?: MetaProgressDef
@@ -3217,10 +3210,10 @@ export interface CompatChanges {
 /**
  * `compat.json` — контракт совместимости пакета. Пишет редактор при
  * публикации обновления; игрок читает его, чтобы узнать, поддержится ли его
- * сохранение. Поля формата: `format: 'narthex-compat/1'`.
+ * сохранение. Поля формата: `format: 'chronicle-compat/1'`.
  */
 export interface CampaignCompat {
-  format: 'narthex-compat/1'
+  format: 'chronicle-compat/1'
   /** версия кампании, к которой относится контракт */
   version: string
   /** сохранения от какой версии ещё поддерживаются */
@@ -3344,13 +3337,9 @@ export interface CampaignData {
   scenes: Record<string, SceneDef>
   entities: Record<string, EntityDef>
   rules: Record<string, RuleDef>
-  /** Rule IDs in manifest order; unlike object-key order, this also preserves numeric-looking IDs. */
-  ruleOrder?: string[]
   arenas: Record<string, ArenaDef>
   quests: Record<string, QuestDef>
   encounters: Record<string, EncounterTableDef>
-  /** Encounter IDs in manifest order; unlike object-key order, this also preserves numeric-looking IDs. */
-  encounterOrder?: string[]
   /** катсцены по id (итерация 8, блок E) */
   cutscenes: Record<string, CutsceneDef>
   /** рецепты крафта по id (блок 4 ТЗ) */

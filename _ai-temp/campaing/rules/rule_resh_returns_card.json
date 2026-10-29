@@ -1,0 +1,23 @@
+{
+  "id": "rule_resh_returns_card",
+  "label": "Открытка: Реш вернулся к забою",
+  "once": true,
+  "manual": true,
+  "chapter": "ch_deep",
+  "conditions": [],
+  "effects": [
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_resh_returns.jpg",
+      "text": "Реш снова у тёплой стены. Позовёшь — придёт.",
+      "preset": "шёпот",
+      "seconds": 6,
+      "camera": {
+        "zoom": 1.1,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 7
+      }
+    }
+  ]
+}

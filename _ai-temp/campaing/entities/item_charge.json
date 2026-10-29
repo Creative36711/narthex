@@ -1,0 +1,40 @@
+{
+  "id": "item_charge",
+  "type": "item",
+  "category": "misc",
+  "label": "Заряд жильного стекла",
+  "description": "Сердцевина, обмотанная ломом и пропитанная маслом. Один удар — и затвора не станет.",
+  "weight": 1.2,
+  "stackable": false,
+  "value": {
+    "mark": 12
+  },
+  "image": "assets/img/items/item_charge.jpg",
+  "portrait": {
+    "neutral": "assets/img/items/item_charge.jpg"
+  },
+  "sounds": {
+    "pickup": "snd_charge",
+    "use": "snd_charge"
+  },
+  "interact_hint": "Проверить обмотку заряда",
+  "interact_options": [
+    {
+      "label": "Проверить обмотку заряда",
+      "hint": "сердцевина в железной рубашке",
+      "sound": "snd_charge",
+      "once": true,
+      "effects": [
+        {
+          "type": "set_flag",
+          "flag": "charge_made"
+        },
+        {
+          "type": "show_message",
+          "text": "Сердцевина седьмой помпы стянута полосами кованого лома и промасленным шнуром. От обоймы идёт редкая мелкая дрожь: одного удара хватит, чтобы затвор восьмого яруса перестал существовать."
+        }
+      ]
+    }
+  ],
+  "quest_item": true
+}

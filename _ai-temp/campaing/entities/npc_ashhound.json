@@ -1,0 +1,65 @@
+{
+  "id": "npc_ashhound",
+  "type": "npc",
+  "label": "Пепельный пёс",
+  "description": "Одичавшая дворняга нижних ярусов: серо-пепельная шерсть, красные глаза и привычка гнать того, кто один.",
+  "portrait": {
+    "neutral": "assets/img/npc/ashhound_neutral.jpg",
+    "angry": "assets/img/npc/ashhound_angry.jpg",
+    "afraid": "assets/img/npc/ashhound_afraid.jpg"
+  },
+  "stats": {
+    "STR": 10,
+    "CON": 11,
+    "SIZ": 8,
+    "DEX": 15,
+    "INT": 4,
+    "POW": 8,
+    "CHA": 3
+  },
+  "skills": {
+    "bite": 45,
+    "dodge": 46,
+    "stealth": 50,
+    "perception": 58
+  },
+  "slot_type": "person",
+  "armor": 0,
+  "schedule": [],
+  "natural_weapon": {
+    "skill": "bite",
+    "damage": "1d6",
+    "damage_bonus": false,
+    "range": 1,
+    "attacks_per_round": 1,
+    "parry_capable": false,
+    "label": "Клыки"
+  },
+  "abilities": [
+    "ability_howl"
+  ],
+  "loot_table": [
+    {
+      "item": "item_scrap",
+      "chance": 0.3,
+      "min": 1,
+      "max": 1
+    }
+  ],
+  "morale": {
+    "below_hp_pct": 30,
+    "flee_chance": 45
+  },
+  "sounds": {
+    "attack": "sfx_hit",
+    "death": "snd_cloth"
+  },
+  "combat_figure": "assets/img/npc/fig_ashhound.png",
+  "figure_mode": "topdown",
+  "breathe": false,
+  "combat_figure_states": {
+    "down": "assets/img/npc/fig_ashhound_dead.png",
+    "dead": "assets/img/npc/fig_ashhound_dead.png"
+  },
+  "facing_offset": 180
+}

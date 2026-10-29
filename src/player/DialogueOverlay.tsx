@@ -1,11 +1,14 @@
 import { Ico } from '../shared/icons'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { GameEngine } from '../core/engine'
-import type { DialogueLine } from '../../packs/narrative/index'
+import type { DialogueLine } from '../core/dialogue'
 import type { NpcDef } from '../shared/types'
-import { assetUrlOrNull } from '../core/loader'
+import { assetUrl, assetUrlOrNull } from '../core/loader'
 import { tipSeen, markTip } from './tips'
-import { useDialogueAudio } from './useDialogueAudio'
+import { useSettings, voiceVolume } from '../shared/settings'
+import { speak } from '../shared/speech'
+import { setMusicDucking } from '../shared/music'
+import { playInteraction } from '../shared/audio'
 import { itemImageSrc } from './Panels'
 
 interface Props {
@@ -15,12 +18,21 @@ interface Props {
 const TYPE_MS = 24 // скорость печати, мс на символ (как в катсценах)
 const LINE_PAUSE_MS = 750 // естественная дыхательная пауза между репликами
 
+/** Страховка для аудиофайла реплики, если браузер не прислал onended/onerror. */
+function fallbackReadMs(text: string): number {
+  return Math.min(30000, text.length * 70 + 4000)
+}
+
 /** Диалоговое окно: портрет + постепенная выдача текста (как в катсценах) + варианты (ТЗ 4.5). */
 export function DialogueOverlay({ engine }: Props) {
   const d = engine.dialogue
   const campaignId = engine.campaign.meta.id
   const [showTip, setShowTip] = useState(() => !tipSeen('dialogue', campaignId))
   const [showBacklog, setShowBacklog] = useState(false)
+  const settings = useSettings()
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const stopTtsRef = useRef<(() => void) | null>(null)
+  const fallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   /** строк показано полностью */
   const [revealed, setRevealed] = useState(0)
   /** набрано символов текущей строки */
@@ -29,7 +41,22 @@ export function DialogueOverlay({ engine }: Props) {
    *  диалог не идёт дальше, пока фраза не договорена (фидбек 21) */
   const [lineDone, setLineDone] = useState(true)
 
-  const clearLineAudio = useDialogueAudio(engine, d, revealed, setLineDone)
+  const clearLineAudio = () => {
+    setMusicDucking(false)
+    audioRef.current?.pause()
+    audioRef.current = null
+    stopTtsRef.current?.()
+    stopTtsRef.current = null
+    if (fallbackRef.current !== null) {
+      clearTimeout(fallbackRef.current)
+      fallbackRef.current = null
+    }
+  }
+
+  // закрытие оверлея диалога — вернуть полную громкость музыки
+  useEffect(() => {
+    return () => setMusicDucking(false)
+  }, [])
 
   // Фидбек 22: `dialogue` заменяется ЦЕЛИКОМ на ответ реплику (новый объект,
   // только новые строки). Сброс прогресса в useEffect происходил ПОСЛЕ коммита,
@@ -37,9 +64,10 @@ export function DialogueOverlay({ engine }: Props) {
   // озвучка начинала со средней фразы, а первые молча пропускались.
   // Поэтому сбрасываем состояние СИНХРОННО в фазе рендера (штатный паттерн
   // «корректировка состояния при рендере»): коммит уже видит revealed=0.
-  const [lastDialogue, setLastDialogue] = useState(d)
-  if (lastDialogue !== d) {
-    setLastDialogue(d)
+  const lastDRef = useRef<unknown>(d)
+  if (lastDRef.current !== d) {
+    lastDRef.current = d
+    clearLineAudio()
     if (revealed !== 0) setRevealed(0)
     if (typed !== 0) setTyped(0)
     if (!lineDone) setLineDone(true)
@@ -49,6 +77,99 @@ export function DialogueOverlay({ engine }: Props) {
   const current = lines[revealed]
   const full = current ? (current.action ? `→ ${current.text}` : current.text) : ''
   const activeLine = current ?? lines[revealed - 1]
+
+  /**
+   * Озвучка реплики или ремарки — по образцу катсцены: одна строка звучит
+   * одна (без накопления в очереди), а её окончание двигает диалог дальше.
+   */
+  const playLine = (line: DialogueLine | undefined) => {
+    clearLineAudio()
+    setLineDone(false)
+    let isCurrent = true
+    const done = () => {
+      if (!isCurrent) return
+      setMusicDucking(false)
+      setLineDone(true)
+    }
+    if (!line) {
+      done()
+      return
+    }
+    if (line.sfx) {
+      playInteraction(line.sfx, { sound: line.sfx })
+    }
+    const vol = voiceVolume(settings)
+    if (line.voice && vol > 0) {
+      setMusicDucking(true, 0.45)
+      const audioUrl = assetUrl(engine.campaign, line.voice)
+      const a = new Audio(audioUrl)
+      a.volume = vol
+      audioRef.current = a
+
+      // Ждем завершения воспроизведения
+      a.onended = () => {
+        if (!isCurrent || audioRef.current !== a) return
+        done()
+      }
+
+      a.onerror = (e) => {
+        console.warn(`[диалог] аудиофайл реплики не загрузился: «${line.voice}»`, e)
+        if (!isCurrent || audioRef.current !== a) return
+        done()
+      }
+
+      // Считываем точную длительность файла
+      a.onloadedmetadata = () => {
+        if (!isCurrent || audioRef.current !== a) return
+        const durationSec = a.duration
+        if (Number.isFinite(durationSec) && durationSec > 0) {
+          if (fallbackRef.current) clearTimeout(fallbackRef.current)
+          fallbackRef.current = setTimeout(() => {
+            fallbackRef.current = null
+            done()
+          }, (durationSec + 0.6) * 1000)
+        }
+      }
+
+      // Страховочный таймер, если loadedmetadata не пришел
+      fallbackRef.current = setTimeout(() => {
+        fallbackRef.current = null
+        done()
+      }, Math.max(8000, fallbackReadMs(line.text)))
+
+      void a.play().catch((err) => {
+        // AbortError случается при быстрой смене/паузе — не считаем окончанием фразы!
+        if (err?.name === 'AbortError') return
+        console.warn(`[диалог] play() не удался для «${line.voice}»:`, err)
+        if (!isCurrent || audioRef.current !== a) return
+        done()
+      })
+    } else if (settings.tts_enabled && vol > 0) {
+      setMusicDucking(true, 0.45)
+      stopTtsRef.current = speak(line.text, {
+        voice: settings.tts_voice,
+        rate: settings.tts_rate,
+        volume: vol,
+        onEnd: () => {
+          if (isCurrent) done()
+        },
+      })
+    } else {
+      done()
+    }
+  }
+
+  // новая реплика появилась — озвучить её. Эффект идемпотентен: в дев-режиме
+  // (StrictMode) эффекты гоняются «настройка → уборка → настройка», и уборка
+  // снимает звук строки, а повторная настройка заводит его заново. Поэтому
+  // ПЕРВАЯ фраза диалога больше не умирает молча и диалог не зависает
+  // (фидбек 23). При смене строки/диалога уборка глушит предыдущий звук.
+  useEffect(() => {
+    if (!d || !current) return
+    playLine(current)
+    return () => clearLineAudio()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [d, revealed])
 
   // печать по буквам — как в катсценах
   useEffect(() => {
@@ -68,12 +189,14 @@ export function DialogueOverlay({ engine }: Props) {
     return () => clearTimeout(t)
   }, [current, typed, full.length, lineDone])
 
+  if (!d) return null
+
   /**
    * Клик мыши, пробел или кнопка «Далее ▶»:
    * 1) Если текущая фраза ещё печатается — сразу допечатываем её (показываем предложение целиком).
    * 2) Если фраза завершена — переходим строго к следующему предложению/реплике.
    */
-  const skipOrAdvance = useCallback(() => {
+  const skipOrAdvance = () => {
     clearLineAudio()
     setLineDone(true)
     if (current && typed < full.length) {
@@ -87,26 +210,25 @@ export function DialogueOverlay({ engine }: Props) {
       setRevealed(lines.length)
       setTyped(0)
     }
-  }, [clearLineAudio, current, typed, full.length, revealed, lines.length])
+  }
 
   /**
    * Кнопка «Пропустить» (или клавиша Esc):
    * Скипает ВЕСЬ монолог НПС целиком прямо до вариантов ответа игрока.
    * Озвучка останавливается, все фразы моментально раскрываются и становятся видимыми.
    */
-  const skipAllLines = useCallback(() => {
+  const skipAllLines = () => {
     clearLineAudio()
     setLineDone(true)
     setRevealed(lines.length)
     setTyped(0)
-  }, [clearLineAudio, lines.length])
+  }
 
-  const hasChoices = (d?.choices.length ?? 0) > 0
+  const hasChoices = d.choices.length > 0
   const allShown = revealed >= lines.length
 
   // Перелистывание реплик по Space / Enter (одно предложение), скип всего монолога по Escape
   useEffect(() => {
-    if (!d) return
     const handleKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
       if (e.key === ' ' || e.key === 'Enter') {
@@ -119,47 +241,7 @@ export function DialogueOverlay({ engine }: Props) {
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [d, allShown, skipOrAdvance, skipAllLines])
-
-  // ── дедлайн на раздумье (§9 дизайн-документа) ──
-  // Отсчёт идёт с момента, когда реплики полностью показаны игроку.
-  // Поддерживает как выбор вариантов (допрос), так и автотаймер одиночной
-  // реплики (# timer: 3 или ~ set_dialogue_timer(3, "узел")).
-  const timer = useMemo(
-    () => d?.timer ?? (activeLine?.timer ? { seconds: activeLine.timer } : undefined),
-    [d, activeLine],
-  )
-  const finished = d?.finished ?? false
-  const countdown = useMemo(
-    () => ({ engine, timer, allShown, lineDone, hasChoices, finished }),
-    [engine, timer, allShown, lineDone, hasChoices, finished],
-  )
-  const [timerTick, setTimerTick] = useState<{ countdown: typeof countdown; left: number } | null>(null)
-  // Новый отсчёт сразу показывает полную длительность, без setState в эффекте;
-  // тики предыдущего отсчёта больше не могут менять его начальное значение.
-  const timerLeft = timerTick?.countdown === countdown ? timerTick.left : timer?.seconds ?? 0
-  useEffect(() => {
-    const { engine, timer, allShown, lineDone, hasChoices, finished } = countdown
-    if (!timer || !allShown) return
-    const total = Math.max(1, timer.seconds) * 1000
-    const started = Date.now()
-    const id = window.setInterval(() => {
-      const msLeft = total - (Date.now() - started)
-      setTimerTick({ countdown, left: Math.max(0, Math.ceil(msLeft / 1000)) })
-      if (msLeft <= 0) {
-        if (!lineDone) return
-        window.clearInterval(id)
-        if (hasChoices || timer.knot) {
-          engine.dialogueTimeout()
-        } else if (finished) {
-          engine.endDialogue()
-        }
-      }
-    }, 120)
-    return () => window.clearInterval(id)
-  }, [countdown])
-
-  if (!d) return null
+  }, [revealed, typed, full.length, lines.length, current, allShown])
 
   // спикер реплики (# speaker): третье лицо в разговоре — портрет/имя его;
   // ремарки (повествование) спикера не имеют — показываем собеседника диалога
@@ -177,6 +259,33 @@ export function DialogueOverlay({ engine }: Props) {
     displayedNpc.portrait?.['default'] ??
     Object.values(displayedNpc.portrait ?? {})[0],
   )
+
+  // ── дедлайн на раздумье (§9 дизайн-документа) ──
+  // Отсчёт идёт с момента, когда реплики полностью показаны игроку.
+  // Поддерживает как выбор вариантов (допрос), так и автотаймер одиночной
+  // реплики (# timer: 3 или ~ set_dialogue_timer(3, "узел")).
+  const timer = d.timer ?? (activeLine?.timer ? { seconds: activeLine.timer } : undefined)
+  const [timerLeft, setTimerLeft] = useState(0)
+  useEffect(() => {
+    if (!timer || !allShown) return
+    const total = Math.max(1, timer.seconds) * 1000
+    const started = Date.now()
+    setTimerLeft(timer.seconds)
+    const id = window.setInterval(() => {
+      const msLeft = total - (Date.now() - started)
+      setTimerLeft(Math.max(0, Math.ceil(msLeft / 1000)))
+      if (msLeft <= 0) {
+        if (!lineDone) return
+        window.clearInterval(id)
+        if (hasChoices || timer.knot) {
+          engine.dialogueTimeout()
+        } else if (d.finished) {
+          engine.endDialogue()
+        }
+      }
+    }, 120)
+    return () => window.clearInterval(id)
+  }, [engine, timer, allShown, lineDone, hasChoices, d.finished])
 
   const timerPct = timer ? Math.max(0, Math.min(100, (timerLeft / Math.max(1, timer.seconds)) * 100)) : 0
 

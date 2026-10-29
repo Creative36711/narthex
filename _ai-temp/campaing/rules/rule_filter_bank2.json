@@ -1,0 +1,54 @@
+{
+  "id": "rule_filter_bank2",
+  "label": "Дыхатель: вторая банка",
+  "once": false,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_face"
+    },
+    {
+      "type": "equipped",
+      "item": "item_filter"
+    },
+    {
+      "type": "flag_set",
+      "flag": "filter_bank_1"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "filter_bank_2"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "filter_bank_2"
+    },
+    {
+      "type": "show_message",
+      "text": "У слепого забоя воздух гуще воды — первая банка забилась в камень, маска щёлкнула на вторую. Её хватит, чтобы выбраться наверх, но к восьмому ярусу она сядет: перед новым спуском обойму придётся переснарядить."
+    },
+    {
+      "type": "play_sound",
+      "sound": "snd_vent",
+      "volume": 0.8
+    },
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_filter_switch.jpg",
+      "text": "Маска щёлкнула на вторую банку.",
+      "preset": "шёпот",
+      "seconds": 5,
+      "camera": {
+        "zoom": 1.08,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 6
+      }
+    }
+  ],
+  "chapter": "ch_deep",
+  "trigger": "enter_scene"
+}

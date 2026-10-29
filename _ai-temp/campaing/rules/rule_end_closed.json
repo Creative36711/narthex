@@ -1,0 +1,54 @@
+{
+  "id": "rule_end_closed",
+  "label": "Финал: дело закрыто",
+  "once": true,
+  "manual": true,
+  "conditions": [
+    {
+      "type": "flag_not_set",
+      "flag": "case_ended"
+    }
+  ],
+  "effects": [
+    {
+      "type": "play_cutscene",
+      "cutscene": "cutscene_final_closed"
+    },
+    {
+      "type": "banner",
+      "text": "Дело закрыто",
+      "preset": "заголовок",
+      "seconds": 4
+    },
+    {
+      "type": "set_flag",
+      "flag": "end_closed"
+    },
+    {
+      "type": "set_flag",
+      "flag": "case_ended"
+    },
+    {
+      "type": "advance_quest",
+      "quest": "quest_pump",
+      "stage": "stage_success"
+    },
+    {
+      "type": "meta_currency",
+      "id": "echo",
+      "amount": 1
+    },
+    {
+      "type": "stop_sound"
+    },
+    {
+      "type": "play_sound",
+      "sound": "sfx_seal",
+      "volume": 0.9
+    },
+    {
+      "type": "game_over_victory"
+    }
+  ],
+  "chapter": "ch_final"
+}

@@ -6,8 +6,8 @@ export interface PlaytestNote {
   createdAt: number
 }
 
-const STORAGE_KEY = 'narthex:playtest-notes'
-const AUTO_CLEAR_KEY = 'narthex:playtest-notes-autoclear'
+const STORAGE_KEY = 'chronicle-forge:playtest-notes'
+const AUTO_CLEAR_KEY = 'chronicle-forge:playtest-notes-autoclear'
 
 function getKey(campaignId?: string): string {
   return campaignId ? `${STORAGE_KEY}:${campaignId}` : STORAGE_KEY

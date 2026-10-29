@@ -75,9 +75,9 @@ export interface VisualProfile {
 export const VISUAL_PROFILES: VisualProfile[] = [
   {
     id: 'forge',
-    label: 'Narthex',
+    label: 'Chronicle Forge',
     group: 'brand',
-    tagline: 'Фирменный стиль платформы: графитово-индиговые поверхности, латунный акцент, «хроникальная» дисплейная антиква. Дефолт для новых кампаний.',
+    tagline: 'Фирменный стиль движка: графитово-индиговые поверхности, латунный акцент, «хроникальная» дисплейная антиква. Дефолт для новых кампаний.',
     swatches: { bg: '#14161c', panel: '#1b1f27', text: '#e8ebf2', accent: '#c08a4a', frame: '#56637a' },
     fonts: { body: "'Segoe UI', system-ui, sans-serif", display: "'Palatino Linotype', Palatino, Georgia, serif" },
     effect: 'ember',

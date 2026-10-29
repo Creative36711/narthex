@@ -1,7 +1,6 @@
 import assert from 'node:assert'
 import { GameEngine } from '../src/core/engine'
-import '../packs/narrative/operations'
-import { createStory, bindExternals } from '../packs/narrative/index'
+import { createStory, bindExternals } from '../src/core/dialogue'
 import type { CampaignData, SceneDef } from '../src/shared/types'
 
 console.log('--- Смоук-тест: narrative_intro, сброс флагов и Ink binding ---')

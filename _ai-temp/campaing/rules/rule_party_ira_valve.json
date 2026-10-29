@@ -1,0 +1,31 @@
+{
+  "id": "rule_party_ira_valve",
+  "label": "Ира в отряде: клапан",
+  "once": true,
+  "trigger": "enter_scene",
+  "conditions": [
+    {
+      "type": "in_party",
+      "entity": "npc_ira"
+    },
+    {
+      "type": "has_item",
+      "item": "item_valve"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "ira_valve"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "sluice_ready"
+    }
+  ],
+  "effects": [
+    {
+      "type": "start_dialogue",
+      "entity": "npc_ira",
+      "dialogue_knot": "В_пути"
+    }
+  ]
+}

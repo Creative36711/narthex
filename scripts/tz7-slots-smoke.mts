@@ -10,7 +10,6 @@
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine, loadSave } from '../src/core/engine'
-import '../packs/narrative/operations'
 import { migrateEntity } from '../src/shared/migrate'
 import { equipmentSlots, type CampaignData, type ItemDef } from '../src/shared/types'
 
@@ -32,7 +31,7 @@ const demo = await loadCampaign(base)
 
 // ── 1. миграция сейва в3 → в4 ──
 {
-  const key = 'narthex:save:tz7-test'
+  const key = 'chronicle-forge:save:tz7-test'
   const v3 = {
     save_version: 3,
     seed: 'x',

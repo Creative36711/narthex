@@ -425,7 +425,7 @@ export function isAllowedCampaignFile(relPath: string): boolean {
 }
 
 /**
- * Импорт .narthex сохраняет ID пакета, если он свободен. При совпадении
+ * Импорт .chronicle сохраняет ID пакета, если он свободен. При совпадении
  * одинаковый пакет распознаётся как уже установленный; отличающиеся данные
  * требуют явного решения — обновить кампанию или импортировать отдельной копией.
  */
@@ -459,7 +459,7 @@ export async function importChroniclePackage(
   const pkg = checkPackage(meta.package_format)
   if (!pkg.ok) throw new Error(pkg.message)
   const engine = checkEngine(meta.min_engine ?? meta.engine_version)
-  if (!engine.ok) console.warn(`[narthex] ${engine.message}`)
+  if (!engine.ok) console.warn(`[chronicle] ${engine.message}`)
 
   const index = await fetchCampaignIndex()
   const rawId = typeof meta.id === 'string' ? meta.id.trim() : ''
@@ -613,7 +613,7 @@ export async function importCampaignFromDirectory(
   const pkg = checkPackage(meta.package_format)
   if (!pkg.ok) throw new Error(pkg.message)
   const engine = checkEngine(meta.min_engine ?? meta.engine_version)
-  if (!engine.ok) console.warn(`[narthex] ${engine.message}`)
+  if (!engine.ok) console.warn(`[chronicle] ${engine.message}`)
 
   const index = await fetchCampaignIndex()
   const rawId = typeof meta.id === 'string' ? meta.id.trim() : ''

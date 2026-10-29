@@ -1,0 +1,40 @@
+{
+  "id": "rule_comp_resh_thirst",
+  "label": "Напарник на пределе: жажда (Реш)",
+  "once": false,
+  "conditions": [
+    {
+      "type": "in_party",
+      "entity": "npc_resh"
+    },
+    {
+      "type": "companion_need_le",
+      "entity": "npc_resh",
+      "need": "need_thirst",
+      "threshold": 30
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "resh_thirst_said"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "resh_thirst_said"
+    },
+    {
+      "type": "set_flag",
+      "flag": "resh_worn"
+    },
+    {
+      "type": "set_entity_state",
+      "entity": "npc_resh",
+      "state": "tired"
+    },
+    {
+      "type": "show_message",
+      "text": "Реш сухо кашляет в кулак. Губы у него серые, как цементная пыль."
+    }
+  ]
+}

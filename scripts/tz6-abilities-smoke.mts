@@ -12,7 +12,6 @@
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
-import '../packs/narrative/operations'
 import { PRNG } from '../src/core/prng'
 import type { CampaignData } from '../src/shared/types'
 import type { CombatController } from '../src/core/combat'

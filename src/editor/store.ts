@@ -2,11 +2,9 @@ import { allLocations, migrateMeta, migrateNavigation } from '../shared/migrate'
 import { aiDiffSnapshotKey } from '../shared/aiBaseline'
 import { isExternalUrl } from '../core/loader'
 import { parseRuleFile } from '../shared/ruleFiles'
-import { compareVersions, ENGINE_VERSION } from '../shared/versions'
-import { projectCapabilityMode, type CapabilityMode, type CapabilityModesResolution } from '../core/pack/capability-modes'
+import { compareVersions } from '../shared/versions'
 import { DEFAULT_EMOTION } from '../shared/types'
 import { skillLabel } from '../shared/skills'
-import type { ProjectPackInput, ProjectPackResolution } from '../core/pack/registry'
 import type {
   ArenaDef,
   Effect,
@@ -81,22 +79,9 @@ export type EditorSection =
   | 'combat'
   | 'recipes'
   | 'codex'
-  | 'packs'
-  | 'panels'
-
-type ProjectPackResolver = (project: ProjectPackInput) => ProjectPackResolution
-type ProjectCapabilityResolver = (project: ProjectPackInput) => CapabilityModesResolution
 
 export class EditorStore {
   basePath: string // "/campaigns/ash-of-caerden"
-  project: ProjectPackInput = { kind: 'narrative' }
-  packResolution: ProjectPackResolution | null = null
-  capabilityModes: CapabilityModesResolution | null = null
-  private readonly resolveModes?: ProjectCapabilityResolver
-  private projectOriginal: ProjectPackInput | null = null
-  private projectOriginalText: string | null = null
-  private projectFileExists = false
-  private readonly resolvePack?: ProjectPackResolver
   // до load() — безопасные пустые значения: рендер между сменой кампании
   // и загрузкой не должен падать (фидбек №4–5 шестого раунда)
   meta: CampaignMeta = { id: '', title: '' } as CampaignMeta
@@ -128,75 +113,8 @@ export class EditorStore {
   /** верхний лимит сохраняемого снимка в символах JSON — страховка от квоты localStorage (~5 МБ в браузерах) */
   private static readonly AI_BASELINE_LIMIT = 4 * 1024 * 1024
 
-  constructor(basePath: string, resolvePack?: ProjectPackResolver, resolveModes?: ProjectCapabilityResolver) {
+  constructor(basePath: string) {
     this.basePath = basePath
-    this.resolvePack = resolvePack
-    this.resolveModes = resolveModes
-  }
-
-  setCapabilityMode(capabilityId: string, mode: CapabilityMode, availableCaps: readonly string[], requiredCaps: readonly string[] = []): void {
-    if (!availableCaps.includes(capabilityId)) throw new Error(`Возможность «${capabilityId}» не принадлежит установленному паку.`)
-    if (mode === 'off' && requiredCaps.includes(capabilityId)) {
-      throw new Error(`Обязательную возможность «${capabilityId}» нельзя выключить.`)
-    }
-    const project: ProjectPackInput = this.projectFileExists
-      ? { ...this.project }
-      : {
-          format: 2,
-          id: this.meta.id || 'new-project',
-          title: this.meta.title || 'Новый проект',
-          kind: typeof this.project.kind === 'string' ? this.project.kind : 'narrative',
-          caps: [...availableCaps],
-          engine: { min: ENGINE_VERSION },
-          entry: 'world.json',
-        }
-    const caps = Array.isArray(project.caps)
-      ? project.caps.filter((value): value is string => typeof value === 'string')
-      : [...availableCaps]
-    const originallyDeclared = Array.isArray(this.projectOriginal?.caps) && this.projectOriginal.caps.includes(capabilityId)
-    if (!caps.includes(capabilityId)) caps.push(capabilityId)
-    const currentOptions = project.cap_options && typeof project.cap_options === 'object' && !Array.isArray(project.cap_options)
-      ? { ...(project.cap_options as Record<string, unknown>) }
-      : {}
-    const originalOptions = this.projectOriginal?.cap_options && typeof this.projectOriginal.cap_options === 'object' && !Array.isArray(this.projectOriginal.cap_options)
-      ? this.projectOriginal.cap_options as Record<string, unknown>
-      : {}
-    const originalOption = originalOptions[capabilityId]
-    const originalMode = this.projectOriginal
-      ? projectCapabilityMode(this.projectOriginal, capabilityId)
-      : 'core'
-
-    if (mode === originalMode && this.projectOriginal) {
-      if (originalOption === undefined) delete currentOptions[capabilityId]
-      else currentOptions[capabilityId] = originalOption
-      if (!originallyDeclared) {
-        const index = caps.indexOf(capabilityId)
-        if (index >= 0) caps.splice(index, 1)
-      }
-    } else if (mode === 'core') {
-      const currentOption = currentOptions[capabilityId]
-      const version = currentOption && typeof currentOption === 'object' && !Array.isArray(currentOption)
-        ? (currentOption as Record<string, unknown>).version
-        : undefined
-      if (version === undefined) delete currentOptions[capabilityId]
-      else currentOptions[capabilityId] = { version }
-    } else {
-      const currentOption = currentOptions[capabilityId]
-      const version = currentOption && typeof currentOption === 'object' && !Array.isArray(currentOption)
-        ? (currentOption as Record<string, unknown>).version
-        : undefined
-      currentOptions[capabilityId] = { mode, version: Number.isInteger(version) && Number(version) > 0 ? version : 1 }
-    }
-
-    const next: ProjectPackInput = { ...project, caps }
-    if (Object.keys(currentOptions).length) next.cap_options = currentOptions
-    else delete next.cap_options
-    const capabilityModes = this.resolveModes?.(next) ?? null
-    if (capabilityModes?.status === 'invalid') throw new Error(capabilityModes.message)
-    this.project = next
-    this.capabilityModes = capabilityModes
-    this.projectFileExists = true
-    this.touch('project.json')
   }
 
   subscribe(fn: () => void): () => void {
@@ -224,37 +142,6 @@ export class EditorStore {
         throw new Error(`Файл ${rel} отсутствует или повреждён (кампания записана не полностью?)`)
       }
     }
-    this.project = { kind: 'narrative' }
-    this.projectOriginal = null
-    this.projectOriginalText = null
-    this.projectFileExists = false
-    const projectResponse = await fetch(`${this.basePath}/project.json?t=${Date.now()}`)
-    if (projectResponse.ok) {
-      const projectText = await projectResponse.text()
-      try {
-        this.project = JSON.parse(projectText) as ProjectPackInput
-        this.projectFileExists = true
-        this.projectOriginalText = projectText
-        this.projectOriginal = JSON.parse(projectText) as ProjectPackInput
-      } catch {
-        const contentType = projectResponse.headers.get('content-type') ?? ''
-        if (contentType.includes('text/html') || /^\s*<!doctype html/i.test(projectText)) {
-          this.project = { kind: 'narrative' }
-        } else {
-          throw new Error('Файл project.json повреждён.')
-        }
-      }
-    } else if (projectResponse.status === 404) {
-      // Format 1 predates project.json; its documented kind is narrative.
-      this.project = { kind: 'narrative' }
-    } else {
-      throw new Error(`Не удалось загрузить project.json: ${projectResponse.status}`)
-    }
-    this.packResolution = this.resolvePack?.(this.project) ?? null
-    if (this.packResolution?.status === 'missing') return
-    this.capabilityModes = this.resolveModes?.(this.project) ?? null
-    if (this.capabilityModes?.status === 'invalid') throw new Error(this.capabilityModes.message)
-
     this.meta = await getJson<CampaignMeta>('campaign.json')
     this.world = await getJson<WorldDef>('world.json')
     this.manifest = await getJson<ManifestDef>('manifest.json')
@@ -946,12 +833,6 @@ export class EditorStore {
   // ─────────────── правки ───────────────
 
   touch(path: string, group = ''): void {
-    if (path.startsWith('quests/') && projectCapabilityMode(this.project, 'quests') === 'off') {
-      const previous = this.snapshots.get(path)
-      if (previous !== undefined) this.jsonFiles.set(path, JSON.parse(previous))
-      this.notify()
-      return
-    }
     const now = Date.now()
     const prev = this.snapshots.get(path)
     // группируем только СЕРИИ ОДНОТИПНЫХ правок, явно помеченных группой
@@ -979,11 +860,6 @@ export class EditorStore {
     if (!step) return null
     const { path, text } = step
     if (path === 'campaign.json') this.meta = JSON.parse(text)
-    else if (path === 'project.json') {
-      this.project = JSON.parse(text)
-      this.projectFileExists = true
-      this.capabilityModes = this.resolveModes?.(this.project) ?? null
-    }
     else if (path === 'world.json') this.world = JSON.parse(text)
     else if (path === 'manifest.json') this.manifest = JSON.parse(text)
     else if (this.textFiles.has(path)) this.textFiles.set(path, text)
@@ -998,13 +874,7 @@ export class EditorStore {
   }
 
   setJson(path: string, data: unknown): void {
-    if (path === 'project.json') {
-      this.project = data as ProjectPackInput
-      this.projectFileExists = true
-      this.capabilityModes = this.resolveModes?.(this.project) ?? null
-    } else {
-      this.jsonFiles.set(path, data)
-    }
+    this.jsonFiles.set(path, data)
     this.touch(path)
   }
 
@@ -1025,7 +895,6 @@ export class EditorStore {
 
   /** создать новый файл и внести в манифест */
   createFile(section: keyof ManifestDef, filename: string, data: unknown | string): string {
-    if (section === 'quests' && projectCapabilityMode(this.project, 'quests') === 'off') return ''
     const dir = section
     const path = `${dir}/${filename}`
     const list = (this.manifest[section] ?? (this.manifest[section] = [] as string[])) as string[]
@@ -1039,7 +908,6 @@ export class EditorStore {
   }
 
   deleteFile(section: keyof ManifestDef, filename: string): void {
-    if (section === 'quests' && projectCapabilityMode(this.project, 'quests') === 'off') return
     const dir = section
     const path = `${dir}/${filename}`
     const list = (this.manifest[section] ?? []) as string[]
@@ -1057,12 +925,6 @@ export class EditorStore {
   // ─────────────── сохранение ───────────────
 
   fileText(path: string): string {
-    if (path === 'project.json') {
-      if (this.projectOriginal && this.projectOriginalText !== null && JSON.stringify(this.project) === JSON.stringify(this.projectOriginal)) {
-        return this.projectOriginalText
-      }
-      return JSON.stringify(this.project, null, 2)
-    }
     if (path === 'campaign.json') return JSON.stringify(this.meta, null, 2)
     if (path === 'world.json') return JSON.stringify(this.world, null, 2)
     if (path === 'manifest.json') return JSON.stringify(this.manifest, null, 2)
@@ -1072,7 +934,6 @@ export class EditorStore {
 
   hasFile(path: string): boolean {
     return (
-      (path === 'project.json' && this.projectFileExists) ||
       path === 'campaign.json' ||
       path === 'world.json' ||
       path === 'manifest.json' ||
@@ -1239,7 +1100,7 @@ export class EditorStore {
   }
 
   private categorizePath(path: string): ModifiedFileEntry['category'] {
-    if (path === 'project.json' || path === 'campaign.json') return 'meta'
+    if (path === 'campaign.json') return 'meta'
     if (path === 'world.json') return 'world'
     if (path.startsWith('scenes/')) return 'scene'
     if (path.startsWith('dialogues/')) return 'dialogue'
@@ -1254,7 +1115,6 @@ export class EditorStore {
   }
 
   private titleForPath(path: string): string {
-    if (path === 'project.json') return 'Режимы возможностей проекта'
     if (path === 'campaign.json') return `Паспорт кампании «${this.meta.title || this.meta.id}»`
     if (path === 'world.json') return 'Карта мира и локации'
     if (path === 'manifest.json') return 'Манифест структуры'
@@ -1355,7 +1215,6 @@ export class EditorStore {
 
   allPaths(): string[] {
     return [
-      ...(this.projectFileExists ? ['project.json'] : []),
       'campaign.json',
       'world.json',
       'manifest.json',

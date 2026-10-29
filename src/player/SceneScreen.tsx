@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { GameEngine } from '../core/engine'
-import { assetUrl } from '../core/loader'
+import { assetUrl, assetUrlOrNull } from '../core/loader'
 import { timeOfDay } from '../core/time'
 import { ArtView } from '../shared/ArtView'
 import { firstFrame, LiveImg } from './frames'
@@ -9,11 +9,7 @@ import { playInteraction } from '../shared/audio'
 import { playVoiceAudio, stopVoiceAudio } from '../shared/voiceAudio'
 import { useSettings, voiceVolume } from '../shared/settings'
 import { Ico } from '../shared/icons'
-import type { ItemDef, NarrativeIntroEntry, SceneStateDef, SlotDef, SlotUseWith } from '../shared/types'
-import { ItemInteractDialog } from './ItemInteractDialog'
-import { SceneForeground } from './SceneForeground'
-import { SceneIntroOverlay } from './SceneIntroOverlay'
-import { SceneNavigation } from './SceneNavigation'
+import { getUiLabel, type ItemDef, type NarrativeIntroEntry, type SceneStateDef, type SlotDef, type SlotUseWith } from '../shared/types'
 
 interface Props {
   engine: GameEngine
@@ -61,7 +57,7 @@ function formatSceneSubtitle(sceneLabel: string, locLabel: string | undefined, s
 export function SceneScreen({ engine, onOpenMap }: Props) {
   const [useModal, setUseModal] = useState<UseModal | null>(null)
   const [interactModal, setInteractModal] = useState<ItemInteractModal | null>(null)
-  /** фон сцены не загрузился — уходим на нейтральный фон, причина в console.error (D-076) */
+  /** фон сцены не загрузился — показываем причину прямо на экране */
   const [bgError, setBgError] = useState('')
   const [outgoingBg, setOutgoingBg] = useState<SceneBackground | null>(null)
   const previousBg = useRef<{ key: string; background: SceneBackground } | null>(null)
@@ -250,6 +246,7 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
   /** текущая погода (блок 9 ТЗ): слой поверх сцены + эмбиент в audio.ts */
   const weather = engine.campaign.meta.weathers?.find((w) => w.id === engine.state.weather)
 
+  const pct = (v: number, total: number) => `${(v / total) * 100}%`
   const sceneLighting = scene.lighting ?? 'outdoor'
   const lightingClass = sceneLighting === 'outdoor' ? `tod-tint-${tod}` : `scene-lighting-${sceneLighting}`
   const subTitle = formatSceneSubtitle(scene.label, loc?.location.label, state.label)
@@ -320,21 +317,165 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
         {outgoingBg?.kind === 'image' && <img className="scene-bg scene-bg-transition-out" src={outgoingBg.src} alt="" draggable={false} />}
         {outgoingBg?.kind === 'art' && <ArtView className="scene-bg scene-bg-transition-out" art={outgoingBg.art} />}
         {outgoingBg?.kind === 'fallback' && <div className="scene-bg scene-bg-fallback scene-bg-transition-out" aria-hidden />}
-        {/* Техническую плашку игрок не видит (D-076): вместо неё нейтральный
-            scene-bg-fallback выше, а причина остаётся в console.error и в
-            отчётах audit:campaign / playthrough:exam. */}
+        {bgError && (
+          <div className="scene-bg-note">
+            Фон сцены не загрузился: {bgError}
+            <br />
+            Проверьте вкладку Network в DevTools — файл отсутствует или повреждён.
+          </div>
+        )}
 
+        {/* спрайты рисуются по порядку снизу вверх: нижние — поверх дальних */}
+        <div className="scene-foreground">
+        {[...occupants]
+          .filter((o): o is typeof o & { entity: NonNullable<typeof o.entity> } => o.entity != null)
+          .sort((a, b) => a.slot.y + a.slot.h - (b.slot.y + b.slot.h))
+          .map(({ slot, entity }) => {
+            const npc = entity.type === 'npc' ? entity : null
+            const item = entity.type === 'item' ? (entity as ItemDef) : null
+            const forced = npc ? engine.entityState(npc.id) : undefined
+            const stateOfSprite = forced ?? slot.sprite_state
+            const sprite = npc
+              ? (stateOfSprite && npc.scene_sprite_states?.[stateOfSprite]) || npc.scene_sprite
+              : item?.scene_sprite
+            const scale = slot.sprite_scale ?? 1
+            const interactable = !item || engine.itemInteractable(item)
+            const hasInteractChoices = !!item && interactable && engine.itemInteractOptions(item).length > 0
+            const shouldBreathe = entity.type === 'npc' ? (entity.breathe !== false) : !!entity.breathe
+            const isEnvironmental = slot.environmental || (!sprite && entity.type === 'item')
+            const isPlainItem = entity.type === 'item' && !sprite
+            const displayLabel = npc ? engine.npcLabel(npc) : entity.label
+            return (
+              <button
+                key={`${stateKey}-${slot.id}`}
+                className={`slot-hotspot slot-${entity.type} scene-slot-enter ${sprite ? 'slot-sprited' : ''}${isPlainItem ? ' slot-item-plain' : ''}${isEnvironmental ? ' slot-environmental' : ''}${!interactable ? ' slot-inert' : ''}`}
+                style={{
+                  left: pct(slot.x, canvas.w),
+                  top: pct(slot.y, canvas.h),
+                  width: pct(slot.w, canvas.w),
+                  height: pct(slot.h, canvas.h),
+                }}
+                disabled={!interactable}
+                onClick={() => {
+                  engine.fireTrigger('interact', { entityId: entity.id })
+                  engine.inspectEntity(entity.id)
+                  // «ключ к двери» (блок 8 ТЗ): НПС — диалог, иначе при наличии
+                  // подходящих предметов — модалка выбора
+                  if (entity.type !== 'npc') {
+                    const options = engine.slotUseOptions(slot)
+                    if (options.length) {
+                      setUseModal({ slot, options })
+                      return
+                    }
+                    if (hasInteractChoices && item) {
+                      setInteractModal({ item })
+                      return
+                    }
+                  }
+                  engine.interactWithSlot({ slot, entity })
+                }}
+                data-tip={`${displayLabel}${engine.descOf(entity.id) ? `\n${engine.descOf(entity.id)}` : ''}`}
+              >
+                {sprite ? (
+                  <>
+                    {entity.shadow !== false && <span className="sprite-shadow" />}
+                    <span className="slot-sprite-box" style={{ height: `${scale * 100}%` }}>
+                      <LiveImg
+                        className={`slot-sprite${shouldBreathe ? ' cf-breathe' : ''}`}
+                        value={sprite}
+                        tickKey={stateOfSprite ?? ''}
+                        urlOf={(f) => assetUrl(engine.campaign, f)}
+                        alt={displayLabel}
+                      />
+                    </span>
+                  </>
+                ) : (
+                  (() => {
+                    const portraitSrc = npc
+                      ? assetUrlOrNull(engine.campaign, npc.portrait?.neutral)
+                      : null
+                    if (portraitSrc) {
+                      return (
+                        <img
+                          className="slot-portrait"
+                          src={portraitSrc}
+                          alt={displayLabel}
+                          draggable={false}
+                        />
+                      )
+                    }
+                    if (isEnvironmental) {
+                      // У хотспотов окружения и предметов без спрайта убираем любые маркеры и глифы,
+                      // оставляем только аккуратную плашку по центру
+                      return null
+                    }
+                    return (
+                      <span className={`slot-marker slot-marker-${entity.type}`} aria-hidden>
+                        <span className="slot-marker-glyph">◆</span>
+                      </span>
+                    )
+                  })()
+                )}
+                {isEnvironmental ? (
+                  <span className="slot-env-label">{displayLabel}</span>
+                ) : (
+                  <span className="slot-label">{displayLabel}</span>
+                )}
+              </button>
+            )
+          })}
 
-        <SceneForeground
-          engine={engine}
-          scene={scene}
-          stateKey={stateKey}
-          occupants={occupants}
-          canvas={canvas}
-          onUseRequest={(slot, options) => setUseModal({ slot, options })}
-          onInteractRequest={(item) => setInteractModal({ item })}
-        />
-        <SceneNavigation engine={engine} scene={scene} canvas={canvas} onOpenMap={onOpenMap} />
+        {/* пустые слоты с «ключом к двери» (блок 8 ТЗ): невидимые точки применения */}
+        {scene.slots
+          .filter((slot) => {
+            const taken = occupants.some((o) => o.slot.id === slot.id && o.entity)
+            return !taken && engine.slotUseOptions(slot).length > 0
+          })
+          .map((slot) => {
+            const isEnv = !!slot.environmental
+            return (
+              <button
+                key={slot.id}
+                className={`slot-hotspot slot-usewith${isEnv ? ' slot-environmental' : ''}`}
+                style={{
+                  left: pct(slot.x, canvas.w),
+                  top: pct(slot.y, canvas.h),
+                  width: pct(slot.w, canvas.w),
+                  height: pct(slot.h, canvas.h),
+                }}
+                onClick={() => setUseModal({ slot, options: engine.slotUseOptions(slot) })}
+                data-tip={slot.label ? `Использовать предмет: ${slot.label}` : 'Использовать предмет'}
+              >
+                {isEnv && <span className="slot-env-label">{slot.label || 'Использовать предмет'}</span>}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Навигационные зоны сцены («В контору», «На площадь»): не параллаксятся со спрайтами */}
+        {scene.navigation.map((nav, i) => {
+          const handle = () => {
+            if (nav.open_map) return onOpenMap()
+            engine.navigate(nav)
+          }
+          return (
+            <button
+              key={i}
+              className={`nav-zone${nav.hide_label ? ' nav-nolabel' : ''}`}
+              style={{
+                left: pct(nav.area.x, canvas.w),
+                top: pct(nav.area.y, canvas.h),
+                width: pct(nav.area.w, canvas.w),
+                height: pct(nav.area.h, canvas.h),
+              }}
+                onClick={handle}
+              >
+                <span className="nav-label">{nav.label}</span>
+              </button>
+            )
+          })}
+        </div>
+
         {/* слой погоды (блок 9 ТЗ): чистый CSS, полупрозрачный, не ловит клики */}
         {weather?.overlay && weather.overlay !== 'none' && (
           <AtmosphereLayer
@@ -352,24 +493,47 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
           />
         )}
 
-
         {/* Вводное нарративное повествование от автора (стиль Tiny Bunny / новелла) */}
         {narrativeStep != null && currentIntroItem && (
-          <SceneIntroOverlay
-            engine={engine}
-            scene={scene}
-            step={narrativeStep}
-            item={currentIntroItem}
-            intro={introList}
-            onAdvance={advanceNarrative}
-            onSkip={() => {
-              stopVoiceAudio()
-              engine.markNarrativeIntroSeen(scene.id)
-              setNarrativeStep(null)
-            }}
-          />
+          <div
+            className="scene-narrative-overlay"
+            onClick={advanceNarrative}
+          >
+            <div className="scene-narrative-box" onClick={(e) => e.stopPropagation()}>
+              <div className="scene-narrative-text">
+                {currentIntroItem.text}
+              </div>
+              <div className="scene-narrative-actions">
+                <span className="muted small">
+                  {narrativeStep + 1} / {introList.length} · Кликните или нажмите Пробел
+                </span>
+                {introList.length > 1 && narrativeStep + 1 < introList.length && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-small"
+                    onClick={() => {
+                      stopVoiceAudio()
+                      engine.markNarrativeIntroSeen(scene.id)
+                      setNarrativeStep(null)
+                    }}
+                    data-tip="Пропустить всё вступление (Esc)"
+                  >
+                    Пропустить ⏭
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn btn-primary btn-small"
+                  onClick={advanceNarrative}
+                >
+                  {narrativeStep + 1 < introList.length
+                    ? (scene.narrative_intro_next_label || getUiLabel(engine.campaign.meta, 'scene_intro_next', 'Далее ▶'))
+                    : (scene.narrative_intro_done_label || getUiLabel(engine.campaign.meta, 'scene_intro_done', 'Осмотреться ▶'))}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
-        </div>
       </div>
 
       {/* модалка выбора предмета для слота (блок 8 ТЗ) */}
@@ -409,6 +573,64 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
           onClose={() => setInteractModal(null)}
         />
       )}
+    </div>
+  )
+}
+
+/** Мини-диалог с предметом: портрет (если есть), описание и варианты действий. */
+function ItemInteractDialog({ engine, item, onClose }: { engine: GameEngine; item: ItemDef; onClose: () => void }) {
+  const [emotion, setEmotion] = useState('neutral')
+  const options = engine.itemInteractOptions(item)
+  const portraitSrc = assetUrlOrNull(
+    engine.campaign,
+    item.portrait?.[emotion] ?? item.portrait?.['neutral'],
+  )
+  return (
+    <div className="overlay message-overlay itemdlg-overlay" onClick={onClose}>
+      <div className="itemdlg-box" onClick={(e) => e.stopPropagation()}>
+        {portraitSrc && (
+          <div className="itemdlg-portrait">
+            <img src={portraitSrc} alt={item.label} draggable={false} />
+          </div>
+        )}
+        <div className="itemdlg-content">
+          <h3 className="itemdlg-title">{item.label}</h3>
+          <p className="itemdlg-desc">{engine.descOf(item.id) || item.description || ''}</p>
+          <div className="usewith-options">
+            {options.map((o, i) => {
+              const autoHint = (() => {
+                if (o.hint) return o.hint
+                const hints: string[] = []
+                const timeEf = o.effects?.find((ef) => ef.type === 'advance_time') as { ticks: number } | undefined
+                if (timeEf?.ticks) {
+                  const label = engine.campaign.meta.tick_label || 'ч'
+                  hints.push(`⏱ ${timeEf.ticks} ${label}`)
+                }
+                if (o.consume) {
+                  hints.push('предмет будет израсходован')
+                }
+                return hints.length ? hints.join(' · ') : null
+              })()
+              return (
+                <button
+                  key={i}
+                  className="btn btn-primary itemdlg-option"
+                  onMouseEnter={() => o.emotion && setEmotion(o.emotion)}
+                  onMouseLeave={() => setEmotion('neutral')}
+                  onClick={() => {
+                    engine.runItemInteract(item, o)
+                    onClose()
+                  }}
+                >
+                  <span>{o.label}</span>
+                  {autoHint && <small className="itemdlg-hint">{autoHint}</small>}
+                </button>
+              )
+            })}
+          </div>
+          <button className="btn btn-small" onClick={onClose}>Закрыть</button>
+        </div>
+      </div>
     </div>
   )
 }

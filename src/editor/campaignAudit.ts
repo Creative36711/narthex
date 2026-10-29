@@ -269,7 +269,7 @@ async function inspectAlphaRoles(store: EditorStore): Promise<AuditFinding[]> {
 }
 
 /**
- * Внешние функции, которые движок отдаёт в ink (`packs/narrative/dialogue.ts`).
+ * Внешние функции, которые движок отдаёт в ink (`src/core/dialogue.ts`).
  * Если ink зовёт такую функцию без `EXTERNAL`, inkjs не компилирует файл:
  * проверяем отдельно, потому что симптом — «диалог просто не открылся».
  */
@@ -683,7 +683,7 @@ export async function validateCampaign(store: EditorStore, lastPlaytest?: Playte
 
 export function formatCampaignAuditReport(report: CampaignAuditReport): string {
   const lines = [
-    `Проверка Narthex — ${new Date(report.checkedAt).toLocaleString()}`,
+    `Проверка Chronicle Forge — ${new Date(report.checkedAt).toLocaleString()}`,
     '',
     'СТРУКТУРА И ССЫЛКИ',
     ...(report.structure.length ? report.structure.map((finding) => `${finding.severity.toUpperCase()}: ${finding.message}`) : ['ПРОБЛЕМ НЕТ']),

@@ -1,0 +1,23 @@
+{
+  "id": "rule_air_back_card",
+  "label": "Открытка: воздух снова есть",
+  "once": true,
+  "manual": true,
+  "chapter": "ch_deep",
+  "conditions": [],
+  "effects": [
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_air_back.jpg",
+      "text": "Воздух снова есть.",
+      "preset": "шёпот",
+      "seconds": 5,
+      "camera": {
+        "zoom": 1.1,
+        "pan_x": 0,
+        "pan_y": -5,
+        "duration": 6
+      }
+    }
+  ]
+}

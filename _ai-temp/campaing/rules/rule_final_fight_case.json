@@ -1,0 +1,109 @@
+{
+  "id": "rule_final_fight_case",
+  "label": "Келл у затвора: дело уже сшито",
+  "once": false,
+  "manual": true,
+  "conditions": [
+    {
+      "type": "flag_not_set",
+      "flag": "case_ended"
+    }
+  ],
+  "effects": [
+    {
+      "type": "override_music",
+      "tracks": [
+        "music_battle"
+      ],
+      "fade": 1.5
+    },
+    {
+      "type": "skill_check_gate",
+      "skill": "persuade",
+      "difficulty": 35,
+      "success_effects": [
+        {
+          "type": "set_flag",
+          "flag": "kell_stood_down"
+        },
+        {
+          "type": "show_message",
+          "text": "Ты не споришь — просто называешь номер дела и перечисляешь, что в нём подшито: наряд, улики, чужие подписи. Келл понимает раньше, чем ты договариваешь: дело существует, его уже не сжечь по листу, и приказ, который он охраняет, теперь — улика против того, кто его отдал. Он отступает от штурвала и не смотрит тебе вслед."
+        },
+        {
+          "type": "fire_rule",
+          "rule": "rule_end_silence"
+        },
+        {
+          "type": "clear_music_override",
+          "fade": 3
+        },
+        {
+          "type": "postcard",
+          "image": "assets/img/pc_kell_yields.jpg",
+          "text": "Рука сползает со штурвала.",
+          "preset": "шёпот",
+          "seconds": 5,
+          "camera": {
+            "zoom": 1.08,
+            "pan_x": 0,
+            "pan_y": 0,
+            "duration": 6
+          }
+        }
+      ],
+      "fail_effects": [
+        {
+          "type": "set_flag",
+          "flag": "kell_refused"
+        },
+        {
+          "type": "set_flag",
+          "flag": "kell_at_gate"
+        },
+        {
+          "type": "start_combat",
+          "enemies": [
+            {
+              "entity": "npc_kell",
+              "count": 1
+            }
+          ],
+          "arena": "arena_sluice",
+          "intro": "Громила Келла смотрит на сшитое дело у тебя под мышкой и уходит в темноту штольни, не дожидаясь приказа. Келл остаётся у затвора один: «Бумага ничего не держит, дознаватель. Держат руки».",
+          "on_victory": [
+            {
+              "type": "set_flag",
+              "flag": "kell_down"
+            },
+            {
+              "type": "fire_rule",
+              "rule": "rule_end_silence"
+            },
+            {
+              "type": "clear_music_override",
+              "fade": 3
+            }
+          ],
+          "on_defeat": [
+            {
+              "type": "game_over_death",
+              "reason": "Тебя нашли у затвора, когда вода уже шла."
+            }
+          ],
+          "on_fled": [
+            {
+              "type": "show_message",
+              "text": "Ты отходишь от затвора. Заряд уже в колодке — это не отменяется, но и не торопится."
+            },
+            {
+              "type": "clear_music_override",
+              "fade": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "chapter": "ch_final"
+}

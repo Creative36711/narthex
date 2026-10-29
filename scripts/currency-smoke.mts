@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { GameEngine } from '../src/core/engine'
-import '../packs/narrative/operations'
 import type { CampaignManifest, MonolithDoc } from '../src/shared/types'
 import { campaignFromMonolith } from '../src/editor/playtest'
 

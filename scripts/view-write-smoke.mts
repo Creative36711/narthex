@@ -63,7 +63,6 @@ const TOUCH_WHITELIST: Readonly<Record<string, string>> = {
   'compatPublish.ts::store.touch(\'campaign.json\')': 'публикация compat.json мастером: дублирование версии в паспорт',
   'store.ts::this.touch(path)': 'внутренний API записи (setJson/setText); публичные вызыватели — список выше',
   'store.ts::this.touch(\'campaign.json\')': 'внутренний API записи (setMeta)',
-  'store.ts::this.touch(\'project.json\')': 'автор явно меняет режим возможности в каталоге паков',
   'store.ts::this.touch(\'world.json\')': 'внутренний API записи (setWorld)',
 }
 

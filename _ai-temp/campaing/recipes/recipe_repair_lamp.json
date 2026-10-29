@@ -1,0 +1,32 @@
+{
+  "id": "recipe_repair_lamp",
+  "label": "Заправить лампу",
+  "description": "Лампа просит масла каждые двое суток, как человек еды.",
+  "inputs": [
+    {
+      "item": "item_lamp",
+      "quantity": 1
+    },
+    {
+      "item": "item_oil",
+      "quantity": 1
+    }
+  ],
+  "tools": [
+    "item_wrench"
+  ],
+  "repair": true,
+  "skill": {
+    "id": "repair",
+    "difficulty": 35
+  },
+  "time_ticks": 1,
+  "output": {
+    "item": "item_lamp",
+    "quantity": 1
+  },
+  "message": "Фитиль ожил: свет стал ровнее и холоднее.",
+  "category": "gear",
+  "sound": "sfx_lamp",
+  "sound_volume": 0.7
+}

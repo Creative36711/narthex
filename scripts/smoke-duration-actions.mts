@@ -1,4 +1,3 @@
-import '../packs/narrative/operations'
 /**
  * Смоук «длительные действия» (dz.20): доказывает семантику движка
  * runTicksFlow/requestDurationAction/campRest без UI. Якоря:

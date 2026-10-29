@@ -13,7 +13,6 @@
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine, openSave, peekSave, hasSave, deleteSave, saveKey, backupKey, exportSaveText, importSaveText, checkSaveVersion, preserveSave } from '../src/core/engine'
-import '../packs/narrative/operations'
 import { SAVE_MIGRATIONS, repairState, type ReportCtx } from '../src/core/savemigrate'
 import { ENGINE_VERSION, OLDEST_PACKAGE_FORMAT, PACKAGE_FORMAT, checkEngine, checkPackage, compareVersions, bumpVersion, parseVersion, stableVersion } from '../src/shared/versions'
 import { SAVE_VERSION, SAVE_ENVELOPE_VERSION, type CampaignData, type SaveNote } from '../src/shared/types'
@@ -198,7 +197,7 @@ engine.start()
   check('8 в меню видны версия и дата сохранения', menu.includes('menu-save-note') && menu.includes('peekSave(m.id)'))
   check('8 предупреждение о движке показывается в меню', menu.includes('engineWarning') && menu.includes('menu-warning'))
   check('8 отчёт сейва объясняет причину и не удаляет файл', modal.includes('Сохранение не поддерживается') && modal.includes('не удалено'))
-  check('8 справка рассказывает про сохранения и обновления', help.includes("id: 'saves'") && help.includes('.nxsave'))
+  check('8 справка рассказывает про сохранения и обновления', help.includes("id: 'saves'") && help.includes('.cfsave'))
   check('8 переименование id отклоняется с объяснением', fields.includes('Менять id нельзя'))
 }
 

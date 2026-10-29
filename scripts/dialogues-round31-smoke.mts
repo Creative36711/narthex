@@ -2,16 +2,9 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { inkToDlgDoc } from '../src/editor/inkImport'
-import { createStory, clearDialogueCache, sanitizeInkSource } from '../packs/narrative/index'
+import { createStory, clearDialogueCache, sanitizeInkSource } from '../src/core/dialogue'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
-import '../packs/narrative/operations'
-import { skipIfMissingFixture } from './fixture-guard.mts'
-
-skipIfMissingFixture(
-  '_ai-temp/campaing/campaign/dialogues',
-  'импорт шести ink-диалогов кампании сценариста без предупреждений',
-)
 
 console.log('--- Смоук-тест: Диалоги новой кампании в конструкторе и игре ---')
 

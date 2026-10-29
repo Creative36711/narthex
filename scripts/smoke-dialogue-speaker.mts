@@ -10,7 +10,7 @@
 import { readFileSync } from 'fs'
 import { EditorStore } from '../src/editor/store'
 import { validateCampaign } from '../src/editor/campaignAudit'
-import { parseLineTags } from '../packs/narrative/index'
+import { parseLineTags } from '../src/core/dialogue'
 import { generateInk } from '../src/editor/dialogueDoc'
 import { inkToDlgDoc } from '../src/editor/inkImport'
 import type { CampaignAuditReport } from '../src/editor/campaignAudit'

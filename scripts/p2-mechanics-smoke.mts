@@ -19,11 +19,9 @@
  *     совпадение имён файлов не теряет объекты;
  *  7. группировка предупреждений: повторы схлопываются в одну строку.
  */
-import { scenePlayerSource } from './scene-sources.mts'
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
-import '../packs/narrative/operations'
 import { evalCondition } from '../src/core/conditions'
 import { EditorStore } from '../src/editor/store'
 import { exportMonolith, importMonolith, parseMonolith } from '../src/editor/monolith'
@@ -149,7 +147,7 @@ const campaign: CampaignData = {
   check('1 правило задало состояние облика', e.entityState('npc_maeva') === 'angry')
   e.applyEffects([{ type: 'set_entity_state', entity: 'npc_maeva', state: '' }])
   check('1 пустая строка снимает состояние', e.entityState('npc_maeva') === undefined)
-  const src = scenePlayerSource()
+  const src = readFileSync('src/player/SceneScreen.tsx', 'utf8')
   const ovl = readFileSync('src/player/DialogueOverlay.tsx', 'utf8')
   check('1 сцена спрашивает движок о состоянии облика', /engine\.entityState\(/.test(src))
   check('1 состояние движка сильнее свойства слота', /entityState\([^)]*\)[\s\S]{0,200}sprite_state/.test(src) === false || src.includes('entityState'))
@@ -183,7 +181,7 @@ const campaign: CampaignData = {
   check('3 открытый рецепт виден сразу', labels().includes('recipe_open_bread'))
   e.fireRule('rule_unlock')
   check('3 unlock_recipe открыл рецепт', labels().includes('recipe_tonic'))
-  const ink = readFileSync('packs/narrative/dialogue.ts', 'utf8')
+  const ink = readFileSync('src/core/dialogue.ts', 'utf8')
   check('3 внешняя команда Ink unlock_recipe есть', /bind\('unlock_recipe'/.test(ink))
   const editor = readFileSync('src/editor/RecipeEditor.tsx', 'utf8')
   check('3 редактор умеет «Открыть по ходу игры»', editor.includes('Открыть по ходу игры'))
@@ -215,7 +213,7 @@ const campaign: CampaignData = {
   e3.gameOver('victory', 'без хроники')
   check(
     '4 без metaprogress хроника на диск не пишется',
-    !mem.has(`narthex:meta:${noMeta.meta.id}`),
+    !mem.has(`chronicle-forge:meta:${noMeta.meta.id}`),
     [...mem.keys()].join(', '),
   )
   const ok = evalCondition({ type: 'meta_counter', key: 'endings_seen', ge: 1 }, e2)

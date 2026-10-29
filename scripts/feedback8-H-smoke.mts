@@ -14,7 +14,6 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
-import '../packs/narrative/operations'
 import { migrateMusicRules } from '../src/shared/migrate'
 import { isMusicDoc } from '../src/shared/synth'
 import { isSoundDoc, setAudioCampaign, playSoundId, playUi, playInteraction } from '../src/shared/audio'

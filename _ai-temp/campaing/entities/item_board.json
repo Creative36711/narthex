@@ -1,0 +1,84 @@
+{
+  "id": "item_board",
+  "type": "item",
+  "category": "prop",
+  "label": "Доска объявлений",
+  "description": "Листы в два слоя: верхние о режиме тишины, нижние — о пропавших. Нижние висят дольше.",
+  "weight": 8,
+  "stackable": false,
+  "value": {
+    "mark": 0
+  },
+  "interact_options": [
+    {
+      "label": "Прочесть объявления",
+      "effects": [
+        {
+          "type": "unlock_codex",
+          "entry": "codex_silence"
+        },
+        {
+          "type": "show_message",
+          "text": "Нижний лист: «Пропал страж Яров Стась, восьмой ярус. Кто видел — в контору»."
+        },
+        {
+          "type": "set_flag",
+          "flag": "board_read"
+        }
+      ],
+      "message": "Ты сдираешь верхний лист: под ним висит тот, который не сняли.",
+      "sound": "snd_page",
+      "hint": "сводки Надзора пишут для тех, кто не спускается",
+      "once": true
+    },
+    {
+      "label": "Сверить сводку седьмой помпы",
+      "hint": "Сводка висит сверху, поверх объявлений",
+      "sound": "snd_paper",
+      "once": true,
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "lore",
+          "difficulty": 40,
+          "success_effects": [
+            {
+              "type": "grant_xp",
+              "points": 10
+            },
+            {
+              "type": "show_message",
+              "text": "Сводка за месяц: расход мазута на седьмой вырос на треть, наряд на работы — на девятый. Помпу не запускали не потому, что она сломалась: её берегли для того, что нашли внизу."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "show_message",
+              "text": "Цифры в сводке сходятся, но ты не понимаешь, что именно они складывают."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "label": "Перечитать нижний лист",
+      "hint": "уже осмотрено",
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "board_read"
+        }
+      ],
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Нижний лист всё ещё висит: «Пропал страж Яров Стась, восьмой ярус. Кто видел — в контору». Верхние — про режим тишины."
+        }
+      ]
+    }
+  ],
+  "interact_hint": "Прочесть объявления",
+  "portrait": {
+    "neutral": "assets/img/items/item_board.jpg"
+  }
+}

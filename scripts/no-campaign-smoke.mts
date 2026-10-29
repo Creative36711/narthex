@@ -1,8 +1,6 @@
-import '../packs/narrative/operations'
 /**
- * Изолированный смоук пустого реестра и политики идентичности кампаний.
- * Он использует временный in-memory API и не требует сервера, а также не пишет
- * в public/campaigns/index.json. Запуск: npm run smoke:no-campaign
+ * Смоук пустого реестра и политики идентичности кампаний.
+ * Требует dev-сервер на :5173. Запуск: npm run smoke:no-campaign
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
@@ -19,79 +17,10 @@ import {
 import { createCampaignUuid } from '../src/editor/ids'
 import { EditorStore } from '../src/editor/store'
 
-const fixtureFiles = new Map<string, string | Uint8Array>([['campaigns/index.json', '[]\n']])
-const fixtureDirectories = new Set<string>()
-const realIndexBefore = readFileSync('public/campaigns/index.json')
-
-const jsonResponse = (value: unknown, status = 200) => new Response(JSON.stringify(value), {
-  status,
-  headers: { 'content-type': 'application/json' },
-})
-
-/** A tiny editor API backed only by the in-memory empty-registry fixture. */
-const fixtureFetch: typeof fetch = async (input, init) => {
-  const rawUrl = input instanceof Request ? input.url : String(input)
-  const url = new URL(rawUrl, 'http://no-campaign-fixture.local')
-  const method = (init?.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()
-  const body = typeof init?.body === 'string' ? JSON.parse(init.body) as Record<string, unknown> : {}
-
-  if (url.pathname === '/__editor/campaign-exists' && method === 'GET') {
-    const id = url.searchParams.get('id') ?? ''
-    return jsonResponse({ exists: fixtureDirectories.has(id) })
-  }
-  if (url.pathname === '/__editor/campaign-files' && method === 'GET') {
-    const id = url.searchParams.get('id') ?? ''
-    if (!fixtureDirectories.has(id)) return new Response('campaign directory not found', { status: 404 })
-    const prefix = `campaigns/${id}/`
-    const files = [...fixtureFiles.keys()].filter((path) => path.startsWith(prefix))
-      .map((path) => path.slice(prefix.length)).sort()
-    return jsonResponse({ files })
-  }
-  if (url.pathname === '/__editor/reserve-campaign' && method === 'POST') {
-    const id = body.id
-    if (typeof id !== 'string' || !/^[a-z0-9][a-z0-9_-]*$/i.test(id)) return new Response('invalid campaign id', { status: 400 })
-    if (fixtureDirectories.has(id)) return new Response('campaign id already exists', { status: 409 })
-    fixtureDirectories.add(id)
-    return jsonResponse({ reserved: true })
-  }
-  if (url.pathname === '/__editor/delete' && method === 'POST') {
-    const id = body.path
-    if (typeof id !== 'string' || !/^[a-z0-9][a-z0-9_-]*$/i.test(id)) return new Response('invalid campaign path', { status: 400 })
-    fixtureDirectories.delete(id)
-    const prefix = `campaigns/${id}/`
-    for (const path of fixtureFiles.keys()) if (path.startsWith(prefix)) fixtureFiles.delete(path)
-    return jsonResponse({ ok: true })
-  }
-  if (url.pathname === '/__editor/save' && method === 'POST') {
-    const path = body.path
-    if (typeof path !== 'string' || !path.startsWith('campaigns/') || path.split('/').includes('..')) {
-      return new Response('path outside campaigns dir', { status: 400 })
-    }
-    if (typeof body.base64 === 'string') fixtureFiles.set(path, Buffer.from(body.base64, 'base64'))
-    else fixtureFiles.set(path, typeof body.text === 'string' ? body.text : '')
-    const campaignPath = /^campaigns\/([^/]+)\/.+/.exec(path)
-    if (campaignPath) fixtureDirectories.add(campaignPath[1])
-    return jsonResponse({ ok: true })
-  }
-  if (url.pathname === '/campaigns/index.json' && method === 'GET') {
-    return new Response(fixtureFiles.get('campaigns/index.json') ?? '[]\n', {
-      headers: { 'content-type': 'application/json' },
-    })
-  }
-  if (url.pathname.startsWith('/campaigns/') && method === 'GET') {
-    const path = url.pathname.slice(1)
-    const data = fixtureFiles.get(path)
-    if (data === undefined) return new Response('not found', { status: 404 })
-    const contentType = path.endsWith('.json') ? 'application/json' : 'application/octet-stream'
-    return new Response(data instanceof Uint8Array ? new Uint8Array(data) : data, {
-      headers: { 'content-type': contentType },
-    })
-  }
-  return new Response('not found in isolated fixture', { status: 404 })
-}
-
+const ORIGIN = 'http://localhost:5173'
 const realFetch = globalThis.fetch
-globalThis.fetch = fixtureFetch
+globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) =>
+  realFetch(typeof input === 'string' && input.startsWith('/') ? ORIGIN + input : input, init)) as typeof fetch
 
 let failed = 0
 const check = (label: string, ok: boolean, extra?: string) => {
@@ -101,14 +30,14 @@ const check = (label: string, ok: boolean, extra?: string) => {
 const read = (path: string) => readFileSync(path, 'utf8')
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 
-// ── Изолированная фикстура и пользовательские потоки ────────────────
+// ── Поставка и пользовательские потоки ──────────────────────────────
 {
-  const index = JSON.parse(String(fixtureFiles.get('campaigns/index.json'))) as Array<{ id: string }>
+  const index = JSON.parse(read('public/campaigns/index.json')) as Array<{ id: string }>
   const editor = read('src/editor/EditorApp.tsx')
   const noCampaign = read('src/player/NoCampaignScreen.tsx')
   const newCampaign = read('src/editor/newCampaign.ts')
-  check('изолированная фикстура начинается с пустого реестра', Array.isArray(index) && index.length === 0)
-  check('пустая фикстура не включает ash-полигон', !index.some((entry) => entry.id === 'ash-of-caerden'))
+  check('поставка начинается с пустого реестра', Array.isArray(index) && index.length === 0)
+  check('демо-полигон не доступен игроку', !index.some((entry) => entry.id === 'ash-of-caerden'))
   const fixture = 'public/campaigns/ash-of-caerden'
   check('полигон смоуков на месте и помечен', existsSync(join(fixture, 'smoke-fixture.json')))
   const oversized: string[] = []
@@ -129,7 +58,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{1
   check('выбор кампании идёт из реестра', app.includes('function pickCampaign('))
   check('пустой реестр не грузит несуществующий путь', app.includes('if (!campaignId) return'))
   check('движок показывает экран без кампаний', app.includes('<NoCampaignScreen'))
-  check('экран пустого реестра предлагает создать и загрузить кампанию', read('src/player/NoCampaignScreen.tsx').includes('Создать кампанию') && read('src/player/NoCampaignScreen.tsx').includes('.narthex'))
+  check('экран пустого реестра предлагает создать и загрузить кампанию', read('src/player/NoCampaignScreen.tsx').includes('Создать кампанию') && read('src/player/NoCampaignScreen.tsx').includes('.chronicle'))
   check('движок и редактор целы', existsSync('src/core/engine.ts') && existsSync('src/editor/EditorApp.tsx'))
   check('создание выдаёт UUID, а не slug названия', newCampaign.includes('newAvailableCampaignId(index.map') && newCampaign.includes('createCampaignUuid'))
   check('JSON-импорт пустого редактора выдаёт приложением новый ID', editor.includes('newAvailableCampaignId(index.map((entry) => entry.id))'))
@@ -138,7 +67,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{1
   check('редактор доступен без кампании', editor.includes('Кампаний пока нет'))
   check('из пустого редактора можно создать и импортировать кампанию', editor.includes('onClick={() => void newCampaign()}') && editor.includes('onClick={() => void doImportJson()}'))
   check('ID инициализируется при пустом JSON-импорте', editor.includes('newAvailableCampaignId(index.map((entry) => entry.id))'))
-  check('импорт .narthex спрашивает об обновлении/копии при конфликте', noCampaign.includes('Обновить кампанию') && noCampaign.includes('Импортировать копию'))
+  check('импорт .chronicle спрашивает об обновлении/копии при конфликте', noCampaign.includes('Обновить кампанию') && noCampaign.includes('Импортировать копию'))
 }
 
 const importedIds: string[] = []
@@ -165,7 +94,7 @@ try {
   store.setCampaignId(originalId)
   check('смена названия не связана с ID', store.meta.id === originalId && store.meta.title === 'Колокол без имени')
 
-  // Минимальный автономный архив .narthex.
+  // Минимальный автономный архив .chronicle.
   const fixtureMeta = JSON.parse(read('public/campaigns/ash-of-caerden/campaign.json')) as Record<string, unknown>
   const baseMeta = {
     ...fixtureMeta,
@@ -178,12 +107,12 @@ try {
     zip.file('campaign.json', JSON.stringify(meta, null, 2))
     if (includeWorld) zip.file('world.json', JSON.stringify(world, null, 2))
     zip.file('manifest.json', JSON.stringify({ scenes: [], entities: [], rules: [], quests: [], dialogues: [] }, null, 2))
-    return new File([await zip.generateAsync({ type: 'uint8array' })], 'offline-test.narthex')
+    return new File([await zip.generateAsync({ type: 'uint8array' })], 'offline-test.chronicle')
   }
 
   const initial = await importChroniclePackage(await makeArchive(baseMeta))
   importedIds.push(initial.id)
-  check('свободный .narthex сохраняет исходный стабильный ID', initial.id === baseMeta.id)
+  check('свободный .chronicle сохраняет исходный стабильный ID', initial.id === baseMeta.id)
   const same = await importChroniclePackage(await makeArchive(baseMeta))
   check('повторный идентичный импорт распознаётся и не дублируется', same.alreadyInstalled === true && same.id === initial.id)
   let missingFileConflict = false
@@ -233,9 +162,6 @@ try {
   }).catch(() => null)
 }
 
-const afterSmoke = await fetchCampaignIndex()
-check('после теста очищена изолированная фикстура', afterSmoke.length === 0 && fixtureDirectories.size === 0)
-globalThis.fetch = realFetch
-check('реальный public index не изменён', readFileSync('public/campaigns/index.json').equals(realIndexBefore))
+check('после теста реестр очищен', (await fetchCampaignIndex()).length === 0)
 console.log(failed ? `\nFAILED: ${failed}` : '\nALL GREEN')
 if (failed) process.exitCode = 1

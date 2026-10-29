@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════
-   Narthex — Editor Mode: фирменная тема «Ателье хроник»
+   Chronicle Forge — Editor Mode: фирменная тема «Ателье хроник»
    (редизайн 2026). Не наследует тему кампании и не перекрашивается
    при переключении между кампаниями.
 
@@ -1604,7 +1604,7 @@ body.cf-editor { overflow: hidden; }
 .flag-autocomplete-option.is-selected { color: var(--ed-select-bright); }
 .flag-autocomplete-empty { padding: 7px 8px; color: var(--ed-faint); font-size: 12px; }
 
-/* Режим плейтеста: оболочка — хром Narthex, игра — тема кампании
+/* Режим плейтеста: оболочка — хром Chronicle Forge, игра — тема кампании
    (через .cf-themed внутри). */
 .playtest-shell { position: fixed; inset: 0; z-index: 20000; display: flex; flex-direction: column; background: var(--ed-bg); color: var(--ed-text); font-family: 'Segoe UI', system-ui, sans-serif; }
 .playtest-shell > .game-view { flex: 1 1 0; min-height: 0; height: auto; width: 100%; }
@@ -2285,22 +2285,3 @@ body.cf-editor .modal-overlay .ai-wizard input[type='range'] { accent-color: #58
 }
 .dlg-playtest-scroll { max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
 .dlg-playtest-mood { min-width: 42px; text-align: center; font-variant-numeric: tabular-nums; }
-
-/* Панели пака (NAR-2.8): вкладки и слоты собираются из манифеста */
-.pack-panels { max-width: 1080px; margin: 20px auto; padding: 24px; }
-.pack-panels h2 { margin-top: 0; }
-.pack-panel-slot { border-top: 1px solid var(--ed-paper-line, #8884); padding: 10px 0 4px; }
-.pack-panel-slot-title {
-  margin: 0 0 6px;
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ed-paper-muted, #888);
-}
-.pack-panel-tabs { margin: 0; padding: 0; }
-.pack-panel-body { margin-top: 14px; padding: 16px; }
-.pack-panel-meta { display: grid; gap: 6px; margin: 0 0 12px; }
-.pack-panel-meta > div { display: flex; gap: 10px; align-items: baseline; }
-.pack-panel-meta dt { min-width: 150px; color: var(--ed-paper-muted, #888); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
-.pack-panel-meta dd { margin: 0; }
-.pack-panel-cap { margin-right: 6px; }

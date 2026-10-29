@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict'
 import { GameEngine } from '../src/core/engine'
-import '../packs/narrative/operations'
 import type { CampaignDef } from '../src/shared/types'
 
 const campaign: CampaignDef = {

@@ -1,0 +1,99 @@
+{
+  "id": "rule_watchman",
+  "label": "Автомат-смотритель у штольни",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_drift"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "watchman_down"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "watchman_past"
+    },
+    {
+      "type": "not",
+      "condition": {
+        "type": "has_item",
+        "item": "item_oil"
+      }
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "watchman_alerted"
+    }
+  ],
+  "effects": [
+    {
+      "type": "unlock_codex",
+      "entry": "codex_watchman"
+    },
+    {
+      "type": "skill_check_gate",
+      "skill": "stealth",
+      "difficulty": 45,
+      "success_effects": [
+        {
+          "type": "set_flag",
+          "flag": "watchman_past"
+        },
+        {
+          "type": "grant_xp",
+          "points": 10
+        },
+        {
+          "type": "show_message",
+          "text": "Ты идёшь по мокрому бетону, считая шаги между гулом вентиляции. Смотритель поворачивает голову — и не находит, на что смотреть."
+        },
+        {
+          "type": "postcard",
+          "image": "assets/img/pc_watchman_pass.jpg",
+          "text": "Жёлтый глаз ищет — и не находит.",
+          "preset": "шёпот",
+          "seconds": 5,
+          "camera": {
+            "zoom": 1.08,
+            "pan_x": 0,
+            "pan_y": 0,
+            "duration": 6
+          }
+        }
+      ],
+      "fail_effects": [
+        {
+          "type": "set_flag",
+          "flag": "watchman_alerted"
+        },
+        {
+          "type": "postcard",
+          "image": "assets/img/pc_watchman_alert.jpg",
+          "text": "Жёлтый глаз нашёл, на что смотреть.",
+          "preset": "шёпот",
+          "seconds": 5,
+          "camera": {
+            "zoom": 1.12,
+            "pan_x": 0,
+            "pan_y": 0,
+            "duration": 5
+          }
+        },
+        {
+          "type": "fire_rule",
+          "rule": "rule_watchman_fight"
+        }
+      ]
+    },
+    {
+      "type": "play_sound",
+      "sound": "sfx_machine",
+      "volume": 0.6
+    }
+  ],
+  "chapter": "ch_deep",
+  "trigger": "enter_scene"
+}

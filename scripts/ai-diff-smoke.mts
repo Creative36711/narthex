@@ -14,12 +14,7 @@
  *     на нём стоят фиксы автоконвертаций диалогов).
  */
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 import { EditorStore } from '../src/editor/store'
-
-// Версия движка в фикстуре — из package.json: смоук проверяет дифф, а не номер,
-// и не должен краснеть/устаревать при каждом bump.
-const ENGINE_VERSION = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version as string
 
 const store = new EditorStore('/campaigns/__diff_smoke__')
 
@@ -28,7 +23,7 @@ store.meta = {
   title: 'Дифф-smoke',
   author: 'Tester',
   version: '1.0.0',
-  engine_version: ENGINE_VERSION,
+  engine_version: '0.8.0',
   tick_label: 'ч',
   default_player: 'hero',
   starting_region: 'reg_1',

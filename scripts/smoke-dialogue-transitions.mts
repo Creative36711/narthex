@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict'
 import { GameEngine } from '../src/core/engine'
-import '../packs/narrative/operations'
 import type { CampaignData, LocationDef, NpcDef, SceneDef, ArenaDef } from '../src/shared/types'
 
 console.log('Testing Dialogue Transitions (Scene, Combat, State, Endings)...')
