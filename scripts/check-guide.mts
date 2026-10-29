@@ -70,10 +70,10 @@ function run(executable: string, args: string[], cwd: string): CommandResult {
 function assertExampleOutput(output: string, context: string): void {
   const expected = [
     '10 сцен · 8 локаций · 6 диалогов · 21 узлов ink',
-    'ошибок 0 · предупреждений 8',
+    'ошибок 0 · предупреждений 3',
     `seed'ов 5 · исходы {"death":5}`,
     'посещено 6 из 10 достижимых сцен',
-    'Эталон: 10 сцен · 8 локаций · 6 диалогов · 21 ink · ошибок 0 · предупреждений 8 · смертей 5 · покрытие 6 из 10',
+    'Эталон: 10 сцен · 8 локаций · 6 диалогов · 21 ink · ошибок 0 · предупреждений 3 · смертей 5 · покрытие 6 из 10',
   ]
   for (const fragment of expected) assert.ok(output.includes(fragment), `${context}: не найдено «${fragment}»`)
 }
@@ -169,4 +169,4 @@ try {
   await rm(temp, { recursive: true, force: true })
 }
 
-console.log(`✓ check:guide: ${commands.length} команд (исходники, bundle, распакованный kit); explain=${NARRATIVE_CODE_LIST.length}; эталон 10/8/6/21, 0/8, 5 смертей, покрытие 6/10`)
+console.log(`✓ check:guide: ${commands.length} команд (исходники, bundle, распакованный kit); explain=${NARRATIVE_CODE_LIST.length}; эталон 10/8/6/21, 0/3, 5 смертей, покрытие 6/10`)

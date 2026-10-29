@@ -20978,6 +20978,11 @@ function walkCampaign(campaign2) {
   const effects2 = [];
   const conditions = [];
   const seen = /* @__PURE__ */ new Set();
+  const isSimpleSceneFlagCondition = (value) => {
+    if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+    const condition = value;
+    return condition.type === void 0 && (typeof condition.flag === "string" || typeof condition.not_flag === "string");
+  };
   const visit = (value, depth) => {
     if (depth > 40 || value === null || typeof value !== "object") return;
     if (seen.has(value)) return;
@@ -20994,6 +20999,15 @@ function walkCampaign(campaign2) {
     for (const entry of Object.values(value)) visit(entry, depth + 1);
   };
   visit(campaign2, 0);
+  for (const scene of Object.values(campaign2.scenes ?? {})) {
+    const parts = [
+      ...Array.isArray(scene.states) ? scene.states : [],
+      ...Array.isArray(scene.slots) ? scene.slots : []
+    ];
+    for (const part of parts) {
+      if (part && isSimpleSceneFlagCondition(part.condition)) conditions.push(part.condition);
+    }
+  }
   return { effects: effects2, conditions };
 }
 function parseInk(source) {
@@ -21294,7 +21308,13 @@ function analyzeCampaign(campaign2) {
   const flagWrites = /* @__PURE__ */ new Set();
   const flagReads = /* @__PURE__ */ new Set();
   for (const effect of effects2) if (WRITE_FLAG.has(effect.type) && effect.flag) flagWrites.add(String(effect.flag));
-  for (const condition of conditions) if (READ_FLAG.has(condition.type) && condition.flag) flagReads.add(String(condition.flag));
+  for (const condition of conditions) {
+    if (READ_FLAG.has(condition.type) && condition.flag) flagReads.add(String(condition.flag));
+    if (condition.type === void 0) {
+      if (condition.flag) flagReads.add(String(condition.flag));
+      if (condition.not_flag) flagReads.add(String(condition.not_flag));
+    }
+  }
   for (const { parsed } of parsedInk) {
     for (const flag of parsed.flagWrites) flagWrites.add(flag);
     for (const flag of parsed.flagReads) flagReads.add(flag);

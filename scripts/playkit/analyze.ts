@@ -66,6 +66,12 @@ export function walkCampaign(campaign: AnyObj): Walk {
   const conditions: AnyObj[] = []
   const seen = new Set<unknown>()
 
+  const isSimpleSceneFlagCondition = (value: unknown): value is AnyObj => {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) return false
+    const condition = value as AnyObj
+    return condition.type === undefined && (typeof condition.flag === 'string' || typeof condition.not_flag === 'string')
+  }
+
   const visit = (value: unknown, depth: number): void => {
     if (depth > 40 || value === null || typeof value !== 'object') return
     if (seen.has(value)) return
@@ -84,6 +90,18 @@ export function walkCampaign(campaign: AnyObj): Walk {
   }
 
   visit(campaign, 0)
+  // Simple SceneCondition fields are evaluated by evalSceneCondition only on
+  // scene states and slots; keep this scope exact rather than treating every
+  // arbitrary `condition.flag` property in the package as a read.
+  for (const scene of Object.values(campaign.scenes ?? {}) as AnyObj[]) {
+    const parts = [
+      ...(Array.isArray(scene.states) ? scene.states : []),
+      ...(Array.isArray(scene.slots) ? scene.slots : []),
+    ] as AnyObj[]
+    for (const part of parts) {
+      if (part && isSimpleSceneFlagCondition(part.condition)) conditions.push(part.condition)
+    }
+  }
   return { effects, conditions }
 }
 
@@ -455,7 +473,13 @@ export function analyzeCampaign(campaign: AnyObj): GraphReport {
   const flagWrites = new Set<string>()
   const flagReads = new Set<string>()
   for (const effect of effects) if (WRITE_FLAG.has(effect.type) && effect.flag) flagWrites.add(String(effect.flag))
-  for (const condition of conditions) if (READ_FLAG.has(condition.type) && condition.flag) flagReads.add(String(condition.flag))
+  for (const condition of conditions) {
+    if (READ_FLAG.has(condition.type) && condition.flag) flagReads.add(String(condition.flag))
+    if (condition.type === undefined) {
+      if (condition.flag) flagReads.add(String(condition.flag))
+      if (condition.not_flag) flagReads.add(String(condition.not_flag))
+    }
+  }
   for (const { parsed } of parsedInk) {
     for (const flag of parsed.flagWrites) flagWrites.add(flag)
     for (const flag of parsed.flagReads) flagReads.add(flag)

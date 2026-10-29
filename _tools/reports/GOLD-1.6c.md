@@ -56,3 +56,9 @@
 - Report: `_tools/reports/GOLD-1.6c.md`
 - JSONL log: `_tools/reports/GOLD-1.6c.log` (at least 20 valid records; include baseline, importer, bundle, checks and golden-run evidence).
 - Decision: `docs/decisions/GOLD-1.6c.md`.
+
+## Post-merge evidence (2026-10-29)
+
+- PR #150 was squash-merged; merge SHA: `93a749699de92104162a14b946558c77d7375ca4`.
+- Main-push `golden-playthrough` run `40941142271`, job `123684528959`: failed at the golden/browser save-load step; evidence upload succeeded. This remains a recorded failure, not a pass, under the accepted GOLD-1.6c decision.
+- Main-push visual run `40941142198`, job `123684529279`: failed at the frozen audit-bundle freshness check. No audit bundle changes were made.
