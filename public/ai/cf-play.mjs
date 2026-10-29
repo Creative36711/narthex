@@ -21549,6 +21549,10 @@ function makeObserver(engine, campaign2, adventure) {
       };
     });
     const exits = region ? engine.visibleLocations(region).filter((l2) => l2.id !== state.location).map((l2) => ({ location: String(l2.id), label: String(l2.label ?? l2.id), cost: engine.travelCost(l2.id) })).filter((l2) => l2.cost !== null) : [];
+    const navigation = (Array.isArray(scene?.navigation) ? scene.navigation : []).flatMap((zone) => {
+      const target = typeof zone.go_to_scene === "string" ? zone.go_to_scene : "";
+      return target && campaign2.scenes?.[target] ? [{ scene: target, label: String(zone.label ?? target) }] : [];
+    });
     const dialogueUI = engine.dialogue;
     const dialogue = dialogueUI ? {
       npc: String(dialogueUI.npc?.id ?? ""),
@@ -21579,6 +21583,7 @@ function makeObserver(engine, campaign2, adventure) {
       locationLabel: String(location?.label ?? ""),
       visible: occupants,
       exits,
+      navigation,
       dialogue,
       combat: combatView(),
       hud: {
@@ -21735,6 +21740,15 @@ function act(engine, campaign2, action, adventure) {
     if (cost === null) return { ok: false, detail: `\u043D\u0435\u0442 \u043F\u0435\u0440\u0435\u0445\u043E\u0434\u0430 \u0432 ${to}` };
     engine.travelTo(to);
     return { ok: true, detail: `\u043F\u0435\u0440\u0435\u0445\u043E\u0434 \u2192 ${to} (${cost} \u0442\u0438\u043A.)` };
+  }
+  if (kind === "move") {
+    const to = String(action.to ?? "");
+    const scene = engine.currentScene();
+    const navigation = Array.isArray(scene?.navigation) ? scene.navigation : [];
+    const zone = navigation.find((candidate) => candidate.go_to_scene === to);
+    if (!zone) return { ok: false, detail: `\u043D\u0435\u0442 \u043F\u0435\u0440\u0435\u0445\u043E\u0434\u0430 \u0432 \u0441\u0446\u0435\u043D\u0443 ${to}` };
+    const moved = engine.navigate(zone);
+    return moved ? { ok: true, detail: `\u043F\u0435\u0440\u0435\u0445\u043E\u0434 \u0432 \u0441\u0446\u0435\u043D\u0443 \u2192 ${to}` } : { ok: false, detail: `\u043F\u0435\u0440\u0435\u0445\u043E\u0434 \u0432 \u0441\u0446\u0435\u043D\u0443 ${to} \u0437\u0430\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u0430\u043D` };
   }
   if (kind === "wait") {
     const ticks = Math.max(1, Number(action.ticks ?? 1));
@@ -22118,7 +22132,35 @@ async function cmdRun(config, script) {
   await writeRun(config, result, steps, engine, campaign2, config.debug);
   return result;
 }
-function chooseAction(rng, observation, mode, visited) {
+function navigationProgressSignature(engine) {
+  const state = { ...engine.state };
+  delete state.log;
+  const dialogue = engine.dialogue;
+  const combat = engine.combat;
+  return sha256(
+    stableJson({
+      state,
+      dialogue: dialogue ? {
+        npc: String(dialogue.npc?.id ?? ""),
+        choices: (dialogue.choices ?? []).map((choice) => String(choice.text ?? "")),
+        finished: !!dialogue.finished
+      } : null,
+      combat: combat ? {
+        round: Number(combat.round ?? 0),
+        result: combat.result ? String(combat.result) : null,
+        units: (combat.combatants ?? []).map((unit) => ({
+          id: String(unit.id ?? ""),
+          hp: Number(unit.hp ?? 0),
+          dead: !!unit.dead
+        }))
+      } : null
+    })
+  );
+}
+function navigationAttemptKey(from, to, progressSignature) {
+  return JSON.stringify([from, to, progressSignature]);
+}
+function chooseAction(rng, observation, mode, visitedLocations, visitedScenes, attemptedNavigations, progressSignature, followNavigation) {
   const options = [];
   if (observation.combat) {
     if (observation.combat.result) return { do: "combat_close" };
@@ -22134,13 +22176,22 @@ function chooseAction(rng, observation, mode, visited) {
     for (const item of observation.visible) {
       if (item.entity && item.action !== "none") options.push({ do: "interact", entity: item.entity });
     }
+    if (followNavigation) {
+      for (const navigation of observation.navigation) {
+        const fresh = !visitedScenes.has(navigation.scene);
+        const attempted = attemptedNavigations.has(navigationAttemptKey(observation.scene, navigation.scene, progressSignature));
+        if (mode === "fuzz" || fresh && !attempted) options.push({ do: "move", to: navigation.scene });
+      }
+    }
     for (const exit of observation.exits) options.push({ do: "travel", to: exit.location });
     options.push({ do: "wait", ticks: 1 });
   }
   if (!options.length) return null;
   if (mode === "explore") {
-    const fresh = options.find((o2) => o2.do === "travel" && !visited.has(o2.to));
-    if (fresh) return fresh;
+    const freshLocation = options.find((option) => option.do === "travel" && !visitedLocations.has(option.to));
+    if (freshLocation) return freshLocation;
+    const freshNavigation = options.find((option) => option.do === "move");
+    if (freshNavigation) return freshNavigation;
   }
   return options[Math.floor(rng() * options.length)];
 }
@@ -22153,6 +22204,7 @@ async function cmdSearch(config, mode, stepsLimit) {
   let status = "ok";
   let stale = 0;
   let lastSignature = "";
+  const attemptedNavigations = /* @__PURE__ */ new Set();
   const record = (action, detail) => {
     const observation = observe(steps.length);
     seen.scenes.add(observation.scene);
@@ -22168,10 +22220,24 @@ async function cmdSearch(config, mode, stepsLimit) {
   for (let i2 = 0; i2 < stepsLimit; i2++) {
     const observation = steps[steps.length - 1].observation;
     if (observation.over) break;
-    const action = chooseAction(rng, observation, mode, seen.locations);
+    const followNavigation = config.followNavigation !== false;
+    const progressSignature = followNavigation ? navigationProgressSignature(engine) : "";
+    const action = chooseAction(
+      rng,
+      observation,
+      mode,
+      seen.locations,
+      seen.scenes,
+      attemptedNavigations,
+      progressSignature,
+      followNavigation
+    );
     if (!action) {
       status = "softlock";
       break;
+    }
+    if (action.do === "move") {
+      attemptedNavigations.add(navigationAttemptKey(observation.scene, String(action.to), progressSignature));
     }
     const outcome = act(engine, campaign2, action);
     if (!outcome.ok) stale++;
@@ -22262,8 +22328,12 @@ async function cmdCheck(config, seeds, stepsLimit, routesDir, packRegistryPath =
     const run = await cmdRun({ ...config, seed: routeSeed, outDir: out, routeName: file }, script);
     routeRuns.push({ file, status: run.status, steps: run.steps, assertions: run.assertions, transcript: run.hashes.transcript });
   }
+  const hasTravelConnections = Object.values(campaign2.world?.regions ?? {}).some(
+    (region) => (region.locations ?? []).some((location) => Array.isArray(location.travel_connections) && location.travel_connections.length > 0)
+  );
+  const followNavigation = config.followNavigation ?? !hasTravelConnections;
   const sweep = await cmdSweep(
-    { ...config, quiet: true, outDir: config.outDir ? join5(config.outDir, "sweep") : null },
+    { ...config, followNavigation, quiet: true, outDir: config.outDir ? join5(config.outDir, "sweep") : null },
     seeds,
     stepsLimit
   );
@@ -22293,9 +22363,10 @@ async function cmdCheck(config, seeds, stepsLimit, routesDir, packRegistryPath =
       status: sweepResult.status,
       seeds: sweepResult.stats?.seeds,
       finals: sweepResult.stats?.finals,
+      endings: sweepResult.stats?.endings,
       deaths: sweepResult.stats?.deaths
     },
-    coverage: { visited: visited.size, total: graph.reachability.scenes.reachable.length, uncovered }
+    coverage: { visited: visited.size, total: graph.reachability.scenes.reachable.length, seen: [...visited].sort(), uncovered }
   };
   const text = [];
   text.push(`# \u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 \xB7 ${graph.campaign.title}`);
@@ -22317,12 +22388,15 @@ async function cmdCheck(config, seeds, stepsLimit, routesDir, packRegistryPath =
   text.push("");
   text.push("## \u041C\u0430\u0442\u0440\u0438\u0446\u0430 seed'\u043E\u0432");
   text.push(`seed'\u043E\u0432 ${sweepResult.stats?.seeds ?? 0} \xB7 \u0438\u0441\u0445\u043E\u0434\u044B ${JSON.stringify(sweepResult.stats?.finals ?? {})}`);
+  const endings = sweepResult.stats?.endings ?? [];
+  if (endings.length) text.push(`\u043A\u043E\u043D\u0446\u043E\u0432\u043A\u0438: ${endings.join(", ")}`);
   if (Object.keys(sweepResult.stats?.deaths ?? {}).length) {
     text.push(`\u0441\u043C\u0435\u0440\u0442\u0438: ${JSON.stringify(sweepResult.stats?.deaths)}`);
   }
   text.push("");
   text.push("## \u041F\u043E\u043A\u0440\u044B\u0442\u0438\u0435");
   text.push(`\u043F\u043E\u0441\u0435\u0449\u0435\u043D\u043E ${visited.size} \u0438\u0437 ${graph.reachability.scenes.reachable.length} \u0434\u043E\u0441\u0442\u0438\u0436\u0438\u043C\u044B\u0445 \u0441\u0446\u0435\u043D`);
+  if (visited.size) text.push(`\u0441\u0446\u0435\u043D\u044B: ${[...visited].sort().join(", ")}`);
   if (uncovered.length) text.push(`\u043D\u0435 \u043F\u043E\u043A\u0440\u044B\u0442\u043E: ${uncovered.slice(0, 15).join(", ")}${uncovered.length > 15 ? ` \u2026 \u0435\u0449\u0451 ${uncovered.length - 15}` : ""}`);
   if (config.outDir) {
     await mkdir(config.outDir, { recursive: true });
@@ -22503,6 +22577,7 @@ async function cmdSweep(config, seeds, stepsLimit) {
       ok: runs.length - bad.length,
       failed: bad.length,
       finals,
+      endings: [...endings].sort(),
       deaths
     },
     hashes: { transcript: "", run: "" }
@@ -22513,9 +22588,11 @@ async function cmdSweep(config, seeds, stepsLimit) {
   lines.push(`seed'\u043E\u0432 ${runs.length} \xB7 \u0443\u0441\u043F\u0435\u0448\u043D\u044B\u0445 ${runs.length - bad.length} \xB7 \u043F\u0440\u043E\u0431\u043B\u0435\u043C\u043D\u044B\u0445 ${bad.length} \xB7 \u0434\u0432\u0438\u0436\u043E\u043A ${first.engine}`);
   lines.push("");
   lines.push(`\u041F\u043E\u0441\u0435\u0449\u0435\u043D\u043E \u0441\u0446\u0435\u043D: ${scenes.size} \xB7 \u043B\u043E\u043A\u0430\u0446\u0438\u0439: ${locations.size} \xB7 \u0434\u0438\u0430\u043B\u043E\u0433\u043E\u0432: ${dialogues.size} \xB7 \u043A\u043E\u043D\u0446\u043E\u0432\u043E\u043A: ${endings.size}`);
+  lines.push(`\u0421\u0446\u0435\u043D\u044B: ${[...scenes].sort().join(", ") || "\u043D\u0435\u0442"}`);
   lines.push("");
   lines.push("## \u0418\u0441\u0445\u043E\u0434\u044B");
-  for (const [type, count] of Object.entries(finals).sort((a2, b2) => b2[1] - a2[1])) lines.push(`- ${type}: ${count}`);
+  const reportedFinals = { ...finals, open: finals.open ?? 0 };
+  for (const [type, count] of Object.entries(reportedFinals).sort((a2, b2) => b2[1] - a2[1])) lines.push(`- ${type}: ${count}`);
   if (Object.keys(deaths).length) {
     lines.push("", "## \u041F\u0440\u0438\u0447\u0438\u043D\u044B \u0441\u043C\u0435\u0440\u0442\u0438");
     for (const [reason, count] of Object.entries(deaths).sort((a2, b2) => b2[1] - a2[1])) lines.push(`- ${reason}: ${count}`);
