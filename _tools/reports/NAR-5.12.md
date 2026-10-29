@@ -141,6 +141,18 @@ npm run playthrough:exam -- http://localhost:4173 out/nar-5.18-playthrough-exam
 
 `npx tsc -b`: **rc=0** (также выполнен внутри `check:mission` и `npm run build`). `npm run build`: **rc=0**, 1 449 модулей трансформировано, Vite завершил сборку. `check:core-graph`, `check:brand` и `check:version` прошли как в `check:mission`, так и в отдельных локальных проверках; `check:contracts`, `check:schema-freeze`, `check:compat-corpus`, `smoke:core`, `smoke:saves-compat` и `check:module-size` завершились с `rc=0`.
 
+## CI для PR #135
+
+Первый PR-run `40826799931` завершился `failure` не из-за несовпадения проверки: GitHub annotation сообщает буквально `The action 'Детерминизм циклов' has timed out after 5 minutes.` Предыдущие шаги завершились успешно; последующие были пропущены. Повторить этот run через GitHub не удалось: rerun endpoint вернул `Resource not accessible by integration` (403).
+
+Чтобы проверить именно конфигурацию с кэшированным browser prefix и отдельным `TMPDIR`, повторно выполнено локально:
+
+```text
+NARTHEX_PARITY_BROWSER_PREFIX=/home/user/narthex TMPDIR=/tmp/nar-5.18-parity-runtime npm run check:determinism
+```
+
+**rc=0**; Chromium `131.0.6778.0`; `PASS: 10/10 browser hashes equal cf-play; repeated hashes are identical.` Изменения workflow или проверяемого кода не вносились. Для повторного PR-CI отправлено только последующее изменение этого же отчёта.
+
 ## Граница изменения
 
 Повторная сверка не потребовала правок кода, схем, паков, документации, карточек или решений. Единственный предполагаемый tracked-файл изменения этого задания — `_tools/reports/NAR-5.12.md`.
