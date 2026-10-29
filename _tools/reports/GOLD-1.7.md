@@ -53,7 +53,11 @@ The frozen audit-bundle check cannot be made rc=0 without changing a specificall
 
 ## PR and merge
 
-Pending. Update this section with the explicit PR number, actual CI results, merge SHA, and main-push run before finalizing.
+- PR #151: https://github.com/Creative36711/narthex/pull/151, head `ac2c9ed304fde7e9b95bcd0219cf63a35c61a521` on `arena/30abd3ef-narthex`, base `main` at `93a749699de92104162a14b946558c77d7375ca4`.
+- PR `visual` run `40944645293`, job `123696684362`: **failure** at “Проверить свежесть бандла аудита до сборки”; later visual checks were skipped. This is the frozen audit-bundle mismatch noted above.
+- PR `golden-playthrough` run `40944645289`, job `123696684497`: **failure** at “Run golden import, audit, playkit and browser save/load”; the GOLD-1.6 evidence artifact uploaded successfully. This matches the previously accepted non-blocking autosave/save-load failure.
+- `gh pr checks 151 --watch` returned rc=1 because both checks are red. `gh run view` identified the failed steps; `--log-failed` could not download logs (results-receiver returned EOF), so no more detailed diagnosis is claimed.
+- These are the same two accepted exceptions recorded in `docs/decisions/GOLD-1.6c.md`; they remain failures, not passes. Squash-merge status and any main-push run are reported in the final completion marker after the PR operation.
 
 ## Artifacts
 

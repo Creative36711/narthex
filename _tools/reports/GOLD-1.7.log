@@ -21,4 +21,9 @@
 {"date":"2026-10-29","task":"GOLD-1.7","event":"check_audit_bundle","command":"npm run check:audit-bundle","exit_code":1,"failure":"Frozen campaign-audit bundle is stale at byte 145633; intentionally unchanged per accepted GOLD-1.6c scope decision."}
 {"date":"2026-10-29","task":"GOLD-1.7","event":"golden_integrity","path":".golden/manifest.json","sha256":"d74c775a50400b3c9e9c707d65e26de63cb2f1f513a84b3163b141b1449f21aa","files":1290,"cf_play_sidecar_absent":true}
 {"date":"2026-10-29","task":"GOLD-1.7","event":"scope_audit","detail":"No changes to src/core, src/player, packs, docs/contracts, public/campaigns, .golden, or campaign-audit.mjs."}
-{"date":"2026-10-29","task":"GOLD-1.7","event":"report_created","path":"_tools/reports/GOLD-1.7.md","log_path":"_tools/reports/GOLD-1.7.log","jsonl_records":24}
+{"date":"2026-10-29","task":"GOLD-1.7","event":"report_created","path":"_tools/reports/GOLD-1.7.md","log_path":"_tools/reports/GOLD-1.7.log","jsonl_records":29}
+{"date":"2026-10-29","task":"GOLD-1.7","event":"pr_created","number":151,"url":"https://github.com/Creative36711/narthex/pull/151","head":"ac2c9ed304fde7e9b95bcd0219cf63a35c61a521","base":"main"}
+{"date":"2026-10-29","task":"GOLD-1.7","event":"pr_visual_check","run_id":"40944645293","job_id":"123696684362","conclusion":"failure","failed_step":"Проверить свежесть бандла аудита до сборки","classification":"known frozen audit-bundle mismatch"}
+{"date":"2026-10-29","task":"GOLD-1.7","event":"pr_golden_check","run_id":"40944645289","job_id":"123696684497","conclusion":"failure","failed_step":"Run golden import, audit, playkit and browser save/load","evidence_upload":"success","classification":"accepted autosave/save-load exception from GOLD-1.6c decision"}
+{"date":"2026-10-29","task":"GOLD-1.7","event":"ci_log_access","command":"gh run view --log-failed","result":"results receiver returned EOF; failure classified from GitHub job summary and failed step metadata"}
+{"date":"2026-10-29","task":"GOLD-1.7","event":"pr_watch","command":"gh pr checks 151 --watch --interval 15","exit_code":1,"detail":"Both visual and golden-playthrough checks completed as failures."}
