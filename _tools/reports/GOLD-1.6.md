@@ -82,6 +82,7 @@ Menu → hero → gate → machine hall → first clue, then save, page reload/C
 
 - Report: `_tools/reports/GOLD-1.6.md`
 - Log: `_tools/reports/GOLD-1.6.log`
+- Drive log: [`GOLD-1.6.log`](https://drive.google.com/file/d/1oF4N9eB2EkS1f6j1dF8bJv86dRjk6YX5/view?usp=drivesdk) (file ID `1oF4N9eB2EkS1f6j1dF8bJv86dRjk6YX5`).
 - Screenshots: `_tools/reports/GOLD-1.6/`
 ## CI workflow
 
@@ -89,8 +90,9 @@ Menu → hero → gate → machine hall → first clue, then save, page reload/C
 - Triggers: pull requests to `main` and pushes to `main`, filtered to the workflow, pinned manifest, package/runtime, UI, engine, pack and test paths; also `workflow_dispatch`.
 - Job: `golden-playthrough`; Ubuntu latest; timeout: 45 minutes.
 - Cache: `.golden`, keyed by runner OS and `hashFiles('.golden/manifest.json')`.
-- CI artifact: `GOLD-1.6-<run-id>` (14-day retention; report, JSONL log and PNG screenshots).
-- CI run: pending; the path-filtered `golden-playthrough` workflow runs on this pull request.
+- CI artifact: `GOLD-1.6-40924355797` (artifact ID `12920371071`; 15,717,082 bytes; SHA-256 `9a282ef243a3d1796f4eff30026f7cd7041fa9156d8f5e40d9864a5f664918aa`; expires 2026-11-12). [Workflow run](https://github.com/Creative36711/narthex/actions/runs/40924355797).
+- CI run `40924355797`: job `golden-playthrough` **SUCCESS** in 1m58s; evidence upload passed.
+- Separate PR check `visual` / `screenshots` is **FAILURE** at its `Пробы транспорта ScriptCat` step; this is the pre-existing unrelated probe failure (expected userscript `1.4.86`, current `1.4.87`), and was not modified or counted as green.
 
 ### Workflow YAML
 
