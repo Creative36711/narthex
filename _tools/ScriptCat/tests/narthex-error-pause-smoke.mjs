@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и новый адрес ntfy.
-assert.match(src, /@version\s+1\.4\.85/, 'версия 1.4.85');
+assert.match(src, /@version\s+1\.4\.86/, 'версия 1.4.86');
 assert.match(src, /@connect\s+ntfy\.sh/, 'ntfy.sh разрешён в @connect');
 
 // 2. Журнал: ограничен, очищается, счётчик виден.
@@ -115,7 +115,7 @@ assert.ok(
   'перезагружается только неотрисованная страница адресата, а не видимая ошибка',
 );
 
-// 9. 1.4.85: отказ Notion и молчание Notion — разные причины паузы.
+// 9. 1.4.86: отказ Notion и молчание Notion — разные причины паузы.
 // 28.10 HTTP 400 «content.length should be ≤ 2000» показывался как «сеть или
 // блокировка», и Мастер чинил сеть, которой ничего не было.
 const stepCatch = src.slice(

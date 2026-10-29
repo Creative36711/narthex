@@ -1,4 +1,4 @@
-// Проба 1.4.85: длинный текст и варианты-объекты.
+// Проба 1.4.86: длинный текст и варианты-объекты.
 //
 // 28.10 в 22:00 цикл дважды подряд встал на записи ответа приёмки. Notion был
 // жив и ответил по делу:
@@ -23,7 +23,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-assert.match(src, /@version\s+1\.4\.85/, 'версия 1.4.85');
+assert.match(src, /@version\s+1\.4\.86/, 'версия 1.4.86');
 
 /** Вырезает объявление по началу и по строке, с которой начинается следующее. */
 const sliceFrom = (startMarker, endMarker) => {
@@ -119,4 +119,4 @@ const textOf = (parts) => parts.map((p) => p.text.content).join('');
   assert.ok(!optionLabel({ label: 'A' }).includes('[object'), 'никакого [object Object]');
 }
 
-console.log('OK: narthex 1.4.85 — длинный ответ делится на части, вариант-объект даёт метку');
+console.log('OK: narthex 1.4.86 — длинный ответ делится на части, вариант-объект даёт метку');
