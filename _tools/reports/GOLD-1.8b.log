@@ -1,73 +1,54 @@
-[2026-10-29T20:22:16Z] GOLD-1.8b evidence, branch=arena/a6712d93-narthex HEAD=4f4241b6dc5ffe5e7d7ddd8aed7f53623bdff54b
-[2026-10-29T20:22:16Z] campaign-1 main=71dbbc1056fd34679cf9017ee7dc5ecff29d666c committed=2026-10-29T13:51:09Z openPRs=0
-[2026-10-29T20:22:17Z] manifest: commit=71dbbc1056fd34679cf9017ee7dc5ecff29d666c bytes=188669895 sha256=d424a914ed2714e9c643f428e5a8eba515cbc0aaba3b3a2d4746362ccad3cf4b
-[2026-10-29T20:22:17Z] clean slate: rm -rf .golden/karkas
-[2026-10-29T20:22:17Z] run 1/2 (fresh download): npm run golden:import
-    
-    > chronicle-forge@0.8.0 golden:import
-    > tsx scripts/golden-import.mts
-    
-    download: verified 188669895 bytes from https://codeload.github.com/Creative36711/campaign-1/tar.gz/71dbbc1056fd34679cf9017ee7dc5ecff29d666c
-    GOLDEN import: complete
-    archive: commit=71dbbc1056fd34679cf9017ee7dc5ecff29d666c bytes=188669895 sha256=d424a914ed2714e9c643f428e5a8eba515cbc0aaba3b3a2d4746362ccad3cf4b
-    tree: files=1290 directories=32 bytes=192491387 sha256=132a5c09987aff80c9dfe2f69f1195e642295f666fc906545f00d5fccce62c76
-    target: .golden/karkas/
-    manifest: unchanged
-    rc=0
-[2026-10-29T20:22:24Z] archive contents after run1: project.json=0 campaign.json=1 files=1290
-[2026-10-29T20:22:24Z] clean slate: rm -rf .golden/karkas
-[2026-10-29T20:22:24Z] run 2/2 (independent fresh download): npm run golden:import
-    
-    > chronicle-forge@0.8.0 golden:import
-    > tsx scripts/golden-import.mts
-    
-    download: verified 188669895 bytes from https://codeload.github.com/Creative36711/campaign-1/tar.gz/71dbbc1056fd34679cf9017ee7dc5ecff29d666c
-    GOLDEN import: complete
-    archive: commit=71dbbc1056fd34679cf9017ee7dc5ecff29d666c bytes=188669895 sha256=d424a914ed2714e9c643f428e5a8eba515cbc0aaba3b3a2d4746362ccad3cf4b
-    tree: files=1290 directories=32 bytes=192491387 sha256=132a5c09987aff80c9dfe2f69f1195e642295f666fc906545f00d5fccce62c76
-    target: .golden/karkas/
-    manifest: unchanged
-    rc=0
-[2026-10-29T20:22:35Z] audit: npm run audit:campaign -- .golden/karkas
-    
-    > chronicle-forge@0.8.0 audit:campaign
-    > tsx scripts/campaign-audit.mts .golden/karkas
-    
-    Headless-аудит кампании: /home/user/narthex/.golden/karkas
-    Файлов в покрытии: json 319, ink/md 11
-    Проверка Chronicle Forge — 10/29/2026, 8:22:38 PM
-    
-    СТРУКТУРА И ССЫЛКИ
-    ПРОБЛЕМ НЕТ
-    МЕДИА И ФАЙЛЫ
-    INFO: Проверено ссылок на локальные медиа в контенте кампании: 887; все найдены. Проверка покрывает только упомянутые в данных пути — файлы на диске без ссылок не считаются и не удаляются.
-    ПЛЕЙТЕСТ
-    INFO: После текущей версии кампании плейтест не запускался.
-    INFO: Эта проверка не симулирует игровой маршрут. Для проверки взаимодействий используйте кнопку «Плейтест».
-    Итого: 0 ошибок, 0 предупреждений, 3 заметок
-    rc=0
-[2026-10-29T20:22:38Z] check: node public/ai/cf-play.mjs check .golden/karkas
-    # Проверка кампании · Каркас: Дело о седьмой помпе
-    
-    ✓ проверка пройдена
-    
-    ## Статика
-    12 сцен · 5 локаций · 11 диалогов · 118 узлов ink
-    ошибок 0 · предупреждений 0
-    
-    ## Маршруты
-    маршрутов нет (/home/user/narthex/.golden/karkas/routes) — прогон только по seed'ам
-    
-    ## Матрица seed'ов
-    seed'ов 5 · исходы {"death":5}
-    концовки: ending_death, ending_flood
-    смерти: {"death: Семьдесят два часа вышли. Восьмой ярус ушёл под тяжёлую воду.":4,"death: Вы пали в бою.":1}
-    
-    ## Покрытие
-    посещено 4 из 12 достижимых сцен
-    сцены: scene_dry_row, scene_gate_hall, scene_office, scene_pump_hall
-    не покрыто: scene_archive, scene_drift, scene_face, scene_flood_gallery, scene_gate_office, scene_pump_room, scene_pump_shaft, scene_sluice
-    rc=0
-[2026-10-29T20:22:40Z] rcs: import=0/0 audit=0 cfplay=0
-[2026-10-29T20:22:40Z] browser run NOT executed: chromium binaries=0, playwright deps=none
-[2026-10-29T20:22:40Z] git status --porcelain .golden = 0 lines; repo = 0 lines
+GOLD-1.8b measured execution log — 2026-10-29
+branch=arena/c5133465-narthex
+starting_HEAD=86edcd8234103261d59e90e33537bae159a73e72
+origin_main=86edcd8234103261d59e90e33537bae159a73e72
+merge_base=86edcd8234103261d59e90e33537bae159a73e72
+npm ci: rc=0; npm reported 4 vulnerabilities (1 moderate, 1 high, 2 critical); no audit fix applied.
+Target campaign repository=Creative36711/campaign-1
+Target commit=4783665b04b9ea703cbdfc0bd10cc2b1263caf83; parent=71dbbc1056fd34679cf9017ee7dc5ecff29d666c
+Archive URL=https://codeload.github.com/Creative36711/campaign-1/tar.gz/4783665b04b9ea703cbdfc0bd10cc2b1263caf83
+Archive GET: HTTP 200; content-type=application/x-gzip; size_download=188670372
+Archive file bytes=188670372
+Archive SHA-256=7c2172a7c1582cf269b2035ea952c989ffa4fad5ce8c238528fca7545d527cb2
+Second direct download: same 188670372 bytes and SHA; cmp against first download=yes.
+Extracted project.json: 510 bytes; SHA-256=489cf44da06347eede87db3df5472cf80afea8d02d6c7ec83dbb90d100efa5dd
+Card project.json SHA was 509cf44da06347eede87db3df5472cf80afea8d02d6c7ec83dbb90d100efa5dd; mismatch reported, actual archive bytes used.
+Manifest repinned to commit=4783665b04b9ea703cbdfc0bd10cc2b1263caf83, archive bytes=188670372, archive SHA=7c2172a7c1582cf269b2035ea952c989ffa4fad5ce8c238528fca7545d527cb2.
+Import run 1: npm run golden:import; rc=0; downloaded archive and verified exact expected bytes/SHA; manifest updated.
+Import run 1 tree: files=1291; directories=32; bytes=192491897; SHA-256=d645ea0b79385b6a478f3e17108245ff5f4b057553ec4ad765f4387bb3d79d68.
+Import run 2: npm run golden:import; rc=0; extracted cache verified; network download skipped; manifest unchanged.
+Import run 2 archive: bytes=188670372; SHA-256=7c2172a7c1582cf269b2035ea952c989ffa4fad5ce8c238528fca7545d527cb2 (same as run 1).
+Import run 2 tree: files=1291; directories=32; bytes=192491897; SHA-256=d645ea0b79385b6a478f3e17108245ff5f4b057553ec4ad765f4387bb3d79d68 (same as run 1).
+Extracted .golden/karkas/project.json exists: 510 bytes; SHA-256=489cf44da06347eede87db3df5472cf80afea8d02d6c7ec83dbb90d100efa5dd.
+git status --porcelain -- .golden/karkas: empty; imported campaign remains ignored.
+Audit command: npm run audit:campaign -- .golden/karkas; rc=0; errors=0; warnings=0; notes=3.
+Audit coverage: 319 JSON files; 11 Ink/Markdown files; 887 local media references found.
+cf-play command: node public/ai/cf-play.mjs check .golden/karkas; rc=0; errors=0; warnings=0.
+cf-play campaign counts: 12 scenes; 5 locations; 11 dialogues; 118 Ink nodes; 5 seeds; coverage=4/12 reachable scenes.
+npm run pack:ai-kit: rc=0; package created and unpacked under /tmp/gold18b-kit-unpacked for verification.
+Unpacked kit check on .golden/karkas: rc=0; same 12/5/11/118 counts; errors=0; warnings=0.
+Reference check (public/ai/cf-play.mjs): public/campaigns/ash-of-caerden rc=0; 10 scenes; 8 locations; 6 dialogues; 21 Ink nodes; errors=0; warnings=3.
+Unpacked kit check on public/campaigns/ash-of-caerden: rc=0; same counts and 3 warnings as bundled result.
+npm run check:playkit-bundle: rc=0; bundle matches source; SHA-256=d7e7973b397200492a8e764e0857d90fd37bd1db4a78f8bf46325a403172a908.
+Previous measured browser baseline: 2 project.json 404s at first scene entry (03-gate); 5 total on full route (2 at 03-gate, 2 during Continue/autosave, 1 during manual-slot load).
+Official post-repin attempt: npm run golden:play; rc=1 before browser startup; error says pinned campaign tree/manifest does not match.
+Reason: checked-in scripts/golden/play.mjs hard-codes prior commit 71dbbc1056fd34679cf9017ee7dc5ecff29d666c, archive SHA d424a914ed2714e9c643f428e5a8eba515cbc0aaba3b3a2d4746362ccad3cf4b, and tree SHA 132a5c09987aff80c9dfe2f69f1195e642295f666fc906545f00d5fccce62c76.
+Temporary route probe used /tmp/gold18b-play.mjs; only root/module resolution and expected commit/archive/tree guard values were updated to match the measured manifest; route logic was unchanged.
+Checked-in runner SHA-256=8075e6b8044c1bf4fe6175cbc5c9b40c1df153d3818441deac6356f58e41a8a7; temporary copy SHA-256=73ea9fc2083dc8e4488540a08a50e8b48d31f0a4cd006c86ccde74cf9023e5ec.
+Browser packages installed without saving: @sparticuz/chromium@131 and playwright-core@1.49.1; browser=Chromium 131.0.6778.0.
+Route-only browser run: rc=0; result=route-complete; projectJson404Count=0; total httpErrorCount=0; pageerrorCount=0; consoleErrorCount=0; checkpoints=6 through first clue.
+At scene entry 03-gate: httpErrors=0 and expectedProjectJson404=0; measured entry change is 2 -> 0. All six route checkpoints recorded 0 HTTP/project.json 404s.
+Full --save-load probe: 0 HTTP/project.json 404s through all 7 checkpoints to first clue, then rc=1 at 06-before-save: No pre-save autosave found at narthex:save:b7305faa-8e10-4d26-96bb-f1b5ed5e493f.
+The full save/load run did not complete; its aggregate post-repin total versus baseline 5 is NOT MEASURED. No 5 -> 0 claim for that mode.
+No scripts/golden/**, public/ai/*.mjs, campaign source, core/player, packs, contracts, or .gitignore files were changed.
+Generated dist-ai/ package output and temporary browser screenshots/logs were removed after checks.
+Report/log and manifest are the only intended tracked changes; .golden/karkas is ignored.
+PR #154 opened at https://github.com/Creative36711/narthex/pull/154; base=main; head=arena/c5133465-narthex; head_sha=dec4f7ed38443df24abe1c02b9bbb749f0aa1129.
+PR check golden-playthrough run=40954610209 job=123731338091: failed combined "Run golden import, audit, playkit and browser save/load" step; artifact upload succeeded.
+The golden job setup, checkout, Node, npm dependencies, cache, and headless Chromium package installation steps succeeded.
+CI job metadata confirms the combined run step failed; the exact substep is not visible because `gh run view --log` returned EOF from results-receiver.actions.githubusercontent.com.
+`gh run download 40954610209 --name GOLD-1.6-40954610209` also returned EOF from productionresultssa2.blob.core.windows.net; artifact contents could not be inspected in this sandbox.
+Local `npm run golden:play` rc=1 at the old hard-coded manifest guard; route-only counts were measured using the disposable pin-aligned copy above, while full save/load totals remain unmeasured after the non-404 autosave failure.
+PR visual run=40954610101 job=123731337498: failed at "Проверить свежесть бандла аудита до сборки"; subsequent checks, including browser screenshots, were skipped.
+PR status at report update: both golden-playthrough and screenshots checks red; no check is represented as passing unless explicitly listed above.
+PR #154 was open and not yet merged at the time of this log entry.
