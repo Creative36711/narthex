@@ -1,0 +1,23 @@
+{"at":"2026-10-29T18:50:01Z","task":"GOLD-1.6b","dispatchId":"4086f0cf-5705-8120-b50e-db3877602b32","runId":"266adde0-27a9-4648-bc62-13caa79eed1e","event":"dispatch","branch":"arena/d6a159aa-narthex","pr":148}
+{"at":"2026-10-29T18:50:01Z","event":"preflight","head":"b3e5068b53d295c7ee0f605d2a654a8c86e798b9","originMain":"e3891bcb91be01b27d5e108495631ca7c54865e4","mergeBase":"e3891bcb91be01b27d5e108495631ca7c54865e4","clean":true,"task":"GOLD-1.6b"}
+{"at":"2026-10-29T18:50:01Z","event":"script_counts","base":56,"reference":135,"referenceCommit":"c1d7a6f21438ae4b48fe706b31e0783d6e52573b","restored":79,"task":"GOLD-1.6b"}
+{"at":"2026-10-29T18:50:01Z","event":"scripts_restored","scriptsObjectMatchesReference":true,"buildAiBundleCommandRestored":true,"requestedAliasesPresent":true,"task":"GOLD-1.6b"}
+{"at":"2026-10-29T18:50:01Z","event":"metadata","name":"chronicle-forge","version":"0.8.0","packageLockChanged":false,"packageDiffFromReference":["name","version"],"task":"GOLD-1.6b"}
+{"at":"2026-10-29T18:50:01Z","event":"gitignore_invariant","goldenIgnored":true,"cfPlayIgnored":true,"changed":false,"task":"GOLD-1.6b"}
+{"at":"2026-10-29T18:50:01Z","event":"scriptcat_invariant","version":"1.4.88","changed":false,"task":"GOLD-1.6b"}
+{"at":"2026-10-29T18:50:01Z","event":"temp_baseline","trackedFiles":1276,"promptClaim":1305,"task":"GOLD-1.6b"}
+{"at":"2026-10-29T18:50:01Z","event":"temp_removed","command":"git rm -r --cached -- _ai-temp","commit":"45c1eeea3911c9028abecf972c72de9a49691fa0","pathsAfter":0,"workingCopyRemoved":true,"task":"GOLD-1.6b"}
+{"at":"2026-10-29T18:50:01Z","event":"history","rewritten":false,"historicalBlobsReachableAt":"2344bcfa7e11947e01b189258c10a63d7b5352b7","task":"GOLD-1.6b"}
+{"at":"2026-10-29T18:50:01Z","event":"manifest","path":".golden/manifest.json","unchanged":true,"sha256":"d74c775a50400b3c9e9c707d65e26de63cb2f1f513a84b3163b141b1449f21aa","task":"GOLD-1.6b"}
+{"at":"2026-10-29T18:50:01Z","event":"npm_ci","rc":0,"task":"GOLD-1.6b"}
+{"at":"2026-10-29T18:50:01Z","event":"check_contracts","rc":1,"cause":"featureOn also exported from protected src/shared/types.ts","protectedFilesChanged":false,"task":"GOLD-1.6b"}
+{"at":"2026-10-29T18:50:01Z","event":"check_pack_boundary","rc":0,"task":"GOLD-1.6b"}
+{"at":"2026-10-29T18:50:01Z","event":"local_playthrough","id":"4f06831d-85eb-447a-82aa-f884e202340f","rc":1,"importRc":0,"auditRc":0,"auditErrors":0,"auditWarnings":0,"browser":"not reached","task":"GOLD-1.6b"}
+{"at":"2026-10-29T18:50:01Z","event":"source_cf_play","rc":2,"cause":"engine.attachPackSim is not a function","cli":"scripts/playkit/cli.mts","engine":"src/core/engine.ts","task":"GOLD-1.6b"}
+{"at":"2026-10-29T18:50:01Z","event":"pr_golden","runId":"40933018389","status":"failure","jobId":"123656150471","failedStep":"Run golden import, audit, playkit and browser save/load","localEquivalentRc":1,"task":"GOLD-1.6b"}
+{"at":"2026-10-29T18:50:01Z","event":"pr_golden_cause","runId":"40933018389","cause":"engine.attachPackSim is not a function","sourceCheckRc":2,"scope":"out of scope; protected engine and CLI unchanged","task":"GOLD-1.6b"}
+{"at":"2026-10-29T18:50:01Z","event":"pr_visual","runId":"40933018472","status":"failure","step":"Проверить свежесть бандла аудита до сборки","scriptCat":"skipped","assumption":"pre-existing visual audit-bundle external debt accepted by card","task":"GOLD-1.6b"}
+{"at":"2026-10-29T18:50:01Z","event":"main_baseline_golden","runId":"40929321273","head":"2344bcfa7e11947e01b189258c10a63d7b5352b7","status":"failure","task":"GOLD-1.6b"}
+{"at":"2026-10-29T18:50:01Z","event":"main_baseline_visual","runId":"40929415978","step":"Проверить свежесть бандла аудита до сборки","scriptCat":"skipped","assumption":"pre-existing external debt","task":"GOLD-1.6b"}
+{"at":"2026-10-29T18:50:01Z","event":"pr_merge_decision","pr":148,"method":"squash","allowedKnownGoldenFailure":true,"mergeSha":"pending","mainPushGoldenRun":"pending","task":"GOLD-1.6b"}
+{"at":"2026-10-29T18:50:01Z","event":"drive_log","fileId":"1BI6uVD-n81MvWKr89AxubMdh2oVYg4t8","action":"updated after evidence refresh","task":"GOLD-1.6b"}
