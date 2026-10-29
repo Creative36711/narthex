@@ -26,3 +26,9 @@ dist-ssr
 # Tauri
 src-tauri/target/
 src-tauri/gen/
+
+# Отчёты cf-play — артефакт прогона, а не содержимое пакета
+.cf-play/
+
+# Золотая кампания: архив тянется скриптом, в git не попадает
+.golden/
