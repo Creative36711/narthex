@@ -1,0 +1,14 @@
+{
+  "repository": "Creative36711/campaign-1",
+  "commit": "8edbaa385d77a88bfb2af8aad4fc4a93dbede8b1",
+  "url": "https://codeload.github.com/Creative36711/campaign-1/tar.gz/8edbaa385d77a88bfb2af8aad4fc4a93dbede8b1",
+  "sha256": "76787085add7aac55fd216d4d739a1edf48f1a250d66026f3b02164ded817a88",
+  "size_bytes": 188668720,
+  "tree": {
+    "archive_sha256": "76787085add7aac55fd216d4d739a1edf48f1a250d66026f3b02164ded817a88",
+    "sha256": "e8b3683443fca964fbc33d3aad2dda96c23c18153108d1d5151ef37e8bb99f75",
+    "files": 1287,
+    "directories": 29,
+    "size_bytes": 192491125
+  }
+}

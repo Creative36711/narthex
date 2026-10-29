@@ -35,4 +35,4 @@ dist-ai
 .cf-play/
 
 # Золотая кампания: архив тянется скриптом, в git не попадает
-.golden/
+.golden/karkas/
