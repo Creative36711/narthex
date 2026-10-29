@@ -1,0 +1,18 @@
+NAR-5.22 — real-browser state-ui playthrough
+timestamp: 2026-10-29T09:46:53.732Z
+target: public/campaigns/stone-tablet-siege
+data pack: state-ui (packs/state-ui/data/stone-tablet-siege/project.json)
+runtime seam: narrative.sim (structural cf-play metadata; browser choices below are the gameplay proof)
+player: Vite app at http://127.0.0.1:34667; Chromium 131.0.6778.0
+step 1: Opened the real Vite player; routed its campaign index to the internal fixture only.
+step 2: Started a new run, entered the table scene, and opened the Keeper dialogue.
+step 3: Round 1: Shield counters the heavy blow (2 points).
+step 4: Round 2: Shield holds position (1 point).
+step 5: Round 3: Lunge misses the feint (0 points).
+ending id: ending_draw
+ending title: Достойный соперник
+ending text: Достойный соперник Партия закончилась вничью. Смотритель признаёт, что вы читаете стол не хуже него, и предлагает сыграть ещё раз. Прожито 1 дн. (0 ход.) Переходов 0 Диалогов 1 Врагов убито 0 Забег завершён и вписан в хронику. Новый забег сложится иначе — мир каждый раз собирается заново. Начать новый забег В меню
+page errors: 0
+console errors: 0
+screenshot: _tools/reports/NAR-5.22-state-ui-ending.png (604684 bytes)
+result: PASS
