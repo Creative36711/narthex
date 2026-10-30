@@ -138,7 +138,8 @@
     "golden:save-load": "node scripts/golden/save-load.mjs",
     "golden:import": "tsx scripts/golden-import.mts",
     "golden:play": "node scripts/golden/play.mjs",
-    "golden:endings": "node scripts/golden/endings.mjs"
+    "golden:endings": "node scripts/golden/endings.mjs",
+    "golden:soak": "node scripts/golden/soak.mjs"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
