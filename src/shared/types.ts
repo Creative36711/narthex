@@ -1,3 +1,5 @@
+import { CAPABILITY_REGISTRY, campaignCaps, type CapabilityProfile } from '../core/caps'
+
 /**
  * Chronicle Forge — типы формата кампании (Campaign Package).
  * Соответствуют ТЗ, раздел 3.
@@ -601,9 +603,11 @@ export interface CampaignFeatures {
   time?: boolean
 }
 
-/** механика включена, если поле отсутствует или истинно */
-export function featureOn(meta: CampaignMeta, key: keyof CampaignFeatures): boolean {
-  return meta.features?.[key] !== false
+/** Единая проверка флага: явные caps приоритетны, legacy-карта сохраняет умолчания. */
+export function featureOn(meta: CapabilityProfile, id: string): boolean {
+  const capability = CAPABILITY_REGISTRY.find((entry) => entry.id === id)
+  if (!capability) throw new TypeError(`Unknown runtime capability "${id}"; check the capability registry.`)
+  return (capability.status === 'stable' || capability.status === 'experimental') && campaignCaps(meta).includes(id)
 }
 
 /** Эффективный стартовый тик забега: единая точка (движок, HUD-дедлайн и
@@ -3337,9 +3341,13 @@ export interface CampaignData {
   scenes: Record<string, SceneDef>
   entities: Record<string, EntityDef>
   rules: Record<string, RuleDef>
+  /** Порядок правил манифеста; отсутствует у программно созданных кампаний. */
+  ruleOrder?: string[]
   arenas: Record<string, ArenaDef>
   quests: Record<string, QuestDef>
   encounters: Record<string, EncounterTableDef>
+  /** Порядок таблиц встреч манифеста. */
+  encounterOrder?: string[]
   /** катсцены по id (итерация 8, блок E) */
   cutscenes: Record<string, CutsceneDef>
   /** рецепты крафта по id (блок 4 ТЗ) */
