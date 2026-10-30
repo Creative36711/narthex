@@ -29,7 +29,7 @@
 | `npm run cf-play:negative` | rc 0; negative warning-fixture behavior was correctly detected |
 | `git diff --check` | rc 0 |
 
-`npm run build` was not run. The task explicitly authorizes the narrower `npm run build:ai-bundle` generator; I treated that as controlling over the broader acceptance-line wording, to avoid unrelated build outputs or scope expansion.
+The authorized validation was the narrower `npm run build:ai-bundle`. However, during the first PR-creation attempt, Markdown backticks in a shell double-quoted body were accidentally treated as command substitutions, which inadvertently invoked `npm run build`. That broad command's status cannot be isolated from the failed `gh pr create` shell invocation (rc 126, argument list too long). The audit bundle retained its expected SHA-256, the repository working tree remained clean, and no default Vite output directory (`dist`) remained. The unintended full-build invocation is disclosed here; it is not counted as an acceptance check.
 
 ## Source/bundle and packed-kit behavior
 
