@@ -49,7 +49,7 @@ import { youtubeId } from '../shared/CutscenePlayer'
  * Проверка доступности ссылки:
  *  • `ok`    — файл грузится тегом <img>/<audio> (встраивание разрешено);
  *  • `cors`  — сервер отдаёт CORS-заголовки, поэтому файл можно скачать
- *              и вшить в .chronicle при экспорте.
+ *              и вшить в пакет кампании при экспорте.
  */
 export function checkExternalUrl(url: string, kind: AssetKind = 'any'): Promise<UrlCheck> {
   return new Promise((resolve) => {
