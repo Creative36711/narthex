@@ -3,7 +3,7 @@
 ## Summary and scope
 
 - Base / merge-base SHA: `b68ffd22275cb248419b61b449e2332de9b476b4` (same as initial `HEAD` and `origin/main`).
-- PR: pending creation from `arena/776ab2df-narthex`.
+- PR: [#179](https://github.com/Creative36711/narthex/pull/179) (`arena/776ab2df-narthex` → `main`).
 - Squash-merge SHA: assigned by GitHub after merge; included in the final `CF_AGENT_RESULT`.
 - 35 existing candidate probes were modified; no probe was added, removed, renamed, skipped, or early-returned. `scripts/mission-smokes.mts` is the shared loader/runner support change, making 36 changed script files total. The required report and decision record are the only new non-probe files.
 - No changes to `src/**`, `public/**`, `packs/**`, `package.json`, `.golden/**`, `scripts/golden/**`, `golden.yml`, or `docs/contracts/**`.
