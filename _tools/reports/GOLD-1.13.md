@@ -79,6 +79,9 @@ Full console output for the required command is saved at [`_tools/reports/GOLD-1
 
 ## GitHub CI and PR
 
-**Pending:** record the new PR number, its `golden-playthrough` result, and the `golden-playthrough` result on the actual merge-commit push to `main` after merge. PR-only green is not counted as merge-push acceptance. This section must be updated with the observed push run; no CI result is inferred from the local run.
+- **PR:** [#160](https://github.com/Creative36711/narthex/pull/160), from `arena/59fabbd4-narthex` to `main`.
+- **PR `golden-playthrough`:** [run 41025938217](https://github.com/Creative36711/narthex/actions/runs/41025938217), event `pull_request`, job `golden-playthrough` **passed** in 1m48s. This is recorded for provenance only; PR-only green does **not** satisfy merge-push acceptance.
+- **Separate visual check:** [run 41025938551](https://github.com/Creative36711/narthex/actions/runs/41025938551) failed in `screenshots` at step `Проверить свежесть бандла аудита до сборки` (`npm run check:audit-bundle`). The failed-step log endpoint returned EOF, so no further diagnostic is asserted. This is the already documented frozen-bundle freshness issue under `GOLD-1.6c`; the frozen external bundle was not edited. This check is outside the GOLD-1.13 golden-playthrough acceptance. GitHub currently reports the PR as `UNSTABLE` because of this separate failure.
+- **Actual merge-commit push:** pending. It will be checked after squash merge; no PR result or local replay is substituted for that push run.
 
 No §2 text, ADR GOLD-1.6c, campaign source, manifest, external audit bundle, Notion card, or Drive content was modified. `docs/decisions/GOLD-1.13.md` is an execution record only; it does not create a new sanction or amend an existing decision.
