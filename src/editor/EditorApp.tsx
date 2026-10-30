@@ -55,7 +55,7 @@ import { PackMissingNotice } from './PackMissingNotice'
 import { resolveProjectModesForStudio, resolveProjectPackForStudio } from './packCatalog'
 
 /**
- * Chronicle Forge — Editor Mode (Фаза 4, ТЗ 5).
+ * Narthex — Editor Mode (Фаза 4, ТЗ 5).
  * Работает поверх dev-сервера vite: сохранение пишет файлы кампании на диск.
  */
 
@@ -485,7 +485,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         <div className="panel no-campaign-panel">
           <div className="brand-row">
             <span className="brand">
-              <Ico n="forge" /> Редактор Chronicle Forge
+              <Ico n="forge" /> Редактор Narthex
             </span>
           </div>
           <h2>Кампаний пока нет</h2>
@@ -955,7 +955,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         const contentIssues = store.validateContent()
         if (canOfferEngineVersionRepair(store.meta, contentIssues)) {
           const correctVersion = await askConfirm(
-            `В пакете версия кампании ${store.meta.version} совпадает с min_engine «${requiredEngine}», но Chronicle Forge сейчас ${ENGINE_VERSION}. Формат пакета поддерживается, а проверка содержимого не нашла ошибок. Похоже, генератор скопировал версию кампании в поле версии движка. Заменить min_engine и устаревшее engine_version на ${ENGINE_VERSION}? Версия кампании останется ${store.meta.version}.`,
+            `В пакете версия кампании ${store.meta.version} совпадает с min_engine «${requiredEngine}», но Narthex сейчас ${ENGINE_VERSION}. Формат пакета поддерживается, а проверка содержимого не нашла ошибок. Похоже, генератор скопировал версию кампании в поле версии движка. Заменить min_engine и устаревшее engine_version на ${ENGINE_VERSION}? Версия кампании останется ${store.meta.version}.`,
             `Исправить на ${ENGINE_VERSION}`,
             'Оставить требование',
           )
@@ -1076,7 +1076,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     <div className={`editor-root ed-theme-${edTheme}`}>
       <header className="editor-topbar">
         <span className="editor-brand">
-          <Ico n="forge" /> Chronicle Forge <span className="editor-brand-sub">· редактор</span>
+          <Ico n="forge" /> Narthex <span className="editor-brand-sub">· редактор</span>
         </span>
         <select
           className="editor-theme-select"

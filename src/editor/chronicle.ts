@@ -7,7 +7,7 @@ import { AI_TASK_DIR } from './aiKit'
 export { AI_TASK_DIR } from './aiKit'
 
 /**
- * Экспорт/импорт пакета кампании `.chronicle` (ТЗ 3.11, 5.4) — zip-архив
+ * Экспорт/импорт пакета кампании (ТЗ 3.11, 5.4) — zip-архив
  * со структурой Campaign Package, включая ассеты.
  */
 
@@ -68,7 +68,7 @@ export async function exportChronicle(
 }
 
 /**
- * Экспорт легковесного пакета изменений (.chronicle) для отправки внешнему ИИ или коллеге:
+ * Экспорт легковесного пакета изменений для отправки внешнему ИИ или коллеге:
  * включает только те файлы, которые мастер реально изменил или добавил в редакторе,
  * плюс CHANGES.md и инструкцию для агента в __chronicle_ai__/TASK.md.
  */
@@ -105,7 +105,7 @@ export async function exportPatchChronicle(
 
   // 4. Формируем задание для ИИ в __chronicle_ai__/TASK.md
   const aiTaskText = [
-    '# Пакет ручных изменений мастера (Chronicle Forge Patch)',
+    '# Пакет ручных изменений мастера (Narthex Patch)',
     '',
     `Кампания: ${store.meta.title} (ID: ${store.meta.id})`,
     `Дата экспорта: ${new Date().toLocaleString('ru')}`,
@@ -139,7 +139,7 @@ export function downloadBlob(blob: Blob, filename: string): void {
 }
 
 /**
- * Импорт .chronicle: распаковка в память редактора; ассеты пишутся на диск
+ * Импорт пакета: распаковка в память редактора; ассеты пишутся на диск
  * через dev-эндпоинт (только в vite dev).
  * Поддерживает как полные архивы кампаний, так и легковесные патчи изменений.
  */

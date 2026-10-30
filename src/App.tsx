@@ -12,8 +12,9 @@ import { HelpPanel } from './player/HelpPanel'
 import { CharacterCreation } from './player/CharacterCreation'
 import { createCampaign, fetchCampaignIndex, type CampaignIndexEntry } from './editor/newCampaign'
 import { askText, showAlert, showList } from './shared/modals'
-import { setAudioCampaign, playUi, unlockAudio } from './shared/audio'
-import { setMusicCampaign, refreshMusic } from './shared/music'
+import { setAudioCampaign } from './shared/audio'
+import { setMusicCampaign } from './shared/music'
+import { useAnimationPreference, useAudioUnlock, useCampaignProfileClass } from './shared/appShell'
 import { injectCampaignCustomCss, injectCampaignFonts, themeHasFrame, themeVars } from './shared/theme'
 import { profileClass, atmosphereOn } from './shared/profiles'
 import { useSettings } from './shared/settings'
@@ -39,6 +40,18 @@ function pickCampaign(index: CampaignIndexEntry[], wanted: string | null, skip?:
 // Editor Mode (Фаза 4) — ленивый чанк: Monaco/Konva не грузятся в Player Mode
 const EditorApp = lazy(() => import('./editor/EditorApp').then((m) => ({ default: m.EditorApp })))
 
+/**
+ * Режим редактора — класс на `<body>`: модалки (ModalHost) и прочие всплывашки
+ * показывает тот же фирменный стиль, что и хром редактора, независимо от
+ * DOM-иерархии.
+ */
+function useEditorBodyClass(editor: boolean): void {
+  useEffect(() => {
+    document.body.classList.toggle('cf-editor', editor)
+    return () => document.body.classList.remove('cf-editor')
+  }, [editor])
+}
+
 export default function App() {
   // id кампании подставляется из реестра: запомненный открывается, только если
   // он всё ещё в списке, иначе — первая доступная (при пустом реестре null)
@@ -60,32 +73,9 @@ export default function App() {
   const [saveReview, setSaveReview] = useState<OpenedSave | null>(null)
   const settings = useSettings()
 
-  useEffect(() => {
-    document.documentElement.classList.toggle('no-anim', !settings.animations)
-  }, [settings.animations])
-
-  // режим редактора — класс на <body>: модалки (ModalHost) и прочие всплывашки
-  // показывает тот же фирменный стиль, что и хром редактора, независимо от DOM-иерархии
-  useEffect(() => {
-    document.body.classList.toggle('cf-editor', editor)
-    return () => document.body.classList.remove('cf-editor')
-  }, [editor])
-
-  // профиль на <html>: модалки рендерятся на уровне body (ModalHost),
-  // поэтому и им нужны токены профиля. В режиме редактора классы снимаются —
-  // оболочка редактора живёт в фирменном стиле Chronicle Forge.
-  useEffect(() => {
-    const root = document.documentElement
-    // снимаем любой профиль, установленный ранее (каталог из 13 профилей —
-    // фиксированный список классов перечислять не нужно)
-    for (const c of Array.from(root.classList)) {
-      if (c === 'cf-atmos-off' || c.startsWith('cf-profile-')) root.classList.remove(c)
-    }
-    if (!editor && campaign) {
-      root.classList.add(profileClass(campaign.meta))
-      if (!atmosphereOn(campaign.meta)) root.classList.add('cf-atmos-off')
-    }
-  }, [editor, campaign])
+  useAnimationPreference(settings.animations)
+  useEditorBodyClass(editor)
+  useCampaignProfileClass(editor, campaign)
 
   useEffect(() => {
     void fetchCampaignIndex().then((idx) => {
@@ -150,24 +140,7 @@ export default function App() {
   }, [campaignId, campaigns])
 
   // аудио: разблокировка WebAudio по первому жесту + общий «клик» по кнопкам (блок H)
-  useEffect(() => {
-    const unlock = () => {
-      unlockAudio()
-      // первый жест разрешает автоплей — запускаем музыку, которая уже должна звучать (но не в редакторе)
-      if (editor || window.location.hash === '#editor') return
-      refreshMusic(engine)
-    }
-    const onClick = (e: MouseEvent) => {
-      const t = e.target as HTMLElement | null
-      if (t?.closest('button')) playUi('click', 0.55)
-    }
-    window.addEventListener('pointerdown', unlock, { once: true })
-    window.addEventListener('click', onClick)
-    return () => {
-      window.removeEventListener('pointerdown', unlock)
-      window.removeEventListener('click', onClick)
-    }
-  }, [engine, editor])
+  useAudioUnlock(engine, editor)
 
   useEffect(() => {
     const onHash = () => setEditor(window.location.hash === '#editor')
