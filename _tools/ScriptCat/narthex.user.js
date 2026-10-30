@@ -611,7 +611,7 @@
         length: m.raw.length,
         tail: tail(m.text, 220),
         marker:
-          parseMarker(m.raw, "CF_COORDINATOR_RESULT") || parseMarker(m.raw, "CF_AGENT_RESULT") || null,
+          parseMarker(m.raw, "CF_COORDINATOR_RESULT") || parseMarker(m.raw, "CF_AGENT_RESULT") || parseMarker(m.raw, "CF_REVIEW_RESULT") || null,
       }));
     },
     resend: () => {
@@ -2617,7 +2617,7 @@
       }
     }
     const mine = (m) => {
-      const result = parseMarker(m.raw, "CF_AGENT_RESULT") || parseMarker(m.raw, "CF_COORDINATOR_RESULT");
+        const result = parseMarker(m.raw, "CF_AGENT_RESULT") || parseMarker(m.raw, "CF_COORDINATOR_RESULT") || parseMarker(m.raw, "CF_REVIEW_RESULT");
       if (!result) return false;
       const ids = [result.dispatch_id, result.turn_id, result.mission_id].map(norm);
       if (!ids.includes(ref)) return false;
@@ -6248,7 +6248,7 @@
     const all = messages();
     const last = [...all].reverse().find((n) => !isUserNode(n));
     if (!last) return { ok: false, text: "В чате нет ответов агента." };
-    const result = parseMarker(messageRaw(last), "CF_AGENT_RESULT") || parseMarker(messageRaw(last), "CF_COORDINATOR_RESULT");
+    const result = parseMarker(messageRaw(last), "CF_AGENT_RESULT") || parseMarker(messageRaw(last), "CF_COORDINATOR_RESULT") || parseMarker(messageRaw(last), "CF_REVIEW_RESULT");
     if (!result) return { ok: false, text: "В последнем ответе нет маркера выдачи — читать нечего." };
     const ref = norm(result.dispatch_id || result.turn_id || result.mission_id);
     if (!isUuid(ref)) return { ok: false, text: `В маркере битый id («${ref || "нет"}») — прочитать ответ по нему нельзя.` };
@@ -6777,7 +6777,7 @@
 
   async function submitExecutor(role, expect, manual = false) {
     const candidates = messagesAfter(expect.watermark)
-      .map((m) => ({ ...m, result: parseMarker(m.raw, "CF_AGENT_RESULT") }))
+      .map((m) => ({ ...m, result: parseMarker(m.raw, "CF_AGENT_RESULT") || parseMarker(m.raw, "CF_REVIEW_RESULT") }))
       .filter((m) => m.result);
     const exact = candidates.filter((m) => norm(m.result.dispatch_id) === norm(expect.ref));
     let hit = (exact.length ? exact : candidates).at(-1);
