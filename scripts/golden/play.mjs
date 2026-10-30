@@ -411,8 +411,8 @@ function parseHudMinutes(value) {
   return ((Number(match[1]) - 1) * 24 + Number(match[2])) * 60 + Number(match[3])
 }
 
-const AUTO_SAVE_KEY = `chronicle-forge:save:${campaign.id}`
-const MANUAL_SAVE_KEY = `chronicle-forge:save:${campaign.id}@${SAVE_SLOT}`
+const AUTO_SAVE_KEY = `narthex:save:${campaign.id}`
+const MANUAL_SAVE_KEY = `narthex:save:${campaign.id}@${SAVE_SLOT}`
 
 /** Read the browser's persisted envelope without changing it. */
 async function readStoredSnapshot(key, source) {
