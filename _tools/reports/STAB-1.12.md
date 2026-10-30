@@ -63,10 +63,11 @@ const V = versionMatch[1];
 
 ## Diff и доставка
 
-- Diff реализации (37 проб + условно разрешённое обновление README, без этого отчёта): **38 files changed, 91 insertions(+), 43 deletions(-)**. Полный staged diff вместе с отчётом: **39 files changed, 163 insertions(+), 43 deletions(-)**.
+- Diff реализации (37 проб + условно разрешённое обновление README, без этого отчёта): **38 files changed, 91 insertions(+), 43 deletions(-)**. Полный staged diff вместе с отчётом: **39 files changed, 164 insertions(+), 43 deletions(-)**.
 - Состав проб доказан выше: **71 до → 71 после**; 37 из существующих проб покрывают metadata extractor.
 - Base SHA: `c42964cc697acd4db36c3d72af6f4f4ad2e176e1`.
 - PR #178: https://github.com/Creative36711/narthex/pull/178 (из `arena/446de8f1-narthex` в `main`).
+- GitHub Actions run #41130695004 (`screenshots`) завершился до запуска runner/steps (`runner_id=0`, список steps пуст): annotation указывает на failed account payments или превышенный spending limit. Это инфраструктурный отказ, CI не выдал результат по коду; фактические RC — локальные проверки выше.
 - Squash merge SHA: **будет указан в итоговом ответе после merge** (SHA не существует до GitHub merge).
 
 Будущий bump версии в `narthex.user.js` в формате `x.y.z` автоматически попадёт в текущие version assertions через metadata extraction. Проверка наличия и формата останется активной; менять пробам конкретное число версии больше не требуется.
