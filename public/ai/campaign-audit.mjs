@@ -243,13 +243,119 @@ var init_loader = __esm({
   }
 });
 
-// src/shared/types.ts
-function featureOn(meta, key) {
-  return meta.features?.[key] !== false;
+// src/core/caps.ts
+function assertEnableable(id, source) {
+  const capability = capabilityById.get(id);
+  if (!capability) {
+    throw new TypeError(`Unknown capability "${id}" in campaign.meta.${source}; check the capability registry.`);
+  }
+  if (!ENABLED_STATUSES.has(capability.status)) {
+    throw new TypeError(`Capability "${id}" cannot be enabled from campaign.meta.${source} (status: ${capability.status}).`);
+  }
+  return capability;
 }
+function parseCapabilityList(value, source) {
+  if (!Array.isArray(value)) {
+    const kind = value === null ? "null" : typeof value;
+    throw new TypeError(`Invalid campaign.meta.${source}: expected an array of capability ids, received ${kind}.`);
+  }
+  const result = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const id of value) {
+    if (typeof id !== "string" || id.trim() === "") {
+      throw new TypeError(`Invalid campaign.meta.${source}: every capability id must be a non-empty string.`);
+    }
+    assertEnableable(id, source);
+    if (!seen.has(id)) {
+      result.push(id);
+      seen.add(id);
+    }
+  }
+  return result;
+}
+function campaignCaps(meta) {
+  if (meta.caps !== void 0) return parseCapabilityList(meta.caps, "caps");
+  const features = meta.features;
+  if (features === void 0) return [...LEGACY_DEFAULT_CAPS];
+  if (Array.isArray(features)) return parseCapabilityList(features, "features");
+  if (features === null || typeof features !== "object") {
+    const kind = features === null ? "null" : typeof features;
+    throw new TypeError(`Unsupported campaign.meta.features format: expected string[] or a boolean map, received ${kind}.`);
+  }
+  const prototype = Object.getPrototypeOf(features);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw new TypeError("Unsupported campaign.meta.features format: expected a plain boolean map.");
+  }
+  const enabled = new Set(LEGACY_DEFAULT_CAPS);
+  for (const [id, value] of Object.entries(features)) {
+    if (typeof value !== "boolean") {
+      throw new TypeError(`Invalid campaign.meta.features["${id}"]: expected a boolean, received ${value === null ? "null" : typeof value}.`);
+    }
+    assertEnableable(id, "features");
+    if (value) enabled.add(id);
+    else enabled.delete(id);
+  }
+  return [...enabled];
+}
+function featureOn(meta, id) {
+  const capability = capabilityById.get(id);
+  if (!capability) throw new TypeError(`Unknown runtime capability "${id}"; check the capability registry.`);
+  return ENABLED_STATUSES.has(capability.status) && campaignCaps(meta).includes(id);
+}
+var CAPABILITY_REGISTRY, capabilityById, LEGACY_DEFAULT_CAPS, ENABLED_STATUSES;
+var init_caps = __esm({
+  "src/core/caps.ts"() {
+    CAPABILITY_REGISTRY = [
+      { "id": "narrative", "title": "\u0413\u0440\u0430\u0444 \u0441\u0446\u0435\u043D, \u0444\u043B\u0430\u0433\u0438, \u0432\u0435\u0442\u0432\u043B\u0435\u043D\u0438\u0435", "pack": "narrative", "status": "stable", "since": 2, "enables": "campaign story graph and branching", "probe": "smoke:core" },
+      { "id": "scenes", "title": "\u0421\u0446\u0435\u043D\u044B \u0438 \u043F\u0435\u0440\u0435\u0445\u043E\u0434\u044B \u043C\u0435\u0436\u0434\u0443 \u043D\u0438\u043C\u0438", "pack": "narrative", "status": "stable", "since": 2, "enables": "scene state and navigation", "probe": "smoke:scene-editor" },
+      { "id": "dialogue", "title": "\u0414\u0438\u0430\u043B\u043E\u0433\u0438 \u0438 \u0432\u0435\u0442\u0432\u044F\u0449\u0438\u0435\u0441\u044F \u0440\u0435\u043F\u043B\u0438\u043A\u0438", "pack": "narrative", "status": "stable", "since": 2, "enables": "Ink dialogue and choices", "probe": "smoke:dlg-ui" },
+      { "id": "map", "title": "\u041A\u0430\u0440\u0442\u0430 \u043C\u0438\u0440\u0430 \u0438 \u043B\u043E\u043A\u0430\u0446\u0438\u0438", "pack": "narrative", "status": "stable", "since": 2, "enables": "world map and location travel", "probe": "smoke:travel-transition" },
+      { "id": "inventory", "title": "\u0418\u043D\u0432\u0435\u043D\u0442\u0430\u0440\u044C \u0438 \u043F\u0440\u0435\u0434\u043C\u0435\u0442\u044B", "pack": "narrative", "status": "stable", "since": 2, "enables": "inventory, equipment, and item use", "probe": "smoke:encumbrance" },
+      { "id": "needs", "title": "\u041F\u043E\u0442\u0440\u0435\u0431\u043D\u043E\u0441\u0442\u0438 \u0438 \u0438\u0445 \u0443\u0431\u044B\u0432\u0430\u043D\u0438\u0435", "pack": "narrative", "status": "stable", "since": 2, "enables": "tracked needs and their recovery", "probe": "smoke:time-semantics" },
+      { "id": "skills", "title": "\u041D\u0430\u0432\u044B\u043A\u0438 \u0438 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438", "pack": "narrative", "status": "stable", "since": 2, "enables": "skill checks and character growth", "probe": "smoke:core" },
+      { "id": "relationships", "title": "\u041E\u0442\u043D\u043E\u0448\u0435\u043D\u0438\u044F \u0441 \u043F\u0435\u0440\u0441\u043E\u043D\u0430\u0436\u0430\u043C\u0438", "pack": "narrative", "status": "stable", "since": 2, "enables": "NPC relationships and disposition", "probe": "smoke:ai-runtime" },
+      { "id": "trade", "title": "\u0422\u043E\u0440\u0433\u043E\u0432\u043B\u044F \u0438 \u0446\u0435\u043D\u044B", "pack": "narrative", "status": "stable", "since": 2, "enables": "trading and prices", "probe": "smoke:currency" },
+      { "id": "combat", "title": "\u041F\u043E\u0448\u0430\u0433\u043E\u0432\u044B\u0439 \u0431\u043E\u0439", "pack": "narrative", "status": "stable", "since": 2, "enables": "turn-based combat", "probe": "smoke:core" },
+      { "id": "quests", "title": "\u041A\u0432\u0435\u0441\u0442\u044B \u0438 \u0441\u0442\u0430\u0434\u0438\u0438", "pack": "narrative", "status": "stable", "since": 2, "enables": "quest stages and journal", "probe": "smoke:quest-journal-runtime" },
+      { "id": "cutscenes", "title": "\u041A\u0430\u0442\u0441\u0446\u0435\u043D\u044B", "pack": "narrative", "status": "stable", "since": 2, "enables": "queued campaign cutscenes", "probe": "smoke:cutscene-queue" },
+      { "id": "fmv", "title": "\u0412\u0435\u0442\u0432\u044F\u0449\u0435\u0435\u0441\u044F \u0432\u0438\u0434\u0435\u043E (FMV)", "pack": "narrative", "status": "experimental", "since": 2, "enables": "branching video with preload and subtitles", "probe": "probe:fmv" },
+      { "id": "codex", "title": "\u041A\u043E\u0434\u0435\u043A\u0441 \u0438 \u0431\u0435\u0441\u0442\u0438\u0430\u0440\u0438\u0439", "pack": "narrative", "status": "stable", "since": 2, "enables": "codex entries and categories", "probe": "smoke:p2" },
+      { "id": "crafting", "title": "\u041A\u0440\u0430\u0444\u0442 \u0438 \u0440\u0435\u0446\u0435\u043F\u0442\u044B", "pack": "narrative", "status": "stable", "since": 2, "enables": "recipes and crafting actions", "probe": "smoke:craft-fail-time" },
+      { "id": "time", "title": "\u0418\u0433\u0440\u043E\u0432\u043E\u0435 \u0432\u0440\u0435\u043C\u044F \u0438 \u043A\u0430\u043B\u0435\u043D\u0434\u0430\u0440\u044C", "pack": "narrative", "status": "stable", "since": 2, "enables": "clock, calendar, and elapsed time", "probe": "smoke:time-semantics" },
+      { "id": "adventure", "title": "Point-and-click \u043F\u0440\u0438\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435", "pack": "adventure", "status": "experimental", "since": 2, "enables": "point-and-click adventure scenes and interactions", "probe": "probe:adventure" },
+      { "id": "state-machine", "title": "\u041F\u043E\u0448\u0430\u0433\u043E\u0432\u044B\u0439 \u0430\u0432\u0442\u043E\u043C\u0430\u0442 \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u0439", "pack": "state-ui", "status": "experimental", "since": 3, "enables": "generic state-machine runtime", "probe": "probe:state-ui" },
+      { "id": "cards", "title": "\u041A\u0430\u0440\u0442\u044B, \u043A\u043E\u043B\u043E\u0434\u044B, \u044D\u0444\u0444\u0435\u043A\u0442\u044B", "pack": "state-ui", "status": "experimental", "since": 3, "enables": "card collections and effects", "probe": "probe:state-ui" },
+      { "id": "auto-battle", "title": "\u0410\u0432\u0442\u043E\u0431\u0430\u0442\u043B\u0435\u0440 \u0438 \u0441\u0438\u043C\u0443\u043B\u044F\u0446\u0438\u044F \u043F\u0430\u0440\u0442\u0438\u0438", "pack": "state-ui", "status": "experimental", "since": 3, "enables": "automated battle simulation", "probe": "probe:state-ui" },
+      { "id": "turn-validation", "title": "\u0421\u0435\u0440\u0432\u0435\u0440\u043D\u0430\u044F \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u0445\u043E\u0434\u0430", "pack": "state-ui", "status": "planned", "since": 3, "enables": "authoritative server-side turn validation", "probe": null },
+      { "id": "grid", "title": "\u0421\u0435\u0442\u043A\u0430 \u0438 \u043A\u043B\u0435\u0442\u043A\u0438", "pack": "grid-strategy", "status": "planned", "since": 3, "enables": "grid cells and coordinates", "probe": null },
+      { "id": "pathfinding", "title": "\u041F\u043E\u0438\u0441\u043A \u043F\u0443\u0442\u0438 A*", "pack": "grid-strategy", "status": "planned", "since": 3, "enables": "A-star pathfinding", "probe": null },
+      { "id": "units", "title": "\u041E\u0442\u0440\u044F\u0434\u044B \u0438 \u044E\u043D\u0438\u0442\u044B", "pack": "grid-strategy", "status": "planned", "since": 3, "enables": "tactical units and squads", "probe": null },
+      { "id": "economy", "title": "\u041F\u043E\u0442\u043E\u043A\u043E\u0432\u0430\u044F \u044D\u043A\u043E\u043D\u043E\u043C\u0438\u043A\u0430", "pack": "grid-strategy", "status": "planned", "since": 3, "enables": "streaming strategy-game economy", "probe": null },
+      { "id": "ai-director", "title": "\u041F\u0440\u043E\u0442\u0438\u0432\u043D\u0438\u043A \u0438 \u0435\u0433\u043E \u043B\u043E\u0433\u0438\u043A\u0430", "pack": "grid-strategy", "status": "planned", "since": 3, "enables": "opponent and director logic", "probe": null },
+      { "id": "realtime-loop", "title": "\u0426\u0438\u043A\u043B \u0440\u0435\u0430\u043B\u044C\u043D\u043E\u0433\u043E \u0432\u0440\u0435\u043C\u0435\u043D\u0438", "pack": "endless-2d", "status": "planned", "since": 4, "enables": "real-time simulation loop", "probe": null },
+      { "id": "physics2d", "title": "\u0422\u0432\u0451\u0440\u0434\u044B\u0435 \u0442\u0435\u043B\u0430 2D", "pack": "endless-2d", "status": "planned", "since": 4, "enables": "2D rigid-body physics", "probe": null },
+      { "id": "procedural-gen", "title": "\u041F\u0440\u043E\u0446\u0435\u0434\u0443\u0440\u043D\u0430\u044F \u0433\u0435\u043D\u0435\u0440\u0430\u0446\u0438\u044F", "pack": "endless-2d", "status": "planned", "since": 4, "enables": "procedural content generation", "probe": null },
+      { "id": "mobile-input", "title": "\u0422\u0430\u0447-\u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u0435 \u0438 \u043C\u043E\u0431\u0438\u043B\u044C\u043D\u044B\u0439 \u044D\u043A\u0440\u0430\u043D", "pack": "endless-2d", "status": "planned", "since": 4, "enables": "touch-first mobile input", "probe": null },
+      { "id": "spatial3d", "title": "3D-\u0441\u0446\u0435\u043D\u0430 \u0438 \u043A\u0430\u043C\u0435\u0440\u0430", "pack": "spatial-3d", "status": "planned", "since": 5, "enables": "3D scene and camera", "probe": null },
+      { "id": "character-controller", "title": "\u041A\u043E\u043D\u0442\u0440\u043E\u043B\u043B\u0435\u0440 \u043F\u0435\u0440\u0441\u043E\u043D\u0430\u0436\u0430", "pack": "spatial-3d", "status": "planned", "since": 5, "enables": "3D character movement", "probe": null },
+      { "id": "skeletal-animation", "title": "\u0421\u043A\u0435\u043B\u0435\u0442\u043D\u0430\u044F \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u044F", "pack": "spatial-3d", "status": "planned", "since": 5, "enables": "skeletal animation", "probe": null },
+      { "id": "triggers", "title": "\u0422\u0440\u0438\u0433\u0433\u0435\u0440\u044B \u0438 \u0437\u043E\u043D\u044B", "pack": "spatial-3d", "status": "planned", "since": 5, "enables": "3D trigger volumes and zones", "probe": null },
+      { "id": "multiplayer-turn", "title": "\u0410\u0441\u0438\u043D\u0445\u0440\u043E\u043D\u043D\u044B\u0435 \u043A\u043E\u043C\u043D\u0430\u0442\u044B", "pack": null, "status": "reserved", "since": 6, "enables": "reserved asynchronous multiplayer sessions", "probe": null },
+      { "id": "multiplayer-realtime", "title": "\u0421\u0435\u0441\u0441\u0438\u0438 \u0432 \u0440\u0435\u0430\u043B\u044C\u043D\u043E\u043C \u0432\u0440\u0435\u043C\u0435\u043D\u0438", "pack": null, "status": "reserved", "since": 6, "enables": "reserved real-time multiplayer sessions", "probe": null }
+    ];
+    capabilityById = new Map(
+      CAPABILITY_REGISTRY.map((capability) => [capability.id, capability])
+    );
+    LEGACY_DEFAULT_CAPS = ["map", "inventory", "needs", "skills", "relationships", "trade", "combat", "time"];
+    ENABLED_STATUSES = /* @__PURE__ */ new Set(["stable", "experimental"]);
+  }
+});
+
+// src/shared/types.ts
 var DEFAULT_EMOTION;
 var init_types = __esm({
   "src/shared/types.ts"() {
+    init_caps();
     DEFAULT_EMOTION = { id: "neutral", label: "\u041E\u0431\u044B\u0447\u043D\u044B\u0439" };
   }
 });
