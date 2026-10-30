@@ -26,7 +26,7 @@ import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-assert.match(src, /@version\s+1\.4\.86/, 'версия 1.4.86');
+assert.match(src, /@version\s+1\.4\.90/, 'версия 1.4.90');
 
 const cut = (from, to) => {
   const a = src.indexOf(from);
@@ -254,7 +254,7 @@ function makeDialog({ state = {}, answer = true, rolled = true, swept = [], fail
 }
 
 // ── 3. Выдача не оставляет карточку в Running без очереди ────────────────
-const dispatchSrc = cut('  async function dispatchTask(card, roleName) {', '  // ───────────────────────────── цикл ───');
+const dispatchSrc = cut('  async function dispatchTask(card, roleName, mission = null) {', '  // ───────────────────────────── цикл ───');
 assert.match(dispatchSrc, /const queued = await sendToRole\(/, 'результат постановки в очередь проверяется');
 assert.match(dispatchSrc, /if \(!queued\) \{/, 'непоставленное задание разбирается, а не игнорируется');
 assert.match(

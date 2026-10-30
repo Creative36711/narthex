@@ -6,7 +6,8 @@
 // страницу исполнителя, который уже ничего не делает.
 //
 // Проверяется:
-//   • смена миссии снимает ожидание, очередь и паузу прошлой миссии;
+//   • смена миссии снимает обычное ожидание, очередь и паузу прошлой миссии;
+//   • живая карточная выдача не теряется при смене миссии — нужна ручная проверка;
 //   • та же миссия ничего не снимает;
 //   • пауза, поставленная текущей миссией, остаётся — её снимает человек;
 //   • «нет активной миссии» говорит, что именно создать, а не «ждём»;
@@ -17,7 +18,7 @@ import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
-assert.match(src, /@version\s+1\.4\.86/, 'версия 1.4.86');
+assert.match(src, /@version\s+1\.4\.90/, 'версия 1.4.90');
 
 const sliceBetween = (startMarker, endMarker) => {
   const from = src.indexOf(startMarker);
@@ -42,6 +43,7 @@ const mission = {
 function makeApi({ store = new Map(), active = mission, logs = [] } = {}) {
   const api = new Function(
     'GM_getValue', 'GM_setValue', 'K', 'log', 'rt', 'activeMission', 'missionKind', 'isReturned',
+    'pause', 'norm', 'notion', 'autoSet',
     `${block}
      return { missionProbe, syncMissionState, clearStaleMissionPause };`,
   )(
@@ -59,16 +61,20 @@ function makeApi({ store = new Map(), active = mission, logs = [] } = {}) {
     async () => active,
     () => '',
     () => false,
+    (reason, context) => { store.set('cfn-paused', reason); store.set('cfn-pause-context', context); },
+    (value) => String(value || '').replaceAll('-', '').toLowerCase(),
+    async () => { throw new Error('неожиданное чтение миссии'); },
+    () => {},
   );
   return { api, store, logs };
 }
 
-// ── 1. Смена миссии: прошлый ход снят целиком ──────────────────────────────
+// ── 1. Смена миссии: прошлый план снят целиком ────────────────────────────
 {
   const store = new Map([
     ['cfn-mission-id', 'mission-1'],
-    ['cfn-expect', { kind: 'dispatch', ref: 'card-1', roleId: 'role-1' }],
-    ['cfn-pending', { roleId: 'role-1', text: 'задание' }],
+    ['cfn-expect', { kind: 'plan', ref: 'mission-1', roleId: 'role-1' }],
+    ['cfn-pending', { roleId: 'role-1', text: 'план' }],
     ['cfn-paused', 'ждём ответа'],
     ['cfn-pause-context', { kind: 'send', ref: 'mission-1', reason: 'ждём ответа' }],
     // 1.4.80: очередь ответов на вопросы прошлой миссии к новой не относится.
@@ -84,6 +90,23 @@ function makeApi({ store = new Map(), active = mission, logs = [] } = {}) {
   assert.equal(store.get('cfn-pause-context'), null, 'контекст паузы снят');
   assert.equal(store.get('cfn-mission-id'), 'mission-2', 'запомнена новая миссия');
   assert.deepEqual(store.get('cfn-answer-queue'), [], 'вопросы прошлой миссии сняты');
+}
+
+// Живая выдача при смене миссии не сбрасывается: иначе Running останется без ответа.
+for (const kind of ['dispatch', 'reminder']) {
+  const expect = { kind, ref: 'card-1', runId: 'run-1', missionId: 'mission-1' };
+  const pending = { roleId: 'role-1', text: 'задание' };
+  const store = new Map([
+    ['cfn-mission-id', 'mission-1'],
+    ['cfn-expect', expect],
+    ['cfn-pending', pending],
+  ]);
+  const { api } = makeApi({ store });
+  assert.equal(await api.syncMissionState(), true, 'ход остановлен для проверки');
+  assert.deepEqual(store.get('cfn-expect'), expect, 'выдача сохранена');
+  assert.deepEqual(store.get('cfn-pending'), pending, 'очередь сохранена');
+  assert.equal(store.get('cfn-mission-id'), 'mission-1', 'миссия не переключена');
+  assert.equal(store.get('cfn-pause-context').kind, 'mission-change-running');
 }
 
 // ── 2. Та же миссия: ничего не трогаем ─────────────────────────────────────
@@ -158,4 +181,4 @@ assert.match(src, /Состояние = «Активна»/, 'названо с�
 assert.match(src, /await syncMissionState\(\)/, 'сверка миссии вызывается из тика');
 assert.match(src, /await clearStaleMissionPause\(\)/, 'стража паузы спрашивают до выхода');
 
-console.log('OK: narthex 1.4.63 — новая миссия начинается с чистого хода: остатки прошлой снимаются, пауза прошлой миссии не держит новую');
+console.log('OK: narthex 1.4.90 — старый план снимается, а живая выдача при смене миссии сохраняется');

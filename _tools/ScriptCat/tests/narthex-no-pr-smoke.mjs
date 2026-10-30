@@ -17,7 +17,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // ── 1. Версия ──────────────────────────────────────────────────────────────
-assert.match(src, /@version\s+1\.4\.86/, 'версия 1.4.86');
+assert.match(src, /@version\s+1\.4\.90/, 'версия 1.4.90');
 
 // ── 2. Разбор заявки «PR не будет» ─────────────────────────────────────────
 const from = src.indexOf('  const prDeclined = (result) => {');
@@ -38,8 +38,8 @@ assert.equal(prDeclined(null), false, 'без ответа — не заявка
 // ── 3. Аудитор и «без PR» не доходят до ожидания мержа ─────────────────────
 assert.match(
   src,
-  /const noPr = role\.fn === "Auditor" \|\| prDeclined\(result\);/,
-  'признак «PR не ждём» — функция роли или заявка в маркере',
+  /const noPr = role\.fn === "Auditor" \|\| role\.fn === "Reviewer" \|\| prDeclined\(result\);/,
+  'признак «PR не ждём» — Auditor, карточка Reviewer или заявка в маркере',
 );
 assert.match(
   src,
@@ -84,8 +84,8 @@ assert.match(
 );
 assert.match(
   src,
-  /role\.fn === "Auditor" \|\| prDeclined\(result\)/,
-  'аудит остался в правиле «PR не ждём» — теперь вместе с работой без PR',
+  /role\.fn === "Auditor" \|\| role\.fn === "Reviewer" \|\| prDeclined\(result\)/,
+  'аудит остался в правиле «PR не ждём» — вместе с Reviewer и работой без PR',
 );
 
 console.log('OK: narthex 1.4.63 — аудит и работа без PR не ждут мерж, пропущенный pr по-прежнему ведёт в Rework');

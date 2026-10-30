@@ -69,7 +69,8 @@ assert.ok(
   executorPrompt.indexOf('technicalInfo(role)') < executorPrompt.indexOf('"ЗАДАНИЕ"'),
   'в промпте исполнителя блок идёт раньше задания',
 );
-assert.ok(executorPrompt.includes('role.fn === "Auditor" ? auditorOrder'), 'аудитор получает свой порядок');
+assert.match(executorPrompt, /role\.fn === "Auditor"\s*\? auditorOrder\(task, runId\)/, 'аудитор получает свой порядок');
+assert.match(executorPrompt, /role\.fn === "Reviewer"\s*\? reviewerOrder\(task, runId, missionId\)/, 'рецензент получает свой порядок');
 
 const coordinatorPrompt = src.slice(src.indexOf('function coordinatorPrompt('), src.indexOf('// ───────────────────────────── ход исполнителя'));
 assert.ok(
@@ -80,8 +81,8 @@ assert.ok(
 // ── 7. Аудитор не ждёт мержа ────────────────────────────────────────────────
 assert.match(
   src,
-  /const noPr = role\.fn === "Auditor" \|\| prDeclined\(result\);\s*\n\s*const merged = noPr \? "none" : await ensureMerged\(page, result\);/,
-  'аудитор (и работа без PR) не блокирует цикл ожиданием PR',
+  /const noPr = role\.fn === "Auditor" \|\| role\.fn === "Reviewer" \|\| prDeclined\(result\);\s*\n\s*const merged = noPr \? "none" : await ensureMerged\(page, result\);/,
+  'аудитор, рецензент и работа без PR не блокируют цикл ожиданием PR',
 );
 
 // ── 8. Правило поведения тоже зависит от функции ────────────────────────────
@@ -93,7 +94,7 @@ assert.match(roleRule({ fn: 'Coordinator' }), /не твоя зона/, 'коо�
 assert.ok(!/Мерж PR делаешь сам/.test(roleRule({ fn: 'Auditor' })), 'аудитору не сказано мержить');
 
 // ── 9. Порядок работ различается по функции ─────────────────────────────────
-const auditorOrder = src.slice(src.indexOf('function auditorOrder('), src.indexOf('function executorPrompt('));
+const auditorOrder = src.slice(src.indexOf('function auditorOrder('), src.indexOf('function reviewerOrder('));
 assert.ok(!/gh pr merge/.test(auditorOrder), 'в порядке аудитора нет мержа');
 assert.match(auditorOrder, /Ничего не менять|ничего не менять/, 'аудитору запрещено менять репозиторий');
 const executorOrder = src.slice(src.indexOf('function executorOrder('), src.indexOf('function auditorOrder('));

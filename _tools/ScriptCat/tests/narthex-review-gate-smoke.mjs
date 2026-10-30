@@ -29,7 +29,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-assert.match(src, /@version\s+1\.4\.86/, 'версия 1.4.86');
+assert.match(src, /@version\s+1\.4\.90/, 'версия 1.4.90');
 
 const sliceBetween = (startMarker, endMarker) => {
   const from = src.indexOf(startMarker);
@@ -58,7 +58,7 @@ assert.match(doneBranch, /done-with-open/, 'живые карточки по-п�
 assert.match(doneBranch, /done-with-remarks/, 'возврат без разбора замечаний по-прежнему держит миссию открытой');
 assert.match(
   src,
-  /else if \(me\.fn === "Reviewer" && expect\) \{[\s\S]{0,320}?await reviewStep\(me, expect, fromToggle\);/,
+  /else if \(me\.fn === "Reviewer" && expect\) \{[\s\S]{0,320}?expect\.kind === "review"\) await reviewStep\(me, expect, fromToggle\);/,
   'ход приёмки подключён к тику',
 );
 assert.match(src, /parseMarker\(m\.raw, "CF_REVIEW_RESULT"\)/, 'маркер приёмки читается общим разбором');
@@ -134,7 +134,7 @@ const api = new Function(
     calls.plans.push({ role: role.name, note, opts });
     return true;
   },
-  async () => ({ summary: '0 Submitted, 0 Running, 0 Ready, 0 Rework, 0 Draft' }),
+  async () => ({ submitted: [], running: [], ready: [], rework: [], draft: [], summary: '0 Submitted, 0 Running, 0 Ready, 0 Rework, 0 Draft' }),
   async () => ({ properties: {} }),
   (value) => {
     const text = String(value == null ? '' : value);
@@ -158,6 +158,13 @@ const api = new Function(
   (raw, name) => (raw && raw.includes(name) ? JSON.parse(raw.slice(raw.indexOf('{'))) : null),
   async () => false,
 );
+
+// reviewStep вызывается только при живом ожидании того же хода.
+const rawReviewStep = api.reviewStep;
+api.reviewStep = async (role, expect, ...rest) => {
+  store.set('cfn-expect', expect);
+  return rawReviewStep(role, expect, ...rest);
+};
 
 const mission = (over = {}) => ({
   id: over.id || 'mission-1',

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.88
+// @version      1.4.90
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -38,8 +38,8 @@
  *              уходит в Rework с причиной, а цикл продолжается.
  *   Timeout  — за prWaitMs мерж не появился: пауза, решение за человеком.
  *
- * Требует шлюза Drive v1.5, Notion-токена с доступом к трём источникам и
- * GitHub-токена на чтение PR: репозиторий приватный, анонимно он отвечает 404.
+ * Требует совместимого шлюза Drive с CF_DISPATCH, Notion-токена с доступом
+ * к источникам и GitHub-токена на чтение PR: приватный репозиторий отвечает 404.
  */
 
 (() => {
@@ -344,7 +344,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.85";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.90";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -2032,6 +2032,16 @@
       return false; // Notion не ответил — не выдумываем событие
     }
     if (!closed) return false;
+    if (expect?.kind === "dispatch" || (expect?.kind === "reminder" && expect.runId)) {
+      // Закрытие миссии извне не доказывает, что ответ этой карточки записан.
+      // Не теряем её Run ID и не принимаем остальные Running «за компанию».
+      autoSet(false);
+      pause("Миссия уже закрыта, но есть незавершённое ожидание карточки. " +
+        "Ответ и Run ID сохраняю; проверьте карточку и журнал, прежде чем снимать ожидание.", {
+        kind: "closed-with-running", ref: expect.ref || "", runId: expect.runId || "",
+      });
+      return true;
+    }
     const at = closed.properties?.["Завершена"]?.date?.start || "";
     // «Ждали ход» — любое незавершённое ожидание, а не только план или
     // напоминание. 28.10 NAR-4 закрыли своим ходом, в памяти осталось
@@ -2134,7 +2144,7 @@
    * внутри миссии: снимать их сменой миссии нельзя. Всё остальное — остановки
    * конкретного хода, и к новой миссии они отношения не имеют.
    */
-  const PAUSE_BEYOND_MISSION = new Set(["captcha", "ui-error", "arena-error"]);
+  const PAUSE_BEYOND_MISSION = new Set(["captcha", "ui-error", "arena-error", "mission-change-running"]);
 
   /** Пауза прошлого хода к новой миссии не относится. */
   function dropPauseOfMission(cleared = []) {
@@ -2159,7 +2169,34 @@
    */
   async function syncMissionState() {
     const probe = await missionProbe();
-    if (!probe.mission) return;
+    const live = GM_getValue(K.expect, null);
+    const liveDispatch = live?.kind === "dispatch" || (live?.kind === "reminder" && !!live.runId);
+    if (!probe.mission) {
+      const missionId = liveDispatch && (live.missionId || probe.known);
+      if (missionId) {
+        const previous = await notion("GET", `pages/${missionId}`);
+        const state = previous?.properties?.["Состояние"]?.select?.name || "";
+        if (["Завершена", "Провалена"].includes(state)) {
+          autoSet(false);
+          pause("Миссия уже закрыта, но есть незавершённое ожидание карточки. " +
+            "Ответ и Run ID сохраняю; проверьте карточку и журнал, прежде чем снимать ожидание.", {
+            kind: "closed-with-running", ref: live.ref || "", runId: live.runId || "",
+          });
+          return true;
+        }
+      }
+      return;
+    }
+    const changed = probe.changed || (live?.missionId && norm(live.missionId) !== norm(probe.mission.id));
+    if (changed && liveDispatch) {
+      // Новая миссия не доказывает, что старая карточка сдана. Не стираем
+      // ожидание и не выдаём её ответ за ответ новой миссии.
+      pause("Появилась новая миссия, пока ждём ответ по карточке прошлой. " +
+        "Ожидание и Run ID сохранены: сначала сверьте старую карточку и журнал, затем продолжайте.", {
+        kind: "mission-change-running", ref: live.ref || "", runId: live.runId || "",
+      });
+      return true;
+    }
     GM_setValue(K.mission, probe.mission.id);
     if (!probe.changed) return;
 
@@ -2204,6 +2241,19 @@
     try {
       const probe = await missionProbe();
       if (!probe.changed) return false;
+      const live = GM_getValue(K.expect, null);
+      if (live?.kind === "dispatch" || (live?.kind === "reminder" && live.runId)) {
+        // И эта ранняя ветка не должна закрепить новую миссию до сверки
+        // старой выдачи, иначе syncMissionState уже не увидит смену.
+        const context = GM_getValue(K.pause, null);
+        if (!PAUSE_BEYOND_MISSION.has(context?.kind)) {
+          pause("Появилась новая миссия, пока ждём ответ по карточке прошлой. " +
+            "Ожидание и Run ID сохранены: сначала сверьте старую карточку и журнал, затем продолжайте.", {
+            kind: "mission-change-running", ref: live.ref || "", runId: live.runId || "",
+          });
+        }
+        return false;
+      }
       const cleared = [];
       dropPauseOfMission(cleared);
       if (!cleared.length) return false;
@@ -2520,7 +2570,7 @@
   const isUserNode = (n) => Boolean(n.querySelector('[data-user-message-layout="true"]'));
 
   /** Строка-результат: такая реплика — ответ, даже если цитирует задание. */
-  const RESULT_LINE = /\bCF_(?:AGENT|COORDINATOR)_RESULT\b/;
+  const RESULT_LINE = /\bCF_(?:AGENT|COORDINATOR|REVIEW|ANSWER)_RESULT\b/;
 
   /**
    * Наша служебная реплика, потерявшая разметку пользователя.
@@ -2973,6 +3023,10 @@
       line = `CF_COORDINATOR_RESULT {"mission_id":"${expect.missionId || expect.ref}","turn_id":"${expect.turnId || ""}","status":"completed","next":"<роль|done>"}`;
     } else if (expect.kind === "review") {
       line = `CF_REVIEW_RESULT {"mission_id":"${expect.missionId || expect.ref}","turn_id":"${expect.turnId || ""}","verdict":"accept|rework","remarks":"<пункты замечаний>"}`;
+    } else if (role.fn === "Reviewer" && markerName === "CF_REVIEW_RESULT") {
+      line = `CF_REVIEW_RESULT {"mission_id":"${expect.missionId || ""}","dispatch_id":"${expect.ref}","run_id":"${expect.runId || ""}","verdict":"accept|rework|master","remarks":"<причина или замечания>"}`;
+    } else if (role.fn === "Reviewer") {
+      line = `CF_AGENT_RESULT {"dispatch_id":"${expect.ref}","run_id":"${expect.runId || ""}","status":"submitted","pr":null}`;
     } else if (role.fn === "Auditor") {
       line = `CF_AGENT_RESULT {"dispatch_id":"${expect.ref}","run_id":"${expect.runId || ""}","status":"submitted","check":0,"report":"<путь к отчёту>"}`;
     } else {
@@ -3074,7 +3128,7 @@
   const answerBody = (text) =>
     String(text || "")
       .split("\n")
-      .filter((line) => !/^\s*CF_(AGENT|COORDINATOR)_RESULT\b/.test(line) && !/^### Часть \d+ из \d+/.test(line))
+      .filter((line) => !/^\s*CF_(AGENT|COORDINATOR|REVIEW|ANSWER)_RESULT\b/.test(line) && !/^### Часть \d+ из \d+/.test(line))
       .join(" ")
       .replace(/\s+/g, " ")
       .trim().length;
@@ -3097,9 +3151,13 @@
       "Полный текст Arena не приняла ошибкой. Прочитай задание сам — оно в карточке:",
       url || `(карточка Notion ${id})`,
       "Поля карточки — Намерение, Инварианты, Оракул (Acceptance), Scope — и есть задание.",
-      "Работай только в своей зоне, PR мержи сам (`gh pr merge --squash`), оракул не ослабляй.",
-      "Последней строкой ответа — ровно один маркер:",
-      `CF_AGENT_RESULT {"dispatch_id":"${id}","run_id":"${expect.runId || ""}","status":"submitted","check":0,"report":"<путь>","pr":<номер PR>,"merged":true}`,
+      expect.roleFn === "Reviewer"
+        ? "Проверь оракул и дай отчёт. Код, ветки и PR не меняй. Если карточка требует CF_REVIEW_RESULT, включи в него dispatch_id и run_id этой выдачи."
+        : "Работай только в своей зоне, PR мержи сам (`gh pr merge --squash`), оракул не ослабляй.",
+      "Последней строкой ответа — ровно один маркер сдачи карточки:",
+      expect.roleFn === "Reviewer"
+        ? `CF_AGENT_RESULT {"dispatch_id":"${id}","run_id":"${expect.runId || ""}","status":"submitted","pr":null}`
+        : `CF_AGENT_RESULT {"dispatch_id":"${id}","run_id":"${expect.runId || ""}","status":"submitted","check":0,"report":"<путь>","pr":<номер PR>,"merged":true}`,
       'Работа без PR — `"pr": null`.',
     ].join("\n");
   }
@@ -3347,6 +3405,7 @@
         missionId: expect.missionId,
         turnId: expect.turnId,
         runId: expect.runId,
+        logId: expect.logId,
         title: expect.title,
         url: expect.url,
         tries: sent + 1,
@@ -4142,7 +4201,7 @@
     if (label) return label;
     const head = group.querySelector(".body-base, .body-sm");
     const text = String((head && (head.innerText || head.textContent)) || group.innerText || "");
-    return text.replace(/\s+/g, " ").trim().slice(0, 300);
+    return text.replace(/\s+/g, " ").trim();
   }
 
   /**
@@ -4168,7 +4227,7 @@
         el: group,
         question: pollQuestionText(group),
         options: [...group.querySelectorAll('[role="radio"]')].map((b) =>
-          String(b.innerText || b.textContent || "").replace(/\s+/g, " ").trim().slice(0, 160),
+          String(b.innerText || b.textContent || "").replace(/\s+/g, " ").trim(),
         ),
         input: group.querySelector('input[type="text"], input:not([type])') || null,
         submit: buttons.find((b) => /submit custom response|отправить/i.test(buttonLabel(b))) || null,
@@ -4219,26 +4278,105 @@
     return check() || null;
   }
 
-  /** Запись в журнал попытки: вопрос агента — часть хода, его читает Координатор. */
-  function pollLogEntry(role, questions, reply) {
-    const hash = textHash(questions.map((q) => q.question).join("|"));
-    const marker = `<!-- CF_POLL ${questions.map((q) => q.id).join(",")}:${hash} -->`;
+  // Снимок опроса сохраняется до Submit/Skip: после клика карточка может
+  // исчезнуть, а сеть или сама вкладка — оборваться. Очередь живёт отдельно от
+  // очереди ответов Notion и не зависит от текущей миссии или режима цикла.
+  const POLL_JOURNAL_QUEUE = "cfn-poll-journal-queue";
+  const POLL_JOURNAL_CAPTURE_MS = 300000; // после аварии незавершённый снимок тоже можно дописать
+
+  /** Маркер совместим с обоими шлюзами: append разрешён только для CF_DISPATCH. */
+  function pollLogEntry(role, questions, reply, expect = null, outcomes = [], at = nowIso(), attempt = 1) {
+    const safePart = (value) => String(value || "unknown").replace(/[^a-z0-9_-]/gi, "_").slice(0, 120);
+    const hash = textHash(JSON.stringify(questions.map((q) => [q.id, q.question, q.options])));
+    const marker = `<!-- CF_DISPATCH ${safePart(expect?.ref)}:${safePart(expect?.runId || expect?.turnId)}:poll:${hash}:${attempt} -->`;
     return [
       marker,
       `## Вопрос агента вместо работы (${(role && role.name) || "агент"})`,
       "",
-      `- когда: ${nowIso()}`,
-      `- ответ скрипта: «${reply}»`,
-      "- ответ человека не запрашивался: опрос останавливает ход, цикл отвечает сам",
+      `- когда: ${at}`,
+      `- универсальный вариант ответа: «${reply}»`,
+      "- ответ человека не запрашивался; результат каждой попытки указан ниже",
       "",
       ...questions.flatMap((q, i) => [
         `### Вопрос ${i + 1}`,
         q.question || "(без текста)",
         "",
         ...(q.options.length ? q.options.map((o) => `- ${o}`) : ["- вариантов не было"]),
+        `- результат при обработке: ${outcomes[i] || "не подтверждён"}`,
         "",
       ]),
     ].join("\n");
+  }
+
+  const pollJournalQueue = () => {
+    const saved = GM_getValue(POLL_JOURNAL_QUEUE, []);
+    return Array.isArray(saved) ? saved : [];
+  };
+  const samePollRecord = (a, b) => a && b && a.fileId === b.fileId && a.marker === b.marker;
+
+  /** Сохраняем снимок до клика; старый не перезаписываем при новом проходе. */
+  function queuePollJournal(record) {
+    const list = pollJournalQueue();
+    if (list.some((item) => samePollRecord(item, record))) return false;
+    GM_setValue(POLL_JOURNAL_QUEUE, [...list, record]);
+    return true;
+  }
+
+  /** После обработки можно записать фактический исход, не выдумывая успех. */
+  function finishPollJournal(record, entry) {
+    const list = pollJournalQueue();
+    const index = list.findIndex((item) => samePollRecord(item, record));
+    if (index < 0) return;
+    list[index] = { ...list[index], entry: `\n\n${entry}\n`, readyAt: 0 };
+    GM_setValue(POLL_JOURNAL_QUEUE, list);
+  }
+
+  let pollJournalBusy = false;
+  /**
+   * Отдельный повтор записи, никогда не повторяет Submit. Даже если шлюз уже
+   * записал файл, но ответ потерялся, его маркер превращает повтор в duplicate.
+   * Читаем очередь заново после каждого await, чтобы не затереть новые записи.
+   */
+  async function flushPollJournal() {
+    if (pollJournalBusy) return;
+    pollJournalBusy = true;
+    try {
+      const due = pollJournalQueue().filter((item) =>
+        item && item.fileId && item.marker && item.entry &&
+        Date.now() >= Number(item.readyAt || 0) && Date.now() >= Number(item.nextAt || 0),
+      ).slice(0, 10);
+      for (const item of due) {
+        try {
+          const result = await gateway("append", item.fileId, { marker: item.marker, entry: item.entry });
+          if (!result || result.ok !== true) throw new Error("шлюз не подтвердил запись");
+          GM_setValue(POLL_JOURNAL_QUEUE, pollJournalQueue().filter((row) => !samePollRecord(row, item)));
+          const duplicate = result.duplicate || result.result === "duplicate";
+          log(
+            `${item.roleName}: вопрос и варианты ${duplicate ? "уже были" : "записаны"} в журнале попытки.`,
+            false,
+            { ntfy: false },
+          );
+        } catch (e) {
+          const list = pollJournalQueue();
+          const index = list.findIndex((row) => samePollRecord(row, item));
+          if (index < 0) continue;
+          const attempts = (Number(list[index].attempts) || 0) + 1;
+          const wait = Math.min(300000, 15000 * 2 ** Math.min(attempts - 1, 5));
+          list[index] = { ...list[index], attempts, nextAt: Date.now() + wait };
+          GM_setValue(POLL_JOURNAL_QUEUE, list);
+          if (attempts === 1) {
+            log(
+              `Вопрос агента не записался в журнал попытки: ${(e && e.message) || e}. ` +
+                "Снимок сохранён в ScriptCat, запись повторится без повторного ответа агенту.",
+              true,
+              { ntfy: "quiet", title: "Narthex: запись опроса отложена" },
+            );
+          }
+        }
+      }
+    } finally {
+      pollJournalBusy = false;
+    }
   }
 
   let pollBusy = false;
@@ -4254,7 +4392,12 @@
     if (pollBusy) return "waiting";
     const found = pollQuestions();
     if (!found.length) return null;
-    const who = (role && role.name) || "агент";
+    // Последняя реплика агента может быть старой, даже если ниже уже стоит
+    // наше новое задание. Не отвечаем ей заново и не пишем в чужую попытку.
+    const messageId = found[0].id;
+    if (expect && messageId &&
+        (messageId === expect.watermark || (Array.isArray(expect.seen) && expect.seen.includes(messageId)))) return null;
+    const who = (role && role.name) || (expect && expect.roleName) || "агент";
     // Ключ — ход агента: повторный тик не отвечает на тот же вопрос дважды.
     // Метки 1.4.45 сюда не читаются: они ставились без проверки, что Submit
     // сработал, и на живом опросе Kernel заблокировали бы повтор.
@@ -4264,7 +4407,38 @@
     if (!pending.length) return "waiting";
 
     pollBusy = true;
+    const all = pending.map(({ id, question, options }) => ({ id, question, options }));
+    const outcomes = all.map(() => "не подтверждён");
+    const at = nowIso();
+    let journal = null;
+    let journalAttempt = 1;
     try {
+      const logId = expect && expect.logId;
+      if (logId) {
+        // Новая попытка ответить на тот же вопрос — отдельное событие с новым
+        // исходом. Сетевые повторы этого события используют сохранённый маркер.
+        const attemptKey = `${key}:journal-attempt`;
+        journalAttempt = (Number(GM_getValue(attemptKey, 0)) || 0) + 1;
+        GM_setValue(attemptKey, journalAttempt);
+        const entry = pollLogEntry({ name: who }, all, POLL_REPLY, expect, outcomes, at, journalAttempt);
+        journal = {
+          fileId: logId,
+          marker: entry.split("\n")[0],
+          entry: `\n\n${entry}\n`,
+          roleName: who,
+          readyAt: Date.now() + POLL_JOURNAL_CAPTURE_MS,
+          attempts: 0,
+          nextAt: 0,
+        };
+        queuePollJournal(journal);
+      } else {
+        // Без привязки к достоверному ходу нельзя угадывать чужой Drive-файл.
+        // Сохраняем то, что удалось прочитать, в панели для ручного переноса.
+        log("Вопрос агента не записан в журнал попытки: нет ID журнала для этого хода. Вопрос и варианты ниже — для ручного переноса.", true, { ntfy: "quiet" });
+        for (const q of all) {
+          log(`Для ручного переноса: ${q.question || "(без текста)"} — варианты: ${q.options.join("; ") || "нет"}.`, false, { ntfy: false });
+        }
+      }
       // Вопросы перечисляются ДО ответа: после Submit карточка
       // перерисовывается, и остальные могли бы исчезнуть вместе с ней.
       for (const q of pending) {
@@ -4277,16 +4451,20 @@
       }
       let answered = 0;
       const failed = [];
-      for (const first of pending) {
+      for (const [index, first] of pending.entries()) {
         // После Submit карточка перерисовывается: узлы вопроса уже отвязаны.
         // Поэтому перед каждым ответом берём живые узлы заново.
         const live = () => pollQuestions().find((x) => x.question === first.question) || null;
         const q = live();
         // Вопрос пропал — его уже закрыли, это не наша забота. Вопрос есть, а
         // свободного поля нет — ответить некуда, и это уже потеря.
-        if (!q) continue;
+        if (!q) {
+          outcomes[index] = "карточка исчезла до подтверждения ответа";
+          continue;
+        }
         if (!q.input) {
-          failed.push(first);
+          outcomes[index] = "нет поля для ответа";
+          failed.push({ first, index });
           continue;
         }
         fillInput(q.input, POLL_REPLY);
@@ -4315,9 +4493,14 @@
         }
         if (done) {
           handled.add(`${first.id}:${first.question}`);
+          // После Submit Arena может сразу перезагрузить вкладку: не ждём конца
+          // остальных вопросов, чтобы не ответить на этот второй раз.
+          GM_setValue(key, [...handled].slice(-25));
           answered += 1;
+          outcomes[index] = "универсальный ответ отправлен";
         } else {
-          failed.push(first);
+          outcomes[index] = "отправка ответа не подтверждена";
+          failed.push({ first, index });
         }
         await sleep(300);
       }
@@ -4325,15 +4508,23 @@
         // Ни один ответ не ушёл. Опрос нельзя оставить висеть: он держит ход.
         // Skip закрывает сразу весь опросник, поэтому идём на него только
         // здесь — вопросы уже перечислены в журнале — и говорим, что теряем.
-        const skip = failed.find((q) => q.skip)?.skip;
+        const remaining = () => pollQuestions().filter((q) =>
+          failed.some(({ first }) => first.id === q.id && first.question === q.question),
+        );
+        const skip = remaining().find((q) => q.skip && q.skip.disabled !== true && q.skip.isConnected !== false)?.skip;
         if (skip) {
           skip.click();
-          for (const q of failed) handled.add(`${q.id}:${q.question}`);
+          const closed = await pollWait(() => (remaining().length ? null : true), 2500);
+          for (const { first, index } of failed) {
+            if (closed) handled.add(`${first.id}:${first.question}`);
+            outcomes[index] = closed ? "нажат Skip, ответ не отправлен" : "Skip нажат, закрытие не подтверждено";
+          }
           log(
-            `${who}: ответ на вопрос не отправился — нажал Skip, чтобы ход не стоял. ` +
-              "Вопрос и варианты записаны в журнал попытки.",
+            closed
+              ? `${who}: ответ на вопрос не отправился — Skip закрыл опрос.`
+              : `${who}: Skip нажат, но опрос не исчез. Закрытие не подтверждено; проверьте чат.`,
             true,
-            { tone: "warn", ntfy: "quiet", title: "Narthex: опрос закрыт кнопкой Skip" },
+            { tone: "warn", ntfy: closed ? "quiet" : "loud", title: closed ? "Narthex: опрос закрыт кнопкой Skip" : "Narthex: опрос держит ход" },
           );
         } else {
           log(
@@ -4347,21 +4538,10 @@
       GM_setValue(key, [...handled].slice(-25));
       if (answered) {
         log(
-          `Ответил ${who} на опрос: «${firstLine(POLL_REPLY, 90)}» (вопросов ${answered}). ` +
-            "Сам вопрос и варианты записаны в журнал попытки.",
+          `Ответил ${who} на опрос: «${firstLine(POLL_REPLY, 90)}» (вопросов ${answered}).`,
           false,
           { tone: "warn" },
         );
-      }
-      const logId = expect && expect.logId;
-      if (logId) {
-        const all = found.map(({ id, question, options }) => ({ id, question, options }));
-        const entry = pollLogEntry(role, all, POLL_REPLY);
-        try {
-          await gateway("append", logId, { marker: entry.split("\n")[0], entry });
-        } catch (e) {
-          log(`Вопрос агента не записался в журнал попытки: ${e.message}`, true);
-        }
       }
       if (answered && expect && expect.runId) {
         const strikes = (Number(GM_getValue(`cfn-poll-count:${key}`, 0)) || 0) + 1;
@@ -4377,7 +4557,14 @@
       }
       return answered ? "answered" : "waiting";
     } finally {
-      pollBusy = false;
+      try {
+        if (journal) {
+          finishPollJournal(journal, pollLogEntry({ name: who }, all, POLL_REPLY, expect, outcomes, at, journalAttempt));
+        }
+      } finally {
+        pollBusy = false;
+      }
+      if (journal) await flushPollJournal();
     }
   }
 
@@ -4408,7 +4595,9 @@
         }
       }
       // Поле не находится, а в чате висит вопрос агента: отвечаем на него, а не
-      // жмём Skip. Иначе первый же вопрос тихо закрывал бы весь опросник.
+      // жмём Skip. K.expect здесь относится к ещё не отправленному заданию;
+      // привязать старый опрос к его журналу было бы записью в чужую попытку.
+      // Без достоверного ID answerPolls прямо предупредит и выведет снимок.
       if ((await answerPolls(null)) === "answered") {
         polled += 1;
         dbg("editor: ответил на вопрос агента");
@@ -5026,6 +5215,7 @@
       roleId: role.id,
       roleName: role.name,
       roleUrl: role.url,
+      roleFn: role.fn || "",
       kind,
       ref,
       watermark: lastMessageId(),
@@ -6238,6 +6428,9 @@
    * в Running, тот же адресат и отсутствие отметки «уже обработано».
    */
   async function adoptPageAnswer() {
+    if (GM_getValue(K.expect, null) || GM_getValue(K.pending, null)) {
+      return { ok: false, text: "Уже есть ожидание или очередь отправки: сначала завершите текущий ход; для него нажмите «Шаг»." };
+    }
     const roleId = roleFromPath();
     if (!roleId) return { ok: false, text: "Откройте страницу агента: брать ответ не с кого." };
     const list = await roles();
@@ -6250,9 +6443,10 @@
     if (!last) return { ok: false, text: "В чате нет ответов агента." };
     const result = parseMarker(messageRaw(last), "CF_AGENT_RESULT") || parseMarker(messageRaw(last), "CF_COORDINATOR_RESULT") || parseMarker(messageRaw(last), "CF_REVIEW_RESULT");
     if (!result) return { ok: false, text: "В последнем ответе нет маркера выдачи — читать нечего." };
-    const ref = norm(result.dispatch_id || result.turn_id || result.mission_id);
-    if (!isUuid(ref)) return { ok: false, text: `В маркере битый id («${ref || "нет"}») — прочитать ответ по нему нельзя.` };
-    const run = norm(result.run_id);
+    const ref = String(result.dispatch_id || result.dispatch || result.dispatchId || "").trim();
+    if (!isUuid(ref)) return { ok: false, text: `В маркере нет корректного dispatch_id («${ref || "нет"}») — карточку не угадываю.` };
+    const run = String(result.run_id || result.run || result.runId || "").trim();
+    if (!isUuid(run)) return { ok: false, text: "В маркере нет корректного run_id — чужую выдачу не угадываю." };
     if (GM_getValue(`cfn-done:${ref}:${run}`, false))
       return { ok: false, text: "Эта выдача уже обработана — второй раз не читаю." };
     const page = await notion("GET", `pages/${ref}`);
@@ -6279,9 +6473,17 @@
       lastReplyAt: 0,
       adopted: true,
     };
+    if (GM_getValue(K.expect, null) || GM_getValue(K.pending, null)) {
+      return { ok: false, text: "Пока читалась карточка, начался другой ход: его ожидание не перезаписываю." };
+    }
     GM_setValue(K.expect, expect);
     await submitExecutor(role, expect, true);
-    return { ok: true, text: `Ответ ${role.name} взят в работу: журнал, проверка PR и карточка — обычным путём.` };
+    const updated = await notion("GET", `pages/${ref}`);
+    const finished = norm(rt(updated.properties?.["Run ID"])) === norm(run) &&
+      ["Submitted", "Accepted", "Rework"].includes(taskState(updated));
+    return finished
+      ? { ok: true, text: `Ответ ${role.name} обработан: состояние карточки «${taskState(updated)}».` }
+      : { ok: false, text: "Карточка ещё не оформлена: проверьте сообщение в панели, ожидание сохранено." };
   }
 
   /** Последняя проверка заявки — причина для карточки Rework. */
@@ -6431,8 +6633,10 @@
   const REVIEWER_TECH = [
     "Репозиторий и «Запросы» тебе не подчиняются: ты не правишь ни код, ни карточки.",
     "Читать можно всё: карточку миссии («Итог», «Замечания», «Круг»), принятые карточки, документы репозитория.",
-    "Твой выход — один маркер CF_REVIEW_RESULT: verdict accept или rework и замечания по пунктам.",
-    "Нет маркера — хода не было: цикл ждёт ответ, потом напомнит и встанет.",
+    "В отдельной приёмке миссии твой выход — CF_REVIEW_RESULT: verdict accept, rework или master.",
+    "Если тебе выдали карточку, это отдельный ход: её отчёт заканчивается CF_AGENT_RESULT с dispatch_id и run_id.",
+    "Если оракул карточки требует CF_REVIEW_RESULT, добавь его в отчёт с теми же dispatch_id и run_id; сам по себе он миссию не закрывает.",
+    "Нет нужного маркера — хода не было: цикл ждёт ответ, потом напомнит и встанет.",
   ].join("\n");
 
   const TECH_BY_FN = {
@@ -6555,6 +6759,21 @@
     ];
   }
 
+  /** Карточка Reviewer — отчёт о своей работе, не отдельное закрытие миссии. */
+  function reviewerOrder(task, runId, missionId = "") {
+    const missionField = missionId ? `"mission_id":"${missionId}",` : "";
+    return [
+      "ПОРЯДОК ДЛЯ КАРТОЧКИ ПРИЁМКИ",
+      "1. Проверь задание по его оракулу. Код, ветки и PR не меняй.",
+      "2. Дай полный отчёт с фактами; если оракул карточки требует вердикт, добавь в отчёт отдельную строку:",
+      `CF_REVIEW_RESULT {${missionField}"dispatch_id":"${task.id}","run_id":"${runId}","verdict":"accept|rework|master","remarks":"<проверяемые замечания или причина>"}`,
+      "В реальном вердикте выбери одно значение, а не шаблон; поля карточки и её оракул сохраняются.",
+      "3. Последней строкой ответа — маркер сдачи карточки (работа без PR):",
+      `CF_AGENT_RESULT {"dispatch_id":"${task.id}","run_id":"${runId}","status":"submitted","pr":null}`,
+      "Этот ход сдаёт карточку Координатору; отдельно назначенная приёмка решает судьбу всей миссии.",
+    ];
+  }
+
   /**
    * Текст задания.
    *
@@ -6615,7 +6834,7 @@
     ].join("\n");
   }
 
-  function executorPrompt(task, role, payload, logId, runId) {
+  function executorPrompt(task, role, payload, logId, runId, missionId = "") {
     return [
       technicalInfo(role),
       "",
@@ -6631,7 +6850,11 @@
       "ЗАДАНИЕ",
       assignmentBody(task, payload),
       "",
-      ...(role.fn === "Auditor" ? auditorOrder(task, runId) : executorOrder(task, runId)),
+      ...(role.fn === "Auditor"
+        ? auditorOrder(task, runId)
+        : role.fn === "Reviewer"
+          ? reviewerOrder(task, runId, missionId)
+          : executorOrder(task, runId)),
       "",
       roleContext(role),
     ].join("\n");
@@ -6762,6 +6985,10 @@
       if (!journalId) throw e;
       if (journalId !== declaredLogId) {
         try {
+          const fresh = await notion("GET", `pages/${dispatchId}`);
+          if (taskState(fresh) !== "Running" || !runId || norm(rt(fresh.properties?.["Run ID"])) !== norm(runId)) {
+            throw new Error("карточка уже не принадлежит этой выдаче");
+          }
           await patch(dispatchId, {
             "Output Drive File ID": { rich_text: [{ type: "text", text: { content: journalId } }] },
           });
@@ -6775,19 +7002,70 @@
     }
   }
 
+  /** Reviewer сдаёт именно свою выдачу; чужой вердикт нельзя «починить» подстановкой ID. */
+  function reviewerDispatchEvidence(messages, hit, expect) {
+    const field = (obj, ...names) => names.map((name) => obj?.[name]).find((v) => v !== undefined && v !== null && v !== "") || "";
+    const match = (obj) =>
+      Boolean(expect.ref && expect.runId) &&
+      norm(field(obj, "dispatch_id", "dispatch", "dispatchId")) === norm(expect.ref) &&
+      norm(field(obj, "run_id", "run", "runId")) === norm(expect.runId);
+    if (!match(hit.result)) return { error: "маркер сдачи относится к другой карточке или Run ID" };
+    const agent = parseMarker(hit.raw, "CF_AGENT_RESULT");
+    if (agent && String(agent.status || "").trim().toLowerCase() !== "submitted") {
+      return { error: "в CF_AGENT_RESULT нет status submitted" };
+    }
+    const decision = messages.map((m) => parseMarker(m.raw, "CF_REVIEW_RESULT")).filter(Boolean).at(-1) || null;
+    if (!decision) return { decision: null, verdict: "" };
+    if (!match(decision)) return { error: "вердикт относится к другой карточке или Run ID" };
+    if (decision.mission_id && expect.missionId && norm(decision.mission_id) !== norm(expect.missionId)) {
+      return { error: "вердикт относится к другой миссии" };
+    }
+    const verdict = String(decision.verdict || "").trim().toLowerCase();
+    if (!["accept", "rework", "master"].includes(verdict)) return { error: "в вердикте нет accept, rework или master" };
+    if (verdict === "rework" && !String(decision.remarks || "").trim()) return { error: "rework без замечаний" };
+    return { decision, verdict };
+  }
+
+  /** Ожидание могло смениться в другой вкладке во время сетевого запроса. */
+  function currentDispatch(expect) {
+    const live = GM_getValue(K.expect, null);
+    return Boolean(live && live.kind === "dispatch" && expect?.runId &&
+      norm(live.ref) === norm(expect.ref) && norm(live.runId) === norm(expect.runId) &&
+      (!expect.roleId || norm(live.roleId) === norm(expect.roleId)));
+  }
+
+  /** Сверка карточки перед записью; Notion не предоставляет атомарный compare-and-set. */
+  function dispatchGuard(page, expect, role) {
+    if (taskState(page) !== "Running") return "карточка уже не Running";
+    const run = rt(page.properties?.["Run ID"]);
+    if (!expect.runId || !run || norm(run) !== norm(expect.runId)) return "Run ID карточки изменился или отсутствует";
+    const owner = rt(page.properties?.["Recipient Agent ID"]);
+    if (expect.roleId && norm(expect.roleId) !== norm(role.id)) return "ожидание адресовано другому агенту";
+    if (role.fn === "Reviewer" && !owner) return "в карточке не указан адресат выдачи";
+    if (owner && norm(owner) !== norm(role.id)) return "карточка выдана другому агенту";
+    return "";
+  }
+
   async function submitExecutor(role, expect, manual = false) {
-    const candidates = messagesAfter(expect.watermark)
+    if (!expect || expect.kind !== "dispatch") {
+      pause("Это не ход по карточке: ответ не записываю.", { kind: "handoff-kind", ref: expect?.ref || "" });
+      return true;
+    }
+    const replies = messagesAfter(expect.watermark);
+    const candidates = replies
       .map((m) => ({ ...m, result: parseMarker(m.raw, "CF_AGENT_RESULT") || parseMarker(m.raw, "CF_REVIEW_RESULT") }))
       .filter((m) => m.result);
     const exact = candidates.filter((m) => norm(m.result.dispatch_id) === norm(expect.ref));
-    let hit = (exact.length ? exact : candidates).at(-1);
+    let hit = (role.fn === "Reviewer" ? candidates : exact.length ? exact : candidates).at(-1);
     if (!hit) {
       // Напоминания исчерпаны — дальше пауза не помогает: работа сделана, а
       // страдает только формат. Читаем ответ по тексту, но обязательно с id
       // этой выдачи и номером PR: иначе за результат сойдёт любая реплика.
       const last = messagesAfter(expect.watermark).at(-1);
       const loose =
-        last && Number(expect.tries) >= C.markerReminders ? looseResult(last.raw, role, expect) : null;
+        role.fn !== "Reviewer" && last && Number(expect.tries) >= C.markerReminders
+          ? looseResult(last.raw, role, expect)
+          : null;
       if (loose) {
         log(
           `${role.name} написал ответ без строки-маркера — разобрал по тексту: PR #${loose.pr}` +
@@ -6824,6 +7102,13 @@
       return markerMissing(role, expect, "CF_AGENT_RESULT", manual);
     }
 
+    const review = role.fn === "Reviewer" ? reviewerDispatchEvidence(replies, hit, expect) : null;
+    if (review?.error) {
+      pause(`Ответ Reviewer не привязан к текущей выдаче: ${review.error}. Карточку и миссию не меняю.`, {
+        kind: "marker-mismatch", ref: expect.ref, runId: expect.runId || "",
+      });
+      return true;
+    }
     const { result, stray } = adoptIds(hit.result, expect);
     if (stray.length) {
       log(
@@ -6832,9 +7117,62 @@
         { ntfy: false },
       );
     }
-    if (GM_getValue(`cfn-done:${result.dispatch_id}:${result.run_id}`, false)) return false;
+    if (GM_getValue(`cfn-done:${result.dispatch_id}:${result.run_id}`, false)) {
+      const waiting = GM_getValue(K.expect, null);
+      if (waiting && norm(waiting.ref) === norm(expect.ref) && norm(waiting.runId) === norm(expect.runId)) {
+        GM_setValue(K.expect, null);
+      }
+      return false;
+    }
+    if (!currentDispatch(expect)) {
+      pause("Ожидание выдачи изменилось: чужой ход не перезаписываю.", {
+        kind: "dispatch-changed", ref: expect.ref, runId: expect.runId || "",
+      });
+      return true;
+    }
 
     const page = await notion("GET", `pages/${result.dispatch_id}`);
+    const guard = dispatchGuard(page, expect, role);
+    if (guard) {
+      const onCard = rt(page.properties?.["Run ID"]);
+      const waiting = GM_getValue(K.expect, null);
+      if (taskState(page) !== "Running" && onCard && norm(onCard) === norm(expect.runId) &&
+          waiting && norm(waiting.ref) === norm(expect.ref) && norm(waiting.runId) === norm(expect.runId)) {
+        GM_setValue(K.expect, null);
+        log("Эта выдача уже не Running — повторная запись не нужна, ожидание снято.");
+        return false;
+      }
+      pause(`Ответ не записан: ${guard}. Новую выдачу не перезаписываю.`, {
+        kind: "dispatch-changed", ref: expect.ref, runId: expect.runId || "",
+      });
+      return true;
+    }
+    let reviewMission = null;
+    if (role.fn === "Reviewer") {
+      // Старая версия ожидания могла не хранить missionId; тогда нужна именно
+      // текущая активная миссия и совпадение её названия с полем карточки.
+      const mission = expect.missionId
+        ? await notion("GET", `pages/${expect.missionId}`)
+        : await activeMission();
+      const state = mission?.properties?.["Состояние"]?.select?.name || "";
+      const cardMission = rt(page.properties?.["Миссия"]).trim();
+      const name = rt(mission?.properties?.["Миссия"]).trim();
+      const matches = mission && cardMission &&
+        (norm(cardMission) === norm(mission.id) || missionSame(cardMission, name));
+      if (!matches || !["Активна", "Возвращена"].includes(state) ||
+          (expect.missionId && norm(mission.id) !== norm(expect.missionId)) ||
+          (review?.decision?.mission_id && norm(review.decision.mission_id) !== norm(mission.id))) {
+        pause("Миссия карточки Reviewer не совпадает с активным ходом или уже закрыта: ничего не принимаю. " +
+          "Сверьте миссию, карточку и Run ID.", {
+          kind: "dispatch-mission", ref: expect.ref, runId: expect.runId || "",
+        });
+        return true;
+      }
+      reviewMission = mission;
+      if (/\bCF_REVIEW_RESULT\b/i.test(rt(page.properties?.["Acceptance"])) && !review?.decision) {
+        return markerMissing(role, expect, "CF_REVIEW_RESULT", manual);
+      }
+    }
     // `"question":null` — это «вопроса нет», а не «вопрос без варианта».
     const asked = questionInMarker(result.question, "Работа идёт по решению исполнителя");
     if (asked.kind === "asked") {
@@ -6860,19 +7198,6 @@
         key: `${result.dispatch_id}:${result.run_id}`,
       });
     }
-    if (taskState(page) !== "Running") {
-      // Карточку уже оформили — прошлой попыткой скрипта или руками после
-      // паузы. Ждать больше нечего: ожидание снимается, иначе страница
-      // исполнителя продолжает считать, что агент ещё отвечает.
-      if (norm(expect && expect.ref) === norm(result.dispatch_id)) GM_setValue(K.expect, null);
-      log("Задача уже не Running — повторная запись не нужна, ожидание снято.");
-      return false;
-    }
-    if (norm(rt(page.properties["Recipient Agent ID"])) && norm(rt(page.properties["Recipient Agent ID"])) !== norm(role.id)) {
-      log("Ответ принадлежит другому агенту — пропуск.", true);
-      return false;
-    }
-
     // Журнал собирается из всего хода: ответ мог прийти частями — отчёт первым
     // сообщением, маркер отдельным после напоминания. Маркер без отчёта в журнал
     // не пишем вовсе: именно такая запись и обманула Координатора на NAR-1.8.
@@ -6898,12 +7223,30 @@
       log("Ответ уже был в журнале Drive (маркер этой же выдачи) — второй раз не пишу, оформляю карточку.");
     }
 
-    // Аудитор не открывает PR: ждать мерж и нажимать Continue нечего.
-    // Иначе цикл встал бы на 5 минут на каждом аудите. Тем же путём идёт
-    // исполнитель, который в маркере прямо сказал, что PR не будет
-    // (`"pr": null`): отчёт, аудит, запись решения — мержить нечего.
-    const noPr = role.fn === "Auditor" || prDeclined(result);
+    // Аудитор и Reviewer не открывают PR: по карточке приёмки тоже нечего
+    // мержить. Исполнитель может явно сказать то же самое через `pr: null`.
+    const noPr = role.fn === "Auditor" || role.fn === "Reviewer" || prDeclined(result);
     const merged = noPr ? "none" : await ensureMerged(page, result);
+    // После записи в Drive или долгой проверки PR карточку могли перевыдать.
+    // Ещё раз читаем состояние, run, владельца и миссию перед любой её правкой.
+    const current = await notion("GET", `pages/${result.dispatch_id}`);
+    const changed = dispatchGuard(current, expect, role);
+    let changedMission = false;
+    if (reviewMission) {
+      const latestMission = await notion("GET", `pages/${reviewMission.id}`);
+      const latestState = latestMission?.properties?.["Состояние"]?.select?.name || "";
+      const cardMission = rt(current.properties?.["Миссия"]).trim();
+      const missionName = rt(latestMission?.properties?.["Миссия"]).trim();
+      changedMission = !["Активна", "Возвращена"].includes(latestState) || !cardMission ||
+        !(norm(cardMission) === norm(latestMission.id) || missionSame(cardMission, missionName));
+    }
+    if (changed || changedMission || !currentDispatch(expect)) {
+      pause(`Ответ записан в журнал, но карточка, миссия или ожидание успели измениться (${changed || (changedMission ? "миссия" : "ожидание")}). ` +
+        "Статус не перезаписываю; сверить выдачу нужно вручную.", {
+        kind: "dispatch-changed", ref: expect.ref, runId: expect.runId || "",
+      });
+      return true;
+    }
     // Что решила проверка — запоминаем до записи в Notion. Если она ошиблась,
     // 🐙 → «Вернуть карточку» перепроверит GitHub и вернёт Submitted, не гоняя
     // исполнителя по второму кругу.
@@ -6927,7 +7270,7 @@
       },
     });
     if (!noPr && lastMergeCheck && lastMergeCheck.needsToken) GM_setValue(K.ghAsk, Date.now());
-    if (prDeclined(result) && role.fn !== "Auditor") {
+    if (prDeclined(result) && role.fn !== "Auditor" && role.fn !== "Reviewer") {
       log(
         `PR не ждём: ${role.name} заявил работу без PR (pr: null) — принято по отчёту, ` +
           "кнопки Create/Merge не трогал.",
@@ -6960,7 +7303,7 @@
       });
       const coord = (await roles()).find((r) => r.fn === "Coordinator");
       if (!coord) throw new Error("Нет активного Coordinator.");
-      GM_setValue(K.expect, null);
+      if (currentDispatch(expect)) GM_setValue(K.expect, null);
       await goTo(coord);
       return true;
     }
@@ -6989,7 +7332,7 @@
       log(`«${taskTitle(page)}» → Rework: PR закрыт без мержа.`);
       const coord = (await roles()).find((r) => r.fn === "Coordinator");
       if (!coord) throw new Error("Нет активного Coordinator.");
-      GM_setValue(K.expect, null);
+      if (currentDispatch(expect)) GM_setValue(K.expect, null);
       await goTo(coord);
       return true;
     }
@@ -6999,7 +7342,7 @@
 
     const props = {
       "Dispatch State": { select: { name: "Submitted" } },
-      "Ответ": { rich_text: richText(`Ответ ${hit.id} записан в лог ${logId}.`) },
+      "Ответ": { rich_text: richText(`${review?.verdict ? `Вердикт Reviewer по карточке: ${review.verdict}. ` : ""}Ответ ${hit.id} записан в лог ${logId}.`) },
       "Submitted At": { date: { start: nowIso() } },
     };
     if (typeof result.check === "number") props["Check"] = { select: { name: result.check === 0 ? "pass" : "fail" } };
@@ -7012,13 +7355,26 @@
     rememberAnswerStamp(result.dispatch_id, await patch(result.dispatch_id, props));
     GM_setValue(`cfn-done:${result.dispatch_id}:${result.run_id}`, true);
     log(
-      `Ответ ${role.name} записан, PR ${merged === "claimed" ? "слит (по маркеру)" : "слит"}, задача → Submitted.` +
-        (link ? ` PR: ${link}` : " (номер PR не указан в маркере)"),
+      noPr
+        ? `Ответ ${role.name} записан${review?.verdict ? ` (вердикт: ${review.verdict})` : ""}, PR не нужен, задача → Submitted.`
+        : `Ответ ${role.name} записан, PR ${merged === "claimed" ? "слит (по маркеру)" : "слит"}, задача → Submitted.` +
+            (link ? ` PR: ${link}` : " (номер PR не указан в маркере)"),
     );
 
+    if (!currentDispatch(expect)) {
+      log("Карточка оформлена, но ожидание уже сменилось — новый ход не трогаю.", true, { ntfy: "quiet" });
+      return true;
+    }
+    GM_setValue(K.expect, null);
+    if (review?.verdict === "master") {
+      pause(`Reviewer просит Мастера: ${firstLine(review.decision.reason || review.decision.remarks || "причина не указана")}. ` +
+        "Ответ записан в журнал, карточка Submitted; миссия не закрыта.", {
+        kind: "review-needs-master", ref: expect.ref, runId: expect.runId,
+      });
+      return true;
+    }
     const co = (await roles()).find((r) => r.fn === "Coordinator");
     if (!co) throw new Error("Нет активного Coordinator.");
-    GM_setValue(K.expect, null);
     await goTo(co);
     return true;
   }
@@ -8849,7 +9205,7 @@
           );
           return true;
         }
-        const problem = await dispatchTask(card, route.roleName);
+        const problem = await dispatchTask(card, route.roleName, mission);
         if (problem === true) {
           GM_setValue("cfn-dispatch-miss", 0);
           return true;
@@ -9151,13 +9507,35 @@
     return true;
   }
 
-  /** Ход приёмки: ждём `CF_REVIEW_RESULT` и применяем вердикт. */
+  /** Ход отдельной приёмки миссии; вердикт по карточке сюда не относится. */
   async function reviewStep(role, expect, manual = false) {
+    if (!expect || expect.kind !== "review") {
+      pause("Это не отдельный ход приёмки миссии: вердикт не применяю.", {
+        kind: "handoff-kind", ref: expect?.ref || "",
+      });
+      return true;
+    }
+    const currentReview = () => {
+      const live = GM_getValue(K.expect, null);
+      return Boolean(live && live.kind === "review" && norm(live.ref) === norm(expect.ref) &&
+        norm(live.turnId) === norm(expect.turnId));
+    };
+    if (!currentReview()) {
+      pause("Ожидание приёмки изменилось: чужой ход не перезаписываю.", {
+        kind: "marker-mismatch", ref: expect.ref || "",
+      });
+      return true;
+    }
     const mission = await activeMission();
     if (!mission) {
       pause("Приёмка ждёт ответа, а активной миссии нет: закрывать нечего.", {
-        kind: "review-no-mission",
-        ref: expect.ref || "",
+        kind: "review-no-mission", ref: expect.ref || "",
+      });
+      return true;
+    }
+    if (norm(expect.ref) !== norm(mission.id) || (expect.missionId && norm(expect.missionId) !== norm(mission.id))) {
+      pause("Ожидание приёмки относится к другой миссии: ничего не меняю.", {
+        kind: "marker-mismatch", ref: expect.ref || "",
       });
       return true;
     }
@@ -9166,22 +9544,61 @@
       .filter(Boolean)
       .at(-1);
     if (!decision) return markerMissing(role, expect, "CF_REVIEW_RESULT", manual);
-    GM_setValue(K.expect, null);
-    if (decision.mission_id && norm(decision.mission_id) !== norm(mission.id)) {
-      pause(
-        `Маркер приёмки относится к другой миссии (${decision.mission_id}), а ждём ${mission.id}: ничего не меняю.`,
-        { kind: "marker-mismatch", ref: mission.id },
-      );
+    if (!decision.mission_id || norm(decision.mission_id) !== norm(mission.id) ||
+        (expect.turnId && (!decision.turn_id || norm(decision.turn_id) !== norm(expect.turnId))) ||
+        decision.dispatch_id || decision.run_id) {
+      pause("Маркер не относится к этому ходу приёмки миссии (mission_id / turn_id / карточка): ничего не меняю.", {
+        kind: "marker-mismatch", ref: mission.id, turnId: expect.turnId || "",
+      });
       return true;
     }
     const verdict = String(decision.verdict || "").trim().toLowerCase();
     if (verdict === "accept") {
+      // Очередь могла измениться, пока Reviewer проверял миссию. Старый
+      // вердикт не распространяется на новые или незакрытые карточки.
+      const fresh = await queueOf(mission);
+      const open = fresh.submitted.length + fresh.running.length + fresh.ready.length + fresh.rework.length;
+      if (open) {
+        if (currentReview()) GM_setValue(K.expect, null); // старое принятие нельзя повторить после обработки новой работы
+        pause(`Пока шла приёмка, очередь изменилась: ${fresh.summary}. Миссия не закрыта; ` +
+          "разберите карточки и запустите приёмку заново.", {
+          kind: "review-with-open", ref: mission.id,
+        });
+        return true;
+      }
+      const stillActive = await activeMission();
+      if (!stillActive || norm(stillActive.id) !== norm(mission.id) || !currentReview()) {
+        pause("Пока шла приёмка, активная миссия или ожидание изменились: ничего не закрываю.", {
+          kind: "marker-mismatch", ref: mission.id,
+        });
+        return true;
+      }
       if (decision.summary) log(`Приёмка: ${oneLine(decision.summary, 300)}`);
-      return closeMission(mission, role);
+      const closed = await closeMission(stillActive, role);
+      if (currentReview()) GM_setValue(K.expect, null); // только после подтверждённой записи миссии
+      return closed;
     }
-    if (verdict === "rework") return returnMission(mission, decision, role);
+    if (verdict === "rework") {
+      if (!currentReview()) {
+        pause("Ожидание приёмки изменилось: возврат не применяю.", { kind: "marker-mismatch", ref: mission.id });
+        return true;
+      }
+      GM_setValue(K.expect, null);
+      try {
+        return await returnMission(mission, decision, role);
+      } catch (e) {
+        if (!GM_getValue(K.expect, null)) GM_setValue(K.expect, expect);
+        throw e;
+      }
+    }
+    if (verdict === "master") {
+      pause(`Приёмка просит Мастера: ${firstLine(decision.reason || decision.remarks || "причина не указана")}. Миссия не закрыта.`, {
+        kind: "review-needs-master", ref: mission.id,
+      });
+      return true;
+    }
     pause(
-      `В маркере приёмки нет verdict accept или rework (пришло «${verdict || "пусто"}»): миссию не трогаю. ` +
+      `В маркере приёмки нет verdict accept, rework или master (пришло «${verdict || "пусто"}»): миссию не трогаю. ` +
         "Поправьте маркер в ответе приёмки и нажмите «Продолжить».",
       { kind: "review-marker", ref: mission.id },
     );
@@ -9391,7 +9808,7 @@
     return true;
   }
 
-  async function dispatchTask(card, roleName) {
+  async function dispatchTask(card, roleName, mission = null) {
     const role = (await roles()).find((r) => r.name === roleName);
     if (!role) throw new Error(`Роль «${roleName}» не найдена среди активных.`);
 
@@ -9510,8 +9927,9 @@
     // если `sendToRole` не отправил текст (тот же текст уходил минуту назад —
     // это защита от дубля, а не отказ). Отказ отправки разбирает сторож
     // неотправленной очереди, а не вызывающий.
-    const queued = await sendToRole(role, executorPrompt(card, role, payload, logId, runId), "dispatch", card.id, {
+    const queued = await sendToRole(role, executorPrompt(card, role, payload, logId, runId, mission?.id || ""), "dispatch", card.id, {
       runId,
+      missionId: mission?.id || "",
       logId,
       title: taskTitle(card),
       // Ссылка нужна минимальному повтору: «прочитай карточку сам».
@@ -9683,6 +10101,9 @@
         return;
       }
     }
+    // Повтор записи снимка не запускает ход и работает также в ручном режиме
+    // и на паузе. Его не ждём: сетевой шлюз не должен блокировать «Шаг».
+    flushPollJournal().catch((e) => log(`Очередь записи опросов не обработана: ${e.message}`, true));
     // Ложный отказ проверки мержа чинится сам: иначе карточка ждёт Мастера,
     // а работа уже лежит в main (24.10 так было дважды).
     try {
@@ -9727,9 +10148,14 @@
       await setup(false);
       // Новая миссия — новый ход: остатки прошлой снимаются до любых решений.
       try {
-        await syncMissionState();
+        if (await syncMissionState()) return;
       } catch (e) {
         dbg("миссия: сверка не удалась", e.message);
+        const held = GM_getValue(K.expect, null);
+        if (held?.kind === "dispatch" || (held?.kind === "reminder" && held.runId)) {
+          logThrottled("dispatch-mission-check", "Не удалось сверить миссию выдачи с Notion: ожидание сохранено, повторю проверку на следующем шаге.", true);
+          return;
+        }
       }
       dbg("tick: состояние", {
         fromToggle,
@@ -9897,7 +10323,11 @@
       if (expect && expect.kind === "reminder") {
         expect = {
           ...expect,
-          kind: me.fn === "Coordinator" ? "plan" : me.fn === "Reviewer" ? "review" : "dispatch",
+          kind: expect.runId
+            ? "dispatch"
+            : expect.questionId
+              ? "answer"
+              : me.fn === "Coordinator" ? "plan" : me.fn === "Reviewer" ? "review" : "dispatch",
         };
         GM_setValue(K.expect, expect);
       }
@@ -10049,12 +10479,18 @@
         }
       }
 
-      if (me.fn === "Coordinator") {
+      if (expect?.kind === "dispatch") {
+        // У Reviewer тоже бывают карточки. Их вердикт — ответ по карточке,
+        // а не назначенная отдельно приёмка миссии.
+        await submitExecutor(me, expect, fromToggle);
+      } else if (me.fn === "Coordinator") {
         await coordinatorStep(me, expect, fromToggle);
       } else if (me.fn === "Reviewer" && expect) {
-        // Приёмка ведёт два вида хода: ответ на вопрос агента и приёмку миссии.
         if (expect.kind === "answer") await answerStep(me, expect, fromToggle);
-        else await reviewStep(me, expect, fromToggle);
+        else if (expect.kind === "review") await reviewStep(me, expect, fromToggle);
+        else pause(`Неизвестный вид хода приёмки «${expect.kind || "пусто"}»: ничего не меняю.`, {
+          kind: "handoff-kind", ref: expect.ref || "",
+        });
       } else if (!expect) {
         // Без ожидания `messagesAfter(expect.watermark)` упал бы в catch,
         // и «Шаг» на странице исполнителя ставил бы паузу вместо ответа.
@@ -10076,7 +10512,9 @@
           return navigateTo(coord, "там начинается ход");
         }
       } else {
-        await submitExecutor(me, expect, fromToggle);
+        pause(`Неизвестный вид хода «${expect.kind || "пусто"}»: карточку и миссию не меняю.`, {
+          kind: "handoff-kind", ref: expect.ref || "",
+        });
       }
     } catch (e) {
       // «HTTP 400: path failed validation» Мастеру ничего не говорит. Сначала

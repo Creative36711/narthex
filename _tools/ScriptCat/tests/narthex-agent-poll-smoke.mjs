@@ -21,7 +21,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // ── 1. Версия ──────────────────────────────────────────────────────────────
-assert.match(src, /@version\s+1\.4\.86/, 'версия 1.4.86');
+assert.match(src, /@version\s+1\.4\.90/, 'версия 1.4.90');
 
 // ── 2. Вопросы читаются целиком ────────────────────────────────────────────
 const pollFrom = src.indexOf('  const POLL_REPLY = "Реши сам в рамках Scope');
@@ -184,7 +184,7 @@ function makePollApi(groups) {
   assert.equal(journal.length, 1, 'опрос записан в журнал попытки');
   assert.equal(journal[0].fileId, 'log-1', 'журнал попытки — файл этой выдачи');
   const entry = journal[0].entry;
-  assert.match(entry, /CF_POLL/, 'у записи есть маркер — повтор не задвоит её');
+  assert.match(entry, /<!-- CF_DISPATCH .*:poll:/, 'маркер принимается шлюзом и защищает от повтора');
   assert.match(entry, /May I expand the write zone for this task\?/, 'первый вопрос в журнале');
   assert.match(entry, /Rebuild the tracked CLI bundle\?/, 'второй вопрос в журнале');
   assert.match(entry, /Keep current zone|Do not/, 'варианты ответов тоже записаны');
@@ -222,7 +222,8 @@ function makePollApi(groups) {
   const result = await api.answerPolls({ name: 'Kernel' }, { runId: 'run-3', ref: 'card-3' });
   assert.equal(result, 'waiting', 'ответить некуда — работа не считается сделанной');
   assert.equal(noField.skip.clicks, 1, 'Skip нажимается только здесь');
-  assert.ok(logged.some((l) => /ответ на вопрос не отправился — нажал Skip, чтобы ход не стоял/.test(l.text)), 'причина названа');
+  assert.ok(logged.some((l) => /Skip нажат, но опрос не исчез.*не подтверждено/.test(l.text)), 'неподтверждённый Skip назван честно');
+  assert.equal((store.get('cfn-poll2:run-3') || []).length, 0, 'неподтверждённый Skip не блокирует повтор');
 }
 
 // 2.6. Submit включается не сразу — скрипт ждёт его и всё равно отправляет.
@@ -317,4 +318,4 @@ assert.ok(
   'до поиска роли по имени',
 );
 
-console.log('OK: narthex 1.4.63 — опрос агента разбирается целиком, ответ уходит после Submit и пишется в журнал');
+console.log('OK: narthex 1.4.90 — опрос агента разбирается целиком, ответ уходит после Submit и пишется в журнал');
