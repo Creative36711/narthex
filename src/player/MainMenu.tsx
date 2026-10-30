@@ -16,7 +16,7 @@ interface Props {
   campaign: CampaignData
   campaigns: CampaignIndexEntry[]
   onSelectCampaign: (id: string) => void
-  /** кампания импортирована из .chronicle — обновить список и переключиться */
+  /** кампания импортирована из .narthex — обновить список и переключиться */
   onImported: (id: string) => void
   canContinue: boolean
   /** кампания требует более новый движок, чем запущен (min_engine) */
@@ -28,9 +28,9 @@ interface Props {
 }
 
 /**
- * Главное меню Chronicle Forge (ТЗ 1). Список кампаний открывается
+ * Главное меню Narthex (ТЗ 1). Список кампаний открывается
  * отдельным окном по кнопке «Кампании» (фидбек №14): кампаний может быть много.
- * Там же — импорт пакета .chronicle.
+ * Там же — импорт пакета .narthex.
  */
 export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, canContinue, engineWarning, onNewGame, onContinue, onEditor, onHelp }: Props) {
   const m = campaign.meta
@@ -119,7 +119,7 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
     try {
       const text = await file.text()
       if (!importSaveText(m.id, text)) {
-        await showAlert('Не удалось загрузить сохранение', 'Файл не похож на сохранение Chronicle Forge (.cfsave).')
+        await showAlert('Не удалось загрузить сохранение', 'Файл не похож на сохранение Narthex (.nxsave).')
         return
       }
       await showAlert('Сохранение загружено', `Сохранение установлено для кампании «${m.title}». Проверьте версию кампании: если она новее, сохранение будет перенесено при продолжении забега.`)
@@ -155,7 +155,7 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
       <div className="main-menu-inner">
         <div className="brand-row">
           <span className="brand">
-            <Ico n="forge" /> Chronicle Forge
+            <Ico n="forge" /> Narthex
           </span>
         </div>
         <div className="brand-sub">движок тактических визуальных новелл</div>
@@ -267,7 +267,7 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
             </div>
             <div className="campaigns-foot">
               <button className="btn" disabled={!!importBusy} onClick={() => fileRef.current?.click()}>
-                {importBusy ? 'Импорт…' : <><Ico n="doc" /> Импортировать кампанию (.chronicle)</>}
+                {importBusy ? 'Импорт…' : <><Ico n="doc" /> Импортировать кампанию (.narthex)</>}
               </button>
               <button
                 className="btn"
@@ -277,13 +277,13 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
               >
                 <Ico n="folder" /> Импортировать папку
               </button>
-              <button className="btn" disabled={!!importBusy} data-tip="Файл .cfsave, сохранённый ранее на этом или другом компьютере" onClick={() => saveRef.current?.click()}>
-                <Ico n="doc" /> Загрузить сохранение (.cfsave)
+              <button className="btn" disabled={!!importBusy} data-tip="Файл .nxsave, сохранённый ранее на этом или другом компьютере" onClick={() => saveRef.current?.click()}>
+                <Ico n="doc" /> Загрузить сохранение (.nxsave)
               </button>
               <input
                 ref={saveRef}
                 type="file"
-                accept=".cfsave,.json"
+                accept=".nxsave,.cfsave,.json"
                 style={{ display: 'none' }}
                 onChange={(e) => {
                   const f = e.target.files?.[0]
@@ -294,7 +294,7 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
               <input
                 ref={fileRef}
                 type="file"
-                accept=".chronicle,.zip"
+                accept=".narthex,.chronicle,.zip"
                 style={{ display: 'none' }}
                 onChange={(e) => {
                   const f = e.target.files?.[0]

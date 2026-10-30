@@ -1,5 +1,5 @@
 import { Ico } from '../shared/icons'
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type SyntheticEvent } from 'react'
 import type { GameEngine } from '../core/engine'
 import type { LocationDef } from '../shared/types'
 import { assetUrl } from '../core/loader'
@@ -12,7 +12,7 @@ interface Props {
 }
 
 /** ключ localStorage: показывать ли названия локаций на карте */
-const LABELS_KEY = 'chronicle-forge:map-labels'
+const LABELS_KEY = 'narthex:map-labels'
 
 function readLabels(): boolean {
   try {
@@ -70,6 +70,7 @@ export function MapScreen({ engine, onClose }: Props) {
   const [box, setBox] = useState({ w: 800, h: 500 })
   const [dragging, setDragging] = useState(false)
   const [mapMotion, setMapMotion] = useState(false)
+  const [failedImages, setFailedImages] = useState<Set<string>>(() => new Set())
   const wrapRef = useRef<HTMLDivElement>(null)
   const drag = useRef<{ px: number; py: number; ox: number; oy: number; moved: boolean } | null>(null)
 
@@ -89,6 +90,19 @@ export function MapScreen({ engine, onClose }: Props) {
     ro.observe(el)
     return () => ro.disconnect()
   }, [size.w, size.h])
+
+  useEffect(() => setFailedImages(new Set()), [engine])
+
+  const noteImageFailure = (event: SyntheticEvent<HTMLImageElement>, fallbackSrc: string) => {
+    const failedSrc = event.currentTarget.currentSrc || fallbackSrc
+    console.error(`Failed to load resource: map image fallback ${failedSrc}`)
+    setFailedImages((previous) => {
+      if (previous.has(fallbackSrc)) return previous
+      const next = new Set(previous)
+      next.add(fallbackSrc)
+      return next
+    })
+  }
 
   const clampPan = useCallback(
     (p: { x: number; y: number }) => {
@@ -185,6 +199,8 @@ export function MapScreen({ engine, onClose }: Props) {
   const pendingBaseCost = pending ? engine.travelBaseCost(pending) : null
   const pendingCost = pending ? engine.travelCost(pending) : null
   const scale = fit * zoom
+  const mapImageSrc = !region.map_art ? assetUrl(engine.campaign, region.map_image) : null
+  const mapImageFailed = mapImageSrc !== null && failedImages.has(mapImageSrc)
 
   const handleStartTravel = (targetLoc: LocationDef, cost: number) => {
     if (isOverloadBlocked) return
@@ -262,8 +278,10 @@ export function MapScreen({ engine, onClose }: Props) {
           >
             {region.map_art ? (
               <ArtView className="map-bg" art={region.map_art} />
+            ) : mapImageSrc && !mapImageFailed ? (
+              <img className="map-bg" src={mapImageSrc} alt={region.label} draggable={false} onError={(event) => noteImageFailure(event, mapImageSrc)} />
             ) : (
-              <img className="map-bg" src={assetUrl(engine.campaign, region.map_image)} alt={region.label} draggable={false} />
+              <div className="map-bg map-bg-fallback" role="img" aria-label={`${region.label} — карта недоступна`} data-asset-fallback={mapImageSrc ?? undefined} style={{ background: 'radial-gradient(ellipse at center, rgba(22, 37, 36, 0.96), rgba(12, 18, 20, 0.99))' }} />
             )}
             {locations.map((l) => {
               const here = l.id === engine.state.location
@@ -304,9 +322,9 @@ export function MapScreen({ engine, onClose }: Props) {
             {(() => {
               const locScene = pendingLoc.scenes[0] ? engine.campaign.scenes[pendingLoc.scenes[0]] : null
               const locImage = locScene?.states[0]?.image ? assetUrl(engine.campaign, firstFrame(locScene.states[0].image)) : null
-              return locImage ? (
+              return locImage && !failedImages.has(locImage) ? (
                 <div className="travel-postcard">
-                  <img className="travel-postcard-img" src={locImage} alt={pendingLoc.label} />
+                  <img className="travel-postcard-img" src={locImage} alt={pendingLoc.label} onError={(event) => noteImageFailure(event, locImage)} />
                   <div className="travel-postcard-overlay">
                     <div className="travel-postcard-top">
                       <span className="travel-postcard-badge">Пункт назначения</span>
@@ -324,7 +342,7 @@ export function MapScreen({ engine, onClose }: Props) {
                   </div>
                 </div>
               ) : (
-                <div className="travel-header-simple">
+                <div className="travel-header-simple" data-asset-fallback={locImage ?? undefined}>
                   <div className="travel-header-top">
                     <span className="travel-postcard-badge">Пункт назначения</span>
                     <button
