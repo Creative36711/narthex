@@ -2,6 +2,8 @@ import assert from 'node:assert/strict'
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import '../packs/narrative/index'
+import { packOperations } from '../src/core/pack/host'
 import { setTimeout as delay } from 'node:timers/promises'
 
 const root = resolve(import.meta.dirname, '..')
@@ -72,6 +74,22 @@ interface Result {
 const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
   scripts?: Record<string, string>
 }
+const narrativeManifest = JSON.parse(readFileSync(join(root, 'packs/narrative/pack.json'), 'utf8')) as { id: string }
+const narrativeOperations = packOperations.list().filter((entry) => entry.packId === narrativeManifest.id)
+const requiredNarrativeOperations = ['initialStateFields', 'initialRunStats', 'initializeRuntime']
+assert.ok(packOperations.hasPack(narrativeManifest.id), `Narrative composition root did not register ${narrativeManifest.id}`)
+for (const operation of requiredNarrativeOperations) {
+  assert.ok(narrativeOperations.some((entry) => entry.operation === operation), `Narrative pack is missing required operation ${operation}`)
+}
+console.log(`MISSION_COMPOSITION_ROOT pack=${narrativeManifest.id} operations=${narrativeOperations.length} source=packs/narrative/index.ts`)
+
+// Each npm script runs in its own Node process; preload the same real root there too.
+const narrativePreload = resolve(root, 'packs/narrative/index.ts')
+const missionNodeOptions = [
+  process.env.NODE_OPTIONS?.trim(),
+  '--import=tsx',
+  `--import=${narrativePreload}`,
+].filter(Boolean).join(' ')
 assert.equal(smokeScripts.length, 55, `Expected exactly 55 mission smoke scripts, got ${smokeScripts.length}`)
 for (const name of smokeScripts) {
   assert.equal(typeof packageJson.scripts?.[name], 'string', `Missing npm script ${name}`)
@@ -134,6 +152,7 @@ try {
       cwd: root,
       encoding: 'utf8',
       stdio: 'inherit',
+      env: { ...process.env, NODE_OPTIONS: missionNodeOptions },
     })
     const rc = run.error ? 127 : run.status ?? 1
     results.push({ command: `npm run ${name}`, rc })
