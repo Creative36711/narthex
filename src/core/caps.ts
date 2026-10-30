@@ -133,5 +133,9 @@ export function campaignCaps(meta: CapabilityProfile): string[] {
   return [...enabled]
 }
 
-/** Compatibility export; flag semantics have one implementation in shared/types. */
-export { featureOn } from '../shared/types'
+/** Registry-backed compatibility wrapper for current runtime capability checks. */
+export function featureOn(meta: CapabilityProfile, id: string): boolean {
+  const capability = capabilityById.get(id)
+  if (!capability) throw new TypeError(`Unknown runtime capability "${id}"; check the capability registry.`)
+  return ENABLED_STATUSES.has(capability.status) && campaignCaps(meta).includes(id)
+}

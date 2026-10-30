@@ -1,5 +1,3 @@
-import { CAPABILITY_REGISTRY, campaignCaps, type CapabilityProfile } from '../core/caps'
-
 /**
  * Chronicle Forge — типы формата кампании (Campaign Package).
  * Соответствуют ТЗ, раздел 3.
@@ -603,12 +601,8 @@ export interface CampaignFeatures {
   time?: boolean
 }
 
-/** Единая проверка флага: явные caps приоритетны, legacy-карта сохраняет умолчания. */
-export function featureOn(meta: CapabilityProfile, id: string): boolean {
-  const capability = CAPABILITY_REGISTRY.find((entry) => entry.id === id)
-  if (!capability) throw new TypeError(`Unknown runtime capability "${id}"; check the capability registry.`)
-  return (capability.status === 'stable' || capability.status === 'experimental') && campaignCaps(meta).includes(id)
-}
+/** Совместимый путь: единственная реализация флагов находится в core/caps. */
+export { featureOn } from '../core/caps'
 
 /** Эффективный стартовый тик забега: единая точка (движок, HUD-дедлайн и
  *  условие elapsed_ge), чтобы «умолчание» не разъезжалось. Историческое
