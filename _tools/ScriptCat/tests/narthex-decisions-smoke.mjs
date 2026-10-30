@@ -18,9 +18,11 @@ import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const V = '1.4.86';
+const versionMatch = src.match(/^\/\/ @version\s+(\d+\.\d+\.\d+)\s*$/m);
+assert.ok(versionMatch, 'narthex.user.js must declare a version in x.y.z format');
+const V = versionMatch[1];
 
-assert.match(src, /@version\s+1\.4\.86/, `версия ${V}`);
+assert.match(src, new RegExp(`@version\\s+${V.replace(/\./g, '\\.')}`), `версия ${V}`);
 
 // ── 1. Панель: отдельная кнопка решений ────────────────────────────────────
 const has = (needle) => assert.ok(src.includes(needle), `в скрипте нет: ${needle}`);

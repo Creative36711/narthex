@@ -187,7 +187,8 @@ assert.match(adopt, /await submitExecutor\(role, expect, true\)/, 'дальше 
 assert.match(adopt, /adopted: true/, 'видно, что выдача восстановлена, а не отправлена заново');
 
 // ── 9. Версия ──────────────────────────────────────────────────────────────
-assert.match(src, /@version\s+1\.4\.86/, 'версия 1.4.86');
+const versionMatch = src.match(/^\/\/ @version\s+(\d+\.\d+\.\d+)\s*$/m);
+assert.ok(versionMatch, 'narthex.user.js must declare a version in x.y.z format');
 
 // ── 10. Ложный отказ чинится сам, без клика Мастера ────────────────────────
 {

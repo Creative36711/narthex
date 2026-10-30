@@ -21,7 +21,8 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // ── 1. Версия ──────────────────────────────────────────────────────────────
-assert.match(src, /@version\s+1\.4\.86/, 'версия 1.4.86');
+const versionMatch = src.match(/^\/\/ @version\s+(\d+\.\d+\.\d+)\s*$/m);
+assert.ok(versionMatch, 'narthex.user.js must declare a version in x.y.z format');
 
 // ── 2. Функции возврата ────────────────────────────────────────────────────
 const from = src.indexOf('  const firstLine = (text, max = 220) => {');

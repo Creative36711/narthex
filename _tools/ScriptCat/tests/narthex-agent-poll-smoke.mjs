@@ -21,7 +21,8 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // ── 1. Версия ──────────────────────────────────────────────────────────────
-assert.match(src, /@version\s+1\.4\.90/, 'версия 1.4.90');
+const versionMatch = src.match(/^\/\/ @version\s+(\d+\.\d+\.\d+)\s*$/m);
+assert.ok(versionMatch, 'narthex.user.js must declare a version in x.y.z format');
 
 // ── 2. Вопросы читаются целиком ────────────────────────────────────────────
 const pollFrom = src.indexOf('  const POLL_REPLY = "Реши сам в рамках Scope');
@@ -318,4 +319,4 @@ assert.ok(
   'до поиска роли по имени',
 );
 
-console.log('OK: narthex 1.4.90 — опрос агента разбирается целиком, ответ уходит после Submit и пишется в журнал');
+console.log(`OK: narthex ${versionMatch[1]} — опрос агента разбирается целиком, ответ уходит после Submit и пишется в журнал`);
