@@ -147,10 +147,12 @@ For other executed candidates, the migrated assertions were green even when unre
 
 No bundle was rebuilt. The kit check packages the existing `public/ai` contents; generated `dist-ai/` and temporary unpack/check directories were removed after verification.
 
+GitHub PR check `screenshots` (run `41142469289`, job `124359766262`) concluded failure before any workflow step started. Its GitHub annotation says the job was not started because recent account payments failed or the spending limit needs an increase. This external billing block is not counted as a passing CI check; all local gates above completed as recorded.
+
 ## Diff stat
 
 ```text
- _tools/reports/STAB-1.14.md                    | 192 ++++++++++++++++++++++++
+ _tools/reports/STAB-1.14.md                    | 194 ++++++++++++++++++++++++
  docs/decisions/STAB-1.14.md                    |   8 +
  scripts/campaign-index-smoke.mts               |  15 +-
  scripts/chronicle-import-identity-smoke.mts    |  19 ++-
@@ -188,5 +190,5 @@ No bundle was rebuilt. The kit check packages the existing `public/ai` contents;
  scripts/tz6-abilities-smoke.mts                |   4 +-
  scripts/tz7-slots-smoke.mts                    |  15 +-
  scripts/tz9-weather-smoke.mts                  |   7 +-
- 38 files changed, 756 insertions(+), 278 deletions(-)
+ 38 files changed, 758 insertions(+), 278 deletions(-)
 ```
