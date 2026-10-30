@@ -7,6 +7,8 @@ import { Compiler } from 'inkjs/full'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
 import { EditorStore } from '../src/editor/store'
+import { MENUS } from '../src/editor/editorMenus'
+import { CutsceneEditor } from '../src/editor/CutsceneEditor'
 import { generateInk, type DlgDoc } from '../src/editor/dialogueDoc'
 import { autoDurationMs, youtubeId } from '../src/shared/CutscenePlayer'
 import { cutsceneTtsEligible } from '../src/shared/cutsceneTts'
@@ -173,8 +175,7 @@ const campaign: CampaignData = await loadCampaign(base)
   check('E редактор: музыка и озвучка файлом или ссылкой', editor.includes('AudioUpload') && editor.includes('assets/voice'))
   check('E редактор: тест-прогон', editor.includes('Тест-прогон') && editor.includes('testMode'))
   check('E редактор: предупреждение про видео', editor.includes('работает только онлайн'))
-  const app = readFileSync('src/editor/EditorApp.tsx', 'utf8')
-  check('E раздел «Катсцены» в редакторе', app.includes("label: 'Катсцены'") && app.includes('<CutsceneEditor'))
+  check('E раздел «Катсцены» в редакторе', MENUS.some((menu) => menu.items.some((item) => item.id === 'cutscenes' && item.label === 'Катсцены')) && typeof CutsceneEditor === 'function')
   const builder = readFileSync('src/editor/DialogueBuilder.tsx', 'utf8')
   check('E действие «Показать катсцену» в диалогах', builder.includes("'play_cutscene'") && builder.includes('Показать катсцену'))
 }

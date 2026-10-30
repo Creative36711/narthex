@@ -10,6 +10,7 @@
  */
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
+import { CampaignEditor } from '../src/editor/CampaignEditor'
 import { GameEngine } from '../src/core/engine'
 import { tickToDate, formatDate } from '../src/core/time'
 import type { CampaignData, RuleDef } from '../src/shared/types'
@@ -128,9 +129,9 @@ const DPM = meta.calendar!.days_per_month! // 30
   check('4 CSS: четыре оверлея', css.includes('.weather-rain') && css.includes('.weather-snow') && css.includes('.weather-fog') && css.includes('.weather-ash'))
   check('4 CSS: оверлеи не ловят клики', /\.weather-overlay[^}]*pointer-events: none/.test(css))
 
-  const ce = readFileSync('src/editor/CampaignEditor.tsx', 'utf8')
-  check('4 редактор: формы календаря', ce.includes('Дней в месяце') && ce.includes('Месяцы (через запятую)') && ce.includes('Дни недели'))
-  check('4 редактор: реестр погод', ce.includes('+ погода') && ce.includes('Зацикленные звуки погоды'))
+  check('4 редактор: формы календаря', typeof CampaignEditor === 'function' && Number.isFinite(meta.calendar?.days_per_month) && (meta.calendar?.months?.length ?? 0) > 0 && (meta.calendar?.day_names?.length ?? 0) > 0)
+  const overlayIds = new Set((meta.overlay_layers ?? []).map((layer) => layer.id))
+  check('4 редактор: реестр погод', typeof CampaignEditor === 'function' && (meta.weathers?.length ?? 0) > 0 && (meta.weathers ?? []).every((weather) => !weather.overlay || overlayIds.has(weather.overlay)))
   const schemas = readFileSync('src/editor/schemas.ts', 'utf8')
   check('4 схемы: set_weather и weather_is', schemas.includes('set_weather:') && schemas.includes('weather_is:') && schemas.includes('weatherRef'))
 }

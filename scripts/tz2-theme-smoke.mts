@@ -10,11 +10,19 @@
  *  6. монолит гоняет fonts/theme без потерь; схема знает типы.
  */
 import { readFileSync } from 'node:fs'
+import * as React from 'react'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { loadCampaign } from '../src/core/loader'
+import { CampaignEditor } from '../src/editor/CampaignEditor'
+import { EditorStore } from '../src/editor/store'
+import { FONT_ROLES } from '../src/editor/campaignFonts'
+import { FontSample, ProfilePicker, ProfilePreview } from '../src/editor/campaignAppearance'
 import { themeVars, themeBackgroundUrl, fontFamily } from '../src/shared/theme'
 import { DEFAULT_SETTINGS } from '../src/shared/settings'
 import type { CampaignData, CampaignMeta } from '../src/shared/types'
 
+;(globalThis as any).React = React
 const mem = new Map<string, string>()
 ;(globalThis as any).localStorage = {
   getItem: (k: string) => mem.get(k) ?? null,
@@ -81,17 +89,20 @@ function withTheme(theme: CampaignMeta['theme'], fonts: CampaignMeta['fonts'] = 
 
 // ── 5. редактор ──
 {
-  const ed = readFileSync('src/editor/CampaignEditor.tsx', 'utf8')
-  check('5 вкладка «Оформление»', ed.includes("'look'") && ed.includes('Оформление'))
-  check('5 реестр шрифтов и роли', ed.includes('ThemeTab') && ed.includes('FONT_ROLES') && ed.includes('assets/fonts'))
-  check('5 живой предпросмотр (@font-face)', ed.includes('FontSample') && ed.includes('@font-face'))
+  const store = new EditorStore('/campaigns/theme-api')
+  store.meta = campaign.meta
+  const editorMarkup = renderToStaticMarkup(createElement(CampaignEditor, { store }))
+  const profileMarkup = renderToStaticMarkup(createElement(ProfilePicker, { meta: campaign.meta, commit: () => undefined }))
+  const fontMarkup = renderToStaticMarkup(createElement(FontSample, { store, fontId: 'font_missing', meta: campaign.meta, role: FONT_ROLES[0] }))
+  check('5 вкладка «Оформление»', typeof CampaignEditor === 'function' && editorMarkup.includes('Оформление') && typeof ProfilePicker === 'function')
+  check('5 реестр шрифтов и роли', FONT_ROLES.length >= 3 && FONT_ROLES.every((role) => role.key && role.label && role.sample) && profileMarkup.includes('profile-group'))
+  check('5 живой предпросмотр (@font-face)', typeof FontSample === 'function' && typeof ProfilePreview === 'function' && fontMarkup.includes(FONT_ROLES[0].label))
   const fields = readFileSync('src/editor/Fields.tsx', 'utf8')
   check('5 AssetUpload принимает шрифты', fields.includes('.woff2,.woff,.ttf,.otf'))
 }
 
 // ── 6. монолит и схема ──
 {
-  const { EditorStore } = await import('../src/editor/store')
   const { exportMonolith, importMonolith, parseMonolith } = await import('../src/editor/monolith')
   const store = new EditorStore(base)
   await store.load()

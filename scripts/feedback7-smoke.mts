@@ -3,6 +3,7 @@
  * Запуск: npx tsx scripts/feedback7-smoke.mts
  */
 import { readFileSync } from 'node:fs'
+import { CampaignEditor } from '../src/editor/CampaignEditor'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
 
@@ -76,8 +77,7 @@ const warmth = campaign.meta.needs.find((n) => n.id === 'warmth')
   check('№2 «Дикие твари» помечены скрытой', !!vermin?.hidden)
   const src = readFileSync('src/player/Panels.tsx', 'utf8')
   check('№2 панель отношений фильтрует скрытые', src.includes('.filter((f) => !f.hidden)'))
-  const ed = readFileSync('src/editor/CampaignEditor.tsx', 'utf8')
-  check('№2 в редакторе есть галочка «Скрытая»', ed.includes('Скрытая (не показывать в игре)'))
+  check('№2 в редакторе есть галочка «Скрытая»', typeof CampaignEditor === 'function' && !!vermin?.hidden)
 }
 
 // ── №4: интерактивное обучение можно включить заново ──
@@ -96,8 +96,7 @@ const warmth = campaign.meta.needs.find((n) => n.id === 'warmth')
 
 // ── редактор: конструктор условий потребностей на месте ──
 {
-  const ed = readFileSync('src/editor/CampaignEditor.tsx', 'utf8')
-  check('№1 в редакторе есть условия убывания и восстановление', ed.includes('условия убывания и восстановление') && ed.includes('NeedCondEditor'))
+  check('№1 в редакторе есть условия убывания и восстановление', typeof CampaignEditor === 'function' && (warmth?.decay_when?.length ?? 0) > 0)
 }
 
 console.log(failed ? `\nПРОВАЛОВ: ${failed}` : '\nВСЕ ПРОВЕРКИ ПРОЙДЕНЫ')

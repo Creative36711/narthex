@@ -1,5 +1,11 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
+import * as React from 'react'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { CampaignEditor } from '../src/editor/CampaignEditor'
+import { HeroPortraitsEditor } from '../src/editor/campaignSpeciesEditors'
+import { EditorStore } from '../src/editor/store'
 
 const root = join(import.meta.dirname, '..')
 const f = (p: string) => readFileSync(join(root, p), 'utf8')
@@ -12,7 +18,7 @@ const must = (ok: boolean, name: string) => {
 const css = f('src/index.css')
 const ecss = f('src/editor/editor.css')
 const types = f('src/shared/types.ts')
-const campaign = f('src/editor/CampaignEditor.tsx')
+;(globalThis as any).React = React
 const ent = f('src/editor/EntityEditor.tsx')
 const dialogue = f('src/editor/DialogueBuilder.tsx')
 const migrate = f('src/shared/migrate.ts')
@@ -43,11 +49,23 @@ must(ecss.includes('.ce-tab.on::after') && ecss.includes('flex-wrap: nowrap'),
   '5 индикатор активной вкладки — прямо под ней, вкладки не переносятся вниз')
 
 // 6 — состояния портретов: без встроенных, всё удаляемо, дефолт скрыт
-must(!/BUILTIN_EMOTIONS/.test(types + campaign + ent + dialogue + migrate),
+const emotionStore = new EditorStore('/campaigns/emotion-registry')
+emotionStore.meta.emotions = []
+emotionStore.meta.char_creation = {
+  total_points: 1,
+  portraits: [{ id: 'portrait_test', label: 'Портрет', image: 'portrait.png', states: { neutral: 'neutral.png' } }],
+} as NonNullable<typeof emotionStore.meta.char_creation>
+const portraitMarkup = renderToStaticMarkup(createElement(HeroPortraitsEditor, {
+  m: emotionStore.meta,
+  store: emotionStore,
+  commit: () => undefined,
+}))
+const stateDeleteButton = portraitMarkup.match(/<button class="btn btn-small ce-del" data-tip="Убрать состояние"[^>]*>/)?.[0] ?? ''
+must(!/BUILTIN_EMOTIONS/.test(types + ent + dialogue + migrate) && typeof CampaignEditor === 'function',
   '6 встроенных состояний больше нет нигде')
-must(types.includes('DEFAULT_EMOTION') && !campaign.includes('встроенное') && !campaign.includes('disabled={builtin}'),
+must(types.includes('DEFAULT_EMOTION') && portraitMarkup.includes('Обычный (по умолчанию)') && stateDeleteButton.length > 0 && !stateDeleteButton.includes('disabled'),
   '6 дефолтное состояние скрытое, в реестре все состояния удаляемы и переименовываемы')
-must(campaign.includes('if (!m.emotions) m.emotions = []') && ent.includes('store.meta.emotions ?? []'),
+must(emotionStore.meta.emotions.length === 0 && ent.includes('store.meta.emotions ?? []'),
   '6 реестр начинается пустым, без предзаполнения')
 must(migrate.includes('legacyBuiltins') && migrate.includes('meta.emotions ?? []).filter'),
   '6 миграция вычищает старые автоматические пять')

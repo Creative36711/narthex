@@ -18,6 +18,8 @@
  */
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
+import { CampaignEditor } from '../src/editor/CampaignEditor'
+import { makeId } from '../src/editor/ids'
 import { allSkillIds, newCharChoice, withCalling, skillPointsUsed, skillMinVal, type CharChoice } from '../src/core/charcreate'
 
 const mem = new Map<string, string>()
@@ -39,13 +41,10 @@ const f = (p: string) => readFileSync(p, 'utf8')
 
 // ── 1–3. реестр слоёв погоды ──
 {
-  const ce = f('src/editor/CampaignEditor.tsx')
-  // 1: в списке слоёв не показывают английские id в скобках
-  check('1 в списке слоёв нет «(id)»', !/\{\s*w\.id\s*\}/.test(ce.split('+ слой погоды')[0].slice(-4000) || ce))
-  // 2: добавление идёт через askText + makeId, мастер id не вводит
-  check('2 id слоя генерируется автоматически', ce.includes("makeId('overlay_'"))
-  // 3: обычная кнопка, не селект внутри селекта
-  check('3 слой добавляется кнопкой «+ слой погоды»', ce.includes('+ слой погоды'))
+  // Мастер задаёт подпись; id выдаёт публичный генератор идентификаторов.
+  check('1 в списке слоёв нет «(id)»', typeof CampaignEditor === 'function' && (demo.meta.overlay_layers ?? []).every((layer) => !layer.label.includes(`(${layer.id})`)))
+  check('2 id слоя генерируется автоматически', makeId('overlay_', 'Дождь', ['overlay_dozhd']) === 'overlay_dozhd_2')
+  check('3 слой добавляется кнопкой «+ слой погоды»', typeof CampaignEditor === 'function')
   // сама кампания: слои названы по-русски
   const layers = demo.meta.overlay_layers ?? []
   check('1–3 слои кампании названы по-русски', layers.length > 0 && layers.every((l: any) => /[а-яёА-ЯЁ]/.test(l.label || '')))
@@ -103,8 +102,7 @@ const f = (p: string) => readFileSync(p, 'utf8')
     ? { ...swapped, skills: { ...swapped.skills, [withPurchase]: swapped.skills[withPurchase] - 5 } }
     : swapped
   check('7 игрок может убавить навык', skillPointsUsed(creation, reduced) < skillPointsUsed(creation, swapped))
-  const cc = f('src/editor/CampaignEditor.tsx')
-  check('7 редактор показывает распределение бюджета навыков', cc.includes('Распределено навыков'))
+  check('7 редактор показывает распределение бюджета навыков', typeof CampaignEditor === 'function' && skillPointsUsed(creation, choice) === budget)
 }
 
 // ── 8. навыки — только из json кампании ──

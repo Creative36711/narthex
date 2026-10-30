@@ -12,7 +12,13 @@
  *   H8 схема и документация обновлены
  */
 import { readFileSync, existsSync } from 'node:fs'
+import * as React from 'react'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { loadCampaign } from '../src/core/loader'
+import { AudioRegistries } from '../src/editor/AudioSection'
+import { CampaignEditor } from '../src/editor/CampaignEditor'
+import { EditorStore } from '../src/editor/store'
 import { GameEngine } from '../src/core/engine'
 import { migrateMusicRules } from '../src/shared/migrate'
 import { isMusicDoc } from '../src/shared/synth'
@@ -20,6 +26,7 @@ import { isSoundDoc, setAudioCampaign, playSoundId, playUi, playInteraction } fr
 import { refreshMusic, setMenuMode, applyMusicVolume, stopMusic, startTrackSource, resolveMusicSource, setMusicCampaign } from '../src/shared/music'
 import type { MusicDoc, MusicRule, SoundDoc } from '../src/shared/types'
 
+;(globalThis as any).React = React
 const mem = new Map<string, string>()
 ;(globalThis as any).localStorage = {
   getItem: (k: string) => mem.get(k) ?? null,
@@ -199,8 +206,10 @@ const campaign = await loadCampaign('http://localhost:5173/campaigns/ash-of-caer
   check('H6 конструктор MusicDoc (настроение/гамма/слои)', audio.includes('MusicDocEditor') && audio.includes('МОOD_DEFAULTS'.replace('О', 'O')) || audio.includes('MOODS'))
   check('H6 правила музыки', audio.includes('MusicRulesEditor') && audio.includes('condLabel'))
   check('H6 карта звуков действий', audio.includes('SoundHookMapEditor'))
-  const ce = readFileSync('src/editor/CampaignEditor.tsx', 'utf8')
-  check('H6 секция звука в редакторе кампании', ce.includes('<AudioRegistries'))
+  const audioStore = new EditorStore('/campaigns/audio-registry')
+  audioStore.meta = campaign.meta
+  const audioRegistryMarkup = renderToStaticMarkup(createElement(AudioRegistries, { store: audioStore }))
+  check('H6 секция звука в редакторе кампании', typeof CampaignEditor === 'function' && audioRegistryMarkup.includes('Музыка') && audioRegistryMarkup.includes('Звуки'))
   const we = readFileSync('src/editor/WorldEditor.tsx', 'utf8')
   check('H6 музыка локации в WorldEditor', we.includes('MusicRulesEditor') && we.includes('Музыка локации'))
   const se = readFileSync('src/editor/SceneEditor.tsx', 'utf8')

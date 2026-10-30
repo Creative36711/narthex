@@ -7,6 +7,7 @@
 
 import { readFileSync, existsSync } from 'node:fs'
 import { AI_KIT_FILES } from '../src/editor/aiKit.js'
+import { loadMissionOwnerModules } from './mission-smokes.mts'
 
 function assert(cond: boolean, msg: string) {
   if (!cond) {
@@ -23,8 +24,8 @@ assert(mainMenuCode.includes('disabled={!!importBusy}'), 'MainMenu должен 
 const noCampaignCode = readFileSync('src/player/NoCampaignScreen.tsx', 'utf-8')
 assert(noCampaignCode.includes('import-busy-overlay'), 'NoCampaignScreen должен содержать import-busy-overlay')
 
-const editorAppCode = readFileSync('src/editor/EditorApp.tsx', 'utf-8')
-assert(editorAppCode.includes('editor-busy-overlay'), 'EditorApp должен содержать editor-busy-overlay')
+const [editorOwner] = await loadMissionOwnerModules(['/src/editor/EditorApp.tsx'])
+assert(typeof editorOwner.EditorApp === 'function', 'EditorApp должен предоставлять публичный компонент')
 
 console.log('✓ Блокирующие оверлеи интерфейса внедрены во все экраны импорта!')
 

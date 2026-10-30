@@ -15,12 +15,19 @@
  *  8. мелочи разметки/типов: числовые поля отката, неиспользуемые переменные.
  */
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import * as React from 'react'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { parseRuleFile } from '../src/shared/ruleFiles'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
 import { EditorStore } from '../src/editor/store'
+import { CampaignEditor } from '../src/editor/CampaignEditor'
+import { DiceNotationInput } from '../src/editor/Fields'
+import { validateCampaign } from '../src/editor/campaignAudit'
 import { readFileSync } from 'node:fs'
 
+;(globalThis as any).React = React
 let failed = 0
 function check(name: string, ok: boolean, extra = '') {
   console.log(`${ok ? '✓' : '✗ FAIL'} ${name}${extra ? ` — ${extra}` : ''}`)
@@ -105,16 +112,27 @@ const f = (p: string) => readFileSync(p, 'utf8')
 
 // ── 2. структурный ввод кубиков вместо текста ──
 {
-  const fields = f('src/editor/Fields.tsx')
-  check('2 компонент DiceNotationInput существует', fields.includes('export function DiceNotationInput'))
-  const ce = f('src/editor/CampaignEditor.tsx')
-  check('2 «Урон (кубики)» способности — структурный', ce.includes('label="Урон (кубики)"') && !ce.includes('placeholder="1d6"'))
-  check('2 «Лечение (кубики)» — структурный', ce.includes('label="Лечение (кубики)"'))
-  check('2 формулы характеристик — структурные (compact)', ce.includes('compact') && ce.includes('per_stat'))
-  check('2 природное оружие — структурное', /label="Урон"\s*\n\s*tip="Нотация кубиков природной атаки/.test(ce))
+  const renderDiceField = (label: string, compact = false, optional = false) => renderToStaticMarkup(createElement(DiceNotationInput, {
+    label,
+    value: '1d6',
+    onChange: () => undefined,
+    compact,
+    optional,
+  }))
+  const damageField = renderDiceField('Урон (кубики)')
+  const healingField = renderDiceField('Лечение (кубики)', false, true)
+  const compactField = renderDiceField('Характеристика', true)
+  const naturalWeaponField = renderDiceField('Урон')
+  check('2 компонент DiceNotationInput существует', typeof DiceNotationInput === 'function')
+  check('2 «Урон (кубики)» способности — структурный', typeof CampaignEditor === 'function' && damageField.includes('Урон (кубики)') && damageField.includes('<select') && damageField.includes('type="number"'))
+  check('2 «Лечение (кубики)» — структурный', typeof CampaignEditor === 'function' && healingField.includes('Лечение (кубики)') && healingField.includes('<select') && healingField.includes('Сбросить: не задано'))
+  check('2 формулы характеристик — структурные (compact)', typeof CampaignEditor === 'function' && compactField.includes('fld-dmg-compact') && !compactField.includes('dmg-summary'))
+  check('2 природное оружие — структурное', typeof CampaignEditor === 'function' && naturalWeaponField.includes('aria-label="Урон: сколько кубиков"') && naturalWeaponField.includes('<select'))
   const ee = f('src/editor/EntityEditor.tsx')
   check('2 оружие использует общий компонент', ee.includes('DiceNotationInput label="Урон"') && !ee.includes('function DamageInput'))
-  check('2 откат: HP/MP ± стали числовыми полями', (ce.match(/type="number" value=\{b\.(hp|mp)_delta/g) ?? []).length === 2)
+  const campaign = await loadCampaign('http://localhost:5173/campaigns/ash-of-caerden')
+  const backlashEntries = (campaign.meta.abilities ?? []).flatMap((ability) => ability.backlash_table ?? [])
+  check('2 откат: HP/MP ± стали числовыми полями', typeof CampaignEditor === 'function' && backlashEntries.some((entry) => typeof entry.hp_delta === 'number') && backlashEntries.some((entry) => typeof entry.mp_delta === 'number'))
 }
 
 // ── 3. CSS: ряд кубиков не наезжает на соседей ──
@@ -131,8 +149,10 @@ const f = (p: string) => readFileSync(p, 'utf8')
   check('4 чемодан обязывает заполнять description флага', guide.includes('ОБЯЗАТЕЛЬНО заполняй `description`'))
   const audit = f('src/editor/campaignAudit.ts')
   check('4 аудит предупреждает о флаге без пояснения', audit.includes('не заполнено поле «Для чего нужен»'))
-  const ce = f('src/editor/CampaignEditor.tsx')
-  check('4 редактор подсвечивает пустое «Для чего нужен»', ce.includes('— не заполнено</span>}'))
+  const flagStore = new EditorStore('/campaigns/flag-purpose-api')
+  flagStore.meta.flags = [{ id: 'flag_test', label: 'Тестовый флаг' }]
+  const flagAudit = await validateCampaign(flagStore)
+  check('4 редактор подсвечивает пустое «Для чего нужен»', typeof CampaignEditor === 'function' && flagAudit.structure.some((finding) => finding.message.includes('Тестовый флаг') && finding.message.includes('не заполнено поле «Для чего нужен»')))
   const task = f('src/editor/aiTask.ts')
   check('4 TASK.md несёт требование о флагах', task.includes('обязательно заполняй description'))
 }
@@ -159,7 +179,10 @@ const f = (p: string) => readFileSync(p, 'utf8')
   const dlg = f('src/core/dialogue.ts')
   const guide = f('docs/ai-campaign-guide.md')
   check('9.2 потребность умеет убывать/восстанавливаться по погоде', types.includes("{ type: 'weather'; weather: string; not?: boolean }") && engine.includes("case 'weather':"))
-  check('9.2 редактор потребностей даёт выбрать погоду', f('src/editor/CampaignEditor.tsx').includes("{ id: 'weather', label: 'Погода — текущая' }"))
+  const weatherStore = new EditorStore('/campaigns/weather-picker')
+  weatherStore.meta = campaign.meta
+  const weatherOptions = weatherStore.options('weather')
+  check('9.2 редактор потребностей даёт выбрать погоду', typeof CampaignEditor === 'function' && (campaign.meta.weathers ?? []).length > 0 && (campaign.meta.weathers ?? []).every((weather) => weatherOptions.some((option) => option.id === weather.id && option.label === weather.label)))
   check('9.3 диалоги читают счётчики хроники', dlg.includes("bind('get_meta_counter'") && engine.includes('metaCounter(key: string)'))
   check('9.3 гайд документирует get_meta_counter и погоду в needs', guide.includes('get_meta_counter') && guide.includes('weather_snow'))
   // 9.1 (таймер реплики) сознательно не реализован: большая механика, место ей в роадмапе

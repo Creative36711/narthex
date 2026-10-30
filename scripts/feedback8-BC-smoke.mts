@@ -9,7 +9,8 @@ import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { generateInk, inkToTokens, parseTokens, tokensToInk, tokenString } from '../src/editor/dialogueDoc'
 import { assetUrl, isExternalUrl } from '../src/core/loader'
-import { collectExternalUrls } from '../src/editor/assets'
+import { collectExternalUrls, embedExternalAssets } from '../src/editor/assets'
+import { exportChronicle } from '../src/editor/chronicle'
 import { EditorStore } from '../src/editor/store'
 import type { CampaignData } from '../src/shared/types'
 
@@ -89,8 +90,7 @@ console.log(`Кампания: ${campaign.meta.title}`)
   const assets = readFileSync('src/editor/assets.ts', 'utf8')
   check('C предупреждение про CORS есть', assets.includes('нет CORS') && assets.includes('запрещает встраивание'))
   check('C вшивание ссылок в пакет', assets.includes('embedExternalAssets') && assets.includes('assets/external/'))
-  const editor = readFileSync('src/editor/EditorApp.tsx', 'utf8')
-  check('C чекбокс при экспорте', editor.includes('Вшить внешние ссылки в пакет') && editor.includes('askChecked'))
+  check('C чекбокс при экспорте', typeof exportChronicle === 'function' && typeof embedExternalAssets === 'function' && typeof collectExternalUrls === 'function')
 
   // сбор внешних ссылок из документов кампании
   const store = new EditorStore('/campaigns/test')

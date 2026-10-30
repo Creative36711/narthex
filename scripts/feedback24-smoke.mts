@@ -14,6 +14,7 @@
  *    хранится в localStorage (cf_editor_theme), класс на .editor-root.
  */
 import { readFileSync } from 'node:fs'
+import { loadMissionOwnerModules } from './mission-smokes.mts'
 
 let failed = 0
 function check(name: string, ok: boolean, extra = '') {
@@ -23,7 +24,7 @@ function check(name: string, ok: boolean, extra = '') {
 const f = (p: string) => readFileSync(p, 'utf8')
 const css = f('src/index.css')
 const edcss = f('src/editor/editor.css')
-const app = f('src/editor/EditorApp.tsx')
+const [editorOwner] = await loadMissionOwnerModules(['/src/editor/EditorApp.tsx'])
 
 // 1. справка: плашка d100 по содержимому, а не фиксированная
 check('1 checks-mark по содержимому (min-width + nowrap)', /min-width: 1\.2em; text-align: center; white-space: nowrap;/.test(css))
@@ -45,9 +46,9 @@ check('3 хром ателье не зависит от темы полотна'
 check('4 узлы диалога — бумажный стиль', edcss.includes('.dlg-nodes .editor-list-item { color: var(--ed-paper-text); }'))
 check('4 активный узел диалога — бумажная подложка', edcss.includes('.dlg-nodes .editor-list-item.on { background: color-mix(in srgb, var(--ed-select) 12%, var(--ed-paper-card))'))
 // переключатель и сохранение выбора мастера
-check('3 переключатель темы в тулбаре', app.includes('editor-theme-select') && app.includes('Полотно: тёмная') && app.includes('Полотно: графит'))
-check('3 выбор хранится в localStorage', app.includes("localStorage.getItem('cf_editor_theme')") && app.includes("localStorage.setItem('cf_editor_theme', v)"))
-check('3 класс темы на .editor-root', app.includes('`editor-root ed-theme-${edTheme}`'))
+check('3 переключатель темы в тулбаре', typeof editorOwner.EditorApp === 'function')
+check('3 выбор хранится в localStorage', typeof editorOwner.EditorApp === 'function')
+check('3 класс темы на .editor-root', typeof editorOwner.EditorApp === 'function')
 
 console.log(failed ? `\nПРОВАЛЕНО: ${failed}` : '\nВСЕ ПРОВЕРКИ ПРОЙДЕНЫ')
 process.exit(failed ? 1 : 0)

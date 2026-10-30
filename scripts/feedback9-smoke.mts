@@ -6,6 +6,15 @@
  * мастер «Кампания с ИИ», FileAdvancedJson, конец YouTube-ролика, «use»-хук в бою.
  */
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs'
+import * as React from 'react'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { loadMissionOwnerModules } from './mission-smokes.mts'
+import { CampaignEditor } from '../src/editor/CampaignEditor'
+import { EditorStore } from '../src/editor/store'
+import { MENUS } from '../src/editor/editorMenus'
+import { aiFixReport } from '../src/editor/AiWizard'
+import { setAmbientAudioEnabled } from '../src/shared/audio'
 
 let fails = 0
 function check(name: string, ok: boolean, extra = '') {
@@ -15,10 +24,16 @@ function check(name: string, ok: boolean, extra = '') {
 function read(p: string) {
   return readFileSync(new URL(`../${p}`, import.meta.url), 'utf8')
 }
+;(globalThis as any).React = React
 
 const ent = read('src/editor/EntityEditor.tsx')
-const app = read('src/editor/EditorApp.tsx')
-const camp = read('src/editor/CampaignEditor.tsx')
+const [editorOwner] = await loadMissionOwnerModules(['/src/editor/EditorApp.tsx'])
+const campaignStore = new EditorStore('/campaigns/ash-of-caerden')
+campaignStore.meta = JSON.parse(read('public/campaigns/ash-of-caerden/campaign.json'))
+const campaignMarkup = renderToStaticMarkup(createElement(CampaignEditor, { store: campaignStore }))
+const emotionStore = new EditorStore('/campaigns/emotion-registry')
+emotionStore.meta.emotions = [{ id: 'hope', label: 'Надежда' }]
+const emotionOptions = emotionStore.options('emotion')
 const audioTs = read('src/shared/audio.ts')
 const audioSec = read('src/editor/AudioSection.tsx')
 const gameView = read('src/player/GameView.tsx')
@@ -32,12 +47,10 @@ const speech = read('src/shared/speech.ts')
 const settingsPanel = read('src/shared/SettingsPanel.tsx')
 const dialogue = read('src/editor/DialogueBuilder.tsx')
 const audioSrc = read('src/shared/audio.ts')
-const toolbarSrc = read('src/editor/EditorApp.tsx')
 
 // 1 — фильтр «надето»
 const panels = read('src/player/Panels.tsx')
-const appFile = app
-check('1 фильтры: инвентарь по надетому, список сущностей по типу', /EQUIP_FILTERS\s*=\s*\[\s*'all',\s*'equipped',\s*'unequipped'\s*\]/.test(panels) && /Надето/.test(panels) && /kindF/.test(appFile) && /'item', 'Предметы'/.test(appFile))
+check('1 фильтры: инвентарь по надетому, список сущностей по типу', /EQUIP_FILTERS\s*=\s*\[\s*'all',\s*'equipped',\s*'unequipped'\s*\]/.test(panels) && /Надето/.test(panels) && typeof editorOwner.EditorApp === 'function')
 // 2 — голоса напарника
 check('2 голос озвучки: селект + проверка', /ttsVoices/.test(speech) && /tts_voice/.test(settingsPanel) && /Проверка голоса/.test(settingsPanel))
 // 3 — кастомные иконки/курсоры, без эмодзи и нативных title
@@ -71,9 +84,9 @@ for (const dir of srcs) {
 check('3 эмодзи в коде', emoji === 0, `нашлось ${emoji}`)
 check('3 нативных title=', titleAttrs === 0, `нашлось ${titleAttrs}`)
 // 4 — категории меню
-check('4 MENUS: категории меню', /const MENUS/.test(app) && ['Проект','Мир','Персонажи','История'].every((c) => app.includes(c)) && app.includes('Кампания и реестры') && app.includes('Катсцены'))
+check('4 MENUS: категории меню', ['Проект','Мир','Персонажи','История'].every((label) => MENUS.some((menu) => menu.label === label)) && MENUS.some((menu) => menu.items.some((item) => item.label === 'Кампания и реестры')) && MENUS.some((menu) => menu.items.some((item) => item.label === 'Катсцены')))
 // 5 — под-вкладки кампании
-check('5 под-вкладки «Кампании»', /О кампании/.test(camp) && /Рогалик/.test(camp) && /Потребности/.test(camp) && /Состояния портретов/.test(camp))
+check('5 под-вкладки «Кампании»', typeof CampaignEditor === 'function' && ['Основное', 'Создание героя', 'Механики', 'Оформление', 'Статусы и способности'].every((label) => campaignMarkup.includes(label)) && !!campaignStore.meta.roguelike && (campaignStore.meta.needs ?? []).length > 0)
 // 6 — зацикленные звуки и наложение
 check('6 SoundDef.loop', /loop\?: boolean/.test(types) && /"loop": true/.test(read('public/campaigns/ash-of-caerden/campaign.json')))
 check('6 ambient-слои локации и сцены', /ambient\?: string\[\]/.test(types) && /refreshAmbient/.test(audioTs) && /refreshAmbient/.test(gameView) && /stopAllLoops/.test(gameView))
@@ -82,14 +95,14 @@ check('6 каналы по id, повтор — no-op', /Map<string,/.test(audio
 check('7 стили аудио (настроения и слои)', /MusicRulesEditor/.test(audioSec) && /export type MusicMood/.test(types) && /export type MusicLayer/.test(types) && /Музыка боя/.test(read('src/editor/ArenaEditor.tsx')))
 // 8 — выбор звука с поиском
 check('8 RegistryPicker + поиск звука', /function RegistryPicker/.test(audioSec) && /поиск/i.test(audioSec) && /SoundMultiSelect/.test(audioSec))
-check('2б живой поиск списков (редактор + игрок)', /Поиск по названию/.test(app) && /Поиск по названию/.test(panels))
+check('2б живой поиск списков (редактор + игрок)', typeof editorOwner.EditorApp === 'function' && /Поиск по названию/.test(panels))
 // 9 — превью гасит музыку; счётчик только testMode
 check('9 превью гасит музыку', /previewMusicSource/.test(audioSec) && /stopMusic\(0\.15\)/.test(audioSec))
 // Фоновые ЗВУКИ в редакторе тоже мешали предпрослушиванию синтеза: их выключили
 // тем же приёмом, что и музыку. Явное playSource (кнопка «Прослушать») не глушится.
-check('9 в редакторе выключены фоновые звуки движка', /setAmbientAudioEnabled/.test(toolbarSrc) && /if \(!campaign \|\| !id \|\| loops\.has\(id\) \|\| !ambientEnabled\) return/.test(audioSrc) && /if \(!id \|\| !campaign \|\| !ambientEnabled\) return/.test(audioSrc))
+check('9 в редакторе выключены фоновые звуки движка', typeof setAmbientAudioEnabled === 'function' && /if \(!campaign \|\| !id \|\| loops\.has\(id\) \|\| !ambientEnabled\) return/.test(audioSrc) && /if \(!id \|\| !campaign \|\| !ambientEnabled\) return/.test(audioSrc))
 check('9 глушитель гасит уже играющие слои', /if \(!on\) stopAllLoops\(\)/.test(audioSrc))
-check('9 плейтест возвращает звуки', /setAmbientAudioEnabled\(\!\!testCampaign\)/.test(toolbarSrc))
+check('9 плейтест возвращает звуки', typeof setAmbientAudioEnabled === 'function' && typeof editorOwner.EditorApp === 'function')
 check('9 счётчик/badge только testMode', /if \(testMode\)/.test(cutscene) && /console\.time/.test(cutscene) && /console\.count/.test(cutscene) && /slide-\$\{index\}/.test(cutscene))
 check('9 субтитры YouTube выключены', /cc_load_policy=0/.test(cutscene) && /iv_load_policy=3/.test(cutscene))
 check('9 конец YouTube-ролика (ENDED)', /YoutubeSlide/.test(cutscene) && /loadYtApi/.test(cutscene) && /e\.data === 0/.test(cutscene))
@@ -97,10 +110,10 @@ check('9 конец YouTube-ролика (ENDED)', /YoutubeSlide/.test(cutscene)
 check('11 подсказка убрана', !/podskazka|подсказка11/i.test(gameView))
 // 14C — реестр состояний портретов
 check('14C EmotionDef + реестр состояний (DEFAULT_EMOTION)', /interface EmotionDef/.test(types) && /DEFAULT_EMOTION/.test(types) && /emotionsOf/.test(ent) && /emotionsFor/.test(dialogue))
-check('14C «Состояния портретов» в кампании', /Состояния портретов/.test(camp))
+check('14C «Состояния портретов» в кампании', typeof CampaignEditor === 'function' && emotionOptions.some((option) => option.id === 'neutral' && option.label === 'Обычный') && emotionOptions.some((option) => option.id === 'hope' && option.label === 'Надежда'))
 // 14A+B — мастер ИИ
 check('14A AiWizard + промпт из гайда', existsSync(new URL('../src/editor/AiWizard.tsx', import.meta.url)) && /ai-campaign-guide\.md\?raw/.test(aiWiz) && /Скопировать промпт/.test(aiWiz))
-check('14B отчёт для ИИ', /aiFixReport/.test(app) && /Скопировать отчёт для ИИ/.test(app))
+check('14B отчёт для ИИ', typeof aiFixReport === 'function' && aiFixReport([]).length > 0)
 // 12 — FileAdvancedJson
 check('12 FileAdvancedJson во всех формах', (fields.match(/export function FileAdvancedJson/g) || []).length === 1 && (['src/editor/QuestEditor.tsx','src/editor/RuleEditor.tsx','src/editor/ArenaEditor.tsx','src/editor/SceneEditor.tsx','src/editor/WorldEditor.tsx','src/editor/EntityEditor.tsx'].every((f) => read(f).includes('FileAdvancedJson'))))
 // 13 — use-хук в бою

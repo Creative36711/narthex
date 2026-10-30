@@ -11,6 +11,8 @@
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
+import { MENUS } from '../src/editor/editorMenus'
+import { CodexEditor } from '../src/editor/CodexEditor'
 
 const mem = new Map<string, string>()
 ;(globalThis as any).localStorage = {
@@ -78,8 +80,7 @@ const demo = await loadCampaign(base)
   check('4 панель: текст шрифтом темы', readFileSync('src/index.css', 'utf8').includes('.codex-text'))
   const gv = readFileSync('src/player/GameView.tsx', 'utf8')
   check('4 GameView подключает панель', gv.includes('CodexPanel') && gv.includes("panel === 'codex'"))
-  const app = readFileSync('src/editor/EditorApp.tsx', 'utf8')
-  check('4 редактор: раздел «Кодекс»', app.includes("label: 'Кодекс'") && app.includes('CodexEditor'))
+  check('4 редактор: раздел «Кодекс»', MENUS.some((menu) => menu.items.some((item) => item.id === 'codex' && item.label === 'Кодекс')) && typeof CodexEditor === 'function')
   const ed = readFileSync('src/editor/CodexEditor.tsx', 'utf8')
   check('4 редактор записи: форма', ed.includes('Категория') && ed.includes('Текст записи') && ed.includes('assets/img/codex'))
   const schemas = readFileSync('src/editor/schemas.ts', 'utf8')

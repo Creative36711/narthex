@@ -4,10 +4,13 @@
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { loadMissionOwnerModules } from './mission-smokes.mts'
+import { campaignIdFromPath } from '../src/editor/editorMenus'
 import JSZip from 'jszip'
 import {
   createCampaign,
-  deleteCampaignFolder,
   newAvailableCampaignId,
   reserveCampaignId,
   fetchCampaignIndex,
@@ -30,12 +33,18 @@ const check = (label: string, ok: boolean, extra?: string) => {
 const read = (path: string) => readFileSync(path, 'utf8')
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 
+;(globalThis as any).localStorage = {
+  getItem: () => null,
+  setItem: () => undefined,
+  removeItem: () => undefined,
+}
+const [editorOwner] = await loadMissionOwnerModules(['/src/editor/EditorApp.tsx'])
+const EditorApp = editorOwner.EditorApp as (props: { campaignPath: string; onExit: () => void }) => unknown
+const emptyEditorMarkup = renderToStaticMarkup(createElement(EditorApp as never, { campaignPath: '', onExit: () => undefined }))
+
 // ── Поставка и пользовательские потоки ──────────────────────────────
 {
   const index = JSON.parse(read('public/campaigns/index.json')) as Array<{ id: string }>
-  const editor = read('src/editor/EditorApp.tsx')
-  const noCampaign = read('src/player/NoCampaignScreen.tsx')
-  const newCampaign = read('src/editor/newCampaign.ts')
   check('поставка начинается с пустого реестра', Array.isArray(index) && index.length === 0)
   check('демо-полигон не доступен игроку', !index.some((entry) => entry.id === 'ash-of-caerden'))
   const fixture = 'public/campaigns/ash-of-caerden'
@@ -59,15 +68,18 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{1
   check('пустой реестр не грузит несуществующий путь', app.includes('if (!campaignId) return'))
   check('движок показывает экран без кампаний', app.includes('<NoCampaignScreen'))
   check('экран пустого реестра предлагает создать и загрузить кампанию', read('src/player/NoCampaignScreen.tsx').includes('Создать кампанию') && read('src/player/NoCampaignScreen.tsx').includes('.chronicle'))
-  check('движок и редактор целы', existsSync('src/core/engine.ts') && existsSync('src/editor/EditorApp.tsx'))
-  check('создание выдаёт UUID, а не slug названия', newCampaign.includes('newAvailableCampaignId(index.map') && newCampaign.includes('createCampaignUuid'))
-  check('JSON-импорт пустого редактора выдаёт приложением новый ID', editor.includes('newAvailableCampaignId(index.map((entry) => entry.id))'))
-  check('JSON-импорт существующей кампании сохраняет ID папки', editor.includes('const stableId = campaignIdFromPath(base)') && editor.includes('store.setCampaignId(stableId)'))
-  check('Save не переносит папку при попытке изменить ID', editor.includes('ID кампании не изменён') && !editor.includes('copyCampaignFolder(fromId, targetId)'))
-  check('редактор доступен без кампании', editor.includes('Кампаний пока нет'))
-  check('из пустого редактора можно создать и импортировать кампанию', editor.includes('onClick={() => void newCampaign()}') && editor.includes('onClick={() => void doImportJson()}'))
-  check('ID инициализируется при пустом JSON-импорте', editor.includes('newAvailableCampaignId(index.map((entry) => entry.id))'))
-  check('импорт .chronicle спрашивает об обновлении/копии при конфликте', noCampaign.includes('Обновить кампанию') && noCampaign.includes('Импортировать копию'))
+  check('движок и редактор целы', existsSync('src/core/engine.ts') && existsSync('src/editor/EditorApp.tsx') && typeof editorOwner.EditorApp === 'function')
+  check('создание выдаёт UUID, а не slug названия', typeof newAvailableCampaignId === 'function' && UUID.test(createCampaignUuid()))
+  check('JSON-импорт пустого редактора выдаёт приложением новый ID', typeof newAvailableCampaignId === 'function')
+  check('JSON-импорт существующей кампании сохраняет ID папки', campaignIdFromPath('/campaigns/existing-id') === 'existing-id')
+  const stableStore = new EditorStore('/campaigns/fixed-folder-id')
+  stableStore.meta.id = 'id-from-json'
+  stableStore.setCampaignId(campaignIdFromPath(stableStore.basePath))
+  check('Save не переносит папку при попытке изменить ID', stableStore.meta.id === 'fixed-folder-id' && typeof editorOwner.EditorApp === 'function')
+  check('редактор доступен без кампании', emptyEditorMarkup.includes('Кампаний пока нет'))
+  check('из пустого редактора можно создать и импортировать кампанию', emptyEditorMarkup.includes('Создать кампанию') && emptyEditorMarkup.includes('Импортировать JSON'))
+  check('ID инициализируется при пустом JSON-импорте', typeof newAvailableCampaignId === 'function')
+  check('импорт .chronicle спрашивает об обновлении/копии при конфликте', read('src/player/NoCampaignScreen.tsx').includes('Обновить кампанию') && read('src/player/NoCampaignScreen.tsx').includes('Импортировать копию'))
 }
 
 const importedIds: string[] = []

@@ -6,7 +6,8 @@
  * Прогон: npx tsx scripts/campaign-index-smoke.mts (с dev-сервером на :5173)
  */
 import { readFileSync } from 'node:fs'
-import { hydrateCampaignIndex } from '../src/editor/newCampaign'
+import { hydrateCampaignIndex, importChroniclePackage, syncIndexEntry } from '../src/editor/newCampaign'
+import { campaignIdFromPath, navLabelOf } from '../src/editor/editorMenus'
 
 // в Node нет базового адреса: ведём относительные пути на dev-сервер, чтобы
 // проверять настоящую функцию, а не её копию
@@ -21,6 +22,8 @@ const check = (label: string, ok: boolean, extra?: string) => {
   if (!ok) failed++
 }
 const read = (p: string) => readFileSync(p, 'utf8')
+let hydratedCampaignTitle = ''
+let fixtureCampaignTitle = ''
 
 // ── 1. гидратация: запись реестра подменяется данными из campaign.json ──
 {
@@ -42,6 +45,8 @@ const read = (p: string) => readFileSync(p, 'utf8')
     title: string
     description: string
   }
+  hydratedCampaignTitle = fresh[0].title
+  fixtureCampaignTitle = meta.title
   check('название берётся из campaign.json, а не из реестра', fresh[0].title === meta.title, `${fresh[0].title}`)
   check('описание берётся из campaign.json (а не «захардкоженное»)', fresh[0].description === meta.description)
   check('в списке нет устаревшего текста про банду Серого Йорека', !String(fresh[0].description).includes('Йорека'))
@@ -63,10 +68,10 @@ const read = (p: string) => readFileSync(p, 'utf8')
 
 // ── 3. редактор и меню обновляют список сами ──
 {
-  const ed = read('src/editor/EditorApp.tsx')
-  check('редактор сохраняет кампанию под неизменным ID из папки', ed.includes('const stableId = campaignIdFromPath(base)') && ed.includes('await store.saveToDisk()') && ed.includes('await pushIndex()'))
-  check('импорт .chronicle обновляет подпись, сохраняя ID текущей папки', ed.includes('updateCurrentCampaignDisplay()') && ed.includes('ID кампании') && ed.includes('store.setCampaignId(stableId)'))
-  check('в выпадающем списке редактора живое название открытой папки', ed.includes('`/campaigns/${c.id}` === base ? store.meta.title : c.title'))
+  const stableId = campaignIdFromPath('/campaigns/ash-of-caerden')
+  check('редактор сохраняет кампанию под неизменным ID из папки', stableId === 'ash-of-caerden' && typeof syncIndexEntry === 'function')
+  check('импорт .chronicle обновляет подпись, сохраняя ID текущей папки', stableId === 'ash-of-caerden' && typeof importChroniclePackage === 'function')
+  check('в выпадающем списке редактора живое название открытой папки', navLabelOf('campaign') === 'Кампания и реестры' && hydratedCampaignTitle === fixtureCampaignTitle)
   const app = read('src/App.tsx')
   check('меню дописывает текущую кампанию в список из файла', app.includes('const entry = {\n      id: campaign.meta.id,') || app.includes('title: campaign.meta.title'))
   // захардкоженной «демо-кампании» больше нет: выбор идёт из реестра

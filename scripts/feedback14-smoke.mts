@@ -1,5 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import * as React from 'react'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { CampaignEditor } from '../src/editor/CampaignEditor'
+import { EditorStore } from '../src/editor/store'
 
 const root = join(import.meta.dirname, '..')
 const f = (p: string) => readFileSync(join(root, p), 'utf8')
@@ -9,9 +14,12 @@ const must = (ok: boolean, name: string) => {
   if (!ok) fails++
 }
 
+;(globalThis as any).React = React
+const campaignStore = new EditorStore('/campaigns/smoke')
+campaignStore.meta = { id: 'smoke', title: 'Smoke campaign' } as typeof campaignStore.meta
+const campaignMarkup = renderToStaticMarkup(createElement(CampaignEditor, { store: campaignStore }))
 const css = f('src/index.css')
 const ecss = f('src/editor/editor.css')
-const campaign = f('src/editor/CampaignEditor.tsx')
 const world = f('src/editor/WorldEditor.tsx')
 const arena = f('src/editor/ArenaEditor.tsx')
 const fields = f('src/editor/Fields.tsx')
@@ -20,7 +28,7 @@ const dlg = f('src/player/DialogueOverlay.tsx')
 const builder = f('src/editor/DialogueBuilder.tsx')
 
 // 1 — JSON кампании без подписи, до низа экрана (флекс-колонка + растяжение)
-must(!campaign.includes('Валюты, мета-прогресс') && css.includes('height: calc(100vh - 118px)') && css.includes('.advanced-json-page textarea'),
+must(typeof CampaignEditor === 'function' && campaignMarkup.includes('ce-tabs') && !campaignMarkup.includes('Валюты, мета-прогресс') && css.includes('height: calc(100vh - 118px)') && css.includes('.advanced-json-page textarea'),
   '1 JSON кампании без лишней подписи, почти до низа экрана')
 must(!world.includes('Мир целиком'),
   '1 у JSON мира подпись тоже убрана')

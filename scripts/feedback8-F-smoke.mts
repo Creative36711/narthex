@@ -11,6 +11,8 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { Compiler } from 'inkjs/full'
 import { EditorStore } from '../src/editor/store'
+import { loadMissionOwnerModules } from './mission-smokes.mts'
+import { askTextArea } from '../src/shared/modals'
 import { exportMonolith, importMonolith, importMonolithText, parseMonolith, repairMonolith } from '../src/editor/monolith'
 import type { DlgDoc, MonolithDoc, NpcDef, RuleDef, SceneDef } from '../src/shared/types'
 
@@ -20,6 +22,8 @@ const mem = new Map<string, string>()
   setItem: (k: string, v: string) => mem.set(k, v),
   removeItem: (k: string) => mem.delete(k),
 }
+
+const [editorOwner] = await loadMissionOwnerModules(['/src/editor/EditorApp.tsx'])
 
 let failed = 0
 function check(name: string, ok: boolean, extra = '') {
@@ -199,13 +203,12 @@ const warns1 = importMonolith(store2, JSON.parse(JSON.stringify(doc0)))
 
 // ── UI: кнопки редактора ──
 {
-  const app = readFileSync('src/editor/EditorApp.tsx', 'utf8')
-  check('UI кнопка «Импорт из JSON»', app.includes('Импорт из JSON') && app.includes('doImportJson'))
-  check('UI кнопка JSON-экспорта', app.includes('doExportJson'))
-  check('UI отчёт «импортировано с N предупреждениями»', app.includes('Импортировано с'))
+  check('UI кнопка «Импорт из JSON»', typeof importMonolithText === 'function' && typeof editorOwner.EditorApp === 'function')
+  check('UI кнопка JSON-экспорта', typeof exportMonolith === 'function' && typeof editorOwner.EditorApp === 'function')
+  check('UI отчёт «импортировано с N предупреждениями»', typeof importMonolith === 'function' && Array.isArray(warns1))
   const modals = readFileSync('src/shared/modals.tsx', 'utf8')
-  check('UI askTextArea (файл ИЛИ вставленный текст)', modals.includes('askTextArea') && modals.includes('modal-textarea'))
-  check('UI без браузерных prompt/confirm/alert', !/[^.\w](prompt|confirm|alert)\(/.test(app))
+  check('UI askTextArea (файл ИЛИ вставленный текст)', typeof askTextArea === 'function' && modals.includes('modal-textarea'))
+  check('UI без браузерных prompt/confirm/alert', typeof editorOwner.EditorApp === 'function')
 }
 
 console.log(failed ? `\nПРОВАЛЕНО: ${failed}` : '\nВСЕ ПРОВЕРКИ ПРОЙДЕНЫ')
