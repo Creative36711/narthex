@@ -10,8 +10,7 @@ import { createNarrativeHooks } from '../../packs/narrative/hooks'
 import { createNarrativeState } from '../../packs/narrative/sim'
 import type { NarrativeContent, NarrativeEvent, NarrativeFrame, NarrativeState } from '../../packs/narrative/types'
 import type { PackManifest } from '../core/pack/registry'
-import { CutscenePlayer } from '../shared/CutscenePlayer'
-import type { FmvCutsceneView } from './FmvCutsceneMode'
+import { FmvCutsceneMode, type FmvCutsceneView } from './FmvCutsceneMode'
 
 const narrativeManifest = narrativeManifestSource as PackManifest
 
@@ -253,10 +252,9 @@ export function FmvScreen({ engine, scene, onContinue }: Props) {
     )
   }
   return (
-    <CutscenePlayer
+    <FmvCutsceneMode
       key={`${view.fragment}:${view.presentation}`}
-      mode="fmv"
-      fmv={view}
+      view={view}
     />
   )
 }
