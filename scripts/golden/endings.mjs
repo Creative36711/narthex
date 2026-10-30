@@ -35,8 +35,8 @@ const UNREACHED_REASONS = {
 
 const manifest = readGoldenManifest(MANIFEST_PATH, CAMPAIGN_ROOT)
 const campaign = JSON.parse(readFileSync(join(CAMPAIGN_ROOT, 'campaign.json'), 'utf8'))
-const SAVE_KEY = `chronicle-forge:save:${campaign.id}`
-const META_KEY = `chronicle-forge:meta:${campaign.id}`
+const SAVE_KEY = `narthex:save:${campaign.id}`
+const META_KEY = `narthex:meta:${campaign.id}`
 const campaignEndings = Array.isArray(campaign.endings) ? campaign.endings : []
 for (const id of EXPECTED_ENDING_IDS) {
   if (!campaignEndings.some((ending) => ending.id === id)) {

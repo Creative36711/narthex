@@ -32,7 +32,7 @@ const SAVE_SLOT = 1
 const BRANCH = execFileSync('git', ['branch', '--show-current'], { cwd: ROOT, encoding: 'utf8' }).trim()
 const manifest = JSON.parse(readFileSync(join(ROOT, '.golden', 'manifest.json'), 'utf8'))
 const campaign = JSON.parse(readFileSync(join(CAMPAIGN_ROOT, 'campaign.json'), 'utf8'))
-const SAVE_KEY = `chronicle-forge:save:${campaign.id}`
+const SAVE_KEY = `narthex:save:${campaign.id}`
 const MANUAL_KEY = `${SAVE_KEY}@${SAVE_SLOT}`
 
 if (campaign.id !== 'b7305faa-8e10-4d26-96bb-f1b5ed5e493f') throw new Error(`Unexpected campaign id: ${campaign.id}`)
