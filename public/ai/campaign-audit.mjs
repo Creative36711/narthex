@@ -243,6 +243,19 @@ var init_loader = __esm({
   }
 });
 
+// src/core/pack/capability-modes.ts
+function projectCapabilityMode(project, capabilityId) {
+  const options = isRecord(project.cap_options) ? project.cap_options : {};
+  const option = isRecord(options[capabilityId]) ? options[capabilityId] : {};
+  return option.mode === "code" || option.mode === "off" ? option.mode : "core";
+}
+var isRecord;
+var init_capability_modes = __esm({
+  "src/core/pack/capability-modes.ts"() {
+    isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value) && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
+  }
+});
+
 // src/core/caps.ts
 function assertEnableable(id, source) {
   const capability = capabilityById.get(id);
@@ -448,12 +461,21 @@ var init_store = __esm({
     init_loader();
     init_ruleFiles();
     init_versions();
+    init_capability_modes();
     init_types();
     init_skills();
     FIRE_RULE_MAX_DEPTH = 2;
     EditorStore = class _EditorStore {
       basePath;
       // "/campaigns/ash-of-caerden"
+      project = { kind: "narrative" };
+      packResolution = null;
+      capabilityModes = null;
+      resolveModes;
+      projectOriginal = null;
+      projectOriginalText = null;
+      projectFileExists = false;
+      resolvePack;
       // до load() — безопасные пустые значения: рендер между сменой кампании
       // и загрузкой не должен падать (фидбек №4–5 шестого раунда)
       meta = { id: "", title: "" };
@@ -480,8 +502,55 @@ var init_store = __esm({
       static AI_BASELINE_VERSION = 1;
       /** верхний лимит сохраняемого снимка в символах JSON — страховка от квоты localStorage (~5 МБ в браузерах) */
       static AI_BASELINE_LIMIT = 4 * 1024 * 1024;
-      constructor(basePath) {
+      constructor(basePath, resolvePack, resolveModes) {
         this.basePath = basePath;
+        this.resolvePack = resolvePack;
+        this.resolveModes = resolveModes;
+      }
+      setCapabilityMode(capabilityId, mode, availableCaps, requiredCaps = []) {
+        if (!availableCaps.includes(capabilityId)) throw new Error(`\u0412\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u044C \xAB${capabilityId}\xBB \u043D\u0435 \u043F\u0440\u0438\u043D\u0430\u0434\u043B\u0435\u0436\u0438\u0442 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u043D\u043E\u043C\u0443 \u043F\u0430\u043A\u0443.`);
+        if (mode === "off" && requiredCaps.includes(capabilityId)) {
+          throw new Error(`\u041E\u0431\u044F\u0437\u0430\u0442\u0435\u043B\u044C\u043D\u0443\u044E \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u044C \xAB${capabilityId}\xBB \u043D\u0435\u043B\u044C\u0437\u044F \u0432\u044B\u043A\u043B\u044E\u0447\u0438\u0442\u044C.`);
+        }
+        const project = this.projectFileExists ? { ...this.project } : {
+          format: 2,
+          id: this.meta.id || "new-project",
+          title: this.meta.title || "\u041D\u043E\u0432\u044B\u0439 \u043F\u0440\u043E\u0435\u043A\u0442",
+          kind: typeof this.project.kind === "string" ? this.project.kind : "narrative",
+          caps: [...availableCaps],
+          engine: { min: ENGINE_VERSION },
+          entry: "world.json"
+        };
+        const caps = Array.isArray(project.caps) ? project.caps.filter((value) => typeof value === "string") : [...availableCaps];
+        const originallyDeclared = Array.isArray(this.projectOriginal?.caps) && this.projectOriginal.caps.includes(capabilityId);
+        if (!caps.includes(capabilityId)) caps.push(capabilityId);
+        const currentOptions = project.cap_options && typeof project.cap_options === "object" && !Array.isArray(project.cap_options) ? { ...project.cap_options } : {};
+        const originalOptions = this.projectOriginal?.cap_options && typeof this.projectOriginal.cap_options === "object" && !Array.isArray(this.projectOriginal.cap_options) ? this.projectOriginal.cap_options : {};
+        const originalOption = originalOptions[capabilityId];
+        const originalMode = this.projectOriginal ? projectCapabilityMode(this.projectOriginal, capabilityId) : "core";
+        if (mode === originalMode && this.projectOriginal) {
+          if (originalOption === void 0) delete currentOptions[capabilityId];
+          else currentOptions[capabilityId] = originalOption;
+          if (!originallyDeclared) {
+            const index = caps.indexOf(capabilityId);
+            if (index >= 0) caps.splice(index, 1);
+          }
+        } else if (mode === "core") {
+          const currentOption = currentOptions[capabilityId];
+          const version = currentOption && typeof currentOption === "object" && !Array.isArray(currentOption) ? currentOption.version : void 0;
+          if (version === void 0) delete currentOptions[capabilityId];
+          else currentOptions[capabilityId] = { version };
+        } else {
+          const currentOption = currentOptions[capabilityId];
+          const version = currentOption && typeof currentOption === "object" && !Array.isArray(currentOption) ? currentOption.version : void 0;
+          currentOptions[capabilityId] = { mode, version: Number.isInteger(version) && Number(version) > 0 ? version : 1 };
+        }
+        const next = { ...project, caps };
+        if (Object.keys(currentOptions).length) next.cap_options = currentOptions;
+        else delete next.cap_options;
+        const capabilityModes = this.resolveModes?.(next) ?? null;
+        if (capabilityModes?.status === "invalid") throw new Error(capabilityModes.message);
+        this.setJson("project.json", next);
       }
       subscribe(fn) {
         this.listeners.add(fn);
@@ -504,6 +573,35 @@ var init_store = __esm({
             throw new Error(`\u0424\u0430\u0439\u043B ${rel} \u043E\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442 \u0438\u043B\u0438 \u043F\u043E\u0432\u0440\u0435\u0436\u0434\u0451\u043D (\u043A\u0430\u043C\u043F\u0430\u043D\u0438\u044F \u0437\u0430\u043F\u0438\u0441\u0430\u043D\u0430 \u043D\u0435 \u043F\u043E\u043B\u043D\u043E\u0441\u0442\u044C\u044E?)`);
           }
         };
+        this.project = { kind: "narrative" };
+        this.projectOriginal = null;
+        this.projectOriginalText = null;
+        this.projectFileExists = false;
+        const projectResponse = await fetch(`${this.basePath}/project.json?t=${Date.now()}`);
+        if (projectResponse.ok) {
+          const projectText = await projectResponse.text();
+          try {
+            this.project = JSON.parse(projectText);
+            this.projectFileExists = true;
+            this.projectOriginalText = projectText;
+            this.projectOriginal = JSON.parse(projectText);
+          } catch {
+            const contentType = projectResponse.headers.get("content-type") ?? "";
+            if (contentType.includes("text/html") || /^\s*<!doctype html/i.test(projectText)) {
+              this.project = { kind: "narrative" };
+            } else {
+              throw new Error("\u0424\u0430\u0439\u043B project.json \u043F\u043E\u0432\u0440\u0435\u0436\u0434\u0451\u043D.");
+            }
+          }
+        } else if (projectResponse.status === 404) {
+          this.project = { kind: "narrative" };
+        } else {
+          throw new Error(`\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C project.json: ${projectResponse.status}`);
+        }
+        this.packResolution = this.resolvePack?.(this.project) ?? null;
+        if (this.packResolution?.status === "missing") return;
+        this.capabilityModes = this.resolveModes?.(this.project) ?? null;
+        if (this.capabilityModes?.status === "invalid") throw new Error(this.capabilityModes.message);
         this.meta = await getJson("campaign.json");
         this.world = await getJson("world.json");
         this.manifest = await getJson("manifest.json");
@@ -1127,6 +1225,12 @@ var init_store = __esm({
       }
       // ─────────────── правки ───────────────
       touch(path, group = "") {
+        if (path.startsWith("quests/") && projectCapabilityMode(this.project, "quests") === "off") {
+          const previous = this.snapshots.get(path);
+          if (previous !== void 0) this.jsonFiles.set(path, JSON.parse(previous));
+          this.notify();
+          return;
+        }
         const now = Date.now();
         const prev = this.snapshots.get(path);
         const sameBurst = group !== "" && this.lastTouch.path === path && this.lastTouch.group === group && now - this.lastTouch.at < 900;
@@ -1149,7 +1253,11 @@ var init_store = __esm({
         if (!step) return null;
         const { path, text } = step;
         if (path === "campaign.json") this.meta = JSON.parse(text);
-        else if (path === "world.json") this.world = JSON.parse(text);
+        else if (path === "project.json") {
+          this.project = JSON.parse(text);
+          this.projectFileExists = true;
+          this.capabilityModes = this.resolveModes?.(this.project) ?? null;
+        } else if (path === "world.json") this.world = JSON.parse(text);
         else if (path === "manifest.json") this.manifest = JSON.parse(text);
         else if (this.textFiles.has(path)) this.textFiles.set(path, text);
         else this.jsonFiles.set(path, JSON.parse(text));
@@ -1161,7 +1269,13 @@ var init_store = __esm({
         return path;
       }
       setJson(path, data) {
-        this.jsonFiles.set(path, data);
+        if (path === "project.json") {
+          this.project = data;
+          this.projectFileExists = true;
+          this.capabilityModes = this.resolveModes?.(this.project) ?? null;
+        } else {
+          this.jsonFiles.set(path, data);
+        }
         this.touch(path);
       }
       setText(path, text) {
@@ -1178,6 +1292,7 @@ var init_store = __esm({
       }
       /** создать новый файл и внести в манифест */
       createFile(section, filename, data) {
+        if (section === "quests" && projectCapabilityMode(this.project, "quests") === "off") return "";
         const dir = section;
         const path = `${dir}/${filename}`;
         const list = this.manifest[section] ?? (this.manifest[section] = []);
@@ -1190,6 +1305,7 @@ var init_store = __esm({
         return path;
       }
       deleteFile(section, filename) {
+        if (section === "quests" && projectCapabilityMode(this.project, "quests") === "off") return;
         const dir = section;
         const path = `${dir}/${filename}`;
         const list = this.manifest[section] ?? [];
@@ -1205,6 +1321,12 @@ var init_store = __esm({
       }
       // ─────────────── сохранение ───────────────
       fileText(path) {
+        if (path === "project.json") {
+          if (this.projectOriginal && this.projectOriginalText !== null && JSON.stringify(this.project) === JSON.stringify(this.projectOriginal)) {
+            return this.projectOriginalText;
+          }
+          return JSON.stringify(this.project, null, 2);
+        }
         if (path === "campaign.json") return JSON.stringify(this.meta, null, 2);
         if (path === "world.json") return JSON.stringify(this.world, null, 2);
         if (path === "manifest.json") return JSON.stringify(this.manifest, null, 2);
@@ -1212,7 +1334,7 @@ var init_store = __esm({
         return JSON.stringify(this.jsonFiles.get(path), null, 2);
       }
       hasFile(path) {
-        return path === "campaign.json" || path === "world.json" || path === "manifest.json" || this.jsonFiles.has(path) || this.textFiles.has(path);
+        return path === "project.json" && this.projectFileExists || path === "campaign.json" || path === "world.json" || path === "manifest.json" || this.jsonFiles.has(path) || this.textFiles.has(path);
       }
       /** Зафиксировать текущее состояние кампании как исходную базу для диффа изменений */
       captureBaseline() {
@@ -1349,7 +1471,7 @@ var init_store = __esm({
         return list.sort((a, b) => a.path.localeCompare(b.path, "ru"));
       }
       categorizePath(path) {
-        if (path === "campaign.json") return "meta";
+        if (path === "project.json" || path === "campaign.json") return "meta";
         if (path === "world.json") return "world";
         if (path.startsWith("scenes/")) return "scene";
         if (path.startsWith("dialogues/")) return "dialogue";
@@ -1363,6 +1485,7 @@ var init_store = __esm({
         return "other";
       }
       titleForPath(path) {
+        if (path === "project.json") return "\u0420\u0435\u0436\u0438\u043C\u044B \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u0435\u0439 \u043F\u0440\u043E\u0435\u043A\u0442\u0430";
         if (path === "campaign.json") return `\u041F\u0430\u0441\u043F\u043E\u0440\u0442 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 \xAB${this.meta.title || this.meta.id}\xBB`;
         if (path === "world.json") return "\u041A\u0430\u0440\u0442\u0430 \u043C\u0438\u0440\u0430 \u0438 \u043B\u043E\u043A\u0430\u0446\u0438\u0438";
         if (path === "manifest.json") return "\u041C\u0430\u043D\u0438\u0444\u0435\u0441\u0442 \u0441\u0442\u0440\u0443\u043A\u0442\u0443\u0440\u044B";
@@ -1454,6 +1577,7 @@ var init_store = __esm({
       }
       allPaths() {
         return [
+          ...this.projectFileExists ? ["project.json"] : [],
           "campaign.json",
           "world.json",
           "manifest.json",
