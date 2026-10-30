@@ -3213,7 +3213,7 @@ var require_keyword = __commonJS({
     function macroKeywordCode(cxt, def) {
       const { gen, keyword, schema: schema2, parentSchema, it } = cxt;
       const macroSchema = def.macro.call(it.self, schema2, parentSchema, it);
-      const schemaRef = useKeyword(gen, keyword, macroSchema);
+      const schemaRef = keywordRef(gen, keyword, macroSchema);
       if (it.opts.validateSchema !== false)
         it.self.validateSchema(macroSchema, true);
       const valid = gen.name("valid");
@@ -3232,7 +3232,7 @@ var require_keyword = __commonJS({
       const { gen, keyword, schema: schema2, parentSchema, $data, it } = cxt;
       checkAsyncKeyword(it, def);
       const validate = !$data && def.compile ? def.compile.call(it.self, schema2, parentSchema, it) : def.validate;
-      const validateRef = useKeyword(gen, keyword, validate);
+      const validateRef = keywordRef(gen, keyword, validate);
       const valid = gen.let("valid");
       cxt.block$data(valid, validateKeyword);
       cxt.ok((_a = def.valid) !== null && _a !== void 0 ? _a : valid);
@@ -3286,7 +3286,7 @@ var require_keyword = __commonJS({
       if (def.async && !schemaEnv.$async)
         throw new Error("async keyword in sync schema");
     }
-    function useKeyword(gen, keyword, result) {
+    function keywordRef(gen, keyword, result) {
       if (result === void 0)
         throw new Error(`keyword "${keyword}" failed to compile`);
       return gen.scopeValue("keyword", typeof result == "function" ? { ref: result } : { ref: result, code: (0, codegen_1.stringify)(result) });
