@@ -1,0 +1,16 @@
+{
+  "id": "player_test",
+  "type": "npc",
+  "label": "Тестовый герой",
+  "stats": {
+    "STR": 10,
+    "CON": 10,
+    "SIZ": 10,
+    "DEX": 10,
+    "INT": 10,
+    "POW": 10,
+    "CHA": 10
+  },
+  "skills": {},
+  "inventory": []
+}

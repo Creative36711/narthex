@@ -670,8 +670,8 @@ async function main() {
     const source = await checkCfPlay('source cf-play check', 'npm', ['run', '--silent', 'play', '--', 'check', CAMPAIGN_ROOT], sourceOut)
     state.cfPlay = { source, elapsedMs: Date.now() - cfPlayStarted }
     log('cfplay_source_result', { ...source, elapsedMs: state.cfPlay.elapsedMs })
-    if (source.rc !== 0 || source.verdict !== 'ok' || source.errors.length !== 0) {
-      throw new Error(`source cf-play check failed: rc=${source.rc}, verdict=${source.verdict}, errors=${source.errors.length}`)
+    if (source.rc !== 0 || source.verdict !== 'ok' || source.errors.length !== 0 || source.warnings.length !== 0) {
+      throw new Error(`source cf-play check failed: rc=${source.rc}, verdict=${source.verdict}, errors=${source.errors.length}, warnings=${source.warnings.length}`)
     }
 
     const packStarted = Date.now()
@@ -691,8 +691,8 @@ async function main() {
     const comparableMatches = JSON.stringify(kitCheck.comparable) === JSON.stringify(source.comparable)
     state.kit = { rc: kitCheck.rc, comparable: kitCheck.comparable, cfPlay: kitCheck, sourceMatches: comparableMatches, elapsedMs: Date.now() - packStarted }
     log('unpacked_kit_cfplay_result', { rc: state.kit.rc, sourceMatches: comparableMatches, comparable: state.kit.comparable, elapsedMs: state.kit.elapsedMs })
-    if (kitCheck.rc !== 0 || kitCheck.verdict !== 'ok' || !comparableMatches) {
-      throw new Error(`unpacked AI-kit cf-play result differed from source: ${JSON.stringify({ source: source.comparable, kit: kitCheck.comparable, rc: kitCheck.rc })}`)
+    if (kitCheck.rc !== 0 || kitCheck.verdict !== 'ok' || kitCheck.errors.length !== 0 || kitCheck.warnings.length !== 0 || !comparableMatches) {
+      throw new Error(`unpacked AI-kit cf-play result differed from source: ${JSON.stringify({ source: source.comparable, kit: kitCheck.comparable, rc: kitCheck.rc, errors: kitCheck.errors.length, warnings: kitCheck.warnings.length })}`)
     }
 
     const browserStarted = Date.now()

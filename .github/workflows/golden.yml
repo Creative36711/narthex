@@ -70,9 +70,12 @@ jobs:
         timeout-minutes: 8
         run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund @sparticuz/chromium@131 playwright-core@1.49.1
 
-      - name: Run golden import, audit, playkit and browser save/load
+      - name: Run golden import, audit, playkit, warning-negative probe and browser save/load
         timeout-minutes: 40
         run: npm run playthrough:golden
+
+      - name: Prove cf-play rejects a warning-only fixture
+        run: npm run cf-play:negative
 
       - name: Upload GOLD-1.6 evidence
         if: always()
@@ -83,5 +86,16 @@ jobs:
             _tools/reports/GOLD-1.6.md
             _tools/reports/GOLD-1.6.log
             _tools/reports/GOLD-1.6/
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Upload GOLD-1.14 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: GOLD-1.14-${{ github.run_id }}
+          path: |
+            _tools/reports/GOLD-1.14.md
+            _tools/reports/GOLD-1.14.log
           retention-days: 14
           if-no-files-found: warn

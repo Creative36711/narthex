@@ -1268,6 +1268,7 @@ async function cmdCheck(
 
   const problems: string[] = []
   if (errors.length) problems.push(`статических ошибок: ${errors.length}`)
+  if (warnings.length) problems.push(`warning не допускается: ${warnings.length}`)
   for (const run of routeRuns) if (run.status !== 'ok') problems.push(`маршрут ${run.file}: ${run.status}`)
   if (sweepResult.status !== 'ok') problems.push(`sweep: ${sweepResult.status}`)
 
