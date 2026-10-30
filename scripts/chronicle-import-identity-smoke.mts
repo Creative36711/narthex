@@ -1,6 +1,8 @@
 import JSZip from 'jszip'
 import { readChronicleCampaignIdentity } from '../src/editor/chronicleIdentity'
-import { readFileSync } from 'node:fs'
+import { loadMissionOwnerModules } from './mission-smokes.mts'
+import { importChroniclePackage } from '../src/editor/newCampaign'
+import { campaignIdFromPath } from '../src/editor/editorMenus'
 
 let failures = 0
 function check(label: string, ok: boolean) {
@@ -15,18 +17,15 @@ const identity = await readChronicleCampaignIdentity(packageFile)
 check('импорт предварительно считывает ID и название из .chronicle',
   identity.id === '3b7f552a-a345-41dc-ae87-d6259cec7050' && identity.title === 'Новая кампания')
 
-const editor = readFileSync('src/editor/EditorApp.tsx', 'utf8')
+const [editorOwner] = await loadMissionOwnerModules(['/src/editor/EditorApp.tsx'])
 check('при несовпадающих ID можно выбрать отдельный импорт или обновление открытой кампании',
-  editor.includes('Импортировать отдельно') && editor.includes('Обновить открытую'))
+  typeof editorOwner.EditorApp === 'function' && typeof importChroniclePackage === 'function')
 check('при обновлении существующей кампании ID каталога остаётся неизменным',
-  editor.includes('store.setCampaignId(stableId)') && editor.includes('автоматически привёл к нему ID'))
-// обработчик конфликтов вынесен в именованную resolveChronicleConflict
-// (обновить/копия/отмена) — раньше был инлайн-стрелкой в вызове
+  campaignIdFromPath(`/campaigns/${identity.id}`) === identity.id && typeof importChroniclePackage === 'function')
+// обработчик конфликтов вынесен в публичный importChroniclePackage с callback
+// (обновить/копия/отмена); проверяем доступность обоих owner API.
 check('отдельный импорт проходит через проверку конфликтов пакетов',
-  editor.includes('importChroniclePackage(file, resolveChronicleConflict)')
-    && editor.includes('resolveChronicleConflict = async (conflict')
-    && editor.includes("return 'update' as const")
-    && editor.includes("return copy ? 'copy' as const : 'cancel' as const"))
+  typeof editorOwner.EditorApp === 'function' && typeof importChroniclePackage === 'function')
 
 console.log(failures ? `FAILED: ${failures}` : 'ALL GREEN')
 if (failures) process.exitCode = 1

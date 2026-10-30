@@ -14,6 +14,8 @@ import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
 import { EditorStore } from '../src/editor/store'
+import { MENUS } from '../src/editor/editorMenus'
+import { newRecipe } from '../src/editor/RecipeEditor'
 import { exportMonolith, importMonolith, parseMonolith } from '../src/editor/monolith'
 import type { CampaignData, RecipeDef } from '../src/shared/types'
 
@@ -145,9 +147,8 @@ function withRecipes(): CampaignData {
 
 // ── 5. редактор ──
 {
-  const app = readFileSync('src/editor/EditorApp.tsx', 'utf8')
-  check('5 EditorApp: секция рецептов в меню', app.includes("id: 'recipes'") && app.includes('Рецепты крафта'))
-  check('5 EditorApp: создание рецепта', app.includes("makeId('recipe_'"))
+  check('5 EditorApp: секция рецептов в меню', MENUS.some((menu) => menu.items.some((item) => item.id === 'recipes' && item.label === 'Рецепты крафта')))
+  check('5 EditorApp: создание рецепта', newRecipe('recipe_test', 'Тест').id === 'recipe_test')
   const editor = readFileSync('src/editor/RecipeEditor.tsx', 'utf8')
   check('5 RecipeEditor: компоненты/инструменты/навык/время/результат',
     editor.includes('Компоненты') && editor.includes('Инструменты') && editor.includes('Проверка навыка') &&

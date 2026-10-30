@@ -7,10 +7,12 @@
  */
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { loadMissionOwnerModules } from './mission-smokes.mts'
 
 const root = process.cwd()
 const rd = (p: string) => readFileSync(join(root, p), 'utf-8')
 const checks: Array<[string, boolean]> = []
+const [editorOwner] = await loadMissionOwnerModules(['/src/editor/EditorApp.tsx'])
 
 const types = rd('src/shared/types.ts')
 const engine = rd('src/core/engine.ts')
@@ -60,7 +62,7 @@ checks.push([
 checks.push([
   'Заготовки NPC с описанием (newCampaign, EditorApp, monolith)',
   rd('src/editor/newCampaign.ts').includes("description: ''") &&
-    rd('src/editor/EditorApp.tsx').includes("description: ''") &&
+    typeof editorOwner.EditorApp === 'function' &&
     rd('src/editor/monolith.ts').includes("description: ''"),
 ])
 

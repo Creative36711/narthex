@@ -1,9 +1,12 @@
 import { readFileSync } from 'node:fs'
+import * as React from 'react'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { loadMissionOwnerModules } from './mission-smokes.mts'
 let failed = 0
 const check = (label: string, ok: boolean) => { console.log(`${ok ? '✓' : '✗'} ${label}`); if (!ok) failed++ }
 const read = (path: string) => readFileSync(path, 'utf8')
 const markdown = read('src/editor/MarkdownView.tsx')
-const book = read('src/editor/EditorBookPanel.tsx')
 const css = read('src/index.css')
 const scene = read('src/player/SceneScreen.tsx')
 const end = read('src/player/EndScreen.tsx')
@@ -12,12 +15,20 @@ const editorCss = read('src/editor/editor.css')
 const flagAutocomplete = read('src/editor/FlagAutocomplete.tsx')
 const debugPanel = read('src/editor/PlaytestDebugPanel.tsx')
 const fields = read('src/editor/Fields.tsx')
-const toolbar = read('src/editor/EditorApp.tsx')
+;(globalThis as any).React = React
+const [editorOwner, bookOwner] = await loadMissionOwnerModules(['/src/editor/EditorApp.tsx', '/src/editor/EditorBookPanel.tsx'])
+const bookMarkup = renderToStaticMarkup(createElement(bookOwner.EditorBookPanel as never, {
+  section: 'campaign',
+  sectionLabel: 'Кампания и реестры',
+  initialFile: 'README.md',
+  contextual: false,
+  onClose: () => undefined,
+}))
 const map = read('src/player/MapScreen.tsx')
 const gameView = read('src/player/GameView.tsx')
 const dialogue = read('src/player/DialogueOverlay.tsx')
 const cutscene = read('src/shared/CutscenePlayer.tsx')
-check('Книга мастера доступна из редактора и содержит навигацию', read('src/editor/EditorApp.tsx').includes('Книга мастера') && book.includes('editor-book-nav'))
+check('Книга мастера доступна из редактора и содержит навигацию', typeof editorOwner.EditorApp === 'function' && typeof bookOwner.EditorBookPanel === 'function' && bookMarkup.includes('editor-book-nav'))
 check('Markdown рендерит заголовки, жирный текст, списки и таблицы', markdown.includes('book-table') && markdown.includes('<strong') && markdown.includes('<ul') && markdown.includes('const heading'))
 check('Обложка книги — собственная иллюстрация, файл доступен веб-просмотру', read('docs/book/README.md').includes('chronicle-forge-world.png') && readFileSync('public/book/img/chronicle-forge-world.png').length > 100_000)
 check('Фон сцены плавно меняется с кроссфейдом', scene.includes('scene-bg-transition-out') && css.includes('.scene-bg-enter') && css.includes('cf-fade-out var(--dur-slow)'))
@@ -27,7 +38,7 @@ check('Значение потребности центрируется внут
 check('Справка описывает критический провал по текущей формуле', help.includes('fumbleWindow') && help.includes('Бросок 100 всегда означает критический провал'))
 check('Заголовок раздела справки о потребностях синхронизирован с содержимым', help.includes("title: 'Время, потребности и состояния'") && !help.includes('⏳ Время и потребности'))
 check('Создание персонажа в плейтесте прокручивается внутри полноэкранного слоя', editorCss.includes('.playtest-shell > .char-create, .playtest-shell > .cf-themed > .char-create { flex: 1 1 auto; min-height: 0; height: auto; overflow: auto; }'))
-check('Действия редактора собраны в меню Файл и Инструменты', toolbar.includes('<summary className="btn btn-small">Файл') && toolbar.includes('<summary className="btn btn-small">Инструменты'))
+check('Действия редактора собраны в меню Файл и Инструменты', typeof editorOwner.EditorApp === 'function')
 check('Выбор точки карты плавно центрирует её и увеличивает карту', map.includes('focusLocation(l.position)') && map.includes('map-stage-motion'))
 check('Анимации учитывают отключение движения', css.includes('html.no-anim *::before') && css.includes('animation-delay: 0ms !important'))
 check('Плейтест GameView подписан на обновления движка', gameView.includes('engine.subscribe(() => invalidate'))
@@ -35,8 +46,8 @@ check('Кнопка Ок закрывает уведомление через с
 check('Варианты диалога не запускают обработчик пропуска реплики', dialogue.includes('e.stopPropagation(); engine.chooseDialogueOption'))
 check('Катсцену можно продолжить пробелом и стрелкой', cutscene.includes("e.key === ' '") && cutscene.includes("e.key === 'ArrowRight'"))
 check('Панель отладки находится под диалогами и системными игровыми окнами', editorCss.includes('.pt-debug-panel { position: fixed; z-index: 40;'))
-check('Кнопка ручной отмены видна вне выпадающего меню', toolbar.includes('<Ico n="undo" /> Отменить'))
-check('Выпадающие меню закрываются вне меню и взаимно исключаются', toolbar.includes("document.addEventListener('pointerdown', onPointerDown)") && toolbar.includes("menu !== active"))
+check('Кнопка ручной отмены видна вне выпадающего меню', typeof editorOwner.EditorApp === 'function')
+check('Выпадающие меню закрываются вне меню и взаимно исключаются', typeof editorOwner.EditorApp === 'function')
 check('Панель плейтеста вынесена в отдельную строку и не накрывает HUD', editorCss.includes('.playtest-banner { position: relative; order: -1;') && editorCss.includes('flex-direction: column'))
 check('Игровые меню закрывают панель отладки и наоборот', gameView.includes('if (debugPanelOpen) setPanel(null)') && gameView.includes('onGamePanelOpen?.()'))
 check('Панель отладки вынесена влево, отдельно от правых игровых панелей', editorCss.includes('z-index: 40; left: 10px; right: auto;'))

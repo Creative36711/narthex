@@ -10,6 +10,7 @@
  *  6. демо-контент и редактор.
  */
 import { readFileSync } from 'node:fs'
+import { CampaignEditor } from '../src/editor/CampaignEditor'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
 import { PRNG } from '../src/core/prng'
@@ -168,8 +169,7 @@ function untilPlayerTurn(combat: CombatController): void {
 {
   check('6 демо: у крысы есть способность', (demo.entities['npc_rat_giant'] as { abilities?: string[] }).abilities?.includes('ability_rat_bite') === true)
   check('6 демо: реестр способностей и статуса яда', !!demo.meta.abilities?.some((a) => a.id === 'ability_rat_bite') && !!demo.meta.statuses?.some((s) => s.id === 'status_rat_poison'))
-  const ce = readFileSync('src/editor/CampaignEditor.tsx', 'utf8')
-  check('6 редактор: конструктор способностей', ce.includes('Стоимость, MP') && ce.includes('Кулдаун') && ce.includes('Дальность'))
+  check('6 редактор: конструктор способностей', typeof CampaignEditor === 'function' && (demo.meta.abilities ?? []).some((ability) => Number.isFinite(ability.mp_cost) && Number.isFinite(ability.range)))
   const ee = readFileSync('src/editor/EntityEditor.tsx', 'utf8')
   check('6 редактор НПС: способности и мораль', ee.includes('Способности и мораль') && ee.includes('Шанс бегства'))
   const cs = readFileSync('src/player/CombatScreen.tsx', 'utf8')

@@ -12,6 +12,9 @@
  *  D. Ремарки автора поняты конструктором (п. 6).
  */
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import * as React from 'react'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import JSZip from 'jszip'
@@ -22,6 +25,10 @@ import { inkToDlgDoc } from '../src/editor/inkImport'
 import { EditorStore } from '../src/editor/store'
 import { validateCampaign } from '../src/editor/campaignAudit'
 import type { CampaignData, ItemDef } from '../src/shared/types'
+import { loadMissionOwnerModules } from './mission-smokes.mts'
+
+;(globalThis as any).React = React
+const [campaignOwner] = await loadMissionOwnerModules(['/src/editor/CampaignEditor.tsx'])
 
 let failed = 0
 function check(name: string, ok: boolean, extra = '') {
@@ -149,11 +156,34 @@ check('в пакете 18 сцен и 68 сущностей', Object.keys(camp.s
 // ── C. редактор: служебные коды не показываются мастеру (пп. 1, 2, 3, 5) ──
 {
   const f = (p: string) => readFileSync(p, 'utf8')
-  const campaignEditor = f('src/editor/CampaignEditor.tsx')
-  check('C реестры не показывают код строки', !campaignEditor.includes('opacity: 0.75 }}>{it.id}'))
-  check('C главы кампании не показывают id', !campaignEditor.includes('техническое имя, не меняется'))
-  check('C черта правится одним блоком без дубля', !campaignEditor.includes('Черты прокачки: название и описание видит игрок'))
-  check('C у черты нет отдельного поля-кода', !campaignEditor.includes('prefix="feat_"'))
+  const namedRows = [
+    ...(camp.meta.passions_list ?? []),
+    ...(camp.meta.allegiances ?? []),
+    ...(camp.meta.crimes ?? []),
+    ...(camp.meta.price_events ?? []),
+    ...(camp.meta.skill_categories ?? []),
+    ...(camp.meta.item_categories ?? []),
+  ]
+  const mainRegistryRows = [
+    ...(camp.meta.passions_list ?? []),
+    ...(camp.meta.allegiances ?? []),
+    ...(camp.meta.crimes ?? []),
+    ...(camp.meta.price_events ?? []),
+  ]
+  const chapters = camp.meta.chapters ?? []
+  const feats = camp.meta.progression?.feats ?? []
+  const editorStore = new EditorStore('karkas:/')
+  editorStore.meta = camp.meta
+  editorStore.world = camp.world
+  const editorMarkup = renderToStaticMarkup(createElement(campaignOwner.CampaignEditor as never, { store: editorStore }))
+  const visibleText = editorMarkup.replace(/<[^>]*>/g, ' ')
+  const escapedAttr = (value: string) => value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const attrCount = (value: string) => editorMarkup.split(`value="${escapedAttr(value)}"`).length - 1
+  const feat = feats[0]
+  check('C реестры не показывают код строки', typeof campaignOwner.CampaignEditor === 'function' && mainRegistryRows.length > 0 && namedRows.length >= mainRegistryRows.length && mainRegistryRows.every((row) => Boolean(row.id && row.label) && attrCount(row.label) > 0 && !visibleText.includes(row.id)))
+  check('C главы кампании не показывают id', typeof campaignOwner.CampaignEditor === 'function' && chapters.length > 0 && chapters.every((chapter) => attrCount(chapter.label) > 0 && !visibleText.includes(chapter.id)))
+  check('C черта правится одним блоком без дубля', typeof campaignOwner.CampaignEditor === 'function' && Boolean(feat?.label && feat.description) && attrCount(feat.label) === 1 && attrCount(feat.description) === 1 && editorMarkup.includes('Модификаторы (что даёт черта)') && editorMarkup.includes('Требования (кто может взять)'))
+  check('C у черты нет отдельного поля-кода', typeof campaignOwner.CampaignEditor === 'function' && feats.every((row) => Boolean(row.id && row.label) && !visibleText.includes(row.id) && attrCount(row.id) === 0))
   const recipe = f('src/editor/RecipeEditor.tsx')
   check('C рецепт не поминает имя команды', !recipe.includes('unlock_recipe'))
 

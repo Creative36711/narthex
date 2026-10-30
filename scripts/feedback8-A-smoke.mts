@@ -11,7 +11,12 @@
  *   A7 настройки бросков d100 (dice_rules)
  */
 import { readFileSync } from 'node:fs'
+import * as React from 'react'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { loadCampaign } from '../src/core/loader'
+import { CampaignEditor } from '../src/editor/CampaignEditor'
+import { ChipMultiSelect, DiceRulesEditor } from '../src/editor/campaignDiceEditors'
 import { GameEngine } from '../src/core/engine'
 import { skillCheck } from '../src/core/brp'
 import { PRNG } from '../src/core/prng'
@@ -19,6 +24,7 @@ import { migrateNeedCondition } from '../src/shared/migrate'
 import type { DiceRules, NeedCondition } from '../src/shared/types'
 import { DEFAULT_DICE_RULES } from '../src/shared/types'
 
+;(globalThis as any).React = React
 const mem = new Map<string, string>()
 ;(globalThis as any).localStorage = {
   getItem: (k: string) => mem.get(k) ?? null,
@@ -132,8 +138,13 @@ console.log(`Кампания: ${campaign.meta.title}`)
     legacyItem.type === 'has_item' && (legacyItem as any).items.join() === 'item_x',
     JSON.stringify(legacyItem),
   )
-  const ed = readFileSync('src/editor/CampaignEditor.tsx', 'utf8')
-  check('A3 в редакторе мультивыбор чипами', ed.includes('ChipMultiSelect') && ed.includes('Герой в любой из локаций'))
+  const locationChips = renderToStaticMarkup(createElement(ChipMultiSelect, {
+    options: [{ id: 'loc_temple', label: 'Герой в любой из локаций' }],
+    value: [],
+    onChange: () => undefined,
+    emptyLabel: 'Нет доступных локаций',
+  }))
+  check('A3 в редакторе мультивыбор чипами', typeof CampaignEditor === 'function' && typeof migrateNeedCondition === 'function' && locationChips.includes('chip-multi') && locationChips.includes('Герой в любой из локаций'))
 }
 
 // ── A4: карта ──
@@ -216,8 +227,8 @@ console.log(`Кампания: ${campaign.meta.title}`)
   const hard = skillCheck(100, new PRNG('x'), 0, { critical_divisor: 20, special_divisor: 5, fumble_from: 96 })
   check('A7 при /20 крит — бросок ≤ 5', hard.roll <= 5 ? hard.result === 'critical' : true, `${hard.roll} → ${hard.result}`)
 
-  const ed = readFileSync('src/editor/CampaignEditor.tsx', 'utf8')
-  check('A7 в редакторе секция правил бросков с пресетами', ed.includes('Правила бросков (d100)') && ed.includes('Классический BRP') && (ed.includes('Хроника (по умолчанию)') || ed.includes('Щедрые')))
+  const diceRulesMarkup = renderToStaticMarkup(createElement(DiceRulesEditor, { value: { ...DEFAULT_DICE_RULES }, commit: () => undefined }))
+  check('A7 в редакторе секция правил бросков с пресетами', typeof CampaignEditor === 'function' && diceRulesMarkup.includes('Классический BRP') && diceRulesMarkup.includes('Хроника (по умолчанию)'))
   const help = readFileSync('src/player/HelpPanel.tsx', 'utf8')
   // пороги приходят в ChecksBody как DiceRules из engine.diceRules/meta.dice_rules
   check('A7 справка показывает пороги кампании', help.includes('diceRules') && help.includes('rules.critical_divisor') && help.includes('rules.fumble_from'))

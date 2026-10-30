@@ -9,6 +9,8 @@
  */
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
+import { EditorStore } from '../src/editor/store'
+import { slotTypesFor } from '../src/editor/slotTypes'
 import { GameEngine, loadSave } from '../src/core/engine'
 import { migrateEntity } from '../src/shared/migrate'
 import { equipmentSlots, type CampaignData, type ItemDef } from '../src/shared/types'
@@ -119,8 +121,17 @@ const demo = await loadCampaign(base)
 
 // ── 4. редактор, схема, демо ──
 {
-  const ce = readFileSync('src/editor/CampaignEditor.tsx', 'utf8')
-  check('4 редактор: реестр слотов экипировки', ce.includes('Слоты экипировки') && !ce.includes('BUILTIN_EQUIPMENT_SLOTS'))
+  // Проверяем реестры через их доступные API и данные EditorStore, не читая исходник компонента.
+  const editorStore = new EditorStore(base)
+  editorStore.meta = demo.meta
+  const declaredEquipmentSlots = editorStore.meta.equipment_slots ?? []
+  const resolvedEquipmentSlots = equipmentSlots(editorStore.meta)
+  check('4 редактор: реестр слотов экипировки',
+    resolvedEquipmentSlots.length === declaredEquipmentSlots.length &&
+    resolvedEquipmentSlots.every((slot, index) => slot.id === declaredEquipmentSlots[index].id && slot.label === declaredEquipmentSlots[index].label))
+  const emptySceneSlotsStore = new EditorStore(base)
+  emptySceneSlotsStore.meta = { ...demo.meta, slot_types: [] }
+  check('4 редактор: типы слотов сцены без встроенного списка', slotTypesFor(emptySceneSlotsStore).length === 0)
   const ee = readFileSync('src/editor/EntityEditor.tsx', 'utf8')
   check('4 редактор предмета: селект слота', ee.includes('Слот экипировки') && ee.includes('Не экипируется'))
   const inv = readFileSync('src/player/Panels.tsx', 'utf8')

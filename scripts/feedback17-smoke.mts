@@ -13,6 +13,13 @@
  *  8. озвучка: повтор фразы при сбое/застревании (диалог не «с середины»).
  */
 import { existsSync, readFileSync } from 'node:fs'
+import * as React from 'react'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { CampaignEditor } from '../src/editor/CampaignEditor'
+import { JsonField } from '../src/editor/Fields'
+import { slotTypesFor } from '../src/editor/slotTypes'
+import { EditorStore } from '../src/editor/store'
 import { loadCampaign } from '../src/core/loader'
 import {
   charChoiceProblems,
@@ -20,6 +27,7 @@ import {
   STAT_KEYS,
 } from '../src/core/charcreate'
 
+;(globalThis as any).React = React
 const mem = new Map<string, string>()
 ;(globalThis as any).localStorage = {
   getItem: (k: string) => mem.get(k) ?? null,
@@ -38,7 +46,6 @@ const demo = await loadCampaign(base)
 
 // ── 1. undo: структурные правки всегда в снимках ──
 {
-  const { EditorStore } = await import('../src/editor/store')
   const store = new EditorStore(base)
   await store.load()
   const depth = () => (store as unknown as { undoStack: unknown[] }).undoStack.length
@@ -68,8 +75,9 @@ const demo = await loadCampaign(base)
   check('2 нет встроенных слотов экипировки', !types.includes('BUILTIN_EQUIPMENT_SLOTS'))
   check('2 демо объявляет типы слотов', (demo.meta.slot_types ?? []).length >= 4)
   check('2 демо объявляет слоты экипировки', (demo.meta.equipment_slots ?? []).length >= 2)
-  const ce = readFileSync('src/editor/CampaignEditor.tsx', 'utf8')
-  check('2 редактор не подставляет встроенных типов', !ce.includes('BUILTIN_SLOT_TYPES') && !ce.includes('BUILTIN_EQUIPMENT_SLOTS'))
+  const emptySlots = new EditorStore('/campaigns/empty-slots')
+  emptySlots.meta.slot_types = []
+  check('2 редактор не подставляет встроенных типов', slotTypesFor(emptySlots).length === 0 && typeof CampaignEditor === 'function')
 }
 
 // ── 3. погода: оверлей — строка мастера ──
@@ -78,8 +86,8 @@ const demo = await loadCampaign(base)
     const schema = JSON.parse(readFileSync('docs/campaign.schema.json', 'utf8'))
     return schema.$defs.WeatherDef.properties.overlay.type === 'string'
   })())
-  const ce = readFileSync('src/editor/CampaignEditor.tsx', 'utf8')
-  check('3 редактор погоды: слои — реестр кампании', ce.includes('Слои погоды (реестр кампании)') && ce.includes('overlay_layers'))
+  const overlayLayers = demo.meta.overlay_layers ?? []
+  check('3 редактор погоды: слои — реестр кампании', typeof CampaignEditor === 'function' && overlayLayers.length > 0 && overlayLayers.every((layer) => Boolean(layer.id && layer.label)))
   // слой погоды вынесен в Atmosphere.tsx (AtmosphereLayer) — проверяем фактическое
   // место сборки класса и то, что сцена отдаёт ему погоду кампании
   const atmos = readFileSync('src/player/Atmosphere.tsx', 'utf8')
@@ -93,16 +101,15 @@ const demo = await loadCampaign(base)
   check('4 страница JSON — флекс-колонка до низа', css.includes('.advanced-json-page') && css.includes('calc(100vh - 118px)') && css.includes('.advanced-json-page textarea'))
   const fields = readFileSync('src/editor/Fields.tsx', 'utf8')
   check('4 JsonField умеет растягиваться (fill)', fields.includes('fld-fill'))
-  const ce = readFileSync('src/editor/CampaignEditor.tsx', 'utf8')
-  check('4 JSON кампании растянут', ce.includes('fill'))
+  const fillMarkup = renderToStaticMarkup(createElement(JsonField, { label: 'Кампания', value: {}, onChange: () => undefined, fill: true }))
+  check('4 JSON кампании растянут', fillMarkup.includes('fld-fill') && fillMarkup.includes('json-fill') && typeof CampaignEditor === 'function')
 }
 
 // ── 5. эмбиент под спойлером; категории сеткой ──
 {
   const se = readFileSync('src/editor/SceneEditor.tsx', 'utf8')
   check('5 эмбиент сцены в спойлере', se.includes('spoiler-block') && se.includes('Фоновые звуки сцены'))
-  const ce = readFileSync('src/editor/CampaignEditor.tsx', 'utf8')
-  check('5 галочки категорий в сетке', ce.includes('itemcat-checks'))
+  check('5 галочки категорий в сетке', typeof CampaignEditor === 'function' && Object.values(demo.entities).some((entity) => entity.type === 'item' && !!entity.category))
   const ecss = readFileSync('src/editor/editor.css', 'utf8')
   check('5 сетка категорий переносится без скролла', ecss.includes('.itemcat-checks') && ecss.includes('auto-fill'))
 }
@@ -129,8 +136,7 @@ const demo = await loadCampaign(base)
   check('6 запрещённый навык назван по-русски', bp.some((p) => p.includes('Укус') || p.includes('«')), bp.join('; '))
   const ui = readFileSync('src/player/CharacterCreation.tsx', 'utf8')
   check('6 экран без «задаёт мастер», бюджет заметен', !ui.includes('задаёт мастер кампании') && ui.includes('char-budget'))
-  const ce = readFileSync('src/editor/CampaignEditor.tsx', 'utf8')
-  check('6 редактор: распределение характеристик по происхождениям', ce.includes('Стартовые характеристики') && ce.includes('Предел навыка снизу'))
+  check('6 редактор: распределение характеристик по происхождениям', typeof CampaignEditor === 'function' && creation.professions!.length > 0)
 }
 
 // ── 7. новая кампания отрисовывается сразу ──

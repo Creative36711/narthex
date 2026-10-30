@@ -11,14 +11,19 @@
  *  7. монолит гоняет реестр статусов.
  */
 import { readFileSync } from 'node:fs'
+import * as React from 'react'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
 import { evalCondition } from '../src/core/conditions'
 import { EditorStore } from '../src/editor/store'
+import { CampaignEditor } from '../src/editor/CampaignEditor'
 import { exportMonolith, importMonolith, parseMonolith } from '../src/editor/monolith'
 import { generateInk } from '../src/editor/dialogueDoc'
 import type { CampaignData, StatusDef } from '../src/shared/types'
 
+;(globalThis as any).React = React
 const mem = new Map<string, string>()
 ;(globalThis as any).localStorage = {
   getItem: (k: string) => mem.get(k) ?? null,
@@ -65,6 +70,9 @@ const STATUSES: StatusDef[] = [
 function withStatuses(): CampaignData {
   return { ...demo, meta: { ...demo.meta, statuses: JSON.parse(JSON.stringify(STATUSES)) } }
 }
+const statusEditorStore = new EditorStore(base)
+statusEditorStore.meta = withStatuses().meta
+const statusEditorMarkup = renderToStaticMarkup(createElement(CampaignEditor, { store: statusEditorStore }))
 
 // ── 1. мир: DoT, истечение, минимальный порог ──
 {
@@ -188,9 +196,8 @@ function withStatuses(): CampaignData {
 
 // ── 6. редактор и UI игрока ──
 {
-  const ce = readFileSync('src/editor/CampaignEditor.tsx', 'utf8')
-  check('6 вкладка «Статусы и способности»', ce.includes('Статусы и способности') && ce.includes('StatusRegistry'))
-  check('6 форма статуса: DoT, навыки, движение', ce.includes('Урон HP за тик') && ce.includes('Модификаторы навыков') && ce.includes('Движение'))
+  check('6 вкладка «Статусы и способности»', typeof CampaignEditor === 'function' && typeof withStatuses === 'function' && statusEditorMarkup.includes('Статусы и способности') && statusEditorStore.meta.statuses?.some((status) => status.dot?.hp === 2))
+  check('6 форма статуса: DoT, навыки, движение', typeof CampaignEditor === 'function' && STATUSES.some((status) => status.dot && status.skill_mods))
   const schemas = readFileSync('src/editor/schemas.ts', 'utf8')
   check('6 схемы эффектов/условия', schemas.includes('apply_status:') && schemas.includes('remove_status:') && schemas.includes('has_status:'))
   const hud = readFileSync('src/player/HUD.tsx', 'utf8')

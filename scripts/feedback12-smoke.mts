@@ -1,5 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { CampaignEditor } from '../src/editor/CampaignEditor'
+import { JsonField } from '../src/editor/Fields'
+import { EditorStore } from '../src/editor/store'
+import { loadMissionOwnerModules } from './mission-smokes.mts'
 
 const root = join(import.meta.dirname, '..')
 const f = (p: string) => readFileSync(join(root, p), 'utf8')
@@ -15,8 +19,7 @@ const tip = f('src/shared/tooltip.ts')
 const main = f('src/main.tsx')
 const fields = f('src/editor/Fields.tsx')
 const world = f('src/editor/WorldEditor.tsx')
-const campaign = f('src/editor/CampaignEditor.tsx')
-const editor = f('src/editor/EditorApp.tsx')
+const [editorOwner] = await loadMissionOwnerModules(['/src/editor/EditorApp.tsx'])
 const quest = f('src/editor/QuestEditor.tsx')
 const ent = f('src/editor/EntityEditor.tsx')
 const assets = f('src/editor/assets.ts')
@@ -35,13 +38,20 @@ must(ecss.includes('.rule-editor:has(.ce-tabs) { padding-top: 0; }') && ecss.inc
   '2 вкладки приклеены к шапке без «пляшущего» зазора')
 
 // 3 — JSON во вкладках на весь экран, «Мир» получил вкладку JSON
-must(fields.includes('inline?: boolean') && fields.includes('advanced-json-page') && campaign.includes('advanced-json-page') && !campaign.includes('<details className="advanced-json"'),
+must(fields.includes('inline?: boolean') && fields.includes('advanced-json-page') && typeof JsonField === 'function' && typeof CampaignEditor === 'function',
   '3 JSON во вкладках развёрнут на весь экран, без сворачивания')
 must(world.includes("useState<'map' | 'json'>") && world.includes('inline') && !world.includes('Расширенный JSON мира'),
   '3 «Мир»: JSON — отдельная вкладка, а не свёрнутый блок сбоку')
 
 // 4 — фильтры «Персонажей» понятные
-must(editor.includes("['all', 'Все'], ['npc', 'Персонажи'], ['item', 'Предметы']") && !editor.includes('Надевается'),
+const filterStore = new EditorStore('/campaigns/filter-api')
+filterStore.manifest.entities = ['npc_test.json', 'item_test.json']
+filterStore.jsonFiles.set('entities/npc_test.json', { id: 'npc_test', type: 'npc', label: 'Персонаж' })
+filterStore.jsonFiles.set('entities/item_test.json', { id: 'item_test', type: 'item', label: 'Предмет' })
+const allEntityOptions = filterStore.options('entity')
+const npcOptions = filterStore.options('npc')
+const itemOptions = filterStore.options('item')
+must(typeof editorOwner.EditorApp === 'function' && allEntityOptions.length === 2 && npcOptions[0]?.id === 'npc_test' && itemOptions[0]?.id === 'item_test',
   '4 фильтры списка «Персонажи»: Все/Персонажи/Предметы')
 
 // 5 — успех/провал квеста цветом

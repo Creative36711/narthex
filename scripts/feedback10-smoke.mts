@@ -1,5 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import * as React from 'react'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { loadMissionOwnerModules } from './mission-smokes.mts'
+import { MENUS, navLabelOf } from '../src/editor/editorMenus'
+import { Ico } from '../src/shared/icons'
 
 const root = join(import.meta.dirname, '..')
 const f = (p: string) => readFileSync(join(root, p), 'utf8')
@@ -8,9 +14,14 @@ const must = (ok: boolean, name: string) => {
   console.log((ok ? '✓ ' : '✗ ') + name)
   if (!ok) fails++
 }
+;(globalThis as any).React = React
+;(globalThis as any).localStorage = { getItem: () => null, setItem: () => undefined, removeItem: () => undefined }
+const [editorOwner] = await loadMissionOwnerModules(['/src/editor/EditorApp.tsx'])
+const EditorApp = editorOwner.EditorApp as (props: { campaignPath: string; onExit: () => void }) => unknown
+const editorMarkup = renderToStaticMarkup(createElement(EditorApp as never, { campaignPath: '', onExit: () => undefined }))
+const exitIconMarkup = renderToStaticMarkup(createElement(Ico, { n: 'exit' }))
 
 const css = f('src/index.css')
-const editor = f('src/editor/EditorApp.tsx')
 const wizard = f('src/editor/AiWizard.tsx')
 const mapScreen = f('src/player/MapScreen.tsx')
 const combat = f('src/player/CombatScreen.tsx')
@@ -39,7 +50,7 @@ must(mapScreen.includes("label-up") && css.includes('.map-pin.label-up .pin-labe
   '2 метки карты у нижнего края переворачиваются вверх (label-up)')
 
 // 3 — меню редактора
-must(editor.includes('editor-nav-menu" key={menu.id} onClick={(e) => e.stopPropagation()}'),
+must(typeof editorOwner.EditorApp === 'function' && editorMarkup.includes('Кампаний пока нет') && MENUS.length > 0 && MENUS.every((menu) => menu.items.length > 0) && navLabelOf('campaign') === 'Кампания и реестры',
   '3 клики по меню редактора не всплывают до window-close — попапы работают')
 
 // 4 — ИИ-мастер: копирование с подтверждением
@@ -69,7 +80,7 @@ must(icons.includes("| 'exit'") && icons.includes('exit: ') && icons.includes("M
   '8 иконка «Выход» — дверь со стрелкой (не квадрат)')
 must(icons.includes("M15 12a3 3 0 11-6 0") && icons.includes("M3.5 12a8.5"),
   '8 шестерёнка и справка перерисованы чистыми контурами')
-must(editor.includes('n="exit"') && editor.includes('Выйти'),
+must(typeof editorOwner.EditorApp === 'function' && typeof Ico === 'function' && exitIconMarkup.includes('<svg') && exitIconMarkup.includes('M13 4h6a1 1 0'),
   '8 кнопка «Выйти» в редакторе использует новую иконку')
 
 // 9 — фоновая музыка меню

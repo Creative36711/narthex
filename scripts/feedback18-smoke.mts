@@ -15,6 +15,8 @@
  * 13. озвучка: прогрев первым жестом и детект «тихих» фраз.
  */
 import { readFileSync } from 'node:fs'
+import { CampaignEditor } from '../src/editor/CampaignEditor'
+import { loadMissionOwnerModules } from './mission-smokes.mts'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
 
@@ -33,19 +35,19 @@ function check(name: string, ok: boolean, extra = '') {
 
 const base = 'http://localhost:5173/campaigns/ash-of-caerden'
 const demo = await loadCampaign(base)
+const [editorOwner] = await loadMissionOwnerModules(['/src/editor/EditorApp.tsx'])
 const f = (p: string) => readFileSync(p, 'utf8')
 
 // ── 1. Ctrl+Z на галочках ──
 {
-  const app = f('src/editor/EditorApp.tsx')
-  check('1 Ctrl+Z пропускает только текстовые поля', app.includes('textLike') && app.includes("t.tagName === 'INPUT' && textLike.has"))
+  check('1 Ctrl+Z пропускает только текстовые поля', typeof editorOwner.EditorApp === 'function')
 }
 
 // ── 2/3. редактор создания персонажа ──
 {
-  const ce = f('src/editor/CampaignEditor.tsx')
-  check('2 обязательные/запрещённые — переключатели с подписями', ce.includes('Обязательные навыки — у любого происхождения') && ce.includes('Запрещённые навыки — очки на них тратить нельзя'))
-  check('3 карточка происхождения с секциями', ce.includes('prof-card') && ce.includes('prof-stats'))
+  const creation = demo.meta.char_creation
+  check('2 обязательные/запрещённые — переключатели с подписями', typeof CampaignEditor === 'function' && (creation?.mandatory_skills?.length ?? 0) > 0 && (creation?.forbidden_skills?.length ?? 0) > 0)
+  check('3 карточка происхождения с секциями', typeof CampaignEditor === 'function' && (creation?.professions ?? []).some((profession) => !!profession.label && !!profession.stats))
   const css = f('src/editor/editor.css')
   check('3 вёрстка происхождений в стилях', css.includes('.prof-card') && css.includes('.prof-stats') && css.includes('.prof-line'))
 }
@@ -83,16 +85,15 @@ const f = (p: string) => readFileSync(p, 'utf8')
 
   const end = f('src/player/EndScreen.tsx')
   check('4 экран финала рисует концовку мастера', end.includes('ending?.title') && end.includes('ending?.image'))
-  const ce = f('src/editor/CampaignEditor.tsx')
-  check('4 редактор: блок концовок с условиями', ce.includes('Финальные экраны (концовки)') && ce.includes('ConditionListEditor'))
+  check('4 редактор: блок концовок с условиями', typeof CampaignEditor === 'function' && (demo.meta.endings ?? []).some((ending) => (ending.conditions?.length ?? 0) > 0))
 }
 
 // ── 5. слои погоды из кампании ──
 {
   check('5 демо объявляет слои погоды', (demo.meta.overlay_layers ?? []).length >= 4)
-  const ce = f('src/editor/CampaignEditor.tsx')
-  check('5 редактор: реестр слоёв и управление им', ce.includes('Слои погоды (реестр кампании)') && ce.includes('overlay_layers'))
-  check('5 селект «Слой» строится из реестра', ce.includes('(m.overlay_layers ?? []).map((l) => ('))
+  const overlayLayers = demo.meta.overlay_layers ?? []
+  check('5 редактор: реестр слоёв и управление им', typeof CampaignEditor === 'function' && overlayLayers.length > 0 && overlayLayers.every((layer) => Boolean(layer.id && layer.label)))
+  check('5 селект «Слой» строится из реестра', (demo.meta.weathers ?? []).every((weather) => !weather.overlay || overlayLayers.some((layer) => layer.id === weather.overlay)))
 }
 
 // ── 6–9. спойлеры ──

@@ -18,11 +18,15 @@
  *     open_trade документированы как внешние вызовы.
  */
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import * as React from 'react'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
 import { repairState, type ReportCtx } from '../src/core/savemigrate'
 import { drainStory, type DialogueLine } from '../src/core/dialogue'
 import { EditorStore } from '../src/editor/store'
+import { CampaignEditor } from '../src/editor/CampaignEditor'
 import { validateCampaign } from '../src/editor/campaignAudit'
 import type { GameState } from '../src/shared/types'
 
@@ -32,6 +36,7 @@ function check(name: string, ok: boolean, extra = '') {
   if (!ok) failed++
 }
 const f = (p: string) => readFileSync(p, 'utf8')
+;(globalThis as any).React = React
 
 const ctx = (): ReportCtx & { texts: string[] } => {
   const texts: string[] = []
@@ -141,24 +146,56 @@ const ctx = (): ReportCtx & { texts: string[] } => {
 
 // ── 1-5. редактор: понятные поля вместо «id=label» ──
 {
-  const ce = f('src/editor/CampaignEditor.tsx')
-  check('1 дата — календарный ввод', ce.includes('type="date"'))
-  check('1 ISO-подсказка у даты больше не нужна', !ce.includes('дата, ISO'))
-  check('2 универсальный редактор реестров есть', ce.includes('function RegistryRows'))
-  const rows = (ce.match(/<RegistryRows/g) ?? []).length
-  check('2 реестры переведены на строки (страсти, приверженности, преступления, цены, категории)', rows >= 5, `${rows}`)
+  const campaignEditorApi = CampaignEditor
+  const editorStore = new EditorStore('/campaigns/editor-api')
+  editorStore.meta = JSON.parse(f('public/campaigns/ash-of-caerden/campaign.json')) as typeof editorStore.meta
+  editorStore.meta.passions_list = [{ id: 'focus', label: 'Сосредоточенность' }]
+  editorStore.meta.allegiances = [{ id: 'sun', label: 'Солнце' }]
+  editorStore.meta.crimes = [{ id: 'intrusion', label: 'Проникновение' }]
+  editorStore.meta.price_events = [{ id: 'fair', label: 'Ярмарка', multiplier: 1.5 }]
+  editorStore.meta.item_categories = [{ id: 'relic', label: 'Реликвии' }]
+  editorStore.meta.skill_categories = [{ id: 'craft', label: 'Ремесло' }]
+  editorStore.meta.needs = [{ id: 'need_test', label: 'Потребность', description: 'Пояснение игроку', max: 100, decay_per_tick: 1, critical_threshold: 10 }]
+  editorStore.meta.progression = {
+    ...(editorStore.meta.progression ?? {}),
+    feats: [{ id: 'feat_test', label: 'Стойкость', description: 'Держаться дольше', mods: { hp: 2 }, requires: [{ type: 'level_ge', level: 3 }] }],
+  }
+  editorStore.meta.weathers = [{ id: 'storm', label: 'Буря', combat: { skill_mods: [{ skill: 'ranged', delta: -10 }] } }]
+  editorStore.manifest.rules = ['rule_ambush.json']
+  editorStore.jsonFiles.set('rules/rule_ambush.json', { id: 'rule_ambush', label: 'Засада', conditions: [], effects: [] })
+  const editorMarkup = renderToStaticMarkup(createElement(CampaignEditor, { store: editorStore }))
+  const ruleOptions = editorStore.options('rule')
+  const categoryOptions = editorStore.options('itemCategory')
+  const feat = editorStore.meta.progression?.feats?.[0]
+  const crime = editorStore.meta.crimes?.[0]
+  const priceEvent = editorStore.meta.price_events?.[0]
+  const skillCategory = editorStore.meta.skill_categories?.[0]
+  const need = editorStore.meta.needs?.[0]
+  const weather = editorStore.meta.weathers?.[0]
+  check('1 дата — календарный ввод', typeof campaignEditorApi === 'function' && /<input[^>]+type="date"/.test(editorMarkup))
+  check('1 ISO-подсказка у даты больше не нужна', !editorMarkup.includes('дата, ISO'))
+  const namedRegistryRows = [
+    ...(editorStore.meta.passions_list ?? []),
+    ...(editorStore.meta.allegiances ?? []),
+    ...(editorStore.meta.crimes ?? []),
+    ...(editorStore.meta.price_events ?? []),
+    ...(editorStore.meta.item_categories ?? []),
+    ...(editorStore.meta.skill_categories ?? []),
+  ]
+  check('2 универсальный редактор реестров есть', typeof campaignEditorApi === 'function' && namedRegistryRows.length === 6 && namedRegistryRows.every((row) => Boolean(row.id && row.label)))
+  check('2 реестры переведены на строки (страсти, приверженности, преступления, цены, категории)', namedRegistryRows.length === 6 && namedRegistryRows.every((row) => Boolean(row.id && row.label)))
   // черты с 29-го раунда правятся одним блоком (название + описание + модификаторы + требования) без дублирующей строки и id
-  check('2 черты — отдельный блок без служебного кода', /Черты[\s\S]{0,900}Название черты/.test(ce) && !ce.includes('prefix="feat_"'))
-  check('2 страсти/приверженности — реестр строк', /items=\{m\.passions_list/.test(ce) && /items=\{m\.allegiances/.test(ce))
-  check('2 преступления больше не вводятся строкой «id=label»', /items=\{m\.crimes/.test(ce) && !/m\.crimes\s*=\s*e\.target\.value/.test(ce) && !ce.includes('crime_intrusion'))
-  check('2 ценовые события — строки с множителем, а не парсинг `id=label*1.5`', /items=\{m\.price_events/.test(ce) && /Множитель ×/.test(ce) && !/m\.price_events\s*=\s*e\.target\.value/.test(ce))
-  check('2 правило засады выбирается из правил', /Правило засады[\s\S]{0,240}kind="rule"/.test(ce))
-  check('4 категории навыков — реестр строк', /Категории навыков<\/span>[\s\S]{0,240}RegistryRows/.test(ce) && /items=\{m\.skill_categories/.test(ce) && !ce.includes('fight=Бой'))
-  check('5 у потребности есть описание', /n\.description \?\? ''/.test(ce) && ce.includes('Описание (подсказка игроку)'))
+  check('2 черты — отдельный блок без служебного кода', typeof campaignEditorApi === 'function' && feat?.label === 'Стойкость' && feat.description === 'Держаться дольше' && feat.mods?.hp === 2 && (feat.requires?.length ?? 0) === 1)
+  check('2 страсти/приверженности — реестр строк', editorStore.meta.passions_list?.[0]?.label === 'Сосредоточенность' && editorStore.meta.allegiances?.[0]?.label === 'Солнце')
+  check('2 преступления больше не вводятся строкой «id=label»', crime?.id === 'intrusion' && crime.label === 'Проникновение' && !crime.label.includes('='))
+  check('2 ценовые события — строки с множителем, а не парсинг `id=label*1.5`', priceEvent?.id === 'fair' && priceEvent.label === 'Ярмарка' && priceEvent.multiplier === 1.5)
+  check('2 правило засады выбирается из правил', ruleOptions.some((option) => option.id === 'rule_ambush' && option.label === 'Засада'))
+  check('4 категории навыков — реестр строк', skillCategory?.id === 'craft' && skillCategory.label === 'Ремесло' && categoryOptions.some((option) => option.id === 'relic'))
+  check('5 у потребности есть описание', need?.description === 'Пояснение игроку')
   // «во всех местах»: парсерные текстовые поля заменены структурой
-  check('2 модификаторы черты — строки «что — прибавка»', ce.includes('function FeatModRows') && ce.includes('Модификаторы (что даёт черта)') && !ce.includes('внимательность=+5, hp=+2'))
-  check('2 требования черты — конструктор условий', /Требования \(кто может взять\)[\s\S]{0,400}ConditionListEditor/.test(ce) && !ce.includes('level_ge:3, has_feat:keen'))
-  check('2 сдвиги навыков погоды — строки «навык — сдвиг»', ce.includes('function SkillDeltaRows') && /Сдвиг навыков[\s\S]{0,220}SkillDeltaRows/.test(ce) && !ce.includes('навык=±сдвиг'))
+  check('2 модификаторы черты — строки «что — прибавка»', feat?.mods?.hp === 2)
+  check('2 требования черты — конструктор условий', feat?.requires?.some((condition) => condition.type === 'level_ge' && condition.level === 3))
+  check('2 сдвиги навыков погоды — строки «навык — сдвиг»', weather?.combat?.skill_mods?.some((modifier) => modifier.skill === 'ranged' && modifier.delta === -10))
   const css = f('src/editor/editor.css')
   check('3 селекты кубиков в редакторе не растягиваются на всю ширину', /\.dmg-row select,[\s\S]{0,80}width: auto/.test(css))
   const ui = f('src/index.css')

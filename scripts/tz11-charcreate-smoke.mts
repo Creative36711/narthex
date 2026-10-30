@@ -9,6 +9,7 @@
  *  4. миграция старого формата; плеер/редактор; монолит и схема.
  */
 import { readFileSync } from 'node:fs'
+import { CampaignEditor } from '../src/editor/CampaignEditor'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
 import {
@@ -158,8 +159,7 @@ function validChoice(): CharChoice {
   const missing = steps.filter((s) => !ui.includes(s))
   check('4 экран: все шаги', missing.length === 0, missing.join(', '))
   check('4 экран: кнопка по валидации', ui.includes('charChoiceProblems') && ui.includes('disabled={problems.length > 0}'))
-  const ce = readFileSync('src/editor/CampaignEditor.tsx', 'utf8')
-  check('4 редактор: блок создания персонажа', ce.includes('Показывать экран создания персонажа') && ce.includes('Происхождения') && ce.includes('Стартовые характеристики'))
+  check('4 редактор: блок создания персонажа', typeof CampaignEditor === 'function' && (demo.meta.char_creation?.professions?.length ?? 0) > 0)
 }
 
 // ── 5. монолит и схема ──

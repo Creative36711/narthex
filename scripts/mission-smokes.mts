@@ -5,8 +5,25 @@ import { join, resolve } from 'node:path'
 import '../packs/narrative/index'
 import { packOperations } from '../src/core/pack/host'
 import { setTimeout as delay } from 'node:timers/promises'
+import { fileURLToPath } from 'node:url'
+import { createServer } from 'vite'
 
 const root = resolve(import.meta.dirname, '..')
+
+/** Load an editor owner through Vite's public module graph (including TSX/CSS transforms). */
+export async function loadMissionOwnerModules(moduleIds: string[]): Promise<Record<string, unknown>[]> {
+  const vite = await createServer({
+    root,
+    appType: 'custom',
+    logLevel: 'silent',
+    server: { middlewareMode: true },
+  })
+  try {
+    return await Promise.all(moduleIds.map((id) => vite.ssrLoadModule(id.startsWith('/') ? id : `/${id}`)))
+  } finally {
+    await vite.close()
+  }
+}
 const serverUrl = 'http://127.0.0.1:5173'
 const smokeScripts = [
   'smoke:currency',
@@ -71,103 +88,106 @@ interface Result {
   rc: number
 }
 
-const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
-  scripts?: Record<string, string>
-}
-const narrativeManifest = JSON.parse(readFileSync(join(root, 'packs/narrative/pack.json'), 'utf8')) as { id: string }
-const narrativeOperations = packOperations.list().filter((entry) => entry.packId === narrativeManifest.id)
-const requiredNarrativeOperations = ['initialStateFields', 'initialRunStats', 'initializeRuntime']
-assert.ok(packOperations.hasPack(narrativeManifest.id), `Narrative composition root did not register ${narrativeManifest.id}`)
-for (const operation of requiredNarrativeOperations) {
-  assert.ok(narrativeOperations.some((entry) => entry.operation === operation), `Narrative pack is missing required operation ${operation}`)
-}
-console.log(`MISSION_COMPOSITION_ROOT pack=${narrativeManifest.id} operations=${narrativeOperations.length} source=packs/narrative/index.ts`)
-
-// Each npm script runs in its own Node process; preload the same real root there too.
-const narrativePreload = resolve(root, 'packs/narrative/index.ts')
-const missionNodeOptions = [
-  process.env.NODE_OPTIONS?.trim(),
-  '--import=tsx',
-  `--import=${narrativePreload}`,
-].filter(Boolean).join(' ')
-assert.equal(smokeScripts.length, 55, `Expected exactly 55 mission smoke scripts, got ${smokeScripts.length}`)
-for (const name of smokeScripts) {
-  assert.equal(typeof packageJson.scripts?.[name], 'string', `Missing npm script ${name}`)
-}
-
-function startDevServer(): ChildProcess {
-  const vite = join(root, 'node_modules/vite/bin/vite.js')
-  if (!existsSync(vite)) throw new Error(`Vite executable is missing: ${vite}; run npm ci first`)
-  return spawn(process.execPath, [vite, '--host', '127.0.0.1', '--port', '5173', '--strictPort'], {
-    cwd: root,
-    stdio: 'ignore',
-  })
-}
-
-async function waitForServer(server: ChildProcess): Promise<void> {
-  const deadline = Date.now() + 60_000
-  let spawnError: Error | undefined
-  server.once('error', (error) => { spawnError = error })
-  while (Date.now() < deadline) {
-    if (spawnError) throw spawnError
-    if (server.exitCode !== null || server.signalCode !== null) {
-      throw new Error(`Vite dev server exited before ready (code=${server.exitCode}, signal=${server.signalCode})`)
-    }
-    try {
-      const response = await fetch(serverUrl)
-      if (response.ok) {
-        await response.body?.cancel()
-        return
-      }
-    } catch {
-      // Retry until the server is ready or the startup deadline expires.
-    }
-    await delay(250)
+const invokedFile = process.argv[1] ? resolve(process.argv[1]) : ''
+if (invokedFile === fileURLToPath(import.meta.url)) {
+  const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
+    scripts?: Record<string, string>
   }
-  throw new Error(`Vite dev server did not answer at ${serverUrl} within 60s`)
-}
-
-async function stopDevServer(server: ChildProcess): Promise<void> {
-  const closed = new Promise<void>((resolveClose) => {
-    if (server.exitCode !== null || server.signalCode !== null) return resolveClose()
-    server.once('close', () => resolveClose())
-  })
-  if (server.exitCode === null && server.signalCode === null) server.kill('SIGTERM')
-  const stopped = await Promise.race([closed.then(() => true), delay(5_000).then(() => false)])
-  if (!stopped) {
-    server.kill('SIGKILL')
-    await closed
+  const narrativeManifest = JSON.parse(readFileSync(join(root, 'packs/narrative/pack.json'), 'utf8')) as { id: string }
+  const narrativeOperations = packOperations.list().filter((entry) => entry.packId === narrativeManifest.id)
+  const requiredNarrativeOperations = ['initialStateFields', 'initialRunStats', 'initializeRuntime']
+  assert.ok(packOperations.hasPack(narrativeManifest.id), `Narrative composition root did not register ${narrativeManifest.id}`)
+  for (const operation of requiredNarrativeOperations) {
+    assert.ok(narrativeOperations.some((entry) => entry.operation === operation), `Narrative pack is missing required operation ${operation}`)
   }
-}
+  console.log(`MISSION_COMPOSITION_ROOT pack=${narrativeManifest.id} operations=${narrativeOperations.length} source=packs/narrative/index.ts`)
 
-const results: Result[] = []
-let server: ChildProcess | undefined
-let startupFailure: string | undefined
-try {
-  server = startDevServer()
-  await waitForServer(server)
-  console.log(`Vite dev server ready at ${serverUrl}; running ${smokeScripts.length} smoke scripts serially.`)
+  // Each npm script runs in its own Node process; preload the same real root there too.
+  const narrativePreload = resolve(root, 'packs/narrative/index.ts')
+  const missionNodeOptions = [
+    process.env.NODE_OPTIONS?.trim(),
+    '--import=tsx',
+    `--import=${narrativePreload}`,
+  ].filter(Boolean).join(' ')
+  assert.equal(smokeScripts.length, 55, `Expected exactly 55 mission smoke scripts, got ${smokeScripts.length}`)
   for (const name of smokeScripts) {
-    const run = spawnSync('npm', ['run', '--silent', name], {
-      cwd: root,
-      encoding: 'utf8',
-      stdio: 'inherit',
-      env: { ...process.env, NODE_OPTIONS: missionNodeOptions },
-    })
-    const rc = run.error ? 127 : run.status ?? 1
-    results.push({ command: `npm run ${name}`, rc })
+    assert.equal(typeof packageJson.scripts?.[name], 'string', `Missing npm script ${name}`)
   }
-} catch (error) {
-  startupFailure = error instanceof Error ? error.message : String(error)
-  console.error(`Smoke suite setup failed: ${startupFailure}`)
-} finally {
-  if (server) await stopDevServer(server)
-}
 
-console.log('\nMission smoke results')
-console.log('command'.padEnd(38) + 'rc')
-for (const result of results) console.log(`${result.command.padEnd(38)}${result.rc}`)
-const passed = results.filter((result) => result.rc === 0).length
-const rc = startupFailure || results.length !== smokeScripts.length || passed !== smokeScripts.length ? 1 : 0
-console.log(`SUMMARY ${passed}/${smokeScripts.length} passed; rc=${rc}`)
-process.exitCode = rc
+  function startDevServer(): ChildProcess {
+    const vite = join(root, 'node_modules/vite/bin/vite.js')
+    if (!existsSync(vite)) throw new Error(`Vite executable is missing: ${vite}; run npm ci first`)
+    return spawn(process.execPath, [vite, '--host', '127.0.0.1', '--port', '5173', '--strictPort'], {
+      cwd: root,
+      stdio: 'ignore',
+    })
+  }
+
+  async function waitForServer(server: ChildProcess): Promise<void> {
+    const deadline = Date.now() + 60_000
+    let spawnError: Error | undefined
+    server.once('error', (error) => { spawnError = error })
+    while (Date.now() < deadline) {
+      if (spawnError) throw spawnError
+      if (server.exitCode !== null || server.signalCode !== null) {
+        throw new Error(`Vite dev server exited before ready (code=${server.exitCode}, signal=${server.signalCode})`)
+      }
+      try {
+        const response = await fetch(serverUrl)
+        if (response.ok) {
+          await response.body?.cancel()
+          return
+        }
+      } catch {
+        // Retry until the server is ready or the startup deadline expires.
+      }
+      await delay(250)
+    }
+    throw new Error(`Vite dev server did not answer at ${serverUrl} within 60s`)
+  }
+
+  async function stopDevServer(server: ChildProcess): Promise<void> {
+    const closed = new Promise<void>((resolveClose) => {
+      if (server.exitCode !== null || server.signalCode !== null) return resolveClose()
+      server.once('close', () => resolveClose())
+    })
+    if (server.exitCode === null && server.signalCode === null) server.kill('SIGTERM')
+    const stopped = await Promise.race([closed.then(() => true), delay(5_000).then(() => false)])
+    if (!stopped) {
+      server.kill('SIGKILL')
+      await closed
+    }
+  }
+
+  const results: Result[] = []
+  let server: ChildProcess | undefined
+  let startupFailure: string | undefined
+  try {
+    server = startDevServer()
+    await waitForServer(server)
+    console.log(`Vite dev server ready at ${serverUrl}; running ${smokeScripts.length} smoke scripts serially.`)
+    for (const name of smokeScripts) {
+      const run = spawnSync('npm', ['run', '--silent', name], {
+        cwd: root,
+        encoding: 'utf8',
+        stdio: 'inherit',
+        env: { ...process.env, NODE_OPTIONS: missionNodeOptions },
+      })
+      const rc = run.error ? 127 : run.status ?? 1
+      results.push({ command: `npm run ${name}`, rc })
+    }
+  } catch (error) {
+    startupFailure = error instanceof Error ? error.message : String(error)
+    console.error(`Smoke suite setup failed: ${startupFailure}`)
+  } finally {
+    if (server) await stopDevServer(server)
+  }
+
+  console.log('\nMission smoke results')
+  console.log('command'.padEnd(38) + 'rc')
+  for (const result of results) console.log(`${result.command.padEnd(38)}${result.rc}`)
+  const passed = results.filter((result) => result.rc === 0).length
+  const rc = startupFailure || results.length !== smokeScripts.length || passed !== smokeScripts.length ? 1 : 0
+  console.log(`SUMMARY ${passed}/${smokeScripts.length} passed; rc=${rc}`)
+  process.exitCode = rc
+}

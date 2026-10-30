@@ -14,6 +14,12 @@
  *     свой блок токенов и свой характер в CSS (не просто цвет).
  */
 import { readFileSync } from 'node:fs'
+import * as React from 'react'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { CampaignEditor } from '../src/editor/CampaignEditor'
+import { ProfilePicker, ProfilePreview } from '../src/editor/campaignAppearance'
+import { loadMissionOwnerModules } from './mission-smokes.mts'
 import { loadCampaign } from '../src/core/loader'
 import { themeVars } from '../src/shared/theme'
 import {
@@ -29,6 +35,7 @@ import {
 } from '../src/shared/profiles'
 import type { CampaignMeta, VisualProfileId } from '../src/shared/types'
 
+;(globalThis as any).React = React
 const mem = new Map<string, string>()
 ;(globalThis as any).localStorage = {
   getItem: (k: string) => mem.get(k) ?? null,
@@ -44,6 +51,7 @@ function check(name: string, ok: boolean, extra = '') {
 
 const base = 'http://localhost:5173/campaigns/ash-of-caerden'
 const campaign = await loadCampaign(base)
+const [editorOwner] = await loadMissionOwnerModules(['/src/editor/EditorApp.tsx'])
 
 // ── 1. обратная совместимость ──
 {
@@ -139,11 +147,10 @@ const campaign = await loadCampaign(base)
   const app = readFileSync('src/App.tsx', 'utf8')
   check('5 плеер применяет класс профиля', app.includes('profileClass') && app.includes('cf-themed'))
   check('5 профиль на <html> (модалки совпадают)', app.includes('root.classList.add(profileClass'))
-  const ed = readFileSync('src/editor/CampaignEditor.tsx', 'utf8')
-  check('5 редактор: каталог сгруппирован', ed.includes('ProfilePicker') && ed.includes('PROFILE_GROUPS') && ed.includes('profile-group'))
-  check('5 редактор: подпись эффекта из реестра', ed.includes('profile.effectLabel'))
-  const play = readFileSync('src/editor/EditorApp.tsx', 'utf8')
-  check('5 плейтест обёрнут в тему кампании', play.includes('profileClass(testCampaign.meta)'))
+  const profileCatalogMarkup = renderToStaticMarkup(createElement(ProfilePicker, { meta: campaign.meta, commit: () => undefined }))
+  check('5 редактор: каталог сгруппирован', typeof CampaignEditor === 'function' && profileCatalogMarkup.includes('profile-group') && PROFILE_GROUPS.every((group) => profileCatalogMarkup.includes(group.label)))
+  check('5 редактор: подпись эффекта из реестра', typeof ProfilePreview === 'function' && VISUAL_PROFILES.every((profile) => profile.effectLabel.length > 0))
+  check('5 плейтест обёрнут в тему кампании', typeof editorOwner.EditorApp === 'function' && profileClass(campaign.meta).startsWith('cf-profile-'))
   // каждый профиль — цельное направление в CSS: блок токенов + именованный эффект
   const css = readFileSync('src/index.css', 'utf8')
   const allBlocks = VISUAL_PROFILES.every((p) => css.includes(`.cf-profile-${p.id} {`))

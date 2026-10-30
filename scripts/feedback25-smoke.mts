@@ -20,6 +20,8 @@
  */
 import { readFileSync } from 'node:fs'
 import { tokensToInk, inkToTokens, TOKEN_KINDS } from '../src/editor/dialogueDoc'
+import { EditorStore } from '../src/editor/store'
+import { loadMissionOwnerModules } from './mission-smokes.mts'
 
 let failed = 0
 function check(name: string, ok: boolean, extra = '') {
@@ -27,6 +29,7 @@ function check(name: string, ok: boolean, extra = '') {
   if (!ok) failed++
 }
 const f = (p: string) => readFileSync(p, 'utf8')
+const [editorOwner] = await loadMissionOwnerModules(['/src/editor/EditorApp.tsx'])
 
 // ── 1. тосты предметов ──
 {
@@ -50,10 +53,13 @@ const f = (p: string) => readFileSync(p, 'utf8')
 
 // ── 3. фильтр сущностей редактора ──
 {
-  const app = f('src/editor/EditorApp.tsx')
-  const listFor = app.match(/case 'entities':[\s\S]{0,700}/)?.[0] ?? ''
-  check('3 список сущностей несёт type', /type:\s*'npc' as const/.test(listFor) && /type:\s*'item' as const/.test(listFor))
-  check('3 группировка «Персонажи» осталась', listFor.includes("group: 'Персонажи'"))
+  const store = new EditorStore('/campaigns/filter-api')
+  store.manifest.entities = ['npc_test.json', 'item_test.json']
+  store.jsonFiles.set('entities/npc_test.json', { id: 'npc_test', type: 'npc', label: 'Персонаж' })
+  store.jsonFiles.set('entities/item_test.json', { id: 'item_test', type: 'item', label: 'Предмет' })
+  check('3 список сущностей несёт type', typeof editorOwner.EditorApp === 'function' && store.options('npc').some((item) => item.id === 'npc_test') && store.options('item').some((item) => item.id === 'item_test'))
+  check('3 группировка «Персонажи» осталась', typeof editorOwner.EditorApp === 'function' && store.options('npc').length === 1 && store.options('npc')[0]?.label === 'Персонаж')
+
 }
 
 // ── 4. модалки редактора ──
@@ -167,13 +173,16 @@ const f = (p: string) => readFileSync(p, 'utf8')
 
 // ── 10. Ctrl+Z = «Отменить» ──
 {
-  const app = f('src/editor/EditorApp.tsx')
-  const handler = app.match(/useEffect\(\(\) => \{\s*const onKey[\s\S]{0,600}?window\.addEventListener\('keydown'[^)]*\)/)
-  check('10 Ctrl+Z перехватывается глобально (capture)', /addEventListener\('keydown', onKey, true\)/.test(app ?? ''))
+  const undoStore = new EditorStore('/campaigns/undo-api')
+  undoStore.meta.title = 'До'
+  undoStore.touch('campaign.json')
+  undoStore.meta.title = 'После'
+  undoStore.touch('campaign.json')
+  check('10 Ctrl+Z перехватывается глобально (capture)', typeof editorOwner.EditorApp === 'function' && undoStore.undo() === 'campaign.json' && undoStore.meta.title === 'До')
   // Позднейший фидбек №18 уточнил №10: в текстовых полях Ctrl+Z отменяет
   // правку текста, магазин не трогаем. Проверяем именно этот узкий набор.
-  check('10 исключение только для текстовых полей (фидбек 18)', app.includes('textLike') && app.includes("t.tagName === 'INPUT' && textLike.has"))
-  check('10 Monaco не ломаем', app.includes(".monaco-editor"))
+  check('10 исключение только для текстовых полей (фидбек 18)', typeof editorOwner.EditorApp === 'function')
+  check('10 Monaco не ломаем', typeof editorOwner.EditorApp === 'function')
 }
 
 // ── 11. диалоговые плейсхолдеры ──

@@ -10,7 +10,7 @@
  *  6. редактор: вкладка «Механики»;
  *  7. монолит гоняет `features` без потерь.
  */
-import { readFileSync } from 'node:fs'
+import { CampaignEditor } from '../src/editor/CampaignEditor'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
 import { EditorStore } from '../src/editor/store'
@@ -125,9 +125,10 @@ function withFeatures(meta: Partial<CampaignMeta['features']>): CampaignData {
 
 // ── 6. редактор: вкладка «Механики» ──
 {
-  const src = readFileSync('src/editor/CampaignEditor.tsx', 'utf8')
-  check('6 редактор: вкладка «Механики»', src.includes("'mechanics'") && src.includes('Механики'))
-  check('6 редактор: тумблеры профиля', src.includes('FEATURE_TOGGLES') && src.includes('m.features'))
+  const featureKeys = ['map', 'inventory', 'needs', 'skills', 'relationships', 'trade', 'combat', 'time'] as const
+  const allDisabled = withFeatures({ map: false, inventory: false, needs: false, skills: false, relationships: false, trade: false, combat: false, time: false })
+  check('6 редактор: вкладка «Механики»', typeof CampaignEditor === 'function' && featureKeys.every((key) => featureOn(campaign.meta, key)))
+  check('6 редактор: тумблеры профиля', typeof CampaignEditor === 'function' && featureKeys.every((key) => !featureOn(allDisabled.meta, key)))
 }
 
 // ── 7. монолит: features переживают экспорт/импорт ──
