@@ -1,3 +1,5 @@
+// Public barrel consumers get the same idempotent registration as direct composition roots.
+import './operations'
 export * from './dialogue'
 export * from './dialogue-runtime'
 export * from './scene-slots'
