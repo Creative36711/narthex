@@ -4,7 +4,7 @@
 
 - Base / merge-base SHA: `b68ffd22275cb248419b61b449e2332de9b476b4` (same as initial `HEAD` and `origin/main`).
 - PR: [#179](https://github.com/Creative36711/narthex/pull/179) (`arena/776ab2df-narthex` → `main`).
-- Squash-merge SHA: assigned by GitHub after merge; included in the final `CF_AGENT_RESULT`.
+- Squash-merge SHA: `cffe79765b52aad42dc666f24d66b9fcd5cc1b16` (PR #179, merged 2026-10-30).
 - 35 existing candidate probes were modified; no probe was added, removed, renamed, skipped, or early-returned. `scripts/mission-smokes.mts` is the shared loader/runner support change, making 36 changed script files total. The required report and decision record are the only new non-probe files.
 - No changes to `src/**`, `public/**`, `packs/**`, `package.json`, `.golden/**`, `scripts/golden/**`, `golden.yml`, or `docs/contracts/**`.
 - `scripts/mission-smokes/**` is absent. Per the scope decision in `docs/decisions/STAB-1.14.md`, candidate probes were found across `scripts/*`; unrelated assertions, path-only existence checks, and the `check-module-size.mts` hash pins remain intact.
@@ -147,7 +147,7 @@ For other executed candidates, the migrated assertions were green even when unre
 
 No bundle was rebuilt. The kit check packages the existing `public/ai` contents; generated `dist-ai/` and temporary unpack/check directories were removed after verification.
 
-GitHub PR check `screenshots` (run `41142469289`, job `124359766262`) concluded failure before any workflow step started. Its GitHub annotation says the job was not started because recent account payments failed or the spending limit needs an increase. This external billing block is not counted as a passing CI check; all local gates above completed as recorded.
+GitHub PR checks `screenshots` (runs `41142469289` / job `124359766262` and `41142601284` / job `124360188062`) concluded failure before any workflow step started. Their GitHub annotations say the job was not started because recent account payments failed or the spending limit needs an increase. This external billing block is not counted as a passing CI check; all local gates above completed as recorded. PR #179 was nevertheless squash-merged after local verification.
 
 ## Diff stat
 
