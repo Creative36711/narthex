@@ -113,7 +113,7 @@ export class GameEngine implements EngineCtx {
       this.rng = new PRNG()
       this.state = this.newState()
     }
-    this.runPackOperation('initializeRuntime')
+    if (this.hasPackOperation('initializeRuntime')) this.runPackOperation('initializeRuntime')
   }
 
   /** Attach pack-owned code explicitly; there is no legacy fallback after this boundary. */
@@ -220,7 +220,7 @@ export class GameEngine implements EngineCtx {
       removed_entities: [],
       spawned: [],
       player,
-      ...this.runPackOperation<object>('initialStateFields'),
+      ...(this.hasPackOperation('initialStateFields') ? this.runPackOperation<object>('initialStateFields') : {}),
       dispositions,
       party: [],
       blocked_paths: [],
@@ -228,7 +228,7 @@ export class GameEngine implements EngineCtx {
       known_npcs: [],
       log: [],
       game_over: null,
-      stats_run: this.runPackOperation('initialRunStats'),
+      stats_run: this.hasPackOperation('initialRunStats') ? this.runPackOperation('initialRunStats') : {},
     } as unknown as GameState
   }
   shouldShowNarrativeIntro(scene: SceneDef): boolean { return this.runPackOperation('shouldShowNarrativeIntro', scene) }
