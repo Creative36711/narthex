@@ -52,3 +52,9 @@ The warning fixture was exercised through source cf-play and the unpacked AI kit
 - Exploratory `cf-play example` returned rc 1 on source and unpacked kit with matching summary (3 warnings, 5 deaths, coverage 6/10); it is not counted as a passing positive check. The positive `cf-play check` case above returned rc 0.
 
 No goldens, checks, fixtures, or unrelated bundles were altered to mask these results.
+
+## Pull request status
+
+- PR #171 was created successfully (`gh pr create` rc 0) from `arena/1b9e5cb0-narthex` to `main`; it is open and unmerged.
+- `gh pr checks 171` returned rc 1: `golden-playthrough` and `screenshots` concluded failure before any job steps ran. Both check annotations state that the jobs were not started because recent account payments have failed or the spending limit needs to be increased. This is an external GitHub Actions billing gate, not a test result for the patch. Attempting to retrieve failed-job logs returned rc 1 with an EOF from the Actions log endpoint.
+- The first `gh pr create` attempt returned rc 126 (`Argument list too long`) because shell quoting treated Markdown backticks as command substitutions. The submission was retried safely and succeeded; the accidental broad-build invocation is disclosed above.
