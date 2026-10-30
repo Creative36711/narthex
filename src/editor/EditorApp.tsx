@@ -35,6 +35,7 @@ import { CampaignAuditDialog } from './CampaignAuditDialog'
 import { campaignContentHash, type PlaytestRecord } from './campaignAudit'
 import { makeId, normalizeCampaignId, slugify } from './ids'
 import './editor.css'
+import { MENUS, campaignIdFromPath, navLabelOf } from './editorMenus'
 import { askText, askConfirm, showAlert, showList, askChecked, askTextArea } from './prompt'
 import { collectExternalUrls, embedExternalAssets } from './assets'
 import { exportMonolith, importMonolithText } from './monolith'
@@ -58,68 +59,6 @@ import { resolveProjectModesForStudio, resolveProjectPackForStudio } from './pac
  * Narthex — Editor Mode (Фаза 4, ТЗ 5).
  * Работает поверх dev-сервера vite: сохранение пишет файлы кампании на диск.
  */
-
-type SectionItem = { id: EditorSection; label: string }
-
-/** верхнее меню — категории (фидбек 4): плоский список из 9 кнопок захламлял шапку */
-const MENUS: Array<{ id: string; label: string; items: SectionItem[] }> = [
-  {
-    id: 'project',
-    label: 'Проект',
-    items: [
-      { id: 'campaign', label: 'Кампания и реестры' },
-      { id: 'packs', label: 'Каталог паков' },
-      { id: 'panels', label: 'Панели пака' },
-      { id: 'design', label: 'Дизайн-документ' },
-    ],
-  },
-  {
-    id: 'world',
-    label: 'Мир',
-    items: [
-      { id: 'world', label: 'Регионы и локации' },
-      { id: 'scenes', label: 'Сцены' },
-      { id: 'arenas', label: 'Арены боя' },
-    ],
-  },
-  {
-    id: 'cast',
-    label: 'Персонажи',
-    items: [
-      { id: 'entities', label: 'Сущности (NPC и предметы)' },
-      { id: 'dialogues', label: 'Диалоги' },
-    ],
-  },
-  {
-    id: 'story',
-    label: 'История',
-    items: [
-      { id: 'quests', label: 'Квесты' },
-      { id: 'cutscenes', label: 'Катсцены' },
-      { id: 'rules', label: 'Правила мира' },
-      { id: 'codex', label: 'Кодекс' },
-    ],
-  },
-  {
-    id: 'mechanics',
-    label: 'Механики',
-    items: [
-      { id: 'combat', label: 'Правила боя' },
-      { id: 'recipes', label: 'Рецепты крафта' },
-    ],
-  },
-]
-
-function navLabelOf(id: EditorSection): string {
-  for (const m of MENUS) for (const it of m.items) if (it.id === id) return it.label
-  return id
-}
-
-function campaignIdFromPath(path: string): string {
-  const pathname = path.startsWith('http') ? new URL(path).pathname : path
-  const parts = pathname.split('/').filter(Boolean)
-  return parts[parts.length - 1] ?? ''
-}
 
 export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onExit: () => void }) {
   const [base, setBase] = useState(campaignPath)
