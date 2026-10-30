@@ -599,3 +599,14 @@ src/shared/types.ts и этот отчёт. protected autosave/save-load не м
 Нового контракта не вводится, ADR не создавался.
 
 `git diff --check`: rc=0. Diff stat приведён в ответе и PR; merge SHA — в ответе после squash.
+
+## PR / CI
+
+PR #168: https://github.com/Creative36711/narthex/pull/168
+CI screenshots run 41094953618: failure на «Проверить свежесть бандла аудита
+до сборки», как и локальная проверка; дрейф передан Tools по варианту A.
+Golden run 41094952907 на момент последней проверки всё ещё in_progress
+после 30 минут ожидания. Результат golden не объявляется успешным или
+неуспешным без завершения. Golden harness и защищённые файлы не менялись.
+Полный CI не зелёный. Merge выполняется по прямому требованию карточки;
+внешний отказ check:decisions отдельно раскрыт выше.
