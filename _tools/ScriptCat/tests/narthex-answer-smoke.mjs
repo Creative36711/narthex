@@ -20,7 +20,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-assert.match(src, /@version\s+1\.4\.86/, 'версия 1.4.86');
+assert.match(src, /@version\s+1\.4\.90/, 'версия 1.4.90');
 
 const sliceBetween = (startMarker, endMarker) => {
   const from = src.indexOf(startMarker);
@@ -89,7 +89,7 @@ assert.match(
 // ── 4. Сам блок ответа ─────────────────────────────────────────────────────
 const block = sliceBetween(
   '  const answerQueue = () => {',
-  '  async function dispatchTask(card, roleName) {',
+  '  async function dispatchTask(card, roleName, mission = null) {',
 );
 
 const store = new Map();

@@ -29,7 +29,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-assert.match(src, /@version\s+1\.4\.86/, 'версия 1.4.86');
+assert.match(src, /@version\s+1\.4\.90/, 'версия 1.4.90');
 
 const sliceBetween = (startMarker, endMarker) => {
   const from = src.indexOf(startMarker);
@@ -186,7 +186,7 @@ assert.match(
 // ── 9. Отказ выдачи не ставит паузу сразу ─────────────────────────────────
 const coordinator = sliceBetween('  async function coordinatorStep(', '  /**\n   * Запрос хода Координатора');
 assert.match(coordinator, /const card = pickReadyForRole\(ready, route\.roleName\)/, 'карточка выбирается по роли и свежести');
-assert.match(coordinator, /const problem = await dispatchTask\(card, route\.roleName\)/, 'причина отказа читается');
+assert.match(coordinator, /const problem = await dispatchTask\(card, route\.roleName, mission\)/, 'причина отказа читается, миссия передаётся в выдачу');
 assert.match(coordinator, /if \(problem === true\)/, 'успех отличается от причины');
 assert.match(coordinator, /cfn-dispatch-miss/, 'повторы отказа считаются');
 assert.match(
