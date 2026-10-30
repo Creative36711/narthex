@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /**
- * GOLD-1.11 real-time browser soak. Owns a single Vite instance, Chromium,
- * browser context, and page for the entire run. The single page.reload() is the
- * explicitly logged save/reload/Continue persistence check at minute 30.
- * Run: npm run golden:import && npm run golden:soak
+ * GOLD-1.11/GOLD-1.15 real-time browser soak. Owns a single Vite instance,
+ * Chromium, browser context, and page for the entire run. The single page.reload()
+ * is the explicitly logged save/reload/Continue persistence check at minute 30.
+ * GOLD-1.15 is invoked by npm run playthrough:golden; the direct command remains
+ * available for the historical GOLD-1.11 mode. Run npm run golden:import first.
  */
 import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, extname, join, relative, resolve, sep } from 'node:path'
@@ -16,9 +17,19 @@ import { launchChromium, chromiumVersion } from '../visual/local-browser.mjs'
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const CAMPAIGN_ROOT = join(ROOT, '.golden', 'karkas')
 const REPORT_ROOT = join(ROOT, '_tools', 'reports')
-const REPORT_DIR = join(REPORT_ROOT, 'GOLD-1.11')
-const REPORT_PATH = join(REPORT_ROOT, 'GOLD-1.11.md')
-const LOG_PATH = join(REPORT_ROOT, 'GOLD-1.11.log')
+const TASK = process.env.GOLDEN_SOAK_TASK ?? 'GOLD-1.11'
+if (!['GOLD-1.11', 'GOLD-1.15'].includes(TASK)) throw new Error(`Unsupported golden soak task: ${TASK}`)
+const REPORT_DIR = join(REPORT_ROOT, TASK)
+const REPORT_PATH = join(REPORT_ROOT, `${TASK}.md`)
+const LOG_PATH = join(REPORT_ROOT, `${TASK}.log`)
+const SCREENSHOT_DIR = process.env.GOLDEN_SOAK_SCREENSHOT_DIR ? resolve(process.env.GOLDEN_SOAK_SCREENSHOT_DIR) : REPORT_DIR
+const RUN_COMMAND = process.env.GOLDEN_SOAK_COMMAND ?? 'npm run golden:import && npm run golden:soak'
+const ORCHESTRATOR_RUN_ID = process.env.GOLDEN_SOAK_ORCHESTRATOR_ID ?? null
+const BASE_PLAYTHROUGH_RC = process.env.GOLDEN_BASE_PLAYTHROUGH_RC == null ? null : Number(process.env.GOLDEN_BASE_PLAYTHROUGH_RC)
+const CI_RUN_ID = process.env.GITHUB_RUN_ID ?? null
+const CI_EVENT = process.env.GITHUB_EVENT_NAME ?? null
+const CI_SHA = process.env.GITHUB_SHA ?? null
+const CI_ATTEMPT = process.env.GITHUB_RUN_ATTEMPT ?? null
 const ID = randomUUID()
 const PORT = Number(process.env.GOLDEN_SOAK_PORT || 4174)
 const BASE_URL = `http://127.0.0.1:${PORT}`
@@ -39,7 +50,10 @@ if (campaign.id !== 'b7305faa-8e10-4d26-96bb-f1b5ed5e493f') throw new Error(`Une
 if (!existsSync(join(CAMPAIGN_ROOT, 'manifest.json'))) throw new Error('Run npm run golden:import before the soak.')
 if (!/^[a-f0-9]{40}$/i.test(String(manifest.commit))) throw new Error('Pinned campaign commit is invalid.')
 mkdirSync(REPORT_DIR, { recursive: true })
-writeFileSync(LOG_PATH, '')
+mkdirSync(SCREENSHOT_DIR, { recursive: true })
+// The orchestrator initializes the combined JSONL before its base checks; keep
+// those records when this child appends the soak timeline.
+if (!ORCHESTRATOR_RUN_ID) writeFileSync(LOG_PATH, '')
 
 const state = {
   browserStartedMs: null, browserStartedAt: null, finishedMs: null, finishedAt: null,
@@ -48,6 +62,7 @@ const state = {
   checkpoints: [], actions: [], sessionActionStart: 0, activeActionCount: null,
   lastActionMs: null, maxActionGapMs: 0, activeMaxActionGapMs: null,
   scenes: new Set(), initialHudTime: null, activeStartHudTime: null, activeEndHudTime: null,
+  initialGameState: null, startCheckpoint: null, firstClue: null, hudTimeline: [],
   backgroundSamples: 0, emptyBackgroundCount: 0, emptyBackgroundEvents: [],
   pageErrors: [], consoleErrors: [], consoleWarnings: [], httpErrors: [], requestFailures: [],
   startAudio: [], endAudio: null, persistence: null, screenshots: [], failures: [],
@@ -57,9 +72,9 @@ let monitorActive = false
 let stopRequested = false
 let monitorTask = null
 
-const show = new Set(['run_start', 'browser_ready', 'session_start', 'five_minute_checkpoint', 'save_reload_verified', 'menu_audio_probe', 'run_summary', 'run_complete', 'run_failure'])
+const show = new Set(['run_start', 'browser_ready', 'session_start', 'first_clue_reached', 'five_minute_checkpoint', 'save_reload_verified', 'menu_audio_probe', 'run_summary', 'run_complete', 'run_failure'])
 function log(event, data = {}) {
-  const item = { at: new Date().toISOString(), task: 'GOLD-1.11', runId: ID, event, ...data }
+  const item = { at: new Date().toISOString(), task: TASK, runId: ID, event, ...data }
   appendFileSync(LOG_PATH, `${JSON.stringify(item)}\n`)
   if (show.has(event)) console.log(`${item.at} ${event}${data.minute == null ? '' : ` minute=${data.minute}`}`)
   return item
@@ -193,7 +208,7 @@ async function screenState() {
     const hudTime = document.querySelector('.hud-time')?.textContent?.trim() ?? null
     const match = String(hudTime ?? '').match(/День\s+(\d+)\s*,\s*(\d{2}):(\d{2})/)
     const hudMinutes = match ? ((Number(match[1]) - 1) * 24 + Number(match[2])) * 60 + Number(match[3]) : null
-    return { screen: map ? 'map' : scene ? 'scene' : menu ? 'menu' : creation ? 'hero-creation' : 'other', scene: runtime?.scene ?? null, location: runtime?.location ?? null, tick: Number.isFinite(runtime?.tick) ? runtime.tick : null, hudTime, hudMinutes, background: bg, emptyBackground: bg.empty === true, sceneLabel: document.querySelector('.scene-name')?.textContent?.trim() ?? null }
+    return { screen: map ? 'map' : scene ? 'scene' : menu ? 'menu' : creation ? 'hero-creation' : 'other', scene: runtime?.scene ?? null, location: runtime?.location ?? null, tick: Number.isFinite(runtime?.tick) ? runtime.tick : null, flags: runtime?.flags && typeof runtime.flags === 'object' ? runtime.flags : {}, hudTime, hudMinutes, background: bg, emptyBackground: bg.empty === true, sceneLabel: document.querySelector('.scene-name')?.textContent?.trim() ?? null }
   }, SAVE_KEY)
 }
 function noteBackground(metrics, source) {
@@ -225,20 +240,24 @@ async function checkpoint(minute, screenshotName = null) {
   noteBackground(metrics, `checkpoint-${minute}`)
   let screenshot = null
   if (screenshotName) {
-    const path = join(REPORT_DIR, screenshotName)
+    const path = join(SCREENSHOT_DIR, screenshotName)
     await page.screenshot({ path, type: 'png', fullPage: false, animations: 'disabled' })
     screenshot = { path: relative(ROOT, path).split(sep).join('/'), width: 1440, height: 900, bytes: statSync(path).size }
     state.screenshots.push(screenshot)
   }
+  const activeFlags = Object.entries(metrics.flags ?? {}).filter(([, value]) => Boolean(value)).map(([name]) => name).sort()
+  const clueFlags = activeFlags.filter((name) => name.startsWith('clue_') || name === 'pump_seen')
   const cp = {
     minute, at: new Date().toISOString(), elapsedSeconds: Number(((Date.now() - state.activeStartedMs) / 1000).toFixed(1)),
-    scene: metrics.scene, hudTime: metrics.hudTime, pageerror: state.pageErrors.length,
+    scene: metrics.scene, location: metrics.location, tick: metrics.tick, hudTime: metrics.hudTime,
+    flags: activeFlags, clueFlags, pageerror: state.pageErrors.length,
     consoleError: state.consoleErrors.length, httpError: state.httpErrors.length,
     emptyBackgroundCount: state.emptyBackgroundCount,
     actionsSincePreviousCheckpoint: state.actions.length - (state.checkpoints.at(-1)?.actionsCumulative ?? state.sessionActionStart),
     actionsCumulative: state.actions.length, sceneLabel: metrics.sceneLabel, background: metrics.background, screenshot,
   }
   state.checkpoints.push(cp)
+  if (minute === 0) state.startCheckpoint = cp
   log('five_minute_checkpoint', cp)
   return cp
 }
@@ -351,6 +370,68 @@ async function talkToIra() {
   log('gameplay_flag_assertion', { flag: 'ira_story', value: s.flags.ira_story, scene: s.scene, tick: s.tick, hudTime: s.hudTime })
   return s
 }
+async function investigateFirstClue() {
+  for (let attempt = 1; attempt <= 8; attempt++) {
+    const pumpSlot = page.locator('.slot-hotspot').filter({ hasText: 'Седьмая помпа' }).first()
+    await click(pumpSlot, 'first_clue_interact_with_pump', { attempt, entity: 'item_pump_drive' })
+    const itemDialog = page.locator('.itemdlg-overlay')
+    await itemDialog.waitFor({ state: 'visible', timeout: 12_000 })
+    const inspect = page.getByRole('button', { name: /Осмотреть привод/ }).first()
+    const option = normalize(await inspect.innerText())
+    await click(inspect, 'first_clue_inspect_pump_drive', { attempt, option })
+
+    for (let dialogIndex = 1; dialogIndex <= 8; dialogIndex++) {
+      const outcome = page.locator('.message-overlay:not(.itemdlg-overlay)').first()
+      await outcome.waitFor({ state: 'visible', timeout: 12_000 })
+      const text = normalize(await outcome.innerText()).slice(0, 1200)
+      const reroll = outcome.getByRole('button', { name: 'Перебросить за удачу', exact: true })
+      if (await reroll.count()) {
+        await click(reroll, 'first_clue_reroll_for_luck', { attempt, dialogIndex, text })
+        await page.waitForTimeout(150)
+        continue
+      }
+      if (text.includes('Муфта срезана ровно') && text.includes('рукавица')) {
+        const ok = outcome.getByRole('button', { name: 'Ок', exact: true })
+        if (await ok.count()) await click(ok, 'dismiss_first_clue_success', { attempt })
+        else await click(outcome, 'dismiss_first_clue_success_overlay', { attempt })
+        await settleOverlays(10_000, false)
+        const clueState = await runtimeState()
+        if (clueState?.flags?.clue_glove !== true) throw new Error(`First-clue message appeared but clue_glove was not set: ${JSON.stringify(clueState)}`)
+        const firstClue = {
+          at: new Date().toISOString(),
+          elapsedSeconds: Number(((Date.now() - state.activeStartedMs) / 1000).toFixed(1)),
+          scene: clueState.scene,
+          location: clueState.location,
+          tick: clueState.tick,
+          hudTime: clueState.hudTime,
+          flag: 'clue_glove',
+          flagValue: clueState.flags.clue_glove,
+          attempt,
+          pageerror: state.pageErrors.length,
+          emptyBackgroundCount: state.emptyBackgroundCount,
+          actionsSincePreviousCheckpoint: state.actions.length - (state.checkpoints.at(-1)?.actionsCumulative ?? state.sessionActionStart),
+          actionsCumulative: state.actions.length,
+          message: text,
+        }
+        state.firstClue = firstClue
+        log('first_clue_reached', firstClue)
+        return firstClue
+      }
+      if (text.includes('Масло, ржавчина, срез металла.')) {
+        const ok = outcome.getByRole('button', { name: 'Ок', exact: true })
+        await click(ok, 'dismiss_first_clue_failure', { attempt, dialogIndex, text })
+        await page.waitForTimeout(150)
+        break
+      }
+      const ok = outcome.getByRole('button', { name: 'Ок', exact: true })
+      if (!(await ok.count())) throw new Error(`Unexpected first-clue result: ${JSON.stringify({ text, buttons: await outcome.getByRole('button').allTextContents() })}`)
+      await click(ok, 'dismiss_first_clue_followup', { attempt, dialogIndex, text })
+      await page.waitForTimeout(150)
+    }
+    await settleOverlays(10_000, false)
+  }
+  throw new Error('The first clue was not found after 8 real investigation attempts.')
+}
 async function travelToPump() {
   const mapNav = page.locator('.nav-zone').filter({ hasText: 'На схему ярусов' }).first()
   await click(mapNav, 'open_map_from_gate')
@@ -450,7 +531,10 @@ function compareSnapshots(before, after, stage) {
 }
 async function saveReloadContinue() {
   const before = await snapshot(SAVE_KEY, 'autosave immediately before manual save')
-  if (!before.present || !before.flags?.ira_story) throw new Error('Autosave or expected ira_story flag missing before persistence verification.')
+  if (!before.present || !before.flags?.ira_story || (TASK === 'GOLD-1.15' && !before.flags?.clue_glove)) {
+    const expected = TASK === 'GOLD-1.15' ? 'ira_story/clue_glove' : 'ira_story'
+    throw new Error(`Autosave or expected ${expected} flag(s) missing before persistence verification.`)
+  }
   const p = panel('saves')
   await click(p.button, 'open_saves_for_persistence_probe')
   await p.panel.waitFor({ state: 'visible', timeout: 10_000 })
@@ -509,7 +593,7 @@ async function probeStartMenuAudio() {
 async function newRun() {
   await button('Новый забег', 'start_new_game')
   await page.locator('.char-create').waitFor({ state: 'visible', timeout: 15_000 })
-  await fill(page.locator('.char-name'), 'GOLD-1.11 soak', 'enter_hero_name', { name: 'GOLD-1.11 soak' })
+  await fill(page.locator('.char-name'), `${TASK} soak`, 'enter_hero_name', { name: `${TASK} soak` })
   await click(page.getByRole('button', { name: /Дознаватель Надзора/ }).first(), 'select_hero_profession')
   await click(page.getByRole('button', { name: /Сыскарь/ }).first(), 'select_hero_specialty')
   await page.locator('.char-create').evaluate((element) => { element.scrollTop = 0 })
@@ -520,21 +604,43 @@ async function newRun() {
   state.initialHudTime = start?.hudTime
   if (!state.initialHudTime) throw new Error('HUD time was not available after starting the game.')
   state.scenes.add(start.scene)
-  log('initial_game_state', { scene: start.scene, location: start.location, tick: start.tick, hudTime: start.hudTime, flags: start.flags })
-  await travelToPump()
-  const ira = await talkToIra()
-  const anchor = panel('saves')
-  await click(anchor.button, 'session_start_anchor_open_saves')
-  await anchor.panel.waitFor({ state: 'visible', timeout: 10_000 })
-  await click(anchor.panel.locator('.panel-header button').first(), 'session_start_anchor_close_saves')
-  await anchor.panel.waitFor({ state: 'detached', timeout: 10_000 })
 
+  if (TASK !== 'GOLD-1.15') {
+    // Keep the standalone GOLD-1.11 command's historical timing anchor intact.
+    log('initial_game_state', { scene: start.scene, location: start.location, tick: start.tick, hudTime: start.hudTime, flags: start.flags })
+    await travelToPump()
+    const ira = await talkToIra()
+    const anchor = panel('saves')
+    await click(anchor.button, 'session_start_anchor_open_saves')
+    await anchor.panel.waitFor({ state: 'visible', timeout: 10_000 })
+    await click(anchor.panel.locator('.panel-header button').first(), 'session_start_anchor_close_saves')
+    await anchor.panel.waitFor({ state: 'detached', timeout: 10_000 })
+
+    state.activeStartedMs = Date.now()
+    state.activeStartedAt = new Date(state.activeStartedMs).toISOString()
+    state.activeStartHudTime = ira.hudTime
+    state.sessionActionStart = state.actions.length
+    log('session_start', { at: state.activeStartedAt, scene: ira.scene, location: ira.location, tick: ira.tick, hudTime: ira.hudTime, verifiedFlag: 'ira_story', durationSecondsRequired: SESSION_MS / 1000 })
+    await checkpoint(0, 'minute-00-session-start.png')
+    return
+  }
+
+  if (start.scene !== 'scene_gate_hall') throw new Error(`Fresh game did not start at scene 1: ${JSON.stringify(start)}`)
+  const openingFlags = Object.entries(start.flags ?? {}).filter(([, value]) => Boolean(value)).map(([name]) => name).sort()
+  const clueFlags = openingFlags.filter((name) => name.startsWith('clue_') || name === 'pump_seen')
+  if (clueFlags.length) throw new Error(`Fresh game unexpectedly starts with clue flags: ${JSON.stringify(clueFlags)}`)
+  state.initialGameState = { scene: start.scene, sceneOrdinal: 1, location: start.location, tick: start.tick, hudTime: start.hudTime, flags: openingFlags, clueFlags }
   state.activeStartedMs = Date.now()
   state.activeStartedAt = new Date(state.activeStartedMs).toISOString()
-  state.activeStartHudTime = ira.hudTime
+  state.activeStartHudTime = start.hudTime
   state.sessionActionStart = state.actions.length
-  log('session_start', { at: state.activeStartedAt, scene: ira.scene, location: ira.location, tick: ira.tick, hudTime: ira.hudTime, verifiedFlag: 'ira_story', durationSecondsRequired: SESSION_MS / 1000 })
-  await checkpoint(0, 'minute-00-session-start.png')
+  log('initial_game_state', state.initialGameState)
+  log('session_start', { at: state.activeStartedAt, from: 'fresh-game-start', scene: start.scene, sceneOrdinal: 1, location: start.location, tick: start.tick, hudTime: start.hudTime, openingFlags, clueFlags, durationSecondsRequired: SESSION_MS / 1000 })
+  await checkpoint(0, 'minute-00-game-start.png')
+
+  await travelToPump()
+  await talkToIra()
+  await investigateFirstClue()
 }
 
 async function runSession() {
@@ -614,13 +720,39 @@ function counts() {
 }
 function acceptance() {
   const c = counts()
-  const durationSeconds = state.browserStartedMs == null || state.finishedMs == null ? 0 : (state.finishedMs - state.browserStartedMs) / 1000
+  const browserDurationSeconds = state.browserStartedMs == null || state.finishedMs == null ? 0 : (state.finishedMs - state.browserStartedMs) / 1000
   const activeDurationSeconds = state.activeStartedMs == null || state.activeEndedMs == null ? 0 : (state.activeEndedMs - state.activeStartedMs) / 1000
+  const durationSeconds = TASK === 'GOLD-1.15' ? activeDurationSeconds : browserDurationSeconds
   const sessionActions = state.activeActionCount ?? state.actions.length - state.sessionActionStart
   const maxGap = state.activeMaxActionGapMs ?? state.maxActionGapMs
   const delta = parseHudMinutes(state.activeEndHudTime) - parseHudMinutes(state.initialHudTime)
-  if (durationSeconds < 3600) fail('durationSeconds is below 3600 from browser start to runner finish.', { durationSeconds })
+  const hudPoints = [
+    { elapsedSeconds: 0, source: 'fresh-game-start', hudTime: state.initialHudTime },
+    ...state.checkpoints.map(({ elapsedSeconds, minute, hudTime }) => ({ elapsedSeconds, source: `checkpoint-${minute}`, hudTime })),
+    ...(state.firstClue ? [{ elapsedSeconds: state.firstClue.elapsedSeconds, source: 'first-clue', hudTime: state.firstClue.hudTime }] : []),
+    ...(state.activeEndedMs == null ? [] : [{ elapsedSeconds: activeDurationSeconds, source: 'active-session-end', hudTime: state.activeEndHudTime }]),
+  ].map((point) => ({ ...point, hudMinutes: parseHudMinutes(point.hudTime) }))
+    .sort((a, b) => a.elapsedSeconds - b.elapsedSeconds)
+  state.hudTimeline = hudPoints
+  const hudRegressions = hudPoints.slice(1).flatMap((point, index) => {
+    const previous = hudPoints[index]
+    return point.hudMinutes == null || previous.hudMinutes == null || point.hudMinutes < previous.hudMinutes
+      ? [{ previous, point }]
+      : []
+  })
+  if (durationSeconds < 3600) {
+    const message = TASK === 'GOLD-1.15'
+      ? 'durationSeconds is below 3600 of active gameplay from fresh-game start.'
+      : 'durationSeconds is below 3600 from browser start to runner finish.'
+    fail(message, { durationSeconds, activeDurationSeconds })
+  }
   if (activeDurationSeconds < 3600) fail('Active gameplay lasted less than 3600 seconds.', { activeDurationSeconds })
+  if (TASK === 'GOLD-1.15') {
+    if (!state.initialGameState || state.initialGameState.scene !== 'scene_gate_hall' || state.initialGameState.sceneOrdinal !== 1) fail('The soak did not start at the campaign opening scene.', { initialGameState: state.initialGameState })
+    if (!state.startCheckpoint || state.startCheckpoint.minute !== 0 || state.startCheckpoint.scene !== 'scene_gate_hall' || state.startCheckpoint.clueFlags?.length) fail('The first checkpoint was not a clean-clue fresh-game start at scene 1.', { startCheckpoint: state.startCheckpoint })
+    if (!state.firstClue || state.firstClue.flag !== 'clue_glove' || state.firstClue.flagValue !== true) fail('The campaign first clue was not reached and marked in the timeline.', { firstClue: state.firstClue })
+    if (hudRegressions.length) fail('HUD time moved backward or was unavailable in the timeline.', { hudRegressions })
+  }
   if (state.checkpoints.length < 12) fail('Fewer than 12 five-minute checkpoints.', { checkpoints: state.checkpoints.length })
   if (c.pageerror) fail('pageerror count must be zero.', { events: state.pageErrors })
   if (state.emptyBackgroundCount) fail('Empty-background count must be zero.', { events: state.emptyBackgroundEvents })
@@ -639,29 +771,50 @@ function acceptance() {
   if (c.nonOptionalHttp) fail('Unclassified HTTP errors were observed.', { events: state.httpErrors })
   if (!state.startAudio.some((x) => x.phase === 'start-after-user-gesture' && x.playbackObserved)) fail('Start menu audio playback was not observed.')
   if (!state.endAudio?.playbackObserved) fail('End menu audio playback was not observed.')
-  return { durationSeconds: Number(durationSeconds.toFixed(1)), activeDurationSeconds: Number(activeDurationSeconds.toFixed(1)), sessionActions, maxActionGapSeconds: Number((maxGap / 1000).toFixed(1)), checkpointCount: state.checkpoints.length, scenes: [...state.scenes], sceneCount: state.scenes.size, initialHudTime: state.initialHudTime, activeStartHudTime: state.activeStartHudTime, activeEndHudTime: state.activeEndHudTime, hudTimeDeltaMinutes: delta, emptyBackgroundCount: state.emptyBackgroundCount, backgroundSamples: state.backgroundSamples, ...c }
+  return { durationSeconds: Number(durationSeconds.toFixed(1)), browserDurationSeconds: Number(browserDurationSeconds.toFixed(1)), activeDurationSeconds: Number(activeDurationSeconds.toFixed(1)), sessionActions, maxActionGapSeconds: Number((maxGap / 1000).toFixed(1)), checkpointCount: state.checkpoints.length, scenes: [...state.scenes], sceneCount: state.scenes.size, initialGameState: state.initialGameState, startCheckpoint: state.startCheckpoint, firstClue: state.firstClue, hudTimeline: hudPoints, hudRegressions: hudRegressions.length, initialHudTime: state.initialHudTime, activeStartHudTime: state.activeStartHudTime, activeEndHudTime: state.activeEndHudTime, hudTimeDeltaMinutes: delta, emptyBackgroundCount: state.emptyBackgroundCount, backgroundSamples: state.backgroundSamples, ...c }
 }
 function escapeTable(value) { return String(value ?? '').replaceAll('|', '\\|').replace(/\r?\n/g, ' ') }
 function report(summary) {
-  const timeline = state.checkpoints.map((cp) => `| ${cp.minute} | ${cp.at} | ${cp.scene ?? '—'} | ${cp.hudTime ?? '—'} | ${cp.pageerror} | ${cp.emptyBackgroundCount} | ${cp.actionsSincePreviousCheckpoint} | ${cp.actionsCumulative} |`).join('\n')
+  const timelineRows = state.checkpoints.map((cp) => ({
+    elapsed: cp.elapsedSeconds,
+    row: `| ${cp.minute} | ${cp.at} | ${cp.scene ?? '—'} | ${cp.hudTime ?? '—'} | ${cp.pageerror} | ${cp.emptyBackgroundCount} | ${cp.actionsSincePreviousCheckpoint} | ${cp.actionsCumulative} |`,
+  }))
+  if (state.firstClue) timelineRows.push({
+    elapsed: state.firstClue.elapsedSeconds,
+    row: `| first clue (t+${state.firstClue.elapsedSeconds}s) | ${state.firstClue.at} | ${state.firstClue.scene} | ${state.firstClue.hudTime} | ${state.firstClue.pageerror} | ${state.firstClue.emptyBackgroundCount} | ${state.firstClue.actionsSincePreviousCheckpoint} | ${state.firstClue.actionsCumulative} |`,
+  })
+  const timeline = timelineRows.sort((a, b) => a.elapsed - b.elapsed).map((x) => x.row).join('\n')
   const consoleRows = state.consoleErrors.length ? state.consoleErrors.map((x) => `| ${x.at} | ${escapeTable(x.text)} | ${escapeTable(x.location?.url)} |`).join('\n') : '| — | None observed; listener remained active and no console.error event was suppressed. | — |'
   const httpRows = state.httpErrors.length ? state.httpErrors.map((x) => `| ${x.status} | ${escapeTable(x.url)} | ${x.expected || 'Unclassified; acceptance failure'} |`).join('\n') : '| — | None observed. | — |'
   const requestRows = state.requestFailures.length ? state.requestFailures.map((x) => `| ${x.at} | ${escapeTable(x.failure)} | ${escapeTable(x.url)} |`).join('\n') : '| — | None observed. | — |'
   const audioRows = [...state.startAudio, ...(state.endAudio ? [state.endAudio] : [])].map((x) => `| ${x.phase} | ${x.fileSizeBytes} | ${x.playbackObserved} | ${escapeTable(JSON.stringify(x.attempts))} |`).join('\n') || '| — | 0 | Not completed | — |'
   const flags = state.persistence ? state.persistence.before.setFlags.map((x) => x.name).join(', ') : 'not recorded'
   const failRows = state.failures.length ? state.failures.map((x) => `- **FAIL:** ${escapeTable(x.message)}`).join('\n') : '- None.'
-  const screenshotRows = state.screenshots.map((x) => `- ${x.path} — ${x.width}×${x.height}, ${x.bytes} bytes`).join('\n') || '- No screenshots captured.'
+  const screenshotRows = state.screenshots.map((x) => `- ${TASK === 'GOLD-1.15' ? x.path.split('/').at(-1) : x.path} — ${x.width}×${x.height}, ${x.bytes} bytes${TASK === 'GOLD-1.15' ? ' (temporary, not committed)' : ''}`).join('\n') || '- No screenshots captured.'
   const httpReason = cOptional(summary) ? `The ${summary.expectedOptional404} optional project.json 404 response(s) are retained above. The pinned campaign package does not ship this optional metadata file; these are not game-asset or runtime failures.` : 'No optional project.json 404 was observed.'
+  const reportTitle = TASK === 'GOLD-1.15' ? '# GOLD-1.15 — one-hour golden playthrough from fresh game to first clue' : '# GOLD-1.11 — Real-time browser soak'
+  const durationLine = TASK === 'GOLD-1.15'
+    ? `- durationSeconds (active gameplay from fresh-game start through the one-hour soak): **${summary.durationSeconds}**; activeDurationSeconds: **${summary.activeDurationSeconds}**; browser wall time: **${summary.browserDurationSeconds}** (all seconds; active duration must be ≥ 3600).`
+    : `- durationSeconds (browser start to runner finish): **${summary.durationSeconds}**; active-game duration: **${summary.activeDurationSeconds}** (both required ≥ 3600).`
+  const firstClueLines = TASK === 'GOLD-1.15'
+    ? [
+      `- First checkpoint: scene 1 \`${summary.startCheckpoint?.scene ?? 'not reached'}\`; HUD **${summary.startCheckpoint?.hudTime ?? 'not reached'}**; opening flags: ${summary.startCheckpoint?.flags?.join(', ') || 'none'}; clue flags: ${summary.startCheckpoint?.clueFlags?.join(', ') || 'none'}.`,
+      `- First clue marker: \`${summary.firstClue?.flag ?? 'not reached'}=${summary.firstClue?.flagValue ?? 'n/a'}\` at t+${summary.firstClue?.elapsedSeconds ?? 'n/a'}s; scene ${summary.firstClue?.scene ?? 'n/a'}; HUD ${summary.firstClue?.hudTime ?? 'n/a'}; attempt ${summary.firstClue?.attempt ?? 'n/a'}.`,
+      `- HUD timeline regressions: **${summary.hudRegressions}**; no time was injected or rewound.`,
+      '- **Explicit card discrepancy:** the card asks for HUD 08:00 and an empty flags object at the fresh-game checkpoint. The pinned campaign actually starts at `scene_gate_hall`, HUD 07:00, with `case_opened` and `gate_intro_done`; its clue flags are empty. The runner records that real state and does not change campaign data, clear flags, or jump time.',
+    ]
+    : []
   return [
-    '# GOLD-1.11 — Real-time browser soak', '',
+    reportTitle, '',
     `**Verdict:** ${state.failures.length ? 'FAIL' : 'PASS'}`, `**Branch:** ${BRANCH}`, `**Run ID:** ${ID}`,
     `**Pinned campaign:** ${manifest.repository}@${manifest.commit}; tree SHA-256 ${manifest.tree?.sha256}`,
     `**Browser:** ${state.browser ?? 'not launched'}`, `**Vite:** one instance at ${BASE_URL}; no restart`,
-    '**Command:** npm run golden:import && npm run golden:soak', '',
+    `**Command:** ${RUN_COMMAND}`, `**Soak subcommand:** npm run golden:soak`, `**Orchestrator run ID:** ${ORCHESTRATOR_RUN_ID ?? 'standalone'}; base playthrough rc=${BASE_PLAYTHROUGH_RC ?? 'n/a'}`, `**CI context:** event=${CI_EVENT ?? 'local'}; run=${CI_RUN_ID ?? 'n/a'}; attempt=${CI_ATTEMPT ?? 'n/a'}; sha=${CI_SHA ?? 'n/a'}`, '',
     '## Duration and acceptance', '',
     `- Browser started: ${state.browserStartedAt ?? 'not recorded'}; runner completed: ${state.finishedAt ?? 'not recorded'}.`,
     `- Active gameplay: ${state.activeStartedAt ?? 'not recorded'} → ${state.activeEndedAt ?? 'not recorded'}.`,
-    `- durationSeconds (browser start to runner finish): **${summary.durationSeconds}**; active-game duration: **${summary.activeDurationSeconds}** (both required ≥ 3600).`,
+    durationLine,
+    ...firstClueLines,
     `- Checkpoints: **${summary.checkpointCount}** at minutes ${state.checkpoints.map((x) => x.minute).join(', ')} (required ≥ 12).`,
     `- Active-session actions: **${summary.sessionActions}** (required ≥ 60); maximum action gap: **${summary.maxActionGapSeconds}s** (limit ≤ 60s).`,
     `- Scenes: **${summary.sceneCount}** — ${summary.scenes.join(', ')} (required ≥ 3).`,
@@ -669,9 +822,9 @@ function report(summary) {
     `- pageerror: **${summary.pageerror}**; empty-background count: **${summary.emptyBackgroundCount}** across ${summary.backgroundSamples} samples.`,
     `- console.error: **${summary.consoleError}**; HTTP errors: **${summary.httpError}** (${summary.expectedOptional404} documented optional 404; ${summary.nonOptionalHttp} unclassified).`,
     `- Contexts/pages: ${state.contextCount}/${state.pageCount}; page.reload count: ${state.reloadCount}; Vite starts: ${state.viteStarts}.`,
-    '', '## Five-minute timeline', '',
-    '| Minute | Timestamp UTC | Scene | HUD time | pageerror cumulative | empty backgrounds cumulative | Actions since prior | Actions cumulative |',
-    '|---:|---|---|---|---:|---:|---:|---:|', timeline || '| — | No checkpoints | — | — | — | — | — | — |', '',
+    '', TASK === 'GOLD-1.15' ? '## Timeline: fresh game → first clue → one-hour soak' : '## Five-minute timeline', '',
+    '| Minute / event | Timestamp UTC | Scene | HUD time | pageerror cumulative | empty backgrounds cumulative | Actions since prior | Actions cumulative |',
+    '|---|---|---|---|---:|---:|---:|---:|', timeline || '| — | No checkpoints | — | — | — | — | — | — |', '',
     '## Save, reload, and Continue', '',
     state.persistence ? `- Manual save vs pre-save snapshot discrepancies: ${state.persistence.manualComparison.discrepancyCount}.\n- Reload + Continue discrepancies (flags/time/scene/location): ${state.persistence.reloadComparison.discrepancyCount}.\n- Persisted flags before/after: ${flags} / ${state.persistence.after.setFlags.map((x) => x.name).join(', ')}.\n- Tick ${state.persistence.before.tick} → ${state.persistence.after.tick}; HUD ${state.persistence.before.hudTime} → ${state.persistence.after.hudTime}.\n- Same context and Vite instance; the one permitted page.reload occurred at minute 30.` : '- Verification did not complete.',
     '', '## Menu audio probes', '',
@@ -683,13 +836,13 @@ function report(summary) {
     '### Failed requests', '', '| Timestamp UTC | Failure | URL |', '|---|---|---|', requestRows, '',
     '## Screenshots', '', screenshotRows, '',
     '## Gates and CI', '',
-    `- Local soak: ${state.failures.length ? 'FAIL' : 'PASS'}.`,
-    '- npm run playthrough:golden: pending gate entry.',
-    '- PR/merge CI run IDs: pending PR checks.', '',
+    `- Local soak: ${state.failures.length ? 'FAIL' : 'PASS'}; base campaign/negative entry: rc=${BASE_PLAYTHROUGH_RC ?? 'not captured'}.`,
+    '- The common `npm run playthrough:golden` entry invokes the existing `npm run golden:soak`; the golden workflow runs on `push` to `main` without a conditional and gives the job at least 75 minutes.',
+    '- CI run ID and merge-push conclusion are supplied by the workflow; see the run summary uploaded with this report.', '',
     '## Failures', '', failRows, '', '## Artifacts', '',
     `- ${relative(ROOT, REPORT_PATH).split(sep).join('/')}`,
     `- ${relative(ROOT, LOG_PATH).split(sep).join('/')}`,
-    `- Screenshots: ${relative(ROOT, REPORT_DIR).split(sep).join('/')}`,
+    `- Temporary screenshot output: ${SCREENSHOT_DIR}`,
   ].join('\n') + '\n'
 }
 function cOptional(summary) { return summary.expectedOptional404 > 0 }
@@ -757,7 +910,8 @@ async function stopVite() {
 }
 
 async function run() {
-  log('run_start', { branch: BRANCH, url: BASE_URL, campaign: campaign.title, campaignCommit: manifest.commit, treeSha256: manifest.tree?.sha256, durationSecondsRequired: 3600, checkpointIntervalSeconds: 300, actionIntervalSeconds: 45, backgroundMonitorSeconds: 5, saveReloadMinute: 30 })
+  log('run_start', { command: RUN_COMMAND, soakCommand: 'npm run golden:soak', orchestratorRunId: ORCHESTRATOR_RUN_ID, basePlaythroughRc: BASE_PLAYTHROUGH_RC, ciRunId: CI_RUN_ID, ciEvent: CI_EVENT, ciSha: CI_SHA, ciAttempt: CI_ATTEMPT, branch: BRANCH, url: BASE_URL, campaign: campaign.title, campaignCommit: manifest.commit, treeSha256: manifest.tree?.sha256, durationSecondsRequired: 3600, activeDurationSecondsRequired: 3600, firstCheckpoint: 'fresh-game-start', checkpointIntervalSeconds: 300, actionIntervalSeconds: 45, backgroundMonitorSeconds: 5, saveReloadMinute: 30 })
+  console.log(`${TASK} soak start: ${ID}; command=${RUN_COMMAND}; invoking npm run golden:soak; activeDurationSecondsRequired=3600`)
   await startVite()
   await startBrowser()
   await probeStartMenuAudio()
@@ -785,6 +939,6 @@ try {
   catch (error) { fail('Could not construct acceptance summary.', { error: String(error?.stack ?? error) }); summary = { durationSeconds: 0, activeDurationSeconds: 0, sessionActions: 0, maxActionGapSeconds: 0, checkpointCount: state.checkpoints.length, scenes: [], sceneCount: state.scenes.size, initialHudTime: state.initialHudTime, activeStartHudTime: state.activeStartHudTime, activeEndHudTime: state.activeEndHudTime, hudTimeDeltaMinutes: null, emptyBackgroundCount: state.emptyBackgroundCount, backgroundSamples: state.backgroundSamples, ...counts() } }
   log('run_summary', { verdict: state.failures.length ? 'FAIL' : 'PASS', ...summary, failures: state.failures, startAudio: state.startAudio, endAudio: state.endAudio, persistence: state.persistence, consoleErrors: state.consoleErrors, httpErrors: state.httpErrors, requestFailures: state.requestFailures })
   writeFileSync(REPORT_PATH, report(summary))
-  log('run_complete', { verdict: state.failures.length ? 'FAIL' : 'PASS', durationSeconds: summary.durationSeconds, activeDurationSeconds: summary.activeDurationSeconds, checkpoints: summary.checkpointCount, actions: summary.sessionActions, pageerror: summary.pageerror, emptyBackgroundCount: summary.emptyBackgroundCount, consoleError: summary.consoleError, httpError: summary.httpError, failures: state.failures, report: relative(ROOT, REPORT_PATH).split(sep).join('/'), log: relative(ROOT, LOG_PATH).split(sep).join('/') })
+  log('run_complete', { verdict: state.failures.length ? 'FAIL' : 'PASS', durationSeconds: summary.durationSeconds, browserDurationSeconds: summary.browserDurationSeconds, activeDurationSeconds: summary.activeDurationSeconds, firstClue: summary.firstClue, startCheckpoint: { scene: summary.startCheckpoint?.scene, hudTime: summary.startCheckpoint?.hudTime, flags: summary.startCheckpoint?.flags, clueFlags: summary.startCheckpoint?.clueFlags }, hudRegressions: summary.hudRegressions, checkpoints: summary.checkpointCount, actions: summary.sessionActions, maxActionGapSeconds: summary.maxActionGapSeconds, pageerror: summary.pageerror, emptyBackgroundCount: summary.emptyBackgroundCount, consoleError: summary.consoleError, httpError: summary.httpError, failures: state.failures, report: relative(ROOT, REPORT_PATH).split(sep).join('/'), log: relative(ROOT, LOG_PATH).split(sep).join('/') })
 }
 if (state.failures.length) process.exitCode = 1

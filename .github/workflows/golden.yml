@@ -45,7 +45,7 @@ jobs:
   golden-playthrough:
     name: golden-playthrough
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - name: Check out
         uses: actions/checkout@v4
@@ -70,8 +70,8 @@ jobs:
         timeout-minutes: 8
         run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund @sparticuz/chromium@131 playwright-core@1.49.1
 
-      - name: Run golden import, audit, playkit, warning-negative probe and browser save/load
-        timeout-minutes: 40
+      - name: Run golden checks, first clue, and mandatory one-hour soak
+        timeout-minutes: 82
         run: npm run playthrough:golden
 
       - name: Prove cf-play rejects a warning-only fixture
@@ -97,5 +97,16 @@ jobs:
           path: |
             _tools/reports/GOLD-1.14.md
             _tools/reports/GOLD-1.14.log
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Upload GOLD-1.15 one-hour timeline
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: GOLD-1.15-${{ github.run_id }}
+          path: |
+            _tools/reports/GOLD-1.15.md
+            _tools/reports/GOLD-1.15.log
           retention-days: 14
           if-no-files-found: warn
