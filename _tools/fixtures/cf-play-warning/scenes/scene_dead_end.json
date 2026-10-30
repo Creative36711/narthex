@@ -1,0 +1,9 @@
+{
+  "id": "scene_dead_end",
+  "label": "warning fixture: dead-end start scene",
+  "location": "location_test",
+  "fmv": "warning_fmv",
+  "states": [],
+  "slots": [],
+  "navigation": []
+}

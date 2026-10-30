@@ -1,0 +1,18 @@
+{
+  "regions": [
+    {
+      "id": "region_test",
+      "label": "Тестовый регион",
+      "locations": [
+        {
+          "id": "location_test",
+          "label": "Тестовая локация",
+          "position": { "x": 0, "y": 0 },
+          "travel_connections": [],
+          "scenes": ["scene_dead_end"],
+          "arrival_scene": "scene_dead_end"
+        }
+      ]
+    }
+  ]
+}

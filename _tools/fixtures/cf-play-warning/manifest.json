@@ -1,0 +1,13 @@
+{
+  "scenes": ["scene_dead_end.json"],
+  "entities": ["player_test.json"],
+  "rules": [],
+  "dialogues": [],
+  "arenas": [],
+  "quests": [],
+  "encounters": [],
+  "cutscenes": [],
+  "recipes": [],
+  "codex": [],
+  "fmv": ["warning_fmv.json"]
+}

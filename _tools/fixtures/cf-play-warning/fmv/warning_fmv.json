@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "id": "warning_fmv",
+  "start": "fragment_start",
+  "fragments": [
+    {
+      "id": "fragment_start",
+      "src": "fixture.webm",
+      "poster": "fixture.png",
+      "duration_ms": 1000,
+      "subtitles": []
+    }
+  ]
+}

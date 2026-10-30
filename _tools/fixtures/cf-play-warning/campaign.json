@@ -1,0 +1,18 @@
+{
+  "id": "cf-play-warning-fixture",
+  "title": "cf-play warning-only fixture",
+  "version": "1.0.0",
+  "engine_version": "0.8.0",
+  "min_engine": "0.8.0",
+  "package_format": 1,
+  "author": "GOLD-1.14",
+  "description": "Minimal deterministic warning-only check fixture.",
+  "tick_label": "ч",
+  "ticks_per_day": 24,
+  "starting_region": "region_test",
+  "starting_location": "location_test",
+  "starting_scene": "scene_dead_end",
+  "starting_tick": 0,
+  "default_player": "player_test",
+  "needs": []
+}
