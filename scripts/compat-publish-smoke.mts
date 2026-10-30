@@ -5,7 +5,7 @@
  *  1. инвентаризация пакета: объекты и отпечаток;
  *  2. первая публикация: контракт compat.json без ломающих изменений;
  *  3. applyPublish: версия, мин. движок и формат пакета в campaign.json;
- *  4. контракт попадает в экспорт (.chronicle);
+ *  4. контракт попадает в экспорт (.narthex);
  *  5. сравнение с прежней версией: удаление объекта → ломающее изменение
  *     и save_base_version = новая версия.
  */
@@ -62,7 +62,7 @@ const inv = storeInventory(store)
   const plan = await planPublish(store)
   check('2 без compat.json — первая публикация', plan.previous === null)
   check('2 ломающих изменений нет', plan.diff.breaking === false)
-  check('2 контракт формата chronicle-compat/1', plan.compat.format === COMPAT_FORMAT)
+  check('2 контракт формата narthex-compat/1', plan.compat.format === COMPAT_FORMAT)
   check('2 база сохранений не задана (поддерживаются все)', plan.compat.save_base_version === '')
   check('2 в контракте отпечаток инвентаризации', plan.compat.inventory_digest === inv.digest)
 

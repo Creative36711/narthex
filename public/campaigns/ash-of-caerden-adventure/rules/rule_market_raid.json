@@ -1,0 +1,54 @@
+{
+  "id": "rule_market_raid",
+  "label": "Налёт на рынок (день 7)",
+  "once": true,
+  "conditions": [
+    {
+      "type": "tick_elapsed",
+      "min_tick": 168
+    },
+    {
+      "type": "player_enters_location",
+      "location": "loc_market"
+    }
+  ],
+  "effects": [
+    {
+      "type": "start_combat",
+      "enemies": [
+        {
+          "entity": "npc_bandit",
+          "count": 3
+        }
+      ],
+      "arena": "arena_market",
+      "intro": "Крики, звон стали, перевёрнутые прилавки: бандиты Йорека грабят рынок средь бела дня! Бран прячется за своей лавкой. Патрульный стражник бросается на подмогу.",
+      "on_victory": [
+        {
+          "type": "set_flag",
+          "flag": "market_raid_repelled"
+        },
+        {
+          "type": "change_disposition",
+          "target": "faction_town",
+          "delta": 10
+        },
+        {
+          "type": "change_disposition",
+          "target": "faction_town_guard",
+          "delta": 10
+        },
+        {
+          "type": "show_message",
+          "text": "Налёт отбит. Бран цел, но рынок разгромлен. Город запомнит, кто встал за него с мечом, — а Йорек не остановится, пока его не остановят."
+        }
+      ],
+      "allies": [
+        {
+          "entity": "npc_guard",
+          "count": 1
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+{
+  "id": "grid-strategy",
+  "title": "Сетки, тактика, менеджмент",
+  "version": "0.1.0",
+  "runtime": "turn",
+  "provides": {
+    "kind": false,
+    "schema": "schema/grid.schema.json",
+    "panels": [
+      {
+        "id": "grid-map",
+        "title": "Карта сетки",
+        "slot": "center",
+        "schema": "schema/grid.schema.json",
+        "caps": ["grid"],
+        "order": 10
+      },
+      {
+        "id": "units",
+        "title": "Юниты",
+        "slot": "right",
+        "schema": "schema/unit.schema.json",
+        "caps": ["units"],
+        "order": 20
+      },
+      {
+        "id": "economy",
+        "title": "Экономика",
+        "slot": "bottom",
+        "caps": ["economy"],
+        "order": 30
+      }
+    ],
+    "validators": [
+      {
+        "id": "grid-connectivity",
+        "title": "Сетка связна",
+        "severity": "error",
+        "description": "Все проходимые клетки достижимы из точки старта юнитов.",
+        "caps": ["grid"]
+      },
+      {
+        "id": "unit-overflow",
+        "title": "Юнит вне сетки",
+        "severity": "error",
+        "description": "Позиция каждого юнита лежит внутри границ и на проходимой клетке.",
+        "caps": ["units"]
+      },
+      {
+        "id": "negative-income",
+        "title": "Отрицательный доход без причины",
+        "severity": "warn",
+        "description": "Экономика не уходит в минус на первом ходу без явного долга.",
+        "caps": ["economy"]
+      }
+    ],
+    "probes": [
+      {
+        "id": "path-exists",
+        "title": "Путь существует",
+        "kind": "graph",
+        "budget_ms": 3000,
+        "checks": [
+          "между спавном и целью есть путь A*",
+          "стоимость пути не превышает лимит карты"
+        ],
+        "caps": ["pathfinding"]
+      },
+      {
+        "id": "ai-turn",
+        "title": "Ход противника завершается",
+        "kind": "run",
+        "budget_ms": 30000,
+        "checks": [
+          "ход ИИ завершается за конечное число шагов",
+          "ИИ не ходит в занятую клетку"
+        ],
+        "caps": ["ai-director"]
+      }
+    ]
+  },
+  "saves": {
+    "namespace": "grid",
+    "version": 1,
+    "migrations": 0
+  },
+  "requires": {
+    "core": ">=1.0.0",
+    "packs": ["narrative"],
+    "caps": ["time"]
+  },
+  "caps": ["grid", "pathfinding", "units", "economy", "ai-director"]
+}

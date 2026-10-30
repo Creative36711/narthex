@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import './editor/packCatalog'
 import type { CampaignData } from './shared/types'
 import { loadCampaign } from './core/loader'
 import { GameEngine, hasSave, openSave, exportSaveText, preserveSave } from './core/engine'
@@ -73,7 +74,7 @@ export default function App() {
 
   // профиль на <html>: модалки рендерятся на уровне body (ModalHost),
   // поэтому и им нужны токены профиля. В режиме редактора классы снимаются —
-  // оболочка редактора живёт в фирменном стиле Chronicle Forge.
+  // оболочка редактора живёт в фирменном стиле Narthex.
   useEffect(() => {
     const root = document.documentElement
     // снимаем любой профиль, установленный ранее (каталог из 13 профилей —
@@ -181,7 +182,7 @@ export default function App() {
    * с человеческим объяснением и кнопкой копирования текста ошибки.
    */
   const reportStartFailure = (err: unknown): void => {
-    console.error('[chronicle] забег не стартовал:', err)
+    console.error('[narthex] забег не стартовал:', err)
     const stack = String((err as Error)?.stack ?? err)
     void showList(
       'Кампания сломана — забег не запущен',
@@ -425,7 +426,7 @@ export default function App() {
               const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }))
               const a = document.createElement('a')
               a.href = url
-              a.download = `${campaign.meta.id}-save.cfsave`
+              a.download = `${campaign.meta.id}-save.nxsave`
               a.click()
               setTimeout(() => URL.revokeObjectURL(url), 5000)
             }}

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Narrative campaign metadata",
+  "type": "object",
+  "required": ["id", "title", "starting_region", "starting_location", "starting_scene"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "starting_region": { "type": "string", "minLength": 1 },
+    "starting_location": { "type": "string", "minLength": 1 },
+    "starting_scene": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "language": "de",
+  "source_language": "ru",
+  "strings": {
+    "scene_outpost/npc_brann/greeting/2": "Der Weg ist frei.",
+    "dialogue/brann/choice/1": "Wer bist du?",
+    "scene_outpost/slot_gate/label": "Tor"
+  },
+  "sources": {
+    "scene_outpost/npc_brann/greeting/2": "9f2c1a7d",
+    "dialogue/brann/choice/1": "1b7e0c44",
+    "scene_outpost/slot_gate/label": "4a90be11"
+  }
+}

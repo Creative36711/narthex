@@ -1,0 +1,16 @@
+{
+  "id": "item_medallion",
+  "type": "item",
+  "category": "quest",
+  "label": "Медальон Вечного Света",
+  "description": "Серебряный медальон с эмблемой солнца. Реликвия храма Каэрдена, украденная много лет назад.",
+  "weight": 0.1,
+  "stackable": false,
+  "on_interact": {
+    "effects": [
+      { "type": "add_item", "item": "item_medallion", "quantity": 1 },
+      { "type": "set_flag", "flag": "medallion_taken" }
+    ],
+    "message": "Среди камней тускло блестит серебро: медальон с эмблемой солнца — реликвия отца Корвина."
+  }
+}

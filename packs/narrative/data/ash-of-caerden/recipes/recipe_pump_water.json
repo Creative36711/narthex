@@ -1,0 +1,15 @@
+{
+  "id": "recipe_pump_water",
+  "label": "Пустить насос",
+  "description": "Сорвать гайку ключом, прокачать ворот — и в бурдюк пойдёт вода из затопленного забоя.",
+  "inputs": [],
+  "tools": [
+    "item_wrench"
+  ],
+  "time_ticks": 1,
+  "output": {
+    "item": "item_waterskin",
+    "quantity": 1
+  },
+  "message": "Гайка поддалась, ворот пошёл — и в бурдюк застучала вода."
+}

@@ -1,0 +1,56 @@
+{
+  "format": 1,
+  "id": "realtime-wall-zone",
+  "title": "Realtime wall and zone probe",
+  "runtime": "realtime",
+  "world": "world.json",
+  "route": "route.json",
+  "step_ms": 20,
+  "summary_paths": [
+    "position.x",
+    "position.y",
+    "max_x",
+    "wall_contact",
+    "wall_contacts",
+    "zone_trigger_count",
+    "triggered_zones.checkpoint",
+    "world_state"
+  ],
+  "assertions": [
+    {
+      "name": "movement input changes the player position",
+      "path": "position.x",
+      "op": "changed"
+    },
+    {
+      "name": "the wall was contacted",
+      "path": "wall_contacts",
+      "op": "greater_than",
+      "expected": 0
+    },
+    {
+      "name": "the player never passes through the wall",
+      "path": "max_x",
+      "op": "less_than_or_equal",
+      "expected": 12
+    },
+    {
+      "name": "the checkpoint changes state exactly once",
+      "path": "zone_trigger_count",
+      "op": "equals",
+      "expected": 1
+    },
+    {
+      "name": "the checkpoint state is recorded",
+      "path": "triggered_zones.checkpoint",
+      "op": "equals",
+      "expected": true
+    },
+    {
+      "name": "the zone's state transition is visible",
+      "path": "world_state",
+      "op": "equals",
+      "expected": "checkpoint-activated"
+    }
+  ]
+}

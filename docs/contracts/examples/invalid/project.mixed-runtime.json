@@ -1,0 +1,11 @@
+{
+  "format": 2,
+  "id": "mixed-runtime-example",
+  "title": "Плохой пример: два рантайма в одном проекте",
+  "kind": "narrative",
+  "caps": ["narrative", "physics2d"],
+  "engine": {
+    "min": "0.9.0"
+  },
+  "entry": "world.json"
+}

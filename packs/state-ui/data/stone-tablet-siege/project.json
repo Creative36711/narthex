@@ -1,0 +1,44 @@
+{
+  "format": 2,
+  "id": "stone-tablet-siege",
+  "title": "[DEV] Пепельный круг: последняя рука",
+  "kind": "state-ui",
+  "caps": [
+    "narrative",
+    "scenes",
+    "dialogue",
+    "state-machine",
+    "cards",
+    "auto-battle"
+  ],
+  "cap_options": {
+    "state-machine": {
+      "mode": "core",
+      "version": 1
+    },
+    "cards": {
+      "mode": "core",
+      "version": 1
+    },
+    "auto-battle": {
+      "mode": "core",
+      "version": 1
+    }
+  },
+  "languages": [
+    "ru"
+  ],
+  "default_language": "ru",
+  "engine": {
+    "min": "0.9.0",
+    "tested": "0.9.0"
+  },
+  "entry": "world.json",
+  "manifest": "manifest.json",
+  "license": "CC-BY-4.0",
+  "authors": [
+    {
+      "name": "Narthex"
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://narthex.local/packs/state-ui/state-machine.schema.json",
+  "title": "State UI finite state machine",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "id", "initial", "states", "transitions"],
+  "properties": {
+    "version": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "initial": { "type": "string", "minLength": 1 },
+    "states": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[a-z][a-z0-9-]*$" },
+      "additionalProperties": { "$ref": "#/$defs/state" }
+    },
+    "transitions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/transition" }
+    }
+  },
+  "$defs": {
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1 },
+        "terminal": { "type": "boolean" }
+      }
+    },
+    "transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "from", "event", "to"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "from": { "type": "string", "minLength": 1 },
+        "event": { "type": "string", "minLength": 1 },
+        "to": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

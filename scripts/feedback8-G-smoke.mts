@@ -10,7 +10,7 @@
  */
 import { readFileSync, existsSync } from 'node:fs'
 import { Compiler } from 'inkjs/full'
-import { createStory, drainStory, parseLineTags } from '../src/core/dialogue'
+import { createStory, drainStory, parseLineTags } from '../packs/narrative/index'
 import { generateInk, newDlgDoc, type DlgDoc } from '../src/editor/dialogueDoc'
 import { DEFAULT_SETTINGS } from '../src/shared/settings'
 import type { MonolithDialogue } from '../src/shared/types'
@@ -77,7 +77,7 @@ function check(name: string, ok: boolean, extra = '') {
   check('G3 выбор голоса из доступных в системе', panel.includes('useTtsVoices') && panel.includes('tts_voice'))
   check('G3 выключатель озвучки', panel.includes('voice_muted'))
   const settings = readFileSync('src/shared/settings.ts', 'utf8')
-  check('G3 настройки в localStorage', settings.includes('chronicle-forge:settings'))
+  check('G3 настройки в localStorage', settings.includes('narthex:settings'))
   const menu = readFileSync('src/player/MainMenu.tsx', 'utf8')
   const hud = readFileSync('src/player/HUD.tsx', 'utf8')
   check('G3 настройки открываются из меню и из игры', menu.includes('SettingsPanel') && menu.includes('Настройки') && hud.includes('SettingsPanel'))

@@ -16,6 +16,7 @@
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 import { generateInk, migrateDlgDoc, newDlgDoc } from '../src/editor/dialogueDoc'
 import { inkToDlgDoc, regenInk } from '../src/editor/inkImport'
 import { EFFECT_SCHEMAS } from '../src/editor/schemas'

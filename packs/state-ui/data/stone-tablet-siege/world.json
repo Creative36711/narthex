@@ -1,0 +1,26 @@
+{
+  "regions": [
+    {
+      "id": "region_table",
+      "label": "Зал последней партии",
+      "parent_region": null,
+      "locations": [
+        {
+          "id": "loc_stone_table",
+          "label": "Каменный стол",
+          "position": {
+            "x": 640,
+            "y": 360
+          },
+          "travel_connections": [],
+          "scenes": [
+            "scene_entry",
+            "scene_last_hand"
+          ],
+          "arrival_scene": "scene_entry"
+        }
+      ],
+      "map_image": ""
+    }
+  ]
+}

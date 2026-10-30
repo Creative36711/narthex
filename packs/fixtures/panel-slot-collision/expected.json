@@ -1,0 +1,5 @@
+{
+  "accept": true,
+  "diagnostic_contains": [],
+  "note": "Пак фикстуры проходит check:packs. Второй и третий манифесты (rival-pack.json, empty-pack.json) проверяет smoke:pack-panels: два пака в один слот дают ошибку сборки, пак без панелей не меняет список вкладок."
+}

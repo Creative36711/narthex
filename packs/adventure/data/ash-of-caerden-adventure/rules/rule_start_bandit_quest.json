@@ -1,0 +1,11 @@
+{
+  "id": "rule_start_bandit_quest",
+  "label": "Старт квеста «Угроза с холмов»",
+  "once": true,
+  "conditions": [
+    { "type": "flag_set", "flag": "heard_about_bandits" }
+  ],
+  "effects": [
+    { "type": "start_quest", "quest": "quest_bandit_threat" }
+  ]
+}

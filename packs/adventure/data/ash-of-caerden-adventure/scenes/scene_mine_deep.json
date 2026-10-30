@@ -1,0 +1,105 @@
+{
+  "id": "scene_mine_deep",
+  "label": "Глубина шахты",
+  "location": "loc_mine",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_default",
+      "label": "Старые выработки",
+      "image": "assets/img/scenes/mine_deep.jpg",
+      "condition": null
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_skeleton",
+      "label": "Скелет рудокопа",
+      "type": [
+        "container"
+      ],
+      "shape": "rect",
+      "x": 200,
+      "y": 380,
+      "w": 320,
+      "h": 290,
+      "default_entity": "item_skeleton",
+      "condition": {
+        "not_flag": "skeleton_looted"
+      }
+    },
+    {
+      "id": "slot_medallion",
+      "label": "Медальон на камнях",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 675,
+      "y": 495,
+      "w": 130,
+      "h": 115,
+      "default_entity": "item_medallion",
+      "condition": {
+        "not_flag": "medallion_taken"
+      }
+    },
+    {
+      "id": "slot_secret_passage",
+      "label": "Тайный лаз",
+      "type": [
+        "container"
+      ],
+      "shape": "rect",
+      "x": 1030,
+      "y": 240,
+      "w": 195,
+      "h": 370,
+      "default_entity": "item_secret_passage",
+      "condition": {
+        "flag": "lena_told"
+      }
+    },
+    {
+      "id": "slot_pump",
+      "label": "Шахтный насос",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 560,
+      "y": 170,
+      "w": 210,
+      "h": 160,
+      "default_entity": "item_pump",
+      "condition": null,
+      "use_with": [
+        {
+          "item": "item_wrench",
+          "effects": [
+            {
+              "type": "open_craft",
+              "recipe": "recipe_pump_water"
+            }
+          ],
+          "message": "Ключ лёг на гайку, и ворот поддался на пол-оборота."
+        }
+      ]
+    }
+  ],
+  "navigation": [
+    {
+      "area": {
+        "x": 15,
+        "y": 300,
+        "w": 140,
+        "h": 320
+      },
+      "go_to_scene": "scene_mine_entrance",
+      "label": "← Наверх, к выходу"
+    }
+  ]
+}

@@ -107,8 +107,8 @@ check(
     && !/пока мастер не сказал «ок»|только после\s+«ок»/i.test(template),
 )
 check(
-  'инструкция: полный результат — .chronicle, JSON оставлен для правок без медиа',
-  /готовый `.chronicle`/.test(instruction)
+  'инструкция: полный результат — .narthex, JSON оставлен для правок без медиа',
+  /готовый `.narthex`/.test(instruction)
     && /«Файл → Импорт из JSON»/.test(instruction)
     && /бинарные медиа/.test(instruction),
 )

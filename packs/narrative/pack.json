@@ -1,0 +1,221 @@
+{
+  "id": "narrative",
+  "title": "Сюжет и ветвление",
+  "version": "1.1.0",
+  "runtime": "turn",
+  "provides": {
+    "kind": true,
+    "schema": "schema/narrative.schema.json",
+    "panels": [
+      {
+        "id": "scenes",
+        "title": "Сцены",
+        "slot": "left",
+        "schema": "schema/scene.schema.json",
+        "caps": [
+          "scenes"
+        ],
+        "order": 10
+      },
+      {
+        "id": "dialogue",
+        "title": "Диалоги",
+        "slot": "center",
+        "schema": "schema/dialogue.schema.json",
+        "caps": [
+          "dialogue"
+        ],
+        "order": 20
+      },
+      {
+        "id": "flow",
+        "title": "Граф ветвления",
+        "slot": "center",
+        "caps": [
+          "narrative"
+        ],
+        "order": 30
+      },
+      {
+        "id": "map",
+        "title": "Карта мира",
+        "slot": "center",
+        "schema": "schema/world.schema.json",
+        "caps": [
+          "map"
+        ],
+        "order": 40
+      },
+      {
+        "id": "quests",
+        "title": "Квесты",
+        "slot": "center",
+        "schema": "schema/quest.schema.json",
+        "caps": [
+          "quests"
+        ],
+        "order": 50
+      },
+      {
+        "id": "fmv",
+        "title": "FMV-фрагменты",
+        "slot": "center",
+        "schema": "schema/fmv.schema.json",
+        "caps": [
+          "fmv"
+        ],
+        "order": 60
+      }
+    ],
+    "validators": [
+      {
+        "id": "dangling-goto",
+        "title": "Переход в несуществующую сцену",
+        "severity": "error",
+        "description": "Любой goto, выбор или правило ссылается на существующую сцену.",
+        "caps": [
+          "scenes"
+        ]
+      },
+      {
+        "id": "unreachable-scene",
+        "title": "Недостижимая сцена",
+        "severity": "warn",
+        "description": "Каждая сцена достижима хотя бы одним маршрутом от стартовой.",
+        "caps": [
+          "narrative"
+        ]
+      },
+      {
+        "id": "dangling-ink-knot",
+        "title": "Узел ink не найден",
+        "severity": "error",
+        "description": "Все переходы диалога ведут в существующие узлы.",
+        "caps": [
+          "dialogue"
+        ]
+      },
+      {
+        "id": "dangling-quest-stage",
+        "title": "Переход в несуществующую стадию",
+        "severity": "error",
+        "description": "Каждый переход квеста ведёт в объявленную стадию того же квеста.",
+        "caps": [
+          "quests"
+        ]
+      }
+    ],
+    "probes": [
+      {
+        "id": "reachability",
+        "title": "Достижимость сцен",
+        "kind": "graph",
+        "budget_ms": 5000,
+        "checks": [
+          "каждая сцена достижима от стартовой",
+          "нет компонент, отрезанных от старта"
+        ],
+        "caps": [
+          "narrative"
+        ]
+      },
+      {
+        "id": "dialogue-coverage",
+        "title": "Покрытие диалогов",
+        "kind": "graph",
+        "budget_ms": 5000,
+        "checks": [
+          "каждый узел диалога достижим хотя бы одним выбором",
+          "нет узлов без выхода, кроме терминальных"
+        ],
+        "caps": [
+          "dialogue"
+        ]
+      },
+      {
+        "id": "route-smoke",
+        "title": "Прогон маршрутов",
+        "kind": "run",
+        "budget_ms": 60000,
+        "checks": [
+          "маршрут по сценам, диалогам и квестам реальной кампании проходит без паузы",
+          "на каждом шаге хост возвращает допустимое состояние",
+          "прогон детерминирован по seed",
+          "20 прогонов из 20 с одним seed дают одинаковый хеш состояния",
+          "включённый и выключенный view дают одинаковый хеш состояния"
+        ],
+        "caps": [
+          "narrative"
+        ]
+      },
+      {
+        "id": "quest-transitions",
+        "title": "Переходы стадий квестов",
+        "kind": "run",
+        "budget_ms": 5000,
+        "checks": [
+          "старт квеста выбирает первую объявленную стадию",
+          "флаги, предметы и вход в локацию продвигают стадии детерминированно",
+          "финальные стадии получают сохраняемый статус completed или failed"
+        ],
+        "caps": [
+          "quests"
+        ]
+      }
+    ],
+    "seams": [
+      {
+        "id": "narrative.sim",
+        "kind": "sim",
+        "signature": "(ctx: PackSimContext<NarrativeState, NarrativeEvent>) => NarrativeState",
+        "description": "Чистый переход сцен, диалогов и квестов на неизменяемых данных кампании.",
+        "caps": [
+          "narrative",
+          "scenes",
+          "dialogue",
+          "quests"
+        ]
+      },
+      {
+        "id": "narrative.view",
+        "kind": "view",
+        "signature": "(ctx: PackViewContext<NarrativeState, NarrativeFrame>) => void",
+        "description": "Проекция сцены, активного диалога и журнала только в draw-порт.",
+        "caps": [
+          "narrative",
+          "scenes",
+          "dialogue",
+          "quests"
+        ]
+      }
+    ]
+  },
+  "saves": {
+    "namespace": "narrative",
+    "version": 3,
+    "migrations": 3
+  },
+  "requires": {
+    "core": ">=1.0.0",
+    "packs": [],
+    "caps": []
+  },
+  "caps": [
+    "narrative",
+    "scenes",
+    "dialogue",
+    "map",
+    "inventory",
+    "needs",
+    "skills",
+    "relationships",
+    "trade",
+    "combat",
+    "quests",
+    "cutscenes",
+    "fmv",
+    "codex",
+    "crafting",
+    "time"
+  ]
+}

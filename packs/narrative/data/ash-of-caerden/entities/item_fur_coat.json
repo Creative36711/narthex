@@ -1,0 +1,12 @@
+{
+  "id": "item_fur_coat",
+  "type": "item",
+  "category": "misc",
+  "label": "Волчья шуба",
+  "description": "Тяжёлая шуба из волчьего меха. В ней не страшна ни ночь в лесу, ни сквозняк в казарме.",
+  "weight": 3,
+  "value": {
+    "silver": 34
+  },
+  "stackable": false
+}

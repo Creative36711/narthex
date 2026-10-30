@@ -7,9 +7,11 @@
  *  3. два подходящих предмета — выбор через useItemOnSlot(slotId, itemId);
  *  4. демо-пазл (сундук в таверне) и редактор/схема.
  */
+import { scenePlayerSource } from './scene-sources.mts'
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 import { EditorStore } from '../src/editor/store'
 import { exportMonolith } from '../src/editor/monolith'
 import type { CampaignData, SlotDef } from '../src/shared/types'
@@ -105,7 +107,7 @@ const chestSlot = tavernScene.slots.find((s) => s.id === 'slot_chest') as SlotDe
 {
   const se = readFileSync('src/editor/SceneEditor.tsx', 'utf8')
   check('4 редактор сцены: форма use_with', se.includes('Использование предметов на слоте') && se.includes('Израсходовать'))
-  const ss = readFileSync('src/player/SceneScreen.tsx', 'utf8')
+  const ss = scenePlayerSource()
   check('4 сцена игрока: модалка выбора', ss.includes('useModal') && ss.includes('slotUseOptions'))
   const schema = JSON.parse(readFileSync('docs/campaign.schema.json', 'utf8'))
   check('4 схема: SlotUseWith', !!schema.$defs.SlotUseWith && !!schema.$defs.SlotDef.properties.use_with)

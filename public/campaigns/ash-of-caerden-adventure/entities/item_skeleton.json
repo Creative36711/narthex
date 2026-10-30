@@ -1,0 +1,17 @@
+{
+  "id": "item_skeleton",
+  "type": "item",
+  "category": "container",
+  "label": "Скелет рудокопа",
+  "description": "Истлевшие кости в обрывках робы. Рядом — рассыпанный скарб.",
+  "weight": 100,
+  "stackable": false,
+  "on_interact": {
+    "effects": [
+      { "type": "add_item", "item": "item_silver", "quantity": 18 },
+      { "type": "add_item", "item": "item_healing_salve", "quantity": 1 },
+      { "type": "set_flag", "flag": "skeleton_looted" }
+    ],
+    "message": "В кошеле покойника — 18 серебряных марок и склянка целебной мази. Мёртвым они ни к чему."
+  }
+}

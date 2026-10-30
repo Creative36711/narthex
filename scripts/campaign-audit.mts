@@ -29,6 +29,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'fs'
 import { join, resolve, extname } from 'path'
 import { inflateSync } from 'zlib'
+import { auditCampaignFmv, withoutFmvExtension } from './campaign-fmv-audit.mts'
 
 // ─────────────────────────── PNG: декод углов ───────────────────────────
 
@@ -343,6 +344,33 @@ function parseArgs(argv: string[]): ParsedArgs {
   return { root: abs, json }
 }
 
+async function inspectFmvMedia(store: { basePath: string }, paths: string[]): Promise<Array<{ severity: 'error' | 'warning'; message: string }>> {
+  const findings: Array<{ severity: 'error' | 'warning'; message: string }> = []
+  for (const path of paths) {
+    if (!path || path.startsWith('/') || path.includes('\\') || path.split('/').includes('..')) {
+      findings.push({ severity: 'error', message: `Недопустимый FMV-путь медиа: «${path}». Используйте относительный путь внутри кампании.` })
+      continue
+    }
+    try {
+      const url = `${store.basePath}/${path.split('/').map(encodeURIComponent).join('/')}`
+      let response = await fetch(url, { method: 'HEAD', cache: 'no-store' })
+      if (response.status === 405 || response.status === 501) response = await fetch(url, { method: 'GET', cache: 'no-store' })
+      const contentType = (response.headers.get('content-type') ?? '').toLowerCase()
+      if (!response.ok || contentType.includes('text/html')) {
+        findings.push({ severity: 'error', message: `Не найден FMV-медиафайл «${path}».` })
+        continue
+      }
+      const expected = mimeByExt[extname(path.split(/[?#]/, 1)[0]!).toLowerCase()]
+      if (expected && contentType && !contentType.startsWith(expected) && !contentType.includes('application/octet-stream')) {
+        findings.push({ severity: 'warning', message: `FMV-файл «${path}» отдаётся как ${contentType}, ожидался ${expected}; проверьте воспроизведение.` })
+      }
+    } catch {
+      findings.push({ severity: 'error', message: `Не удалось проверить FMV-медиа «${path}».` })
+    }
+  }
+  return findings
+}
+
 async function main(): Promise<void> {
   const { root, json } = parseArgs(process.argv)
   CAMPAIGN_ROOT = resolve(root)
@@ -382,7 +410,33 @@ async function main(): Promise<void> {
     }
   }
 
-  const report = await validateCampaign(store, null)
+  // FMV — отдельное, строгое расширение legacy-схемы. Оно проверяет все
+  // поля NAR-3.2, ссылки и сами документы; только проверенные extension-ключи
+  // исключаются из вида старого валидатора, не меняя данные на диске.
+  const fmvAudit = auditCampaignFmv(CAMPAIGN_ROOT, store.manifest, store.jsonFiles)
+  const coreStore = withoutFmvExtension(store)
+
+  const report = await validateCampaign(coreStore, null)
+  report.structure.push(...fmvAudit.errors.map((message) => ({ severity: 'error' as const, message })))
+  const isNonLocalFmvRef = (path: string): boolean =>
+    /^(?:(?:https?|asset|tauri|ipc):\/\/|\/\/|(?:data|blob):)/i.test(path)
+  const localFmvMedia = fmvAudit.mediaPaths.filter((path) => !isNonLocalFmvRef(path))
+  const nonLocalFmvMedia = fmvAudit.mediaPaths.filter(isNonLocalFmvRef)
+  const fmvMediaFindings = await inspectFmvMedia(store, localFmvMedia)
+  report.media.push(...fmvMediaFindings)
+  if (localFmvMedia.length > 0) {
+    const missingFmvMedia = fmvMediaFindings.filter((finding) => finding.severity === 'error').length
+    report.media.push({
+      severity: 'info',
+      message: `Проверено FMV-ссылок на локальные медиа: ${localFmvMedia.length}; ${missingFmvMedia === 0 ? 'все найдены' : `ошибок ${missingFmvMedia}`}.`,
+    })
+  }
+  if (nonLocalFmvMedia.length > 0) {
+    report.media.push({
+      severity: 'warning',
+      message: `FMV содержит ${nonLocalFmvMedia.length} внешних или встроенных медиа-ссылок, которые headless-аудит не может проверить на локальном диске.`,
+    })
+  }
   // форматы, чьи углы headless не смог проверить: честный warning вместо тихого
   // пропуска — иначе сценарист проносит «прозрачный» спрайт с непрозрачными углами
   for (const [path, note] of imageNotes) {
@@ -396,7 +450,7 @@ async function main(): Promise<void> {
     console.log(JSON.stringify(report, null, 2))
   } else {
     console.log(`Headless-аудит кампании: ${CAMPAIGN_ROOT}`)
-    console.log(`Файлов в покрытии: json ${store.jsonFiles.size}, ink/md ${store.textFiles.size}`)
+    console.log(`Файлов в покрытии: json ${store.jsonFiles.size + fmvAudit.documents.size}, ink/md ${store.textFiles.size}`)
     console.log(formatCampaignAuditReport(report))
   }
   const counts = auditCounts(report)

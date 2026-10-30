@@ -1,5 +1,5 @@
 /**
- * Контракт версий Chronicle Forge.
+ * Контракт версий Narthex.
  *
  * В проекте четыре независимых номера, и их важно не путать (подробно —
  * `docs/compatibility.md`):
@@ -50,7 +50,7 @@ export const ENGINE_VERSION: string = readEngineVersion()
 
 /** Человекочитаемая сводка «что за движок» — для меню, отчётов и багрепортов. */
 export function engineStamp(): string {
-  return `Chronicle Forge ${ENGINE_VERSION} (формат пакета v${PACKAGE_FORMAT})`
+  return `Narthex ${ENGINE_VERSION} (формат пакета v${PACKAGE_FORMAT})`
 }
 
 // ────────────────────────── сравнение версий ──────────────────────────
@@ -134,7 +134,7 @@ export function checkEngine(required: string | undefined): EngineCheck {
     ok: false,
     required: req,
     actual,
-    message: `Кампания рассчитана на движок ${req} и новее, а запущен ${actual}. Обновите Chronicle Forge — иначе правила и механики кампании могут работать неверно.`,
+    message: `Кампания рассчитана на движок ${req} и новее, а запущен ${actual}. Обновите Narthex — иначе правила и механики кампании могут работать неверно.`,
   }
 }
 
@@ -161,7 +161,7 @@ export function checkPackage(declared: number | undefined, oldest = OLDEST_PACKA
       ok: false,
       declared: format,
       supported: PACKAGE_FORMAT,
-      message: `Кампания собрана в формате пакета v${format}, а этот движок понимает только до v${PACKAGE_FORMAT}. Обновите Chronicle Forge, чтобы открыть кампанию.`,
+      message: `Кампания собрана в формате пакета v${format}, а этот движок понимает только до v${PACKAGE_FORMAT}. Обновите Narthex, чтобы открыть кампанию.`,
     }
   }
   if (format < oldest) {

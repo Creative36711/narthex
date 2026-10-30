@@ -1,0 +1,21 @@
+{
+  "id": "item_club",
+  "type": "item",
+  "category": "weapon",
+  "label": "Дубина",
+  "description": "Тяжёлая дубовая палица, окованная железом. Простое оружие разбойников.",
+  "weight": 2.0,
+  "value": {
+    "silver": 3
+  },
+  "stackable": false,
+  "weapon_data": {
+    "skill": "club",
+    "damage": "1d6",
+    "damage_bonus": true,
+    "range": 1,
+    "attacks_per_round": 1,
+    "parry_capable": true,
+    "label": "Дубина"
+  }
+}

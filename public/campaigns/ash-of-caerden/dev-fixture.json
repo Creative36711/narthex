@@ -1,0 +1,42 @@
+{
+  "visibility": "internal",
+  "audience": "agents-and-smokes-only",
+  "created_by": "NAR-1 (полигон смоуков)",
+  "used_by": [
+    "cf-play check public/campaigns/ash-of-caerden",
+    "scripts/*-smoke.mts (~40)",
+    "scripts/playkit/cli.mts (example)",
+    "scripts/visual/playthrough.mjs"
+  ],
+  "reason": "Эталон narrative для оракула §2.1 и headless-проверок движка/редактора. Намеренно НЕ внесён в campaigns/index.json: игроку показывается «Кампаний пока нет». 27 изображений удалены в 60a2da5 (4,4 МБ → 524 КБ), ссылки в JSON оставлены для проверки путей.",
+  "remove_rule": "Удалять только вместе со всеми смоуками и оракулом cf-play check; замена — новая эталонная кампания через карточку миссии.",
+  "known_absent_images": [
+    "assets/img/arenas/camp_topdown.jpg",
+    "assets/img/arenas/cellar_topdown.jpg",
+    "assets/img/arenas/forest_road_topdown.jpg",
+    "assets/img/arenas/gates_topdown.jpg",
+    "assets/img/arenas/market_topdown.jpg",
+    "assets/img/maps/caerden_valley.jpg",
+    "assets/img/npc/aldric_neutral.jpg",
+    "assets/img/npc/bandit_neutral.jpg",
+    "assets/img/npc/bran_neutral.jpg",
+    "assets/img/npc/corvin_neutral.jpg",
+    "assets/img/npc/lena_neutral.jpg",
+    "assets/img/npc/maeva_neutral.jpg",
+    "assets/img/npc/player_portrait.jpg",
+    "assets/img/npc/rat_token.jpg",
+    "assets/img/npc/yorek_neutral.jpg",
+    "assets/img/scenes/barracks.jpg",
+    "assets/img/scenes/forest_edge.jpg",
+    "assets/img/scenes/gates_front_day.jpg",
+    "assets/img/scenes/gates_front_night.jpg",
+    "assets/img/scenes/guardroom.jpg",
+    "assets/img/scenes/market_day.jpg",
+    "assets/img/scenes/market_night.jpg",
+    "assets/img/scenes/mine_deep.jpg",
+    "assets/img/scenes/mine_entrance.jpg",
+    "assets/img/scenes/ravine_camp.jpg",
+    "assets/img/scenes/tavern_hall.jpg",
+    "assets/img/scenes/temple.jpg"
+  ]
+}

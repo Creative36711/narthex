@@ -14,6 +14,7 @@
  */
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
+import '../packs/narrative/operations'
 import { PRNG } from '../src/core/prng'
 import type { CampaignData, NpcDef } from '../src/shared/types'
 import type { CombatController, Combatant } from '../src/core/combat'
@@ -1022,7 +1023,7 @@ function startBasicCombat(e: GameEngine, extra: Record<string, unknown> = {}): C
 // ═══ §20. Мета-прогресс между забегами (B8b) ═══
 {
   // чистим мета-хранилище тестовой кампании
-  const metaKey = 'chronicle-forge:meta:ash-of-caerden'
+  const metaKey = 'narthex:meta:ash-of-caerden'
   localStorage.removeItem(metaKey)
 
   const mk = () => new GameEngine(synth((camp) => {

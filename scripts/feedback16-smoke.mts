@@ -1,3 +1,5 @@
+import { scenePlayerSource } from './scene-sources.mts'
+import '../packs/narrative/operations'
 /**
  * Смоук-ревизия фидбека 16 (описания сущностей):
  * 1. у NPC появилось описание (типы, редактор, заготовки);
@@ -9,12 +11,13 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 const root = process.cwd()
-const rd = (p: string) => readFileSync(join(root, p), 'utf-8')
+const rd = (p: string) => (p.endsWith('src/player/SceneScreen.tsx') ? scenePlayerSource() : readFileSync(join(root, p), 'utf-8'))
 const checks: Array<[string, boolean]> = []
 
 const types = rd('src/shared/types.ts')
 const engine = rd('src/core/engine.ts')
-const dialogue = rd('src/core/dialogue.ts')
+const effects = rd('src/core/effects.ts')
+const dialogue = rd('packs/narrative/dialogue.ts')
 const schemas = rd('src/editor/schemas.ts')
 const entEditor = rd('src/editor/EntityEditor.tsx')
 const dlgBuilder = rd('src/editor/DialogueBuilder.tsx')
@@ -41,7 +44,7 @@ checks.push(['GameState.desc_overrides для динамических опис�
 // 2) наведение: имя + описание, без двойного имени
 checks.push([
   'Сцена: тултип показывает имя и описание',
-  scene.includes('data-tip={`${entity.label}') && scene.includes('engine.descOf(entity.id)'),
+  scene.includes('data-tip={`${displayLabel}') && scene.includes('engine.descOf(entity.id)'),
 ])
 checks.push([
   'Бой: тултип жетона показывает имя и описание',
@@ -71,7 +74,7 @@ checks.push([
 ])
 checks.push([
   'Движок: применение действия и чтение актуального описания',
-  engine.includes("case 'set_description'") && engine.includes('descOf(') && engine.includes('setEntityDescription('),
+  effects.includes("case 'set_description'") && engine.includes('descOf(') && engine.includes('setEntityDescription('),
 ])
 checks.push([
   'Диалоги: эффект реплики + внешняя функция Ink',

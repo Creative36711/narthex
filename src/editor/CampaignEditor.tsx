@@ -4543,7 +4543,7 @@ function VersionsTab({ store, commit }: { store: EditorStore; commit: () => void
         <h4>Версии</h4>
         <p className="muted small">
           Версия кампании — для игрока и для совместимости сохранений. Версия движка
-          и формат пакета подставляются сами: их задаёт Chronicle Forge, не мастер.
+          и формат пакета подставляются сами: их задаёт Narthex, не мастер.
         </p>
         <div className="fld-row">
           <label className="fld">

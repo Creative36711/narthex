@@ -1,0 +1,51 @@
+{
+  "id": "quest_rats",
+  "label": "Крысы в подвале",
+  "description": "Маэва просит разобраться с гигантскими крысами в подвале «Дубового щита».",
+  "journal_entries": {
+    "started": "Маэва обещала кормить до отвала, если я перебью крыс в подвале таверны. Крыс, по её словам, две — и каждая с собаку ростом.",
+    "completed": "Крысы перебиты. Маэва расплатилась провизией, а горожане запомнили доброе дело."
+  },
+  "stages": [
+    {
+      "id": "started",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_rats",
+          "text_key": "started"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "completed",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "rats_rewarded"
+            }
+          ]
+        }
+      ],
+      "label": "Начало"
+    },
+    {
+      "id": "completed",
+      "final": true,
+      "outcome": "success",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_rats",
+          "text_key": "completed"
+        },
+        {
+          "type": "change_disposition",
+          "target": "faction_town",
+          "delta": 10
+        }
+      ],
+      "label": "Завершение"
+    }
+  ]
+}
