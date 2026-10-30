@@ -18,7 +18,8 @@ import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
-assert.match(src, /@version\s+1\.4\.90/, 'версия 1.4.90');
+const versionMatch = src.match(/^\/\/ @version\s+(\d+\.\d+\.\d+)\s*$/m);
+assert.ok(versionMatch, 'narthex.user.js must declare a version in x.y.z format');
 
 const sliceBetween = (startMarker, endMarker) => {
   const from = src.indexOf(startMarker);
@@ -181,4 +182,4 @@ assert.match(src, /Состояние = «Активна»/, 'названо с�
 assert.match(src, /await syncMissionState\(\)/, 'сверка миссии вызывается из тика');
 assert.match(src, /await clearStaleMissionPause\(\)/, 'стража паузы спрашивают до выхода');
 
-console.log('OK: narthex 1.4.90 — старый план снимается, а живая выдача при смене миссии сохраняется');
+console.log(`OK: narthex ${versionMatch[1]} — старый план снимается, а живая выдача при смене миссии сохраняется`);

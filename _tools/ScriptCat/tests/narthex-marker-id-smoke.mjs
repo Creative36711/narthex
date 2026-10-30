@@ -14,8 +14,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const V = '1.4.86';
-assert.match(src, /@version\s+1\.4\.86/, 'версия 1.4.86');
+const versionMatch = src.match(/^\/\/ @version\s+(\d+\.\d+\.\d+)\s*$/m);
+assert.ok(versionMatch, 'narthex.user.js must declare a version in x.y.z format');
+const V = versionMatch[1];
+assert.match(src, new RegExp(`@version\\s+${V.replace(/\./g, '\\.')}`), `версия ${V}`);
 
 // ── 1. isUuid и adoptIds ────────────────────────────────────────────────────
 const from = src.indexOf('const isUuid = (value) =>');
