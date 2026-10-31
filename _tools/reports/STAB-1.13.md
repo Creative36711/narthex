@@ -5,8 +5,6 @@
 - Dispatch: `4096f0cf-5705-8171-b94f-c2ac07fef08a`; run: `d004cac6-b17c-43d3-87e9-85d72595cb42`.
 - Рабочая ветка: закреплённая `arena/beb74077-narthex`; исходная задача просила `nar/...`, но ветку сессии не переименовывал и новую не создавал.
 - Перед изменениями рабочее дерево было чистым. Выданный snapshot `cffe79765b52aad42dc666f24d66b9fcd5cc1b16` был shallow и не имел общего предка с origin/main. После `git fetch origin main` текущая закреплённая ветка была обновлена на свежий `origin/main` `f169dfa9ef979c1c2e5aea771a5fa8159eb3190d` командой `git reset --hard`; до правок `HEAD` совпадал с `origin/main`.
-- PR: [#181](https://github.com/Creative36711/narthex/pull/181) (`arena/beb74077-narthex` → `main`).
-- Squash merge SHA: GitHub назначит после merge; итоговое значение будет в completion response.
 - Никакие пороги, allowlist или код `scripts/brand-guard.mts` не менялись. `package.json` и `public/ai/**` не изменялись; AI-артефакты не пересобирались.
 
 ## Baseline и результат проверки
@@ -103,8 +101,9 @@
 ## PR и diff stat
 
 - Base SHA: `f169dfa9ef979c1c2e5aea771a5fa8159eb3190d`.
-- PR: ожидает создания.
-- Squash merge SHA: появится после мержа.
+- PR: [#181](https://github.com/Creative36711/narthex/pull/181) (`arena/beb74077-narthex` → `main`).
+- Squash merge SHA: GitHub назначит после merge; итоговое значение будет в completion response.
+- GitHub Actions `screenshots` check (run `41174195568`, job `124458237767`) завершился failure до первого шага: annotation сообщает о проблеме оплаты/лимите расходов аккаунта; workflow steps не запускались. Это внешний блок, не результат локальных тестов.
 - `git diff --stat`:
 
 ```text
@@ -112,7 +111,7 @@
  README.md                                          |  20 +--
  ...270\320\267\320\260\321\206\320\270\321\217.md" |   4 +-
  _tools/ScriptCat/drive-gateway.gs                  |   4 +-
- _tools/reports/STAB-1.13.md                        | 142 +++++++++++++++++++++
+ _tools/reports/STAB-1.13.md                        | 141 +++++++++++++++++++++
  docs/ai-campaign-guide.md                          |  30 ++---
  docs/ai-start-instruction.md                       |   8 +-
  docs/book/02-editor.md                             |   2 +-
@@ -138,5 +137,5 @@
  scripts/tz12-profiles-smoke.mts                    |   2 +-
  src-tauri/Cargo.toml                               |   4 +-
  src-tauri/tauri.conf.json                          |   6 +-
- 30 files changed, 276 insertions(+), 123 deletions(-)
+ 30 files changed, 275 insertions(+), 123 deletions(-)
 ```
