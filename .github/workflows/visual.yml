@@ -176,6 +176,10 @@ jobs:
           PLAY=$?
           npm run playthrough:exam -- http://127.0.0.1:4173 out/visual/exam
           EXAM=$?
+          if [ "$EXAM" -ne 0 ]; then
+            EXAM_DIAGNOSTIC="$(grep -E 'RESULT:|finding=' out/visual/exam/exam.stdout.txt 2>/dev/null | tr '\n' ';' | cut -c1-1500)"
+            echo "::error title=playthrough-exam diagnostics::${EXAM_DIAGNOSTIC:-exam failed without a summary}"
+          fi
 
           CAMPAIGN_START_DIR=out/visual/campaign-start-preview
           rm -rf "$CAMPAIGN_START_DIR"
