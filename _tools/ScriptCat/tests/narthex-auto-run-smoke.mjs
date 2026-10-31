@@ -11,6 +11,8 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
+const version = src.match(/^\/\/ @version\s+(\S+)/m)?.[1];
+assert.ok(version, 'у активного userscript задана версия');
 
 const tickFrom = src.indexOf('  async function tick(fromToggle = false) {');
 const tickBody = src.slice(tickFrom, src.indexOf('  // ───────────────────────────── старт', tickFrom));
@@ -91,16 +93,17 @@ const navFrom = src.indexOf('  function navigateTo(role, why) {');
 const navTo = src.indexOf('  /**\n   * Отправка без подтверждения', navFrom);
 assert.ok(navFrom > 0 && navTo > navFrom, 'navigateTo на месте');
 const navSrc = src.slice(navFrom, navTo);
-assert.match(navSrc, /Date\.now\(\) - Number\(last\.at \|\| 0\) < 20_000/, 'повтор того же перехода в 20 секунд — зацикливание');
+assert.match(navSrc, /Date\.now\(\) - Number\(last\.at \|\| 0\) < 30_000/, 'повтор того же перехода в 30 секунд — зацикливание');
 assert.match(navSrc, /pause\(\s*`Не удалось открыть страницу/, 'вместо прыжков — пауза с причиной');
 
-const makeNav = ({ store, path = '/' }) => {
+const makeNav = ({ store, path = '/', now = Date.now() }) => {
   const pauses = [];
   const logs = [];
   const assigned = [];
   const location = { pathname: path, assign: (u) => assigned.push(String(u)) };
+  const clock = { now: () => now };
   const fn = new Function(
-    'GM_getValue', 'GM_setValue', 'norm', 'pause', 'log', 'location',
+    'GM_getValue', 'GM_setValue', 'norm', 'pause', 'log', 'location', 'Date',
     `${navSrc}; return navigateTo;`,
   );
   const navigateTo = fn(
@@ -110,6 +113,7 @@ const makeNav = ({ store, path = '/' }) => {
     (text, ctx) => pauses.push({ text, ctx }),
     (text) => logs.push(text),
     location,
+    clock,
   );
   return { navigateTo, pauses, logs, assigned };
 };
@@ -125,16 +129,20 @@ const role = { id: 'architect', name: 'Architect', url: 'https://arena.ai/agent/
   assert.equal(h.pauses.length, 0, 'паузы нет');
 }
 
-// 7.2. Тот же переход со той же страницы сразу — пауза, а не петля.
+// 7.2. Тот же переход до 30 секунд — пауза; на самой границе — разрешён.
 {
   const store = new Map();
-  const h = makeNav({ store, path: '/' });
-  h.navigateTo(role, 'ждём ответа');
-  const h2 = makeNav({ store, path: '/' });
-  assert.equal(h2.navigateTo(role, 'ждём ответа'), true, 'второй вызов обработан');
-  assert.equal(h2.assigned.length, 0, 'второго перехода нет');
-  assert.equal(h2.pauses.length, 1, 'цикл поставлен на паузу');
-  assert.match(h2.pauses[0].text, /Не удалось открыть страницу «Architect»/, 'человек видит причину');
+  makeNav({ store, path: '/', now: 1_000 }).navigateTo(role, 'ждём ответа');
+  const beforeLimit = makeNav({ store, path: '/', now: 30_999 });
+  assert.equal(beforeLimit.navigateTo(role, 'ждём ответа'), true, 'повтор обработан');
+  assert.equal(beforeLimit.assigned.length, 0, 'до лимита второго перехода нет');
+  assert.equal(beforeLimit.pauses.length, 1, 'цикл поставлен на паузу');
+  assert.match(beforeLimit.pauses[0].text, /Не удалось открыть страницу «Architect»/, 'человек видит причину');
+
+  const atLimit = makeNav({ store, path: '/', now: 31_000 });
+  assert.equal(atLimit.navigateTo(role, 'ждём ответа'), true, 'переход после полного окна разрешён');
+  assert.deepEqual(atLimit.assigned, [role.url], 'новый переход действительно открыт');
+  assert.equal(atLimit.pauses.length, 0, 'на границе цикла нет ложной паузы');
 }
 
 // 7.3. Со другой страницы тот же адрес — это не петля.
@@ -146,4 +154,4 @@ const role = { id: 'architect', name: 'Architect', url: 'https://arena.ai/agent/
   assert.equal(h.pauses.length, 0, 'паузы нет');
 }
 
-console.log('OK: narthex 1.4.63 — автоцикл сам находит страницу, не петляет и не забивает журнал');
+console.log(`OK: narthex ${version} — автоцикл сам находит страницу, не петляет и не забивает журнал`);

@@ -1,206 +1,170 @@
-import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+// Migration of the old dispatch-coordinator contract to the active
+// _tools/ScriptCat/narthex.user.js + Gateway 1.5. Do not resurrect
+// dispatch.user.js: these assertions exercise the current implementation.
+// Companion tests in this same 71-file suite retain the current equivalents
+// of the old send-control, message-freshness, Coordinator, role, and handoff
+// cases. Notion, Arena, and Drive are local models in these tests, not live checks.
 
-const source = await readFile(new URL('../dispatch.user.js', import.meta.url), 'utf8');
-const readme = await readFile(new URL('../README-авторизация.md', import.meta.url), 'utf8');
-const autoBudget = source.match(/const AUTO = \{ maxSends: (\d+),/);
-assert.ok(autoBudget, 'automatic send budget is declared');
-assert.equal(Number(autoBudget[1]), 2, 'automatic mode allows two total sends: initial send plus one retry');
-assert(source.includes('Достигнут предел в две отправки (исходная и один повтор) без маркера завершения.'), 'pause message matches the two-send budget');
-assert(readme.includes('максимум две отправки всего'), 'README documents the two-send maximum');
-assert(!/до трёх попыток|максимум три отправки|После третьей неудачи/.test(readme), 'README has no stale three-attempt limit');
-const sendButtonStart = source.indexOf('  function markManualSendRequired(pending, baselineMessageIds, at = Date.now()) {');
-const sendButtonEnd = source.indexOf('  function closeCompletionPanel()', sendButtonStart);
-assert(sendButtonStart >= 0 && sendButtonEnd > sendButtonStart, 'send-button selector helpers exist');
-const sendButtonHelpers = new Function('isVisible', `${source.slice(sendButtonStart, sendButtonEnd)}\nreturn { markManualSendRequired, isSendButtonCandidate, isSendButtonDisabled, isComposerFormButton, isNearComposer, isUniqueComposerSubmit, chooseSendButton, isSendButtonReady };`)(
-  (button) => Boolean(button?.visible),
-);
-const fakeSendButton = ({ aria = '', title = '', testId = '', text = '', value = '', name = '', id = '', type = '', role = '', tagName = 'BUTTON', tabIndex = -1, disabled = false, ariaDisabled = '', visible = true, isConnected = true, form = null, rect = null } = {}) => ({
-  disabled,
-  isConnected,
-  visible,
-  textContent: text,
-  value,
-  type,
-  role,
-  tagName,
-  tabIndex,
-  form,
-  getBoundingClientRect() { return rect; },
-  getAttribute(attribute) {
-    return ({ 'aria-label': aria, title, 'data-testid': testId, 'data-test-id': testId, 'aria-disabled': ariaDisabled, value, name, id, type, role })[attribute] || null;
+import assert from 'node:assert/strict';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+
+const testDir = new URL('.', import.meta.url);
+const userScriptUrl = new URL('../narthex.user.js', import.meta.url);
+const legacyDispatchUrl = new URL('../dispatch.user.js', import.meta.url);
+assert.equal(existsSync(legacyDispatchUrl), false, 'legacy dispatch.user.js stays absent');
+const source = readFileSync(userScriptUrl, 'utf8');
+assert.match(source, /^\/\/ ==UserScript==/m, 'the active userscript has a ScriptCat header');
+const version = source.match(/^\/\/ @version\s+(\d+\.\d+\.\d+)\s*$/m)?.[1];
+assert.ok(version, 'the active userscript declares an x.y.z version');
+assert.match(source, /^\/\/ @match\s+https:\/\/arena\.ai\/\*/m, 'the active script is bound to Arena');
+
+const tests = readdirSync(testDir).filter((name) => name.endsWith('.mjs'));
+assert.equal(tests.length, 71, 'all 71 existing ScriptCat tests remain in the suite');
+const currentContractCompanions = [
+  'narthex-auto-run-smoke.mjs',
+  'narthex-send-safety-smoke.mjs',
+  'narthex-send-truth-smoke.mjs',
+  'narthex-send-repeat-smoke.mjs',
+  'narthex-send-confirm-smoke.mjs',
+  'narthex-answer-parse-smoke.mjs',
+  'narthex-reply-boundary-smoke.mjs',
+  'narthex-coordinator-turn-smoke.mjs',
+  'narthex-coordinator-marker-smoke.mjs',
+  'narthex-coordinator-authority-smoke.mjs',
+  'narthex-marker-id-smoke.mjs',
+  'narthex-roles-cache-smoke.mjs',
+  'narthex-review-dispatch-integration.mjs',
+  'narthex-poll-gateway-integration.mjs',
+  'drive-gateway-arena-smoke.mjs',
+  'scriptcat-gateway-smoke.mjs',
+];
+for (const name of currentContractCompanions) {
+  assert.ok(tests.includes(name), `${name} preserves a current-contract companion scenario`);
+}
+
+const objectSource = (name) => {
+  const start = source.indexOf(`  const ${name} = {`);
+  const end = source.indexOf('\n  };', start);
+  assert.ok(start >= 0 && end > start, `${name} configuration exists`);
+  return source.slice(start, end + '\n  };'.length);
+};
+const config = new Function(`${objectSource('C')}\nreturn C;`)();
+const keys = new Function(`${objectSource('K')}\nreturn K;`)();
+
+const helperLines = ['const norm =', 'const rt =', 'const sel =', 'const taskState ='];
+const runtimeHelpers = helperLines.map((prefix) => {
+  const line = source.split('\n').find((candidate) => candidate.trimStart().startsWith(prefix));
+  assert.ok(line, `production helper exists: ${prefix}`);
+  return line;
+}).join('\n');
+
+const dispatchStart = source.indexOf('  function dispatchGuard(page, expect, role) {');
+const dispatchEnd = source.indexOf('\n  async function submitExecutor(', dispatchStart);
+assert.ok(dispatchStart > 0 && dispatchEnd > dispatchStart, 'dispatchGuard is present');
+const dispatchGuard = new Function(
+  `${runtimeHelpers}\n${source.slice(dispatchStart, dispatchEnd)}\nreturn dispatchGuard;`,
+)();
+const CARD_ID = '4096f0cf-5705-8159-bd88-c725d5ea075d';
+const MISSION_ID = '4086f0cf-5705-81ea-94c6-e47bd6c3ba78';
+const RUN_ID = '57b20404-787e-476e-96d6-b6548f27a3df';
+const OTHER_RUN_ID = '09238d7a-4791-4ff0-ba7b-9bc29e493061';
+const AGENT_ID = '01a18b9c-0c8b-71fd-8696-eb881e2e5217';
+const OTHER_AGENT_ID = '01a18b9c-0c8b-71fd-8696-eb881e2e5218';
+const isUuidStart = source.indexOf('  const isUuid = (value) =>');
+const isUuidEnd = source.indexOf('  /**', isUuidStart);
+assert.ok(isUuidStart > 0 && isUuidEnd > isUuidStart, 'production UUID validator exists');
+const isUuid = new Function(`${source.slice(isUuidStart, isUuidEnd)}\nreturn isUuid;`)();
+for (const [name, value] of Object.entries({ CARD_ID, MISSION_ID, RUN_ID, OTHER_RUN_ID, AGENT_ID, OTHER_AGENT_ID })) {
+  assert.equal(isUuid(value), true, `${name} is a valid production UUID`);
+}
+
+const text = (value) => ({ rich_text: [{ plain_text: value }] });
+const dispatchPage = ({ state = 'Running', runId = RUN_ID, owner = AGENT_ID } = {}) => ({
+  properties: {
+    'Dispatch State': { select: { name: state } },
+    'Run ID': text(runId),
+    'Recipient Agent ID': text(owner),
   },
 });
-const hiddenSendButton = fakeSendButton({ aria: 'Send message', visible: false });
-const disabledSendButton = fakeSendButton({ aria: 'Send message', disabled: true });
-const activeSendButton = fakeSendButton({ testId: 'composer-sendButton' });
-assert.equal(sendButtonHelpers.isSendButtonCandidate(activeSendButton), true, 'send-button test IDs are recognized even without an aria-label');
-assert.equal(sendButtonHelpers.chooseSendButton([hiddenSendButton, disabledSendButton, activeSendButton], (button) => button.visible), activeSendButton, 'visible enabled Send wins over an earlier hidden/disabled duplicate');
-assert.equal(sendButtonHelpers.isSendButtonReady(activeSendButton), true, 'visible enabled Send candidate is actionable');
-assert.equal(sendButtonHelpers.isSendButtonReady(fakeSendButton({ aria: 'Send message', ariaDisabled: 'true' })), false, 'aria-disabled Send is not clicked');
-const composerForm = { id: 'composer-form', elements: [], contains(button) { return button.form === this; } };
-const formSubmit = fakeSendButton({ type: 'submit', form: composerForm });
-composerForm.elements = [formSubmit];
-assert.equal(sendButtonHelpers.isSendButtonCandidate(formSubmit, composerForm), true, 'unique submit control associated with the composer form is a safe Send candidate');
-assert.equal(sendButtonHelpers.isUniqueComposerSubmit(formSubmit, composerForm), true, 'unlabelled form submit is accepted only when it is the sole submit control');
-const competingSubmit = fakeSendButton({ type: 'submit', form: composerForm });
-composerForm.elements = [formSubmit, competingSubmit];
-assert.equal(sendButtonHelpers.isSendButtonCandidate(formSubmit, composerForm), false, 'ambiguous unlabelled submit controls are not clicked');
-composerForm.elements = [formSubmit];
-assert.equal(sendButtonHelpers.isSendButtonCandidate(fakeSendButton({ aria: 'Send message', tagName: 'DIV' }), composerForm), false, 'a Send-labelled non-interactive container is not clicked');
-assert.equal(sendButtonHelpers.chooseSendButton([formSubmit], (button) => button.visible, composerForm), formSubmit, 'composer-form submit control is preferred as Send');
-assert.equal(sendButtonHelpers.isSendButtonCandidate(fakeSendButton({ type: 'submit' }), composerForm), false, 'unrelated submit controls are not treated as Send');
-const composerEditor = { getBoundingClientRect() { return { top: 100, bottom: 140, left: 20, right: 420 }; } };
-assert.equal(sendButtonHelpers.isNearComposer(fakeSendButton({ rect: { top: 145, bottom: 175, left: 350, right: 380 } }), composerEditor), true, 'nearby controls can be scoped to the editor without a form');
-assert.equal(sendButtonHelpers.isNearComposer(fakeSendButton({ rect: { top: 500, bottom: 530, left: 350, right: 380 } }), composerEditor), false, 'distant Send-labelled controls are not considered the composer Send button');
-const sendButtonBodyStart = source.indexOf('  function sendButton(editor = findComposer()) {');
-const sendButtonBodyEnd = source.indexOf('  function isSendButtonReady(', sendButtonBodyStart);
-const sendButtonBody = source.slice(sendButtonBodyStart, sendButtonBodyEnd);
-assert(sendButtonBody.includes('if (!editor) return null;') && sendButtonBody.includes('const pool = scoped.length ? scoped : nearby;'), 'real Send selection is limited to the composer form or its vicinity');
-const manualPending = sendButtonHelpers.markManualSendRequired({ dispatchId: 'dispatch-1', runId: 'run-1' }, ['chat-message-old'], 123);
-assert.equal(manualPending.manualSendRequired, true, 'unconfirmed Send is persisted as a manual-only action');
-assert.equal(manualPending.sentAt, undefined, 'manual fallback does not claim the prompt was sent');
-assert.deepEqual(manualPending.manualSendBaselineMessageIds, ['chat-message-old'], 'manual fallback captures a pre-click transcript baseline');
-const autoSendStart = source.indexOf('  async function scheduleAutoSend() {');
-const autoSendEnd = source.indexOf('  async function retryPending(', autoSendStart);
-assert(autoSendStart >= 0 && autoSendEnd > autoSendStart, 'automatic Send path exists');
-const autoSendBody = source.slice(autoSendStart, autoSendEnd);
-assert(autoSendBody.includes('if (pending.manualSendRequired)'), 'manual fallback suppresses subsequent automatic clicks for this Run');
-assert(autoSendBody.includes('await GM_setValue(autoCountKey(pending.dispatchId), sendCount + 1)'), 'observed manual send is counted against the existing per-Dispatch send limit');
-assert(autoSendBody.includes('pending.sendOrdinal = Math.min(AUTO.maxSends, sendCount + 1)'), 'manual send correlation preserves its bounded attempt ordinal');
-assert(autoSendBody.includes('markManualSendRequired(pending, baselineMessageIds)'), 'unconfirmed Send persists a safe manual fallback');
-assert(autoSendBody.includes('Нажмите Send вручную один раз'), 'false-negative message tells the user how to continue');
-assert(!autoSendBody.includes('throw Error("Не удалось подтвердить доступную кнопку Send'), 'button-detection false negative no longer escalates into a full automation stop');
-const noButtonStart = autoSendBody.indexOf('const button = await waitForSendButton(3000, 100, editor)');
-const noButtonEnd = autoSendBody.indexOf('if (!(await autoEnabled()) || (await autoIsPaused())) return;', noButtonStart);
-const noButtonBranch = autoSendBody.slice(noButtonStart, noButtonEnd);
-assert(noButtonBranch.includes('markManualSendRequired(pending, baselineMessageIds)'), 'no-button branch records the manual-only Run');
-assert(!noButtonBranch.includes('autoCountKey(') && !noButtonBranch.includes('button.click()'), 'no-button fallback neither consumes the send budget nor clicks');
-const dispatchStart = source.indexOf('  async function dispatch(task, roles, { retryRunning = false } = {}) {');
-const dispatchEnd = source.indexOf('  async function submitAgent(', dispatchStart);
-assert(dispatchStart >= 0 && dispatchEnd > dispatchStart, 'Dispatch helper exists for retry budget reset check');
-assert(source.slice(dispatchStart, dispatchEnd).includes('await GM_setValue(autoCountKey(p.id), 0);'), 'fresh Ready dispatch resets the prior retry budget');
-const retryStart = source.indexOf('  async function retryPending(pending, reason) {');
-const retryEnd = source.indexOf('  async function monitorVisibleChatError()', retryStart);
-assert(retryStart >= 0 && retryEnd > retryStart, 'automatic retry helper exists');
-const retryBody = source.slice(retryStart, retryEnd);
-assert(retryBody.indexOf('currentState !== "Running" || !sameRun') < retryBody.indexOf('const count ='), 'stale/non-Running attempts are discarded before retry-budget checks');
-const freshnessStart = source.indexOf('  function isFreshExecutorMessage(');
-const freshnessEnd = source.indexOf('  function agentResult(', freshnessStart);
-assert(freshnessStart >= 0 && freshnessEnd > freshnessStart, 'Executor freshness helpers exist');
-const freshnessHelpers = new Function(`${source.slice(freshnessStart, freshnessEnd)}\nreturn { isFreshExecutorMessage, uuidV7Timestamp, isFreshManualExecutorMessage, manualPreparedMatchesRun };`)();
-const { isFreshExecutorMessage, uuidV7Timestamp, isFreshManualExecutorMessage, manualPreparedMatchesRun } = freshnessHelpers;
-const submittedPrompt = { sentAt: 123, baselineMessageIds: ['chat-message-old-id'] };
-assert.equal(isFreshExecutorMessage('old-id', submittedPrompt), false, 'a pre-send marker-bearing transcript message is stale');
-assert.equal(isFreshExecutorMessage('new-id', submittedPrompt), true, 'a post-send message can be examined for a result marker');
-assert.equal(isFreshExecutorMessage('new-id', { ...submittedPrompt, baselineMessageIds: ['new-id'] }), false, 'accepts baseline IDs with or without DOM prefix');
-assert.equal(isFreshExecutorMessage('new-id', { ...submittedPrompt, baselineMessageIds: [] }), true, 'fresh message is permitted when send baseline was empty');
-assert.equal(isFreshExecutorMessage('new-id', { baselineMessageIds: [] }), false, 'messages are not fresh without a confirmed send timestamp');
-const adoptedStart = source.indexOf('  function isAdoptedExecutorRunCompletion(captured, result, pendingPrompt) {');
-const adoptedEnd = source.indexOf('  async function dispatch(', adoptedStart);
-assert(adoptedStart >= 0 && adoptedEnd > adoptedStart, 'manual fallback result adoption helper exists');
-const adoptedExecutor = new Function(`${source.slice(adoptedStart, adoptedEnd)}\nreturn { isAdoptedExecutorRunCompletion };`)();
-const manualFallbackPending = { dispatchId: 'dispatch-1', runId: 'run-1', manualSendRequired: true, manualSendBaselineMessageIds: ['chat-message-old'] };
-assert.equal(adoptedExecutor.isAdoptedExecutorRunCompletion({ messageId: 'fresh-id' }, { dispatch_id: 'dispatch-1', run_id: 'run-1', status: 'submitted' }, manualFallbackPending), true, 'fresh result for the exact Run may be adopted after one manual Send');
-assert.equal(adoptedExecutor.isAdoptedExecutorRunCompletion({ messageId: 'old' }, { dispatch_id: 'dispatch-1', run_id: 'run-1', status: 'submitted' }, manualFallbackPending), false, 'pre-fallback transcript messages cannot be adopted');
-assert.equal(adoptedExecutor.isAdoptedExecutorRunCompletion({ messageId: 'fresh-id' }, { dispatch_id: 'dispatch-1', run_id: 'run-other', status: 'submitted' }, manualFallbackPending), false, 'manual fallback cannot adopt a different Run');
-const makeUuidV7 = (ms) => {
-  const hex = BigInt(ms).toString(16).padStart(12, '0');
-  return `${hex.slice(0, 8)}-${hex.slice(8)}-7000-8000-000000000000`;
+const executor = { id: AGENT_ID, fn: 'Executor' };
+const expected = { dispatchId: CARD_ID, missionId: MISSION_ID, runId: RUN_ID, roleId: AGENT_ID };
+
+// Live-run guard: accept only the current Running dispatch, expected Run ID,
+// and intended recipient; every stale/missing/misdirected case remains red.
+assert.equal(dispatchGuard(dispatchPage(), expected, executor), '', 'matching live run is eligible');
+assert.equal(dispatchGuard(dispatchPage({ state: 'Ready' }), expected, executor), 'карточка уже не Running');
+assert.equal(dispatchGuard(dispatchPage({ state: 'Submitted' }), expected, executor), 'карточка уже не Running');
+assert.match(dispatchGuard(dispatchPage({ runId: '' }), expected, executor), /Run ID/);
+assert.match(dispatchGuard(dispatchPage(), { ...expected, runId: '' }, executor), /Run ID/);
+assert.match(dispatchGuard(dispatchPage({ runId: OTHER_RUN_ID }), expected, executor), /Run ID/);
+assert.match(dispatchGuard(dispatchPage(), { ...expected, roleId: OTHER_AGENT_ID }, executor), /другому агенту/);
+assert.match(dispatchGuard(dispatchPage({ owner: OTHER_AGENT_ID }), expected, executor), /другому агенту/);
+assert.match(
+  dispatchGuard(dispatchPage({ owner: '' }), expected, { ...executor, fn: 'Reviewer' }),
+  /не указан адресат/,
+);
+
+// Role identity is derived from the configured Arena URL, not a duplicate
+// field that could become stale or disagree with the target page.
+const agentStart = source.indexOf('  function agentIdFromUrl(url) {');
+const agentEnd = source.indexOf('\n  }\n', agentStart) + '\n  }'.length;
+assert.ok(agentStart > 0 && agentEnd > agentStart, 'agentIdFromUrl is present');
+const agentIdFromUrl = new Function(`${source.slice(agentStart, agentEnd)}\nreturn agentIdFromUrl;`)();
+assert.equal(agentIdFromUrl('https://arena.ai/agent/agent-7?tab=chat'), 'agent-7');
+assert.equal(agentIdFromUrl('https://arena.ai/agent/agent-7/'), 'agent-7');
+assert.equal(agentIdFromUrl('https://arena.ai/'), '', 'invalid role URL has no guessed identity');
+
+// Current bounded Arena-rejection recovery replaces the removed AUTO contract.
+// Exercise the production limits and writes, not obsolete AUTO.maxSends names.
+const retryStart = source.indexOf('  function retryRejectedHandoff(expect, alert, why) {');
+const retryEnd = source.indexOf('\n  /**', retryStart);
+assert.ok(retryStart > 0 && retryEnd > retryStart, 'retryRejectedHandoff is present');
+const retryFn = new Function(
+  'C', 'Date', 'minimalPrompt', 'GM_setValue', 'K', 'log',
+  `${source.slice(retryStart, retryEnd)}\nreturn retryRejectedHandoff;`,
+);
+const now = 1_000_000;
+const clock = { now: () => now };
+const state = new Map();
+const logs = [];
+const set = (key, value) => state.set(key, value);
+const retry = retryFn(config, clock, () => 'Прочитай актуальную карточку.', set, keys, (message) => logs.push(message));
+const sent = {
+  kind: 'dispatch', dispatchId: CARD_ID, runId: RUN_ID,
+  roleId: AGENT_ID, roleName: 'Builder', roleUrl: `https://arena.ai/agent/${AGENT_ID}`,
+  sentAt: now - 1_000, arenaResend: 0, text: 'original long task',
 };
-const preparedAt = Date.now() - 1000;
-const sentManual = { key: 'dispatch-1:run-1', sent: true, preparedAt };
-assert.equal(uuidV7Timestamp(makeUuidV7(preparedAt - 1)), preparedAt - 1, 'UUIDv7 ID timestamp is decoded');
-assert.equal(isFreshManualExecutorMessage(makeUuidV7(preparedAt - 1), sentManual), false, 'pre-send transcript response is rejected');
-assert.equal(isFreshManualExecutorMessage(makeUuidV7(preparedAt + 1), sentManual), true, 'manual send can be recovered from a post-send UUIDv7 response');
-assert.equal(isFreshManualExecutorMessage(makeUuidV7(preparedAt + 1), { ...sentManual, sent: false }), false, 'an unsent manual preparation is not treated as a reply');
-assert.equal(manualPreparedMatchesRun(sentManual, 'dispatch-1', 'run-1'), true, 'manual send is correlated to its exact Dispatch/Run');
-assert.equal(manualPreparedMatchesRun(sentManual, 'dispatch-1', 'run-old'), false, 'manual send cannot authorize another Run');
-const manualSendStart = source.indexOf('  async function sendPreparedManualPrompt(');
-const manualSendEnd = source.indexOf('  async function prepareManualPrompt(', manualSendStart);
-const manualSendBody = source.slice(manualSendStart, manualSendEnd);
-assert(manualSendBody.includes('baselineMessageIds') && manualSendBody.includes('await GM_setValue(C.pendingPrompt, sentPrompt);'), 'manual Send preserves post-send correlation and baseline');
-const manualNoButtonEnd = manualSendBody.indexOf('    // Persist one-shot send intent plus a pre-send transcript baseline.');
-const manualNoButtonBody = manualSendBody.slice(0, manualNoButtonEnd);
-assert(manualNoButtonBody.includes('markManualSendRequired(pending, baselineMessageIds)'), 'manual-mode false negative is persisted as a manual-only Run');
-assert(manualNoButtonBody.includes('await GM_setValue(C.pendingPrompt, manualPending);'), 'manual fallback survives mutation-driven re-entry');
-assert(!manualNoButtonBody.includes('button.click()'), 'manual fallback never clicks an unconfirmed Send control');
-const manualPrepareStart = source.indexOf('  async function prepareManualPrompt() {');
-const manualPrepareEnd = source.indexOf('  async function scheduleAutoSend()', manualPrepareStart);
-const manualPrepareBody = source.slice(manualPrepareStart, manualPrepareEnd);
-assert(manualPrepareBody.indexOf('if (pending.manualSendRequired)') < manualPrepareBody.indexOf('fillComposer(editor, pending.prompt)'), 'manual-only Run blocks re-insertion and any later automatic send attempt');
-assert(!manualSendBody.includes('await GM_setValue(C.pendingPrompt, null);'), 'manual Send does not erase the correlation before the reply arrives');
-assert(!source.includes('copy(coordinatorNote)'), 'Coordinator dispatch notification is not copied to clipboard');
-assert(!source.includes('Текст уведомления Координатору скопирован в буфер'), 'obsolete clipboard log is absent');
-assert(!source.includes('GM_setClipboard'), 'userscript no longer writes Coordinator notifications to clipboard');
-
-const start = source.indexOf('  function coordinatorTurnFooter(');
-const end = source.indexOf('  function createCoordinatorTurn(', start);
-assert(start >= 0 && end > start, 'Coordinator pure helper block exists');
-const helpers = new Function(`${source.slice(start, end)}\nreturn { coordinatorResult, coordinatorTurnMatches };`)();
-const { coordinatorResult, coordinatorTurnMatches } = helpers;
-
-const turn = { campaignId: 'camp-1', turnId: 'turn-1', dispatchId: 'dispatch-1', runId: 'run-7' };
-const validLine = 'CF_COORDINATOR_RESULT {"campaign_id":"camp-1","turn_id":"turn-1","status":"completed","dispatch_id":"dispatch-1","run_id":"run-7"}';
-assert.deepEqual(coordinatorResult(`Done.\r\n${validLine}\r\n`), {
-  campaign_id: 'camp-1', turn_id: 'turn-1', status: 'completed', dispatch_id: 'dispatch-1', run_id: 'run-7',
+assert.equal(retry(sent, { messageId: 'dead-message-1', text: 'Something went wrong' }, 'HTTP 500'), true);
+assert.equal(state.get(keys.deadSend), 'dead-message-1', 'rejected message is marked dead before retry');
+assert.deepEqual(state.get(keys.pending), {
+  roleId: AGENT_ID, roleName: 'Builder', roleUrl: `https://arena.ai/agent/${AGENT_ID}`,
+  text: 'Прочитай актуальную карточку.', at: now, sendTries: 0,
 });
-assert.equal(coordinatorTurnMatches(turn, coordinatorResult(validLine)), true);
-assert.equal(coordinatorTurnMatches(turn, coordinatorResult(validLine.replace('run-7', 'run-old'))), false);
-assert.equal(coordinatorTurnMatches(turn, coordinatorResult(validLine.replace('turn-1', 'turn-old'))), false);
-assert.equal(coordinatorTurnMatches({ campaignId: 'camp-1', turnId: 'turn-1' }, coordinatorResult('CF_COORDINATOR_RESULT {"campaign_id":"camp-1","turn_id":"turn-1","status":"completed"}')), true, 'campaign queue turns do not require Dispatch/Run IDs');
-assert.equal(coordinatorResult(`${validLine}\nДополнительный текст`), null, 'marker must be the final non-empty line');
-assert.equal(coordinatorResult(`\u200b${validLine.replaceAll(' ', '\u00a0')}`)?.campaign_id, 'camp-1', 'normalizes invisible separators and NBSP');
-assert.equal(coordinatorResult('CF_COORDINATOR_RESULT {broken'), null, 'rejects malformed JSON');
+assert.equal(state.get(keys.expect).arenaResend, 1, 'exactly one short retry is recorded');
+assert.equal(state.get(keys.expect).sentAt, null, 'delivery evidence is cleared before resend');
+assert.equal(state.get(keys.expect).verified, false, 'resend is not treated as delivered');
+assert.match(logs.join('\n'), /Второй отказ подряд — пауза/);
 
-assert(source.includes('function coordinatorMarkerRecoveryPrompt(previousTurn, nextTurn, attempt, previousMessageId)'), 'Coordinator missing-marker recovery helper exists');
-assert(source.includes('не повторяй уже выполненные изменения'), 'recovery prevents duplicate Coordinator mutations');
-assert(source.includes('Dispatch ${previousTurn.dispatchId}'), 'recovery retains the original Dispatch correlation');
-assert(source.includes('не является причиной просить участия Мастера'), 'missing marker alone does not ask for Master intervention');
-assert(source.includes('kind: "coordinator-marker-recovery"'), 'missing-marker recovery is routed through automatic Coordinator handoff');
-assert(source.includes('setTimeout(scheduleCoordinatorHandoff, 250)'), 'recovery handoff is scheduled automatically');
-assert(source.includes('nextTurn.baselineMessageIds = Array.from(document.querySelectorAll'), 'recovery correlates only responses sent after its prompt');
-assert(source.includes('coordinatorMarkerRetries: 2'), 'automatic reminders are bounded before pausing safely');
-assert(!source.includes('вручную попросите Координатора завершить его точным маркером'), 'missing marker no longer instructs the Master to prompt manually');
+for (const stale of [
+  { ...sent, arenaResend: config.arenaResendMax },
+  { ...sent, sentAt: now - config.arenaRetryMs - 1 },
+  { ...sent, roleId: '' },
+  { ...sent, sentAt: null },
+]) {
+  const untouched = new Map();
+  const shouldNotRetry = retryFn(config, clock, () => 'no resend', (key, value) => untouched.set(key, value), keys, () => {});
+  assert.equal(shouldNotRetry(stale, { messageId: 'old-or-invalid' }, 'error'), false, 'stale or exhausted handoff is not resent');
+  assert.equal(untouched.size, 0, 'rejected retry leaves queue and expectation unchanged');
+}
 
-const autoStart = source.indexOf('  async function scheduleCoordinatorAuto() {');
-const autoEnd = source.indexOf('  let coordinatorResultTimer', autoStart);
-const autoBody = source.slice(autoStart, autoEnd);
-assert(autoBody.indexOf('if (await GM_getValue(C.pendingCoordinatorTurn, null)) return;') < autoBody.indexOf('const queued ='), 'pending Coordinator turn gates queue checks/dispatch');
-assert(!source.includes('patch(campaign.id'), 'userscript must not mutate campaign fields automatically');
-assert(source.includes('scheduleCoordinatorHandoff();'), 'Coordinator handoff remains scheduled');
-console.log('Coordinator cycle smoke checks passed.');
-assert(source.includes('async function queueDispatchPreflightRepair(coordinator, task, reason)'), 'invalid Ready tasks queue a scoped Coordinator repair');
-assert(source.includes('kind: "dispatch-preflight"'), 'preflight repair is correlated as a Coordinator turn');
-assert(source.includes('Координатор исправил preflight-задачу'), 'Coordinator reply is verified before retrying the Executor');
-assert(source.includes('Координатор не устранил ошибку подготовки задачи'), 'automation gates a retry if the Coordinator did not repair the task');
-console.log('Coordinator preflight repair smoke checks passed.');
-const coordinatorAutoStart = source.indexOf('  async function scheduleCoordinatorAuto() {');
-const coordinatorAutoEnd = source.indexOf('  let coordinatorResultTimer', coordinatorAutoStart);
-assert(source.slice(coordinatorAutoStart, coordinatorAutoEnd).includes('let dispatchingTask = null;'), 'auto-dispatch failure handler keeps the current task in scope');
-assert(source.slice(coordinatorAutoStart, coordinatorAutoEnd).includes('let roles = [];'), 'role registry remains available to dispatch error recovery');
-assert(source.includes('async function clearForeignCoordinatorHandoffState(activeCoordinatorId)'), 'foreign Coordinator handoff state cleanup helper exists');
-assert(source.slice(coordinatorAutoStart, coordinatorAutoEnd).includes('await clearForeignCoordinatorHandoffState(coordinator.id);'), 'Coordinator auto-dispatch clears stale handoff state from a replaced Coordinator agent');
-const identityStart = source.indexOf('  function extractAgentIdFromUrl(');
-const identityEnd = source.indexOf('  async function roleList()', identityStart);
-assert(identityStart >= 0 && identityEnd > identityStart, 'role agent identity helpers exist');
-const { extractAgentIdFromUrl, resolveRoleAgentIdentity } = new Function(`${source.slice(identityStart, identityEnd)}\nreturn { extractAgentIdFromUrl, resolveRoleAgentIdentity };`)();
-assert.equal(extractAgentIdFromUrl('https://arena.ai/agent/01a14fa6-df25-71d3-8238-5bbbc91bd7a4'), '01a14fa6-df25-71d3-8238-5bbbc91bd7a4', 'extracts agent ID from Arena URL');
-assert.deepEqual(
-  resolveRoleAgentIdentity('01a14fa6-df25-ё-8238-5bbbc91bd7a4', 'https://arena.ai/agent/01a14fa6-df25-71d3-8238-5bbbc91bd7a4'),
-  { id: '01a14fa6-df25-71d3-8238-5bbbc91bd7a4', url: 'https://arena.ai/agent/01a14fa6-df25-71d3-8238-5bbbc91bd7a4' },
-  'URL takes precedence when Arena Agent ID is stale or mistyped',
-);
-assert.deepEqual(
-  resolveRoleAgentIdentity('01a14fa6-df25-71d3-8238-5bbbc91bd7a4', ''),
-  { id: '01a14fa6-df25-71d3-8238-5bbbc91bd7a4', url: 'https://arena.ai/agent/01a14fa6-df25-71d3-8238-5bbbc91bd7a4' },
-  'synthesizes Arena Agent URL when only Arena Agent ID is provided',
-);
-assert.deepEqual(
-  resolveRoleAgentIdentity('', 'https://arena.ai/agent/01a14fa6-df25-71d3-8238-5bbbc91bd7a4'),
-  { id: '01a14fa6-df25-71d3-8238-5bbbc91bd7a4', url: 'https://arena.ai/agent/01a14fa6-df25-71d3-8238-5bbbc91bd7a4' },
-  'derives Arena Agent ID when only Arena Agent URL is provided',
-);
-assert(source.includes('function findExecutorRoleForTask(task, roles)'), 'Executor lookup resolves by role name first');
-assert(source.includes('function taskMatchesExecutorRole(task, role, pageAgentId = role?.id)'), 'Executor task matching supports replaced agents by role name');
-assert(source.includes('async function isActionLockHeld()'), 'stale action locks auto-expire safely');
+// The Coordinator emits a mission/turn result marker; its current companion
+// test executes the full turn and the marker-missing/recovery tests stay active.
+const coordinatorStart = source.indexOf('  function coordinatorPrompt(');
+const coordinatorEnd = source.indexOf('\n  // ───────────────────────────── ход исполнителя', coordinatorStart);
+assert.ok(coordinatorStart > 0 && coordinatorEnd > coordinatorStart, 'coordinatorPrompt is present');
+const coordinator = source.slice(coordinatorStart, coordinatorEnd);
+assert.match(coordinator, /CF_COORDINATOR_RESULT.*mission_id.*mission\.id.*turn_id.*turnId/s, 'marker carries current mission and turn identities');
+assert.match(coordinator, /mission_id and turn_id — из этого промпта|mission_id и turn_id — из этого промпта/);
+assert.doesNotMatch(coordinator, /campaign_id/, 'obsolete campaign-based identity is not used');
+
+console.log(`OK: narthex ${version} — current dispatch/run guard, one bounded retry, URL identity, no legacy userscript`);

@@ -18,23 +18,48 @@ const hashBlock = cut('  function textHash(', '  async function sendToRole(');
 const tickPrefix = cut('  async function tick(', '    // Ложный отказ проверки мержа');
 const reminderBlock = cut('      await sendToRole(role, markerReminder(', '      return true;');
 const LOG = 'log_0123456789abcdef';
-const FOLDER = '19ljf2TgeDg6j-jIamGira8K8_2NjC1BT';
+const FOLDER = 'logs-folder-0000000001';
 const QUEUE = 'cfn-poll-journal-queue';
 const KEY = 'test-only-key';
 const EXPECT = { ref: 'dispatch-1', runId: 'run-1', logId: LOG };
 
 function backend() {
   const files = new Map([[LOG, { content: '# Исходный журнал\n', parent: FOLDER, mime: 'text/plain', writes: 0 }]]);
+  const rootId = 'drive-root-0000000001';
+  const arenaId = 'arena-folder-00000001';
+  const payloadsId = 'payloads-folder-000001';
+  const folders = new Map([
+    [rootId, { id: rootId, name: 'root', parent: '', children: [arenaId] }],
+    [arenaId, { id: arenaId, name: 'Arena', parent: rootId, children: [FOLDER, payloadsId] }],
+    [FOLDER, { id: FOLDER, name: 'logs', parent: arenaId, children: [] }],
+    [payloadsId, { id: payloadsId, name: 'payloads', parent: arenaId, children: [] }],
+  ]);
+  const list = (items) => {
+    let index = 0;
+    return { hasNext: () => index < items.length, next: () => items[index++] };
+  };
+  const folderApi = (id) => {
+    const folder = folders.get(id);
+    return {
+      getId: () => folder.id,
+      getName: () => folder.name,
+      getFoldersByName: (name) => list(folder.children.map((childId) => folders.get(childId)).filter((child) => child?.name === name).map((child) => folderApi(child.id))),
+      createFolder(name) {
+        const childId = `created-folder-${folders.size}`;
+        folders.set(childId, { id: childId, name, parent: id, children: [] });
+        folder.children.push(childId);
+        return folderApi(childId);
+      },
+    };
+  };
   const drive = {
+    getRootFolder: () => folderApi(rootId),
     getFileById(id) {
       const f = files.get(id);
       if (!f) throw new Error('Файл не найден');
       return {
         getMimeType: () => f.mime,
-        getParents: () => {
-          let next = true;
-          return { hasNext: () => next, next: () => { next = false; return { getId: () => f.parent }; } };
-        },
+        getParents: () => list([{ getId: () => f.parent }]),
         getBlob: () => ({ getDataAsString: () => f.content }),
         setContent: (value) => { f.content = value; f.writes += 1; },
       };
@@ -52,7 +77,7 @@ function backend() {
   });
   vm.runInContext(`${gs}\nglobalThis.post = doPost;`, context);
   const post = (payload) => JSON.parse(context.post({ postData: { contents: JSON.stringify(payload) } }).text);
-  return { files, post };
+  return { files, folders, post };
 }
 
 function group(question, options, { noInput = false, noLabel = false, noSkip = false, disabled = false, onSubmit = () => {}, onSkip = () => {} } = {}) {
@@ -393,4 +418,4 @@ const markers = (text) => text.match(/<!-- CF_DISPATCH [^\n]*:poll:[^\n]* -->/g)
   assert.match(reminderBlock, /logId: expect\.logId/);
 }
 
-console.log('OK: реальный userscript + Drive Gateway — маркер, подтверждение, очередь, duplicate, перезагрузка и Skip');
+console.log('OK: локальный harness настоящего userscript + Gateway doPost — Drive/Notion/DOM смоделированы; маркер, подтверждение, очередь, duplicate и Skip');

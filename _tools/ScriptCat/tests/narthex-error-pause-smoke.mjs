@@ -17,6 +17,7 @@ const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8')
 // 1. Версия и новый адрес ntfy.
 const versionMatch = src.match(/^\/\/ @version\s+(\d+\.\d+\.\d+)\s*$/m);
 assert.ok(versionMatch, 'narthex.user.js must declare a version in x.y.z format');
+const version = versionMatch[1];
 assert.match(src, /@connect\s+ntfy\.sh/, 'ntfy.sh разрешён в @connect');
 
 // 2. Журнал: ограничен, очищается, счётчик виден.
@@ -103,18 +104,27 @@ assert.match(src, /ui\.ntfy\), onclick|getElementById\(ui\.ntfy\)\.onclick/, 'е
 assert.match(src, /function ntfyDialog\(\)/, 'диалог ntfy с тестами');
 assert.match(src, /Тихий тест/, 'тихий тест доступен из панели');
 assert.match(src, /Громкий тест/, 'громкий тест доступен из панели');
-// 1.4.63: перезагрузка страницы появилась ровно в одном месте — адресат
-// открылся, но не отрисовался. Видимая ошибка на экране страницу не трогает.
+// Перезагрузки ограничены двумя конкретными recovery-путями: временный
+// отказ Arena «Something went wrong» и неотрисовавшаяся страница адресата.
 const reloadSites = src.split('\n').filter((line) => line.includes('location.reload()'));
-assert.equal(reloadSites.length, 1, 'перезагрузка страницы ровно одна');
+assert.equal(reloadSites.length, 2, 'перезагрузка есть только в двух ограниченных recovery-путях');
+const markerMissingStart = src.indexOf('async function markerMissing(');
+const reloadableStart = src.indexOf('const isReloadable = /something went wrong|please try again/i.test(eaten.text || "");', markerMissingStart);
+const reloadableEnd = src.indexOf('        pause(\n          `Arena снова не приняла задание:', reloadableStart);
+const reloadable = src.slice(reloadableStart, reloadableEnd);
+assert.ok(reloadable.length > 0, 'отказ Arena разбирается отдельно от обычной ошибки');
+assert.match(reloadable, /count < C\.maxReloadAttempts/, 'временный отказ имеет жёсткий предел перезагрузок');
+assert.ok(reloadable.indexOf('GM_setValue(reloadKey, count + 1)') < reloadable.indexOf('location.reload()'), 'счётчик фиксируется до перезагрузки');
+assert.match(reloadable, /await pause\([\s\S]*?C\.maxReloadAttempts[\s\S]*?требуется Мастер/, 'после исчерпания попыток нужен Мастер');
 const blankGuard = src.slice(
   src.indexOf('        if (!page.ok) {'),
   src.indexOf('        const observed = Number(expect.readyAt)'),
 );
 assert.ok(
-  blankGuard.includes('location.reload()'),
-  'перезагружается только неотрисованная страница адресата, а не видимая ошибка',
+  blankGuard.includes('location.reload()') && /pageReloaded/.test(blankGuard),
+  'неотрисованная страница адресата перечитывается один раз без снятия ожидания',
 );
+assert.ok(!monitor.includes('location.reload()'), 'видимая ошибка не запускает перезагрузку из монитора');
 
 // 9. 1.4.86: отказ Notion и молчание Notion — разные причины паузы.
 // 28.10 HTTP 400 «content.length should be ≤ 2000» показывался как «сеть или
@@ -144,4 +154,4 @@ assert.match(wrapper, /он получил запрос и не принял д�
 assert.match(wrapper, /Notion не ответил на \$\{method\} \$\{path\}/, 'молчание осталось молчанием');
 assert.match(wrapper, /HTTP 429/, '429 не считается отказом по данным');
 
-console.log('OK: narthex 1.4.63 — журнал чистится, маркер напоминается, ошибка ставит паузу и ждёт Мастера');
+console.log(`OK: narthex ${version} — журнал чистится, маркер напоминается, ошибка ставит паузу и ждёт Мастера`);

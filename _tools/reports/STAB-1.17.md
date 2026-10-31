@@ -1,96 +1,81 @@
-# STAB-1.17 — результаты проверки и ограничения Scope
+# STAB-1.17 — §4 red gates and ScriptCat reissue
 
 Дата: 2026-10-31
 Dispatch: `40a6f0cf-5705-8174-b0b3-e4c05b09970d`
-Run: `254f8d52-b891-46aa-943c-9827b20c5e91`
-База: `2e12c6cfb7955a68d2f309cfb8be2023376f0e38`
-Статус: **не принято** — после изменений остаются 10 RC 1 из 21; мержа нет.
+Run: `06debdd4-89d1-4583-a7f6-158b10c9dda4`
+Branch: `arena/3971feef-narthex`
+Baseline commit: `65b5a28c1f85d9747dd5c4ba017811ac8ff980ab` (on top of `2e12c6cfb7955a68d2f309cfb8be2023376f0e38`)
 
-## Краткий итог
+## Итог
 
-В пределах разрешённых путей исправлена регистрация Narrative pack для прямого запуска `smoke:core`; прямой смоук теперь проходит без изменения якорей. В шести smoke-скриптах обновлены импорты диалогового модуля на его действующий путь в `packs/narrative`. В ScriptCat обновлён Drive Gateway до контракта 1.5: журналы и payload-файлы создаются в `Arena/logs` и `Arena/payloads`, старый каталог логов переносится, внешние записи ограничены журналами, а `ping` сообщает раскладку. Обновлена инструкция установки шлюза.
+Адаптация ScriptCat выполнена для действующего `_tools/ScriptCat/narthex.user.js` и Drive Gateway 1.5; `dispatch.user.js` не восстановлен. Все 71 существующий файл `_tools/ScriptCat/tests/*.mjs` сохранён и запущен без `skip`, `not-run` или отключённых проверок: 71 прошёл, 0 упал. Тесты Drive/Arena/Notion используют локальные модели; живая проверка Arena или Google Drive не выполнялась.
 
-Пути кампаний, `src/player/**`, `src/editor/**`, `src/shared/**`, `public/ai/**`, `docs/contracts/**` и прочие запрещённые области не менялись. Диагностики и пороги не ослаблялись. Переименование или переписывание устаревшего ScriptCat теста не выполнялось.
+Из 21 ворот §4 прошли 12; команда ScriptCat улучшилась с RC 1 до RC 0. Девять остающихся красных результатов перечислены с конкретными причинами и владельцами ниже. Build прошёл. `check:mission` запущен и завершился RC 1: его состав включает чужие красные ворота и не может честно стать зелёным в Scope STAB-1.17 без правок защищённых данных, иных карточек или самих оракулов. Ни один оракул, порог, исключение или защищённый путь не ослаблялся.
 
-## Все 21 команды §4
+## §4 — 21 команда, baseline и кандидат
 
-«До» — чистая worktree на базовом SHA с отдельным `npm ci`; после первоначального прогона 1–18 на ней также выполнены команды 19–21. «После» — свежая кандидатная worktree на той же базе со всеми изменениями этой карточки и отдельным `npm ci`.
+«До» — clean baseline SHA `65b5a28c1f85d9747dd5c4ba017811ac8ff980ab`. «После» — конечный кандидат этой reissue; команды выполнялись на одном и том же дереве, а значения подтверждены финальным прогоном. RC 0 означает успех; RC 1 — зафиксированный отказ, не подавленный.
 
 | # | Команда | RC до | RC после | Однострочный результат после |
 |---:|---|---:|---:|---|
-| 1 | `npm ci` | 0 | 0 | Чистая установка зависимостей завершилась. |
-| 2 | `npm run check:audit-bundle` | 0 | 0 | Аудитный bundle актуален: 1,002,333 байта, SHA-256 `b7f271bf7eebb863fe685480337f0de33dbb8d48048b044d9390e70ced7e422d`. |
-| 3 | `npx tsc -b` | 0 | 0 | Компиляция TypeScript без ошибок. |
-| 4 | `for t in _tools/ScriptCat/tests/*.mjs; do node "$t" || exit 1; done` | 1 | 1 | Останавливается на первом smoke: `dispatch-coordinator-smoke.mjs:4` не находит `dispatch.user.js`. |
-| 5 | `npm run check:contracts` | 1 | 1 | `check:decisions` отклоняет три значения Status в существующих ADR. |
-| 6 | `npm run check:core-graph` | 0 | 0 | Core graph OK: 37 модулей. |
-| 7 | `npm run check:module-size` | 1 | 1 | Три запрещённых области превышают лимит 450 строк: 705, 1,407 и 3,406. |
-| 8 | `npm run check:brand` | 1 | 1 | Найдено 138 существующих legacy-brand попаданий. |
-| 9 | `npm run check:version` | 0 | 0 | Версия 0.8.0 согласована. |
-| 10 | `npm run check:guide` | 1 | 1 | Каноническая и публичная копии руководства расходятся; `check-guide.mts:38`. |
-| 11 | `npm run check:playkit-bundle` | 1 | 1 | Публичный bundle: 1,072,558 байт / SHA `b06f8c18…`; генератор: 1,072,575 байт / SHA `b468dd4d…`. |
-| 12 | `npm run check:campaigns` | 1 | 1 | Найдено расхождение `campaign.json` у копии `ash-of-caerden`. |
-| 13 | `npm run check:compat-corpus` | 1 | 1 | Два Ash-проекта завершаются с RC 1 и тремя graph warnings каждый. |
+| 1 | `npm ci` | 0 | 0 | Чистая установка завершилась; npm сообщил о 4 известных уязвимостях зависимостей (1 moderate, 1 high, 2 critical). |
+| 2 | `npm run check:audit-bundle` (до build) | 0 | 0 | Bundle совпал с исходником: 1,002,333 байта, SHA-256 `b7f271bf7eebb863fe685480337f0de33dbb8d48048b044d9390e70ced7e422d`. |
+| 3 | `npx tsc -b` (до build) | 0 | 0 | TypeScript build завершился без ошибок. |
+| 4 | Цикл `node` по `_tools/ScriptCat/tests/*.mjs` | 1 | 0 | 71/71 прошло; актуальный userscript, Gateway 1.5 и отрицательные сценарии; интеграции только локальные. |
+| 5 | `npm run check:contracts` | 1 | 1 | `check:decisions` остановился на трёх неподдерживаемых `accepted (...)` статусах; последующие composite-подкоманды не достигнуты. |
+| 6 | `npm run check:core-graph` | 0 | 0 | Core graph OK: 37 модулей, без циклов и импорта `engine.ts`. |
+| 7 | `npm run check:module-size` | 1 | 1 | `campaignAudit.ts` 705/450, `store.ts` 1,407/450, `types.ts` 3,406/450; пороги не менялись. |
+| 8 | `npm run check:brand` | 1 | 1 | Guard обнаружил 137 брендовых совпадений в неизменённых файлах; исключения и правила не менялись. |
+| 9 | `npm run check:version` | 0 | 0 | Версия 0.8.0 согласована между манифестами и документацией. |
+| 10 | `npm run check:guide` | 1 | 1 | Канонический гайд и публичная копия расходятся. |
+| 11 | `npm run check:playkit-bundle` | 1 | 1 | Публичный bundle 1,072,558 байт (`b06f8c18…`), сборка из `src` 1,072,575 байт (`b468dd4d…`); первое отличие — byte 30,373. |
+| 12 | `npm run check:campaigns` | 1 | 1 | Обнаружено одно расхождение `campaign.json` в Ash-копии. |
+| 13 | `npm run check:compat-corpus` | 1 | 1 | Оба Ash-проекта завершаются RC 1 с тремя graph warnings каждый; остальные corpus cases проходят. |
 | 14 | `npm run check:narrative-codes` | 0 | 0 | Все 28 кодов объяснений согласованы. |
-| 15 | `npm run smoke:core` | 1 | 0 | Все якоря core smoke зелёные с Narrative preload. |
-| 16 | `npm run smoke:mission` | 1 | 1 | 45/55 смоуков проходят; остаются 10 отказов. |
-| 17 | `npm run cf-play:negative` | 0 | 0 | Оба отрицательных сценария дают ожидаемый отказ. |
-| 18 | `npm run lint` | 0 | 0 | 0 ошибок; 1,511 предупреждений. |
-| 19 | `npm run build` | 0 | 0 | Стандартная сборка завершилась; защищённые файлы и audit bundle не изменены. |
-| 20 | `npm run check:audit-bundle` | 0 | 0 | SHA-256 остался `b7f271bf7eebb863fe685480337f0de33dbb8d48048b044d9390e70ced7e422d`. |
-| 21 | `npm run check:mission` | 1 | 1 | Не проходит из-за красных контрактов, руководства, corpus, brand, mission smokes и Ash-проверок. |
+| 15 | `npm run smoke:core` | 0 | 0 | Все якоря core smoke прошли с загрузкой реального Narrative pack. |
+| 16 | `npm run smoke:mission` | 1 | 1 | 45/55 прошли; отказы: design-doc, p2, ai-task, dialogues-r31/r32, breathe-toggle, encounters-loader, saves-compat, pack-missing, capability-modes. |
+| 17 | `npm run cf-play:negative` | 0 | 0 | Оба отрицательных fixture дали ожидаемый отказ; wrapper сообщил `ok=true`. |
+| 18 | `npm run lint` (до build) | 0 | 0 | 0 ошибок, 1,512 предупреждений на 519 файлах. |
+| 19 | `npm run build` (штатный, изолированный) | 0 | 0 | `tsc -b`, audit bundle и Vite build завершились успешно; Vite преобразовал 1,492 модуля; status после build чистый. |
+| 20 | `npm run check:audit-bundle` (после build) | 0 | 0 | SHA-256 до/после build одинаков: `b7f271bf7eebb863fe685480337f0de33dbb8d48048b044d9390e70ced7e422d`. |
+| 21 | `npm run check:mission` (изолированный) | 1 | 1 | Из 13 шагов 6 зелёные, 7 RC 1: contracts, guide, corpus, brand, mission smoke и два Ash CLI запуска; determinism RC 0. |
 
-Итого после: **11/21 RC 0, 10/21 RC 1**. Требование 21/21 не выполнено.
+После штатного build повторно запускались `npx tsc -b` и `npm run lint`: RC 0; lint сохранил 1,512 предупреждений и 0 ошибок. И pre-build, и post-build `git status --short` были пустыми; audit bundle и все защищённые пути сохранили хэши.
 
-## Причины красных ворот и изменения
+## ScriptCat: перенос старых сценариев на текущий контракт
 
-### ScriptCat — RC 1, причина не устранена в этой карточке
+`dispatch-coordinator-smoke.mjs` теперь читает действующий userscript, проверяет его version/header и отсутствие `dispatch.user.js`; UUID для карточки, миссии, Run и ролей проходят production `isUuid`. Негативы live-run guard сохранены: не-Running/Submitted, пустой и чужой Run ID, неправильный/пустой recipient, чужая роль. Retry остаётся bounded: ровно один короткий повтор; устаревший, просроченный, неполный или исчерпанный handoff ничего не записывает и не пересылает.
 
-Три теста (`dispatch-coordinator-smoke.mjs:4`, `scriptcat-gateway-smoke.mjs:4` и `visible-error-master-smoke.mjs:4`) читают `../dispatch.user.js`, которого в репозитории нет; актуальный файл — `_tools/ScriptCat/narthex.user.js`. Временная проверка coordinator с единственной заменой пути доходит до старого контракта и падает на требовании `AUTO.maxSends`; gateway smoke также ожидает прежние helper-имена и версию Gateway 1.2. Поэтому простой retarget этих тестов неверен, а создание псевдонима или изменение проверок скрыло бы несоответствие. Тесты оставлены без изменений; этот RC 1 сохраняется.
+Покрытие действующих эквивалентов и обязательных сценариев §2.6 обеспечивается оставшимися файлами в том же полном цикле: auto-run; безопасный выбор composer Send и подтверждение доставки; повторы без дубликатов; свежесть ответа и разбор маркеров; валидность ID; выбор роли; Coordinator turn/marker/authority; Reviewer → Drive journal → Submitted → отдельная acceptance; poll Gateway `doPost`, идемпотентность, старый/невалидный marker и live-run защита. Сам тест coordinator требует присутствия этих companion-файлов и сохраняет их в составе из 71.
 
-Отдельно исправлен реальный отказ `drive-gateway-arena-smoke.mjs`: `_tools/ScriptCat/drive-gateway.gs` не реализовывал уже описанный контракт Gateway 1.5 и требовал фиксированный `folderId` даже для `createLog`. Теперь `node _tools/ScriptCat/tests/drive-gateway-arena-smoke.mjs` проходит; инструкция `_tools/ScriptCat/README-авторизация.md` указывает версию 1.5 и существующий `narthex.user.js`. Общий цикл §4 всё равно останавливается раньше на старом coordinator smoke.
+`drive-gateway-arena-smoke.mjs` выполняет Apps Script Gateway 1.5 в локальном VM harness: проверяет `Arena/logs` и `Arena/payloads`, валидные/невалидные UUID, повтор `createLog` для той же Dispatch/Run пары, duplicate append и отказ старого marker. `narthex-poll-gateway-integration.mjs` исполняет настоящие фрагменты userscript и `doPost`, но Drive, сеть, DOM и хранилище — локальные модели. Эти результаты не являются живой проверкой.
 
-### `check:contracts` — RC 1, не исправлено
+## Оставшиеся RC 1: причина и владелец
 
-`scripts/check-decisions.mts:97–100` отклоняет аннотированные статусы в `docs/decisions/GOLD-1.6c.md:1`, `docs/decisions/STAB-1.11.md:5` и `docs/decisions/STAB-1.15.md:5`. Эти файлы вне Scope. Независимый `check:module-size` дополнительно находит превышения в `src/editor/campaignAudit.ts` (705 строк), `src/editor/store.ts` (1,407) и `src/shared/types.ts` (3,406); разрешённая область не включает эти модули. Порог не снижен, существующие решения не переписаны.
+- `check:contracts` → **STAB-1.19**: `check:decisions` отклоняет статусы в `docs/decisions/GOLD-1.6c.md`, `STAB-1.11.md` и `STAB-1.15.md`. Файлы не менялись; composite останавливается до последующих проверок.
+- `check:module-size` → **STAB-1.18**: существующие превышения `src/editor/campaignAudit.ts` (705 строк), `src/editor/store.ts` (1,407) и `src/shared/types.ts` (3,406); threshold не снижен.
+- `check:brand` → **STAB-1.18**: repository-wide legacy-brand hits находятся в старых документах/публичных материалах; область 1.17 не включает их массовое переименование. Исключения не добавлялись.
+- `check:guide` → **STAB-1.19** для oracle/синхронизации документации; расхождение между `docs/ai-campaign-guide.md` и `public/ai/campaign-guide.md` не исправлялось, так как публичная копия — защищённый путь 1.17 и находится вне scope 1.19 (её владелец — STAB-1.18).
+- `check:playkit-bundle` → **STAB-1.18**: `public/ai/cf-play.mjs` отличается от стандартного bundle из `src`; файл защищён для 1.17. Только штатная сборка и синхронный commit с источником могут закрыть gate; здесь bundle вручную не собирался.
+- `check:campaigns` → **STAB-1.19** для проверки копий/oracle: одно расхождение `packs/narrative/data/ash-of-caerden/campaign.json` ↔ защищённая `public/campaigns/ash-of-caerden/campaign.json`. Оба дерева не менялись; публикацию кампании не запускали.
+- `check:compat-corpus` → **STAB-1.19**: `ash-of-caerden` и `ash-of-caerden-adventure` дают по 3 `flag_written_never_read` warnings, поэтому corpus требует RC 1. Кампании и oracle остались неизменны; предупреждения не подавлялись.
+- `smoke:mission` (10 из 55 дочерних смоуков; 45 прошли):
+  - `design-doc` — **STAB-1.18**: assertion ожидает прежнюю формулировку archive-format в `docs/ai-start-instruction.md`; manifest audit также находит лишние `PLAYKIT.md` и `cf-play.mjs` в публичной копии.
+  - `p2` — вне этой миссии: проверка `engine.entityState` требует `src/player/SceneScreen.tsx`; Player UI исключён из scope 1.17 и владельцев 1.18/1.19/1.21.
+  - `ai-task` — **STAB-1.18**: AI export в `src/editor/aiTask.ts` не даёт ожидаемый `campaign.json`; editor вне scope 1.17.
+  - `dialogues-r31`, `dialogues-r32` — вне этого checkout/миссии: отсутствуют неотслеживаемые fixtures `_ai-temp/campaing/**`; фикстуры не подменялись и не создавались.
+  - `breathe-toggle` — вне этой миссии: ожидаемая логика находится в `src/player/SceneScreen.tsx`, а путь исключён из scope 1.17.
+  - `encounters-loader` — вне этой миссии: отсутствует fixture `/campaigns/shepot-shesteren/campaign.json` в защищённом `public/campaigns/**`; данные не синтезировались.
+  - `saves-compat` — вне этой миссии: проверка справки требует `src/player/HelpPanel.tsx`, исключённый из scope 1.17.
+  - `pack-missing` и `capability-modes` — **STAB-1.19** для oracle: пробные проекты повторяют три Ash graph warnings из compatibility corpus; Ash-данные защищены и не редактировались.
+- `check:mission` — RC 1 не отдельная причина: это агрегатор, который повторяет перечисленные red gates и ещё два `public/campaigns/ash-of-caerden*` отказа. Его нельзя честно получить RC 0 в STAB-1.17 без выполнения работ владельцев или изменения защищённых campaign/oracle данных. Не выдаётся за успешный gate.
 
-### `check:guide` — RC 1, не исправлено
+**STAB-1.21** владеет отдельным Actions visual/golden soak на итоговом SHA: в карточке записано отсутствие успешного visual run и полного golden soak из-за недоступности Actions/billing. Эта внешняя проверка не является одной из 21 локальных команд §4; в этом run она не запускалась и не маскируется локальными smoke результатами.
 
-`scripts/check-guide.mts:38` сравнивает `docs/ai-campaign-guide.md` и `public/ai/campaign-guide.md`; содержимое не совпадает. Публичная копия находится в запрещённой `public/ai/**`, а изменение основной документации также вне узкого Scope этой карточки. Копии и проверка оставлены нетронутыми.
+## Изоляция и неизменность
 
-### `check:compat-corpus` — RC 1, не исправлено
+Штатный `build` и `check:mission` запускались в двух отдельных чистых detached worktree от одного candidate commit, каждый со своим `npm ci`. У обоих worktree `git status --porcelain` был пуст до и после целевой проверки; у build также пуст после post-build audit, `tsc` и lint. Совокупный SHA-256 756 отслеживаемых файлов защищённых областей до и после обеих проверок: `64b27b8812b5808608f1b2ec70c402c9c3c18c64a30a527e7e07800ef8b7f395`. Сверка охватывала `src/editor/**`, `src/shared/**`, `src/player/**`, `public/ai/**`, `public/campaigns/**`, `packs/**`, `.golden/**`, `scripts/golden/**`, `golden.yml`, `docs/contracts/**` и `.github/workflows/**`; diff относительно `origin/main` и baseline по этим путям пуст. `public/ai/campaign-audit.mjs` остался размером 1,002,333 байта с SHA-256 `b7f271bf7eebb863fe685480337f0de33dbb8d48048b044d9390e70ced7e422d` до/после штатного build. Ни один bundle вручную не пересобирался.
 
-`scripts/check-compat-corpus.mts:359` требует RC 0 и verdict `ok`. `ash-of-caerden` и `ash-of-caerden-adventure` каждый возвращают RC 1 из-за трёх graph warnings (`flag_written_never_read`). Оба примера расположены в защищённом `public/campaigns/**`; проверка и корпус не ослаблялись.
+## Merge
 
-### `check:campaigns` — RC 1, не исправлено
-
-`scripts/campaign-copies.mts:177–196` обнаруживает отличие `campaign.json` между `packs/narrative/data/ash-of-caerden` и защищённой копией `public/campaigns/ash-of-caerden`. Источник `packs/**` и цель `public/campaigns/**` находятся вне разрешённой зоны; публикацию или ручную синхронизацию не выполнял.
-
-### `smoke:core` — исправлено, RC 1 → RC 0
-
-`scripts/core-semantics-smoke.mts:68` создаёт `GameEngine`, которому нужны операции Narrative pack; их регистрация происходит через `packs/narrative/index.ts`. Прямой `tsx` запуск не загружал этот composition root и завершался `PACK_OPERATION_MISSING` при конструкторе `src/core/engine.ts:114,154–155`. Изменена только npm-команда в `package.json`: она предварительно загружает `tsx` и реальный `packs/narrative/index.ts`. Якоря теста не менялись; ручной bundle rebuild не выполнялся.
-
-### `smoke:mission` — RC 1, частично исправлено
-
-Обновлены только пути импорта/чтения диалогового модуля после его переноса в `packs/narrative/dialogue.ts`: `scripts/ai-runtime-smoke.mts`, `scripts/dialogues-round31-smoke.mts`, `scripts/dialogues-round32-smoke.mts`, `scripts/narrative-intro-and-ai-features-smoke.mts`, `scripts/p2-mechanics-smoke.mts` и `scripts/smoke-dialogue-speaker.mts`. Эти правки не меняют assertions; после них `ai-runtime`, `narrative-intro` и `dialogue-speaker` проходят.
-
-Оставшиеся 10 отказов и их локальные причины:
-
-- `design-doc`: `scripts/design-doc-guard.mts:109–114` не находит ожидаемый output-format anchor в `docs/ai-start-instruction.md`; дополнительно `:138–142` обнаруживает лишние `PLAYKIT.md` и `cf-play.mjs` в `public/ai`. И исходная инструкция, и публичный манифест вне разрешённой зоны.
-- `p2`: `scripts/p2-mechanics-smoke.mts` падает на проверке `engine.entityState` в `src/player/SceneScreen.tsx`; Player UI вне Scope.
-- `ai-task`: `scripts/ai-task-smoke.mts:58` ожидает `campaign.json` в созданном архиве, но файла там нет; исправляемая реализация находится в запрещённом `src/editor/aiTask.ts`.
-- `dialogues-r31` и `dialogues-r32`: после исправления импорта отсутствуют неотслеживаемые фикстуры `_ai-temp/campaing/**` (первые чтения — `scripts/dialogues-round31-smoke.mts:18` и `scripts/dialogues-round32-smoke.mts:16`). Таких файлов нет в чистом checkout; тестовые данные не подменялись.
-- `breathe-toggle`: `scripts/breathe-toggle-smoke.mts` ожидает логику в защищённых `src/player/SceneScreen.tsx`, `src/shared/types.ts` и `src/editor/EntityEditor.tsx`.
-- `encounters-loader`: `scripts/encounters-loader-smoke.mts:38` не находит `/campaigns/shepot-shesteren/campaign.json`; соответствующей кампании/фикстуры в checkout нет, а `public/campaigns/**` защищён.
-- `saves-compat`: `scripts/saves-compat-smoke.mts:200` ожидает упоминание формата сохранения в `src/player/HelpPanel.tsx`; Player UI вне Scope.
-- `pack-missing` и `capability-modes`: их пробные проекты используют защищённый Ash и падают на тех же трёх graph warnings из corpus; обход предупреждений не добавлялся.
-
-## Изоляция сборки, аудит и защищённые пути
-
-Стандартные `npm run build` и `npm run check:mission` запускались в отдельной кандидатной worktree с собственным `npm ci`, не в рабочем checkout. Build завершился RC 0; `check:mission` завершился RC 1. До/после build `npx tsc -b` и lint возвращали RC 0. Lint сообщал одинаковые 1,511 предупреждений и 0 ошибок. `check:audit-bundle` до и после build прошёл при SHA-256 `b7f271bf7eebb863fe685480337f0de33dbb8d48048b044d9390e70ced7e422d`; bundle не перестраивался вручную.
-
-В чистых базовой и кандидатной worktree `git diff --exit-code` для `.golden/**`, `public/campaigns/ash-of-caerden*`, `scripts/golden/**`, `golden.yml` и `docs/contracts/**` завершился с RC 0. Совокупный SHA-256 списка отслеживаемых файлов этих путей в обеих worktree совпал: `00dbc76d9c770c7137d6230cba9f4240fed770dec92aeca7528fde3c4ef72ee9`. `golden.yml` отсутствует в базовом дереве. В чистой кандидатной worktree `git status --short` был пуст до build и после check:mission; обе проверки заняли 0 байт вывода статуса. Ни одна защищённая папка не менялась.
-
-## Решение по приёмке
-
-21/21 RC 0 недостижимо при действующем Scope без изменения запрещённых данных и кода либо без ослабления проверок. Ни одно из этих действий не предпринималось. Кандидат следует оставить неслитым до выдачи отдельных карточек на владельцев защищённых областей и на устаревшие ScriptCat-контракты. Неизменённый остаток проводится через новую карточку/реестр, не через подавление checker-а.
+Карточка требует squash-merge PR #182 даже если оставшийся RC 1 принадлежит другим owner-картам. Проверка/состояние PR и фактический результат merge фиксируются в ответе; PR не обходится.
