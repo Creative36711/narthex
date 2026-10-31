@@ -322,7 +322,7 @@ export function AiWizard({ store, hasCampaign, lastPlaytest, initialReport = '',
                   onClick={handleDownloadTaskBundle}
                   disabled={busy}
                 >
-                  <Ico n="download" /> {bundleScope === 'patch' ? 'Скачать чемодан с правками (.chronicle)' : 'Скачать полный чемодан (.chronicle)'}
+                  <Ico n="download" /> {bundleScope === 'patch' ? 'Скачать чемодан с правками (.narthex)' : 'Скачать полный чемодан (.narthex)'}
                 </button>
                 <button
                   type="button"
