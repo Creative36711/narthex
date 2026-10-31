@@ -4,6 +4,7 @@ import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { assertAshWarningReport, type AshCampaignId } from './playkit/ash-warning-oracle.mts'
 
 const root = resolve(import.meta.dirname, '..')
 const scriptPath = fileURLToPath(import.meta.url)
@@ -238,7 +239,7 @@ function referencePathLabel(reference: Reference): string {
 
 function commandFor(reference: Reference, displayPath = reference.path): string {
   if (reference.runner === 'campaign-check') {
-    return `node public/ai/cf-play.mjs check ${displayPath} --json --out <temporary-output>/${reference.ref}`
+    return `node public/ai/cf-play.mjs check ${displayPath} --json --seeds 1-5 --steps 300 --out <temporary-output>/${reference.ref}`
   }
   if (reference.runner === 'cycles') return 'node public/ai/cf-play.mjs cycles --json'
   return 'node node_modules/tsx/dist/cli.mjs scripts/contracts-check.mts'
@@ -353,16 +354,34 @@ async function runCampaignReference(
   const issue = await preflight(reference, targetPath)
   if (issue) return resultFailure(reference, command, displayPath, issue)
 
-  const invocation = runNode([playerBundle, 'check', targetPath, '--json', '--out', join(outputRoot, reference.ref)])
+  const invocation = runNode([playerBundle, 'check', targetPath, '--json', '--seeds', '1-5', '--steps', '300', '--out', join(outputRoot, reference.ref)])
   const payload = parseJson<CampaignPayload>(invocation.stdout)
   const projectId = payload?.campaign?.id ?? null
-  const ok = invocation.rc === 0 && payload?.verdict === 'ok' && projectId === reference.projectId
+  const ashId = reference.ref === 'ash-of-caerden' || reference.ref === 'ash-of-caerden-adventure'
+    ? reference.projectId as AshCampaignId
+    : null
+  const expectedRc = ashId ? 1 : 0
+  let reportMatches = false
+  let reportError = ''
+  if (ashId) {
+    try {
+      assertAshWarningReport(payload, ashId)
+      reportMatches = true
+    } catch (error) {
+      reportError = error instanceof Error ? error.message : String(error)
+    }
+  } else {
+    reportMatches = payload?.verdict === 'ok' && projectId === reference.projectId
+  }
+  const ok = invocation.rc === expectedRc && reportMatches
   const stdoutSummary = payload
     ? summarizeCampaign(payload)
     : oneLine(invocation.stderr || invocation.stdout || invocation.error || 'no player output')
   const detail = invocation.error
     ? `spawn error: ${invocation.error}`
-    : (invocation.rc !== 0 ? `player rc=${invocation.rc}` : (projectId !== reference.projectId ? `campaign id=${String(projectId)}` : undefined))
+    : (invocation.rc !== expectedRc
+      ? `player rc=${invocation.rc}; expected ${ashId ? 'strict Ash rejection rc=1' : 'positive check rc=0'}`
+      : (reportMatches ? undefined : reportError || `campaign report did not match ${reference.projectId}`))
   return { reference, displayPath, command, rc: invocation.rc, ok, stdoutSummary, ...(detail ? { detail } : {}) }
 }
 

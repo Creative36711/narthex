@@ -15,7 +15,7 @@
 - `check:audit-bundle`: RC 0. The clean canonical build matches protected SHA-256 `b7f271bf7eebb863fe685480337f0de33dbb8d48048b044d9390e70ced7e422d`; current source builds reproduce byte-for-byte and audit JSON agrees.
 - `check:decisions`: RC 0 after format-only metadata fixes in the three authorized decision files. `check:browser-gate`: RC 0.
 - `check:contracts`: RC 1 at `check:dev-campaigns`, after its contracts, pack, decisions, module-size and browser-gate subchecks passed. It reports two issues under protected `public/campaigns/**` (`ash-of-caerden` title lacks `[DEV]`; `fmv-crossing` lacks `dev-fixture.json`). Those campaign paths are outside this card and were not changed.
-- PR #184 is still open at the time of this report edit. The required residual analysis is complete; squash merge is to be attempted if normal repository protections permit it. No merge is claimed here.
+- PR #184 was squash-merged to `main` as `24d5d1a41377c7a7b2bbb941e66d28da62c29c62` after the accepted residual analysis. Repository protections allowed the merge even though the visual workflow's contracts step remained red; that failure and the separate green audit-freshness step are recorded below.
 
 ## Required gates — baseline versus after
 
@@ -130,11 +130,18 @@ Rule references below use [`docs/agents/tz-stab-1.md`](../../docs/agents/tz-stab
 ## Decisions, scope, and merge status
 
 - `docs/decisions/STAB-1.17.md` remains **accepted**, dated `2026-10-31`; its prior wording is preserved unchanged. It attributes intermediate RC 1 to unfinished work/other-card residuals and does not authorize changing the old oracle's meaning (only §2.5).
-- `docs/decisions/STAB-1.18.md` contains exactly three `неясно / решил / откат` lines. The decision now accepts 53/55 only with complete residual evidence, protected-path basis, and STAB-1.19 ownership; it directs the requested squash merge if normal repository protections permit it.
+- `docs/decisions/STAB-1.18.md` contains exactly three `неясно / решил / откат` lines. It accepts 53/55 only with the complete residual evidence, protected-path basis, and STAB-1.19 ownership recorded above.
 - Format-only decision metadata repairs were limited to `docs/decisions/GOLD-1.6c.md`, `STAB-1.11.md`, and `STAB-1.15.md`: accepted statuses and substantive decisions remain unchanged. `npm run check:decisions` — RC 0 (57 files; 38 statusless, 19 accepted).
 - `npm run check:browser-gate` — RC 0. The previously flagged stale browser-environment prose in the editable STAB-1.8 historical report was made accurate; no test was skipped.
-- `npm run check:contracts` — RC 1 at `check:dev-campaigns` because the checker flags two protected public campaign entries (`ash-of-caerden` title missing `[DEV]`; `fmv-crossing` lacks `dev-fixture.json`). It did pass contracts, pack boundary, decisions, module-size, and browser-gate before stopping. `public/campaigns/**` is protected by STAB-1 §2.3 and was not modified.
-- `public/campaigns/**`, packs, golden fixtures/oracles, workflows, and `docs/contracts/**` were not modified. No guard thresholds/exclusions changed. Public audit and PlayKit bundles retain their required hashes.
-- Follow-up base SHA is `1cecd559624f0dd8805fd76a0350c7e9ce9864fb` (also the merge SHA of PR #183). PR #184: https://github.com/Creative36711/narthex/pull/184. The last observed run, `41196030899` on `1148af6`, passed the pre-build audit freshness, TypeScript, ScriptCat, and determinism steps, then failed at `check:contracts`; downstream steps were skipped. `gh run view --log-failed` returned EOF, so the completed step list was used. Local follow-up now reaches `check:dev-campaigns` after the decision and browser-gate repairs; its two protected-campaign issues remain as above.
-- Current patch stat and final merge SHA are pending the remaining verification, push, and merge attempt.
-- The worktree is currently modified on `arena/202671b0-narthex`; it will be clean after the report/check changes are committed. No branch switch/reset has been done.
+- `npm run check:contracts` — RC 1 at `check:dev-campaigns` because the checker flags two protected public campaign entries (`ash-of-caerden` title missing `[DEV]`; `fmv-crossing` lacks `dev-fixture.json`). It passed contracts, pack boundary, decisions, module-size, and browser-gate before stopping. `public/campaigns/**` is protected by STAB-1 §2.3 and was not modified.
+- PR #184 was **squash-merged** to `main` at merge SHA `24d5d1a41377c7a7b2bbb941e66d28da62c29c62` on 2026-10-31. Base SHA: `1cecd559624f0dd8805fd76a0350c7e9ce9864fb`. The squash commit has the base as its parent, and its tree is identical to PR head `2c8ba0a29b70d8db4d089fc72bc280607ece88da`.
+- Exact merge diff summary from `git diff --stat 1cecd559624f0dd8805fd76a0350c7e9ce9864fb 24d5d1a41377c7a7b2bbb941e66d28da62c29c62`:
+
+```text
+46 files changed, 756 insertions(+), 165 deletions(-)
+```
+
+- Protected-path audit for the merge diff returned **none** for `public/campaigns/**`, `packs/**`, `.golden/**`, `scripts/golden/**`, `.github/workflows/**`, and `docs/contracts/**`. `public/ai/**` also had no changed files; checked-in generated bundles remained untouched, and verification used temporary build outputs only.
+- On the merge SHA, a detached clean worktree ran `npm run check:audit-bundle` — RC 0: clean canonical build `1,002,333` bytes, protected SHA-256 `b7f271bf7eebb863fe685480337f0de33dbb8d48048b044d9390e70ced7e422d`; current-source builds were reproducible (`965d4e84692f909b82f7961c82a4c7caae9f4d980b77edb077d9dec4b332dcb0`), and source/current/published audit JSON agreed on `stone-tablet-siege` (audit RC 0).
+- CI freshness on the merge SHA is green: visual run `41197611832`, head `24d5d1a41377c7a7b2bbb941e66d28da62c29c62`, step **«Проверить свежесть бандла аудита до сборки»** — success. TypeScript, ScriptCat transport probes, and determinism also passed. The overall visual workflow is **not green**: it failed later at **«Контракты и browser gate»** (`check:contracts`); downstream steps were skipped. The failed step is consistent with the two protected-campaign issues above. No full-CI pass is claimed.
+- The local worktree is clean on `arena/202671b0-narthex` after recording this post-merge report update; the branch was not switched or reset.

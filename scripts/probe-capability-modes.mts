@@ -11,6 +11,7 @@ import { loadCampaign } from '../src/core/loader'
 import { resolveProjectCapabilityModes } from '../src/core/pack/capability-modes'
 import { resolveProjectPack, type PackCatalogEntry, type PackManifest, type PackRegistryFile, type ProjectKindPack, type ProjectPackInput } from '../src/core/pack/registry'
 import { EditorStore } from '../src/editor/store'
+import { assertAshWarningText } from './playkit/ash-warning-oracle.mts'
 
 const root = resolve(import.meta.dirname, '..')
 const campaignSource = join(root, 'public/campaigns/ash-of-caerden')
@@ -151,14 +152,9 @@ try {
 
   const offCheck = runCheck(projectDir, 'off')
   const offOutput = `${offCheck.stdout ?? ''}${offCheck.stderr ?? ''}`
-  assert.equal(offCheck.status, 0, offOutput)
-  for (const expected of [
-    '10 сцен · 8 локаций · 6 диалогов · 21 узлов ink',
-    'ошибок 0 · предупреждений 8',
-    'seed\'ов 5 · исходы {"death":5}',
-    'посещено 6 из 10 достижимых сцен',
-  ]) assert.ok(offOutput.includes(expected), `off-mode oracle missing: ${expected}`)
-  console.log('CF-PLAY CHECK (off) output:')
+  assert.equal(offCheck.status, 1, offOutput)
+  assertAshWarningText(offOutput, 'capability-modes off Ash check')
+  console.log('CF-PLAY CHECK (off) output — expected strict RC 1 from the unchanged Ash warnings:')
   process.stdout.write(offOutput.endsWith('\n') ? offOutput : `${offOutput}\n`)
 
   store.setCapabilityMode('quests', 'core', availableCaps, requiredCaps)

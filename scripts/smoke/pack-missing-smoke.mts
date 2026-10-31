@@ -9,6 +9,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { resolveProjectPack, type PackCatalogEntry, type PackManifest, type PackRegistryFile, type ProjectKindPack, type ProjectPackInput, type ProjectPackResolution } from '../../src/core/pack/registry'
 import { EditorStore } from '../../src/editor/store'
 import { PackMissingNotice } from '../../src/editor/PackMissingNotice'
+import { assertAshWarningText } from '../playkit/ash-warning-oracle.mts'
 
 const root = resolve(import.meta.dirname, '../..')
 const fixtureDir = join(root, 'scripts/smoke/fixtures/project-without-narrative')
@@ -88,15 +89,10 @@ try {
     '--out', join(workspace, 'installed-check-output'),
   ], { cwd: root, encoding: 'utf8', timeout: 180_000 })
   const installedOutput = `${installedCheck.stdout ?? ''}${installedCheck.stderr ?? ''}`
-  assert.equal(installedCheck.status, 0, installedOutput)
-  for (const expected of [
-    '10 сцен · 8 локаций · 6 диалогов · 21 узлов ink',
-    'ошибок 0 · предупреждений 8',
-    'seed\'ов 5 · исходы {"death":5}',
-    'посещено 6 из 10 достижимых сцен',
-  ]) assert.ok(installedOutput.includes(expected), `missing baseline oracle: ${expected}`)
-  assert.equal(await directoryHash(projectDir), beforeInstalledCheck, 'successful check also leaves project files untouched')
-  console.log('✓ тот же проект с установленным паком: cf-play check rc=0, эталон §2.1 совпал')
+  assert.equal(installedCheck.status, 1, installedOutput)
+  assertAshWarningText(installedOutput, 'installed-pack Ash check')
+  assert.equal(await directoryHash(projectDir), beforeInstalledCheck, 'expected warning rejection also leaves project files untouched')
+  console.log('✓ тот же проект с установленным паком: cf-play check rc=1 только из-за точных трёх Ash warnings; метрики §3 совпали')
 
   const originalFetch = globalThis.fetch
   const originalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')

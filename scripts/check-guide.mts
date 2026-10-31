@@ -6,6 +6,7 @@ import { dirname, join, resolve, sep } from 'node:path'
 import { tmpdir } from 'node:os'
 import JSZip from 'jszip'
 import { NARRATIVE_CODE_LIST } from './playkit/narrative-codes'
+import { assertAshExampleText } from './playkit/ash-warning-oracle.mts'
 
 const root = resolve(import.meta.dirname, '..')
 const guidePath = join(root, 'docs/guides/nar-2.15-playkit.md')
@@ -68,14 +69,7 @@ function run(executable: string, args: string[], cwd: string): CommandResult {
 }
 
 function assertExampleOutput(output: string, context: string): void {
-  const expected = [
-    '10 сцен · 8 локаций · 6 диалогов · 21 узлов ink',
-    'ошибок 0 · предупреждений 3',
-    `seed'ов 5 · исходы {"death":5}`,
-    'посещено 6 из 10 достижимых сцен',
-    'Эталон: 10 сцен · 8 локаций · 6 диалогов · 21 ink · ошибок 0 · предупреждений 3 · смертей 5 · покрытие 6 из 10',
-  ]
-  for (const fragment of expected) assert.ok(output.includes(fragment), `${context}: не найдено «${fragment}»`)
+  assertAshExampleText(output, context)
 }
 
 function assertExplainOutput(output: string, code: string, context: string): void {
@@ -107,7 +101,8 @@ for (const line of commands) {
     throw new Error(`Команда не распознана проверкой гайда: ${line}`)
   }
   const result = run(executable!, args, cwd)
-  assert.equal(result.code, 0, `Команда из гайда завершилась с rc=${result.code}: ${line}\n${result.output}`)
+  const expectedCode = args.includes('example') ? 1 : 0
+  assert.equal(result.code, expectedCode, `Команда из гайда завершилась с rc=${result.code}, ожидался rc=${expectedCode}: ${line}\n${result.output}`)
   if (args.includes('example')) assertExampleOutput(result.output, line)
   if (args.includes('explain')) assertExplainOutput(result.output, NARRATIVE_CODE_LIST[0]!.code, line)
 }
@@ -149,7 +144,8 @@ try {
   for (const line of commands.filter((entry) => entry.startsWith('node __chronicle_ai__/cf-play.mjs'))) {
     const [executable, ...args] = documentedArgs(line)
     const result = run(executable!, args, temp)
-    assert.equal(result.code, 0, `Команда после распаковки завершилась с rc=${result.code}: ${line}\n${result.output}`)
+    const expectedCode = args.includes('example') ? 1 : 0
+    assert.equal(result.code, expectedCode, `Команда после распаковки завершилась с rc=${result.code}, ожидался rc=${expectedCode}: ${line}\n${result.output}`)
     if (args.includes('example')) assertExampleOutput(result.output, `распакованный чемодан: ${line}`)
     if (args.includes('explain')) assertExplainOutput(result.output, NARRATIVE_CODE_LIST[0]!.code, `распакованный чемодан: ${line}`)
   }
@@ -169,4 +165,4 @@ try {
   await rm(temp, { recursive: true, force: true })
 }
 
-console.log(`✓ check:guide: ${commands.length} команд (исходники, bundle, распакованный kit); explain=${NARRATIVE_CODE_LIST.length}; эталон 10/8/6/21, 0/3, 5 смертей, покрытие 6/10`)
+console.log(`✓ check:guide: ${commands.length} команд (исходники, bundle, распакованный kit); example ожидаемо rc=1 с точными тремя Ash warnings и 10/8/6/21, 0 ошибок, 5 смертей, покрытие 6/10; explain=${NARRATIVE_CODE_LIST.length}`)

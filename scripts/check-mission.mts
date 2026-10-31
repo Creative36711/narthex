@@ -17,6 +17,11 @@ const steps: MissionStep[] = [
   { command: 'npm run check:contracts', executable: npm, args: ['run', 'check:contracts'] },
   { command: 'npm run check:core-graph', executable: npm, args: ['run', 'check:core-graph'] },
   { command: 'npm run check:guide', executable: npm, args: ['run', 'check:guide'] },
+  {
+    command: 'npm run smoke:chronicle-import-identity (update/copy/cancel plus typeof-only negative control)',
+    executable: npm,
+    args: ['run', 'smoke:chronicle-import-identity'],
+  },
   { command: 'npm run check:compat-corpus', executable: npm, args: ['run', 'check:compat-corpus'] },
   { command: 'npm run check:narrative-codes', executable: npm, args: ['run', 'check:narrative-codes'] },
   { command: 'npm run check:version', executable: npm, args: ['run', 'check:version'] },
@@ -29,14 +34,14 @@ const steps: MissionStep[] = [
     args: ['run', 'check:determinism'],
   },
   {
-    command: 'node public/ai/cf-play.mjs check public/campaigns/ash-of-caerden',
-    executable: node,
-    args: ['public/ai/cf-play.mjs', 'check', 'public/campaigns/ash-of-caerden'],
+    command: 'npm run check:strict-warning (source, bundle, unpacked kit)',
+    executable: npm,
+    args: ['run', 'check:strict-warning'],
   },
   {
-    command: 'node public/ai/cf-play.mjs check public/campaigns/ash-of-caerden-adventure',
-    executable: node,
-    args: ['public/ai/cf-play.mjs', 'check', 'public/campaigns/ash-of-caerden-adventure'],
+    command: 'npm run cf-play:negative (source, bundle, unpacked kit must reject warning fixture)',
+    executable: npm,
+    args: ['run', 'cf-play:negative'],
   },
 ]
 
