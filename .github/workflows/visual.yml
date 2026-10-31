@@ -117,11 +117,8 @@ jobs:
           npx --yes wait-on@8 http://127.0.0.1:5173 --timeout 60000
           npm run smoke:no-campaign
 
-      - name: Эталон narrative
-        run: node public/ai/cf-play.mjs check public/campaigns/ash-of-caerden
-
-      - name: Эталон adventure
-        run: node public/ai/cf-play.mjs check public/campaigns/ash-of-caerden-adventure
+      - name: Проверить инвариант трёх Ash warnings
+        run: npm run check:strict-warning
 
       - name: Собрать проект
         run: npm run build
