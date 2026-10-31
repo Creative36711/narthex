@@ -9,6 +9,11 @@ Run: 0c5c8f4f-823a-4540-ad5f-fa4e6878c054
 не зелёный: ожидаемые отказы обязательных операций сохранены; есть также
 внешний отказ check:decisions. Никакие проверки не ослаблены.
 
+Текстовая очистка бренда: в копиях исторического CLI-вывода прежнее имя пакета и
+суффикс файла заменены нейтральными маркерами `[historical package name]` и
+`[legacy package extension]`. Команды, коды возврата и результаты проверок не менялись;
+эти строки больше не являются дословной копией stdout.
+
 ## Было / стало
 
 | Пункт | База #167 | Эта сдача |
@@ -99,7 +104,7 @@ Turn Runtime; ядро не импортирует пак и не ветвитс
 | smoke:quest-journal-runtime | 1 → 1 | PackOperationError: PACK_OPERATION_MISSING: (host)/playCutscene: operation is not registered | PackOperationError: PACK_OPERATION_MISSING: (host)/initialStateFields: operation is not registered |
 | smoke:p2 | 1 → 1 | PackOperationError: PACK_OPERATION_MISSING: (host)/playCutscene: operation is not registered | PackOperationError: PACK_OPERATION_MISSING: (host)/initialStateFields: operation is not registered |
 | smoke:ai-runtime | 1 → 1 | Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/narthex/src/core/dialogue' imported from /home/user/narthex/scripts/ai-runtime-smoke.mts /   code: 'ERR_MODULE_NOT_FOUND', | Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/narthex/src/core/dialogue' imported from /home/user/narthex/scripts/ai-runtime-smoke.mts |
-| smoke:ai-task | 1 → 1 | ✗ пакет редактирования получает расширение .chronicle — 013423b1-b30b-4414-bbd4-01ae7181d126-patch-task.chronicle / ✗ AI-пакет сохраняет структуру Campaign Package / TypeError: Cannot read properties of undefined (reading 'async') | ✗ пакет редактирования получает расширение .chronicle — ff1598cf-fe0d-47a9-9dcb-9b2251aa3a17-patch-task.chronicle / ✗ AI-пакет сохраняет структуру Campaign Package |
+| smoke:ai-task | 1 → 1 | ✗ пакет редактирования получает расширение [legacy package extension] — 013423b1-b30b-4414-bbd4-01ae7181d126-patch-task[legacy package extension] / ✗ AI-пакет сохраняет структуру Campaign Package / TypeError: Cannot read properties of undefined (reading 'async') | ✗ пакет редактирования получает расширение [legacy package extension] — ff1598cf-fe0d-47a9-9dcb-9b2251aa3a17-patch-task[legacy package extension] / ✗ AI-пакет сохраняет структуру Campaign Package |
 | smoke:dialogues-r31 | 1 → 1 | Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/narthex/src/core/dialogue' imported from /home/user/narthex/scripts/dialogues-round31-smoke.mts /   code: 'ERR_MODULE_NOT_FOUND', | Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/narthex/src/core/dialogue' imported from /home/user/narthex/scripts/dialogues-round31-smoke.mts |
 | smoke:dialogues-r32 | 1 → 1 | Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/narthex/src/core/dialogue' imported from /home/user/narthex/scripts/dialogues-round32-smoke.mts /   code: 'ERR_MODULE_NOT_FOUND', | Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/narthex/src/core/dialogue' imported from /home/user/narthex/scripts/dialogues-round32-smoke.mts |
 | smoke:breathe-toggle | 1 → 1 | FAIL: 2. Логика shouldBreathe корректна: NPC по умолчанию дышит, робот с breathe:false нет, предметы по умолчанию нет | FAIL: 2. Логика shouldBreathe корректна: NPC по умолчанию дышит, робот с breathe:false нет, предметы по умолчанию нет |
@@ -200,7 +205,7 @@ src/player/FmvScreen.tsx(258,7): error TS2322: Type '{ key: string; mode: string
 
 ```text
 
-> chronicle-forge@0.8.0 smoke:core
+> [historical package name]@0.8.0 smoke:core
 > tsx scripts/core-semantics-smoke.mts
 
 смоук упал целиком: PackOperationError: PACK_OPERATION_MISSING: (host)/initialStateFields: operation is not registered
@@ -287,7 +292,7 @@ SUMMARY 22/55 passed; rc=1
 
 ```text
 
-> chronicle-forge@0.8.0 check:contracts
+> [historical package name]@0.8.0 check:contracts
 > tsx scripts/contracts-check.mts && npm run check:packs && npm run check:pack-boundary && npm run check:decisions && npm run check:module-size && npm run check:browser-gate && npm run check:dev-campaigns && npm run check:campaign-formats && npm run smoke:campaign-visibility && npm run smoke:campaign-fmv-audit && npm run smoke:absence-policy && npm run check:schema-freeze && npm run media:check
 
   ✓ caps.json совпадает с runtime-реестром src/core/caps.ts
@@ -365,7 +370,7 @@ features: "combat" -> rejected: Unsupported campaign.meta.features format: expec
 
 контракты согласованы: 46 проверок
 
-> chronicle-forge@0.8.0 check:packs
+> [historical package name]@0.8.0 check:packs
 > tsx scripts/check-packs.mts
 
 pack adventure: schema, registry, caps, local schemas, and import boundaries OK
@@ -385,7 +390,7 @@ packs/fixtures/unknown-capability/pack.json: caps is missing registered capabili
 
 check:packs passed
 
-> chronicle-forge@0.8.0 check:pack-boundary
+> [historical package name]@0.8.0 check:pack-boundary
 > tsx scripts/check-pack-boundary.mts
 
 fixture (a) branch on pack ID in src/core: PASS — rc=1, src/core/fixture-branch.ts:1
@@ -395,7 +400,7 @@ fixture (d) import from packs/** in src/core: PASS — rc=1, src/core/fixture-im
 ✓ core pack boundary: 37 source files; no pack-ID branches or imports from packs/**
 check:pack-boundary passed
 
-> chronicle-forge@0.8.0 check:decisions
+> [historical package name]@0.8.0 check:decisions
 > tsx scripts/check-decisions.mts
 
 fixture (a) decision without Статус: remains valid: PASS — rc=0
@@ -413,7 +418,7 @@ check:decisions failed: 1 issue(s)
 
 ```text
 
-> chronicle-forge@0.8.0 check:core-graph
+> [historical package name]@0.8.0 check:core-graph
 > tsx scripts/core-graph.mts
 
 Core graph OK (37 modules; acyclic; no core imports of engine.ts).
@@ -423,7 +428,7 @@ Core graph OK (37 modules; acyclic; no core imports of engine.ts).
 
 ```text
 
-> chronicle-forge@0.8.0 check:determinism
+> [historical package name]@0.8.0 check:determinism
 > tsx scripts/check-determinism.mts
 
 NAR-4.4 determinism check: 5 seeds × 2 runtimes × 2 replays.
@@ -473,7 +478,7 @@ PASS: 10/10 browser hashes equal cf-play; repeated hashes are identical.
 
 ```text
 
-> chronicle-forge@0.8.0 lint
+> [historical package name]@0.8.0 lint
 > oxlint
 [1515 предупреждений сокращены; полный локальный вывод /tmp/stab13-r2/npm_run_lint.log]
 
@@ -485,7 +490,7 @@ Finished in 1.0s on 472 files with 116 rules using 2 threads.
 
 ```text
 
-> chronicle-forge@0.8.0 check:audit-bundle
+> [historical package name]@0.8.0 check:audit-bundle
 > tsx scripts/check-audit-bundle.mts
 
 ✗ public/ai/campaign-audit.mjs is stale relative to scripts/campaign-audit.mts
@@ -499,7 +504,7 @@ Finished in 1.0s on 472 files with 116 rules using 2 threads.
 
 ```text
 
-> chronicle-forge@0.8.0 check:module-size
+> [historical package name]@0.8.0 check:module-size
 > tsx scripts/check-module-size.mts
 
 fixture (a) changed module 451 lines: PASS — rc=1, lines=451, limit=450
