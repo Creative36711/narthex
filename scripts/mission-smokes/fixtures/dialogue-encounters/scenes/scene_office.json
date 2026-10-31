@@ -1,0 +1,19 @@
+{
+  "id": "scene_office",
+  "label": "Кабинет",
+  "location": "loc_gate",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "default",
+      "label": "Обычное",
+      "condition": null,
+      "slots": []
+    }
+  ],
+  "slots": [],
+  "navigation": []
+}

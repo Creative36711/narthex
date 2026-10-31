@@ -10,12 +10,12 @@ function must(cond: boolean, msg: string) {
 
 console.log('--- Смоук-тест: Управление эффектом живого дыхания сущностей ---')
 
-const typesSrc = readFileSync('src/shared/types.ts', 'utf8')
+const typesSrc = readFileSync('src/shared/types/entities.ts', 'utf8')
 must(typesSrc.includes('breathe?: boolean'), '1. Поле breathe добавлено в типы сущностей')
 
-const sceneScreenSrc = readFileSync('src/player/SceneScreen.tsx', 'utf8')
-must(sceneScreenSrc.includes('entity.type === \'npc\' ? (entity.breathe !== false) : !!entity.breathe'), '2. Логика shouldBreathe корректна: NPC по умолчанию дышит, робот с breathe:false нет, предметы по умолчанию нет')
-must(sceneScreenSrc.includes('cf-breathe'), '3. Класс cf-breathe применяется к спрайту')
+const foregroundSrc = readFileSync('src/player/SceneForeground.tsx', 'utf8')
+must(foregroundSrc.includes('entity.type === \'npc\' ? (entity.breathe !== false) : !!entity.breathe'), '2. Логика shouldBreathe корректна: NPC по умолчанию дышит, робот с breathe:false нет, предметы по умолчанию нет')
+must(foregroundSrc.includes('cf-breathe'), '3. Класс cf-breathe применяется к спрайту')
 
 const indexCss = readFileSync('src/index.css', 'utf8')
 must(indexCss.includes('@keyframes cf-breathe') && indexCss.includes('.slot-sprite.cf-breathe'), '4. Анимация cf-breathe объявлена в index.css с transform-origin: bottom center')

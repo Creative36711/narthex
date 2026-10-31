@@ -1,0 +1,25 @@
+{
+  "regions": [
+    {
+      "id": "reg_vereten",
+      "label": "Веретен",
+      "map_image": "",
+      "parent_region": null,
+      "locations": [
+        {
+          "id": "loc_gate",
+          "label": "У ворот",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "travel_connections": [],
+          "scenes": [
+            "scene_office"
+          ],
+          "arrival_scene": "scene_office"
+        }
+      ]
+    }
+  ]
+}

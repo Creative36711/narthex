@@ -8,7 +8,7 @@ import type { CampaignManifest } from '../src/shared/types'
 console.log('--- Смоук-тест: Загрузка кампаний с таблицами встреч (encounters/ и rules/) ---')
 
 // 1. Тест загрузки кампании «Шёпот Шестерён» из папки _ai-temp/campaing/campaign
-const root = path.resolve('_ai-temp/campaing/campaign')
+const root = path.resolve('scripts/mission-smokes/fixtures/dialogue-encounters')
 const prevFetch = globalThis.fetch
 
 globalThis.fetch = async (url: string | URL | Request) => {

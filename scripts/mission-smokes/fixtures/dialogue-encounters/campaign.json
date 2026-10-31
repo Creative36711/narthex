@@ -1,0 +1,41 @@
+{
+  "id": "shepot-shesteren",
+  "title": "Шёпот Шестерён",
+  "version": "1.0.0",
+  "engine_version": "0.8.0",
+  "min_engine": "0.8.0",
+  "package_format": 1,
+  "author": "Mission smoke fixture",
+  "description": "Минимальная фикстура для проверок диалогов и таблиц встреч.",
+  "tick_label": "час",
+  "ticks_per_day": 24,
+  "starting_region": "reg_vereten",
+  "starting_location": "loc_gate",
+  "starting_scene": "scene_office",
+  "starting_tick": 8,
+  "default_player": "player_hero",
+  "needs": [
+    {
+      "id": "hunger",
+      "label": "Голод",
+      "max": 100,
+      "restore_per_tick": 0
+    },
+    {
+      "id": "thirst",
+      "label": "Жажда",
+      "max": 100,
+      "restore_per_tick": 0
+    },
+    {
+      "id": "warmth",
+      "label": "Тепло",
+      "max": 100,
+      "restore_per_tick": 0
+    }
+  ],
+  "features": {
+    "needs": true
+  },
+  "skills": []
+}

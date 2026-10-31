@@ -11,7 +11,7 @@ console.log('--- Смоук-тест: Диалоги новой кампании
 clearDialogueCache()
 
 // 1. Все 6 диалогов импортируются через inkToDlgDoc без единого warning
-const dir = '_ai-temp/campaing/campaign/dialogues'
+const dir = path.join(import.meta.dirname, 'mission-smokes/fixtures/dialogue-encounters/dialogues')
 const files = ['brin.ink', 'caleb.ink', 'maeva.ink', 'peddler.ink', 'rud.ink', 'torg.ink']
 
 for (const file of files) {
@@ -31,7 +31,7 @@ for (const file of files) {
 }
 
 // 3. Запуск диалогов в GameEngine: ни у кого нет «Диалог недоступен»
-const root = path.resolve('_ai-temp/campaing/campaign')
+const root = path.join(import.meta.dirname, 'mission-smokes/fixtures/dialogue-encounters')
 const prevFetch = globalThis.fetch
 globalThis.fetch = async (url: string | URL | Request) => {
   const rel = String(url).replace(/^\/campaigns\/shepot-shesteren\/?/, '').replace(/^\/+/, '')

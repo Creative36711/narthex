@@ -1,0 +1,16 @@
+{
+  "encounter_tables": [
+    {
+      "id": "enc_streets",
+      "entries": []
+    },
+    {
+      "id": "enc_foundry",
+      "entries": []
+    },
+    {
+      "id": "enc_tunnels",
+      "entries": []
+    }
+  ]
+}

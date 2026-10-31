@@ -1,0 +1,8 @@
+{
+  "id": "item_knife",
+  "type": "item",
+  "label": "Нож",
+  "description": "Проверка сохранённого слота.",
+  "weight": 0.5,
+  "equip_slot": "weapon"
+}

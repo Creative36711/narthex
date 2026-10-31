@@ -147,10 +147,10 @@ const campaign: CampaignData = {
   check('1 правило задало состояние облика', e.entityState('npc_maeva') === 'angry')
   e.applyEffects([{ type: 'set_entity_state', entity: 'npc_maeva', state: '' }])
   check('1 пустая строка снимает состояние', e.entityState('npc_maeva') === undefined)
-  const src = readFileSync('src/player/SceneScreen.tsx', 'utf8')
+  const foreground = readFileSync('src/player/SceneForeground.tsx', 'utf8')
   const ovl = readFileSync('src/player/DialogueOverlay.tsx', 'utf8')
-  check('1 сцена спрашивает движок о состоянии облика', /engine\.entityState\(/.test(src))
-  check('1 состояние движка сильнее свойства слота', /entityState\([^)]*\)[\s\S]{0,200}sprite_state/.test(src) === false || src.includes('entityState'))
+  check('1 сцена спрашивает движок о состоянии облика', /const forced = npc \? engine\.entityState\(npc\.id\) : undefined/.test(foreground))
+  check('1 состояние движка сильнее свойства слота', /const stateOfSprite = forced \?\? slot\.sprite_state/.test(foreground) && /stateOfSprite && npc\.scene_sprite_states/.test(foreground))
   check('1 портрет в диалоге берёт состояние движка', /engine\.entityState\(/.test(ovl))
 }
 

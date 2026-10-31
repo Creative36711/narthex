@@ -36,7 +36,7 @@ function check(name: string, ok: boolean, extra = '') {
   if (!ok) failed++
 }
 
-const PACKAGE = '_ai-temp/campaing/karkas_mednoe_serdce.chronicle'
+const PACKAGE = '_ai-temp/campaing/karkas_mednoe_serdce.narthex'
 
 // ── распаковка пакета и чтение его как кампании ──
 const root = mkdtempSync(join(tmpdir(), 'karkas-'))
