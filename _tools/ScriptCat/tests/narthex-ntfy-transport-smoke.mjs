@@ -14,7 +14,7 @@ const src = readFileSync(file, 'utf8');
 
 // 1. В @connect есть ntfy.sh, версия поднята.
 assert.match(src, /@connect\s+ntfy\.sh/, '@connect ntfy.sh');
-const versionMatch = src.match(/^\/\/ @version\s+(\d+\.\d+\.\d+)\s*$/m);
+const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.90)\s*$/m);
 assert.ok(versionMatch, 'narthex.user.js must declare a version in x.y.z format');
 
 // 2. В коде нет кириллицы в заголовках: X-Title/X-Priority/X-Tags не используются.

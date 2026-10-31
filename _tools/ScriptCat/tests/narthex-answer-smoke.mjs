@@ -20,8 +20,25 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const versionMatch = src.match(/^\/\/ @version\s+(\d+\.\d+\.\d+)\s*$/m);
-assert.ok(versionMatch, 'narthex.user.js must declare a version in x.y.z format');
+const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.90)\s*$/m);
+assert.ok(versionMatch, 'narthex.user.js must declare the independently expected release 1.4.90');
+
+// Negative control: deriving both sides from the modified manifest is a false
+// positive; the independent pinned guard must reject the substituted value.
+const substitutedManifest = src.replace(/^\/\/ @version\s+1\.4\.90\s*$/m, '// @version      9.9.9');
+assert.notEqual(substitutedManifest, src, 'the version substitution fixture must actually change the manifest');
+const selfDerivedVersion = substitutedManifest.match(/^\/\/ @version\s+(\d+\.\d+\.\d+)\s*$/m)?.[1];
+assert.equal(selfDerivedVersion, '9.9.9');
+assert.match(
+  substitutedManifest,
+  new RegExp(`^\\/\\/ @version\\s+${selfDerivedVersion.replace(/\./g, '\\.')}$`, 'm'),
+  'a self-referential expected version would incorrectly accept the substitution',
+);
+assert.doesNotMatch(
+  substitutedManifest,
+  /^\/\/ @version\s+1\.4\.90\s*$/m,
+  'the independent release oracle rejects the substituted manifest',
+);
 
 const sliceBetween = (startMarker, endMarker) => {
   const from = src.indexOf(startMarker);

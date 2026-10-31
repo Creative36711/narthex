@@ -1,17 +1,20 @@
 #!/usr/bin/env node
 /** Prove that cf-play check rejects a deterministic warning-only campaign. */
 import { spawn } from 'node:child_process'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import JSZip from 'jszip'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const FIXTURE = join(ROOT, '_tools', 'fixtures', 'cf-play-warning')
 const FIXTURE_LABEL = relative(ROOT, FIXTURE).split(sep).join('/')
 const SOURCE_OUT = 'source'
-const BUNDLE_OUT = 'unpacked-kit'
+const BUNDLE_OUT = 'bundle'
+const KIT_OUT = 'unpacked-kit'
 const TIMEOUT_MS = 120_000
+const EXPECTED_WARNING = 'scene_dead_end: сцена «warning fixture: dead-end start scene» без навигации, и из локации «location_test» нет дорог'
 
 function run(command, args, cwd = ROOT) {
   return new Promise((resolvePromise, rejectPromise) => {
@@ -39,7 +42,25 @@ function run(command, args, cwd = ROOT) {
   })
 }
 
-async function summarize(label, execution, outDir) {
+async function unpackKit(destination) {
+  const archivePath = join(ROOT, 'dist-ai', '__chronicle_ai__-kit.zip')
+  const archive = await JSZip.loadAsync(await readFile(archivePath))
+  const kitRoot = join(destination, '__chronicle_ai__')
+  for (const [archiveName, entry] of Object.entries(archive.files)) {
+    if (entry.dir) continue
+    const target = resolve(destination, archiveName)
+    if (target !== destination && !target.startsWith(`${destination}${sep}`)) {
+      throw new Error(`unsafe kit path: ${archiveName}`)
+    }
+    await mkdir(dirname(target), { recursive: true })
+    await writeFile(target, await entry.async('nodebuffer'))
+  }
+  const cli = join(kitRoot, 'cf-play.mjs')
+  await readFile(cli)
+  return cli
+}
+
+async function summarize(execution, outDir) {
   try {
     const result = JSON.parse(await readFile(join(outDir, 'report.json'), 'utf8'))
     const errors = Array.isArray(result.graph?.errors) ? result.graph.errors : []
@@ -52,11 +73,11 @@ async function summarize(label, execution, outDir) {
       && result.verdict === 'failed'
       && errors.length === 0
       && warnings.length === 1
-      && typeof warning === 'string'
+      && warning === EXPECTED_WARNING
       && output.includes(warning)
       && typeof fatalDiagnostic === 'string'
-      && fatalDiagnostic.includes('warning не допускается')
-      && output.includes('warning не допускается')
+      && fatalDiagnostic === 'warning не допускается: 1'
+      && output.includes(fatalDiagnostic)
 
     return {
       rc: execution.rc,
@@ -81,10 +102,10 @@ async function summarize(label, execution, outDir) {
   }
 }
 
-async function probe(label, runCommand, outDir) {
+async function probe(runCommand, outDir) {
   try {
     const execution = await runCommand(outDir)
-    const summary = await summarize(label, execution, outDir)
+    const summary = await summarize(execution, outDir)
     return { ...summary, signal: execution.signal }
   } catch (error) {
     return {
@@ -103,17 +124,24 @@ async function probe(label, runCommand, outDir) {
 const workDir = await mkdtemp(join(tmpdir(), 'cf-play-warning-negative-'))
 let source
 let bundle
+let unpackedKit
 try {
   const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
+  const kitBuild = await run(npm, ['run', '--silent', 'pack:ai-kit'])
+  if (kitBuild.rc !== 0) throw new Error(`pack:ai-kit failed with rc=${kitBuild.rc}\n${kitBuild.stdout}\n${kitBuild.stderr}`)
+  const kitCli = await unpackKit(join(workDir, KIT_OUT))
+
   source = await probe(
-    'source cf-play check',
     (outDir) => run(npm, ['run', '--silent', 'play', '--', 'check', FIXTURE, '--out', outDir]),
     join(workDir, SOURCE_OUT),
   )
   bundle = await probe(
-    'unpacked-kit cf-play check',
     (outDir) => run(process.execPath, [join(ROOT, 'public', 'ai', 'cf-play.mjs'), 'check', FIXTURE, '--out', outDir]),
     join(workDir, BUNDLE_OUT),
+  )
+  unpackedKit = await probe(
+    (outDir) => run(process.execPath, [kitCli, 'check', FIXTURE, '--out', outDir]),
+    join(workDir, KIT_OUT, 'reports'),
   )
 } finally {
   await rm(workDir, { recursive: true, force: true })
@@ -122,16 +150,17 @@ try {
 const result = {
   fixture: FIXTURE_LABEL,
   source,
-  unpackedKit: bundle,
-  ok: source.pass && bundle.pass,
+  bundle,
+  unpackedKit,
+  ok: source.pass && bundle.pass && unpackedKit.pass,
 }
 
-for (const [label, check] of [['source', source], ['unpacked-kit', bundle]]) {
+for (const [label, check] of [['source', source], ['bundle', bundle], ['unpacked-kit', unpackedKit]]) {
   console.log(`fixture ${label}: rc=${check.rc ?? 'n/a'} verdict=${check.verdict ?? 'n/a'} errors=${check.errors ?? 'n/a'} warnings=${check.warnings ?? 'n/a'}`)
   if (check.warning) console.log(`  warning: ${check.warning}`)
   if (check.fatalDiagnostic) console.log(`  fatal diagnostic: ${check.fatalDiagnostic}`)
   if (check.error) console.error(`  probe error: ${check.error}`)
-  if (!check.pass) console.error(`  FAILED: warning must be fatal; expected rc=1, zero errors, exactly one warning, and the required diagnostic`)
+  if (!check.pass) console.error(`  FAILED: expected rc=1, zero errors, exactly one warning, and «warning не допускается: 1»`)
 }
 console.log(`CF_PLAY_WARNING_NEGATIVE_RESULT ${JSON.stringify(result)}`)
 if (!result.ok) process.exitCode = 1

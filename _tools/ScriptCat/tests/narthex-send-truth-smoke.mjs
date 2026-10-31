@@ -22,7 +22,7 @@ import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const versionMatch = src.match(/^\/\/ @version\s+(\d+\.\d+\.\d+)\s*$/m);
+const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.90)\s*$/m);
 assert.ok(versionMatch, 'narthex.user.js must declare a version in x.y.z format');
 
 const cut = (from, to) => {
