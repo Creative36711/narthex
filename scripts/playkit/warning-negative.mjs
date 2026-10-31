@@ -42,8 +42,7 @@ function run(command, args, cwd = ROOT) {
   })
 }
 
-async function unpackKit(destination) {
-  const archivePath = join(ROOT, 'dist-ai', '__chronicle_ai__-kit.zip')
+async function unpackKit(destination, archivePath) {
   const archive = await JSZip.loadAsync(await readFile(archivePath))
   const kitRoot = join(destination, '__chronicle_ai__')
   for (const [archiveName, entry] of Object.entries(archive.files)) {
@@ -127,9 +126,11 @@ let bundle
 let unpackedKit
 try {
   const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
-  const kitBuild = await run(npm, ['run', '--silent', 'pack:ai-kit'])
+  const kitOutput = join(workDir, 'kit-build')
+  const kitBuild = await run(npm, ['run', '--silent', 'pack:ai-kit', '--', '--out', kitOutput])
   if (kitBuild.rc !== 0) throw new Error(`pack:ai-kit failed with rc=${kitBuild.rc}\n${kitBuild.stdout}\n${kitBuild.stderr}`)
-  const kitCli = await unpackKit(join(workDir, KIT_OUT))
+  const kitArchive = join(kitOutput, '__chronicle_ai__-kit.zip')
+  const kitCli = await unpackKit(join(workDir, KIT_OUT), kitArchive)
 
   source = await probe(
     (outDir) => run(npm, ['run', '--silent', 'play', '--', 'check', FIXTURE, '--out', outDir]),

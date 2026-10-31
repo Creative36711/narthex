@@ -107,12 +107,21 @@ for (const line of commands) {
   if (args.includes('explain')) assertExplainOutput(result.output, NARRATIVE_CODE_LIST[0]!.code, line)
 }
 
-// В пакет кладём ровно ту же инструкцию и эталон; проверяем собранный zip после распаковки.
-const packResult = run('npm', ['run', 'pack:ai-kit'], root)
-assert.equal(packResult.code, 0, `pack:ai-kit завершился с rc=${packResult.code}\n${packResult.output}`)
-const archivePath = join(root, 'dist-ai/__chronicle_ai__-kit.zip')
-assert.ok(existsSync(archivePath), 'pack:ai-kit не создал zip чемодана')
-const archive = await JSZip.loadAsync(await readFile(archivePath))
+// В пакет кладём ровно ту же инструкцию и эталон; строим его вне checkout,
+// чтобы проверка распаковки не оставляла untracked dist-ai/ в репозитории.
+const packWorkspace = await mkdtemp(join(tmpdir(), 'narthex-guide-pack-'))
+let archiveBytes: Buffer
+try {
+  const packOutput = join(packWorkspace, 'dist-ai')
+  const packResult = run('npm', ['run', 'pack:ai-kit', '--', '--out', packOutput], root)
+  assert.equal(packResult.code, 0, `pack:ai-kit завершился с rc=${packResult.code}\n${packResult.output}`)
+  const archivePath = join(packOutput, '__chronicle_ai__-kit.zip')
+  assert.ok(existsSync(archivePath), 'pack:ai-kit не создал zip чемодана')
+  archiveBytes = await readFile(archivePath)
+} finally {
+  await rm(packWorkspace, { recursive: true, force: true })
+}
+const archive = await JSZip.loadAsync(archiveBytes)
 const kitPrefix = '__chronicle_ai__/'
 assert.ok(archive.files[`${kitPrefix}CF-PLAY-TOOLS.md`], 'в архиве нет памятки CF-PLAY-TOOLS.md')
 assert.ok(archive.files[`${kitPrefix}campaign-guide.md`], 'в архиве нет campaign-guide.md')

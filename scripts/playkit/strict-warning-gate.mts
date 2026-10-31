@@ -54,8 +54,7 @@ function reportFrom(invocation: Invocation, label: string): Record<string, any> 
   }
 }
 
-async function unpackKit(destination: string): Promise<string> {
-  const archivePath = join(root, 'dist-ai/__chronicle_ai__-kit.zip')
+async function unpackKit(destination: string, archivePath: string): Promise<string> {
   const archive = await JSZip.loadAsync(await readFile(archivePath))
   const kitRoot = join(destination, '__chronicle_ai__')
   for (const [archiveName, entry] of Object.entries(archive.files)) {
@@ -72,9 +71,10 @@ async function unpackKit(destination: string): Promise<string> {
 async function main(): Promise<void> {
   const workspace = await mkdtemp(join(tmpdir(), 'cf-play-strict-warning-gate-'))
   try {
-    const kitBuild = invoke(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', '--silent', 'pack:ai-kit'], 180_000)
+    const kitOutput = join(workspace, 'kit-build')
+    const kitBuild = invoke(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', '--silent', 'pack:ai-kit', '--', '--out', kitOutput], 180_000)
     assert.equal(kitBuild.rc, 0, `pack:ai-kit must complete before the unpacked-kit check\n${kitBuild.stdout}\n${kitBuild.stderr}`)
-    const kitCli = await unpackKit(join(workspace, 'unpacked'))
+    const kitCli = await unpackKit(join(workspace, 'unpacked'), join(kitOutput, '__chronicle_ai__-kit.zip'))
     const sourceCli = join(root, 'node_modules/tsx/dist/cli.mjs')
     const sourceEntry = join(root, 'scripts/playkit/cli.mts')
     const bundleCli = join(root, 'public/ai/cf-play.mjs')

@@ -7,7 +7,7 @@
     "audit:campaign": "tsx scripts/campaign-audit.mts",
     "audit:campaign-formats": "tsx scripts/audit-campaign-formats.mts",
     "build": "tsc -b && vite build",
-    "build:ai-bundle": "esbuild scripts/campaign-audit.mts --bundle --platform=node --format=esm --target=node18 --outfile=public/ai/campaign-audit.mjs && tsx scripts/rename-audit-ajv-helper.mts public/ai/campaign-audit.mjs",
+    "build:ai-bundle": "tsx scripts/build-ai-bundle.mts",
     "build:playkit-bundle": "esbuild scripts/playkit/cli.mts --bundle --platform=node --format=esm --target=node20 --legal-comments=none --define:__CF_ENGINE_VERSION__=\\\"$npm_package_version\\\" --outfile=public/ai/cf-play.mjs",
     "campaign:dev": "tsx scripts/campaign-visibility.mts dev",
     "campaign:release": "tsx scripts/campaign-visibility.mts release",
