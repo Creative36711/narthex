@@ -6,7 +6,12 @@ import JSZip from 'jszip'
 
 const root = resolve(import.meta.dirname, '..')
 const source = join(root, 'public', 'ai')
-const out = join(root, 'dist-ai')
+const outIndex = process.argv.indexOf('--out')
+const outArg = outIndex >= 0 ? process.argv[outIndex + 1] : undefined
+if (outIndex >= 0 && (!outArg || outArg.startsWith('--'))) {
+  throw new Error('Usage: npm run pack:ai-kit [-- --out <directory>]')
+}
+const out = outArg ? resolve(process.cwd(), outArg) : join(root, 'dist-ai')
 const kit = join(out, '__chronicle_ai__')
 
 await mkdir(kit, { recursive: true })

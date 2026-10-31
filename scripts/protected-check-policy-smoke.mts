@@ -9,7 +9,7 @@ import { classifyCampaignCopyDelta, isUnchangedProtectedCampaign } from './prote
 
 const repoRoot = path.resolve(import.meta.dirname, '..')
 const tempRoot = await mkdtemp(path.join(tmpdir(), 'narthex-protected-checks-'))
-const hash = (value: string): string => createHash('sha256').update(value).digest('hex')
+const hash = (value: string | Buffer): string => createHash('sha256').update(value).digest('hex')
 
 async function copyCampaigns(name: string): Promise<string> {
   const root = path.join(tempRoot, name)
@@ -90,6 +90,27 @@ try {
   assert.ok(changedBrandScan.hits.some((hit) => hit.startsWith('docs/unapproved.md:')))
   assert.ok(changedBrandScan.hits.some((hit) => hit.startsWith('docs/dist-ai/unapproved.md:')))
   assert.ok(!changedBrandScan.hits.some((hit) => hit.startsWith('dist-ai/generated.md:')))
+
+  // The regenerated audit artifact is allowed only as this exact path+hash.
+  // A changed bundle or the same content at a new path reactivates brand scanning.
+  const auditBundle = await readFile(path.join(repoRoot, 'public/ai/campaign-audit.mjs'))
+  const auditRoot = path.join(tempRoot, 'pinned-audit-bundle')
+  const auditPath = path.join(auditRoot, 'public/ai/campaign-audit.mjs')
+  await mkdir(path.dirname(auditPath), { recursive: true })
+  await writeFile(auditPath, auditBundle)
+  const exactAuditScan = scanBrandRoot(auditRoot)
+  assert.deepEqual(exactAuditScan.hits, [])
+  assert.equal(exactAuditScan.unchangedBaselineFiles, 1)
+
+  await writeFile(auditPath, Buffer.concat([auditBundle, Buffer.from('\n')]))
+  const changedAuditScan = scanBrandRoot(auditRoot)
+  assert.ok(changedAuditScan.hits.some((hit) => hit.startsWith('public/ai/campaign-audit.mjs:')))
+
+  await writeFile(auditPath, auditBundle)
+  await writeFile(path.join(auditRoot, 'public/ai/unapproved.mjs'), auditBundle)
+  const unapprovedAuditScan = scanBrandRoot(auditRoot)
+  assert.ok(unapprovedAuditScan.hits.some((hit) => hit.startsWith('public/ai/unapproved.mjs:')))
+  assert.ok(!unapprovedAuditScan.hits.some((hit) => hit.startsWith('public/ai/campaign-audit.mjs:')))
 
   console.log('✓ protected-check-policy smoke — exact snapshots accepted; changed trees, metadata deltas, and unauthorized brand paths rejected')
 } finally {

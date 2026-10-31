@@ -47,6 +47,28 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
+// src/shared/aiBaseline.ts
+function aiDiffSnapshotKey(basePath) {
+  return `cf_editor_ai_baseline:${basePath}`;
+}
+var init_aiBaseline = __esm({
+  "src/shared/aiBaseline.ts"() {
+  }
+});
+
+// src/core/pack/capability-modes.ts
+function projectCapabilityMode(project, capabilityId) {
+  const options = isRecord(project.cap_options) ? project.cap_options : {};
+  const option = isRecord(options[capabilityId]) ? options[capabilityId] : {};
+  return option.mode === "code" || option.mode === "off" ? option.mode : "core";
+}
+var isRecord;
+var init_capability_modes = __esm({
+  "src/core/pack/capability-modes.ts"() {
+    isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value) && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
+  }
+});
+
 // src/shared/migrate.ts
 function migrateNeedCondition(c) {
   const any = c;
@@ -142,15 +164,6 @@ var init_migrate = __esm({
   }
 });
 
-// src/shared/aiBaseline.ts
-function aiDiffSnapshotKey(basePath) {
-  return `cf_editor_ai_baseline:${basePath}`;
-}
-var init_aiBaseline = __esm({
-  "src/shared/aiBaseline.ts"() {
-  }
-});
-
 // src/shared/ruleFiles.ts
 function isEncounterFile(obj) {
   return Array.isArray(obj.encounter_tables);
@@ -243,16 +256,129 @@ var init_loader = __esm({
   }
 });
 
-// src/core/pack/capability-modes.ts
-function projectCapabilityMode(project, capabilityId) {
-  const options = isRecord(project.cap_options) ? project.cap_options : {};
-  const option = isRecord(options[capabilityId]) ? options[capabilityId] : {};
-  return option.mode === "code" || option.mode === "off" ? option.mode : "core";
+// src/editor/storeShared.ts
+function walkEffects(effects, fn) {
+  for (const e of effects ?? []) {
+    fn(e);
+    if (e.type === "skill_check_gate") {
+      walkEffects(e.success_effects ?? [], fn);
+      walkEffects(e.fail_effects ?? [], fn);
+    } else if (e.type === "stat_check") {
+      walkEffects(e.success_effects ?? [], fn);
+      walkEffects(e.fail_effects ?? [], fn);
+    } else if (e.type === "opposed_check") {
+      walkEffects(e.success_effects ?? [], fn);
+      walkEffects(e.fail_effects ?? [], fn);
+    } else if (e.type === "group_stat_check") {
+      walkEffects(e.success_effects ?? [], fn);
+      walkEffects(e.fail_effects ?? [], fn);
+    } else if (e.type === "start_pursuit") {
+      walkEffects(e.on_fail ?? [], fn);
+    }
+  }
 }
-var isRecord;
-var init_capability_modes = __esm({
-  "src/core/pack/capability-modes.ts"() {
-    isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value) && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
+var FIRE_RULE_MAX_DEPTH;
+var init_storeShared = __esm({
+  "src/editor/storeShared.ts"() {
+    FIRE_RULE_MAX_DEPTH = 2;
+  }
+});
+
+// src/shared/types/foundations.ts
+var init_foundations = __esm({
+  "src/shared/types/foundations.ts"() {
+  }
+});
+
+// src/shared/types/characters.ts
+var init_characters = __esm({
+  "src/shared/types/characters.ts"() {
+  }
+});
+
+// src/shared/types/campaign-visual.ts
+var init_campaign_visual = __esm({
+  "src/shared/types/campaign-visual.ts"() {
+  }
+});
+
+// src/shared/types/campaign.ts
+var init_campaign = __esm({
+  "src/shared/types/campaign.ts"() {
+  }
+});
+
+// src/shared/types/world.ts
+var init_world = __esm({
+  "src/shared/types/world.ts"() {
+  }
+});
+
+// src/shared/types/scene-art.ts
+var init_scene_art = __esm({
+  "src/shared/types/scene-art.ts"() {
+  }
+});
+
+// src/shared/types/world-rules.ts
+var init_world_rules = __esm({
+  "src/shared/types/world-rules.ts"() {
+  }
+});
+
+// src/shared/types/entities.ts
+var init_entities = __esm({
+  "src/shared/types/entities.ts"() {
+  }
+});
+
+// src/shared/types/audio.ts
+var DEFAULT_EMOTION;
+var init_audio = __esm({
+  "src/shared/types/audio.ts"() {
+    DEFAULT_EMOTION = { id: "neutral", label: "\u041E\u0431\u044B\u0447\u043D\u044B\u0439" };
+  }
+});
+
+// src/shared/types/dialogue.ts
+var init_dialogue = __esm({
+  "src/shared/types/dialogue.ts"() {
+  }
+});
+
+// src/shared/types/adventure.ts
+var init_adventure = __esm({
+  "src/shared/types/adventure.ts"() {
+  }
+});
+
+// src/shared/types/rules.ts
+var init_rules = __esm({
+  "src/shared/types/rules.ts"() {
+  }
+});
+
+// src/shared/types/generators.ts
+var init_generators = __esm({
+  "src/shared/types/generators.ts"() {
+  }
+});
+
+// src/shared/types/state.ts
+var init_state = __esm({
+  "src/shared/types/state.ts"() {
+  }
+});
+
+// src/shared/types/saves.ts
+var init_saves = __esm({
+  "src/shared/types/saves.ts"() {
+  }
+});
+
+// src/shared/types/runtime.ts
+var init_runtime = __esm({
+  "src/shared/types/runtime.ts"() {
   }
 });
 
@@ -365,11 +491,25 @@ var init_caps = __esm({
 });
 
 // src/shared/types.ts
-var DEFAULT_EMOTION;
 var init_types = __esm({
   "src/shared/types.ts"() {
+    init_foundations();
+    init_characters();
+    init_campaign_visual();
+    init_campaign();
+    init_world();
+    init_scene_art();
+    init_world_rules();
+    init_entities();
+    init_audio();
+    init_dialogue();
+    init_adventure();
+    init_rules();
+    init_generators();
+    init_state();
+    init_saves();
+    init_runtime();
     init_caps();
-    DEFAULT_EMOTION = { id: "neutral", label: "\u041E\u0431\u044B\u0447\u043D\u044B\u0439" };
   }
 });
 
@@ -427,45 +567,14 @@ var init_skills = __esm({
   }
 });
 
-// src/editor/store.ts
-var store_exports = {};
-__export(store_exports, {
-  EditorStore: () => EditorStore,
-  FIRE_RULE_MAX_DEPTH: () => FIRE_RULE_MAX_DEPTH
-});
-function walkEffects(effects, fn) {
-  for (const e of effects ?? []) {
-    fn(e);
-    if (e.type === "skill_check_gate") {
-      walkEffects(e.success_effects ?? [], fn);
-      walkEffects(e.fail_effects ?? [], fn);
-    } else if (e.type === "stat_check") {
-      walkEffects(e.success_effects ?? [], fn);
-      walkEffects(e.fail_effects ?? [], fn);
-    } else if (e.type === "opposed_check") {
-      walkEffects(e.success_effects ?? [], fn);
-      walkEffects(e.fail_effects ?? [], fn);
-    } else if (e.type === "group_stat_check") {
-      walkEffects(e.success_effects ?? [], fn);
-      walkEffects(e.fail_effects ?? [], fn);
-    } else if (e.type === "start_pursuit") {
-      walkEffects(e.on_fail ?? [], fn);
-    }
-  }
-}
-var FIRE_RULE_MAX_DEPTH, EditorStore;
-var init_store = __esm({
-  "src/editor/store.ts"() {
-    init_migrate();
-    init_aiBaseline();
-    init_loader();
-    init_ruleFiles();
-    init_versions();
+// src/editor/storeBase.ts
+var EditorStoreBase;
+var init_storeBase = __esm({
+  "src/editor/storeBase.ts"() {
     init_capability_modes();
-    init_types();
-    init_skills();
-    FIRE_RULE_MAX_DEPTH = 2;
-    EditorStore = class _EditorStore {
+    init_versions();
+    init_ruleFiles();
+    EditorStoreBase = class {
       basePath;
       // "/campaigns/ash-of-caerden"
       project = { kind: "narrative" };
@@ -684,6 +793,19 @@ var init_store = __esm({
         const dropped = this.manifest.rules.length - kept.length;
         if (dropped > 0) this.manifest.rules = kept;
       }
+    };
+  }
+});
+
+// src/editor/storeLookups.ts
+var EditorStoreLookups;
+var init_storeLookups = __esm({
+  "src/editor/storeLookups.ts"() {
+    init_types();
+    init_skills();
+    init_storeShared();
+    init_storeBase();
+    EditorStoreLookups = class extends EditorStoreBase {
       // ─────────────── доступ с типами ───────────────
       scenePaths() {
         return this.manifest.scenes.map((f) => `scenes/${f}`);
@@ -946,6 +1068,20 @@ var init_store = __esm({
         }
         return out.sort((a, b) => a.label.localeCompare(b.label, "ru"));
       }
+    };
+  }
+});
+
+// src/editor/storeContent.ts
+var EditorStoreContent;
+var init_storeContent = __esm({
+  "src/editor/storeContent.ts"() {
+    init_migrate();
+    init_loader();
+    init_versions();
+    init_storeShared();
+    init_storeLookups();
+    EditorStoreContent = class extends EditorStoreLookups {
       /** название стадии или журнальной записи квеста (для сводок правил) */
       questStageLabel(questId, key) {
         for (const p of this.questPaths()) {
@@ -1223,6 +1359,17 @@ var init_store = __esm({
         }
         return issues;
       }
+    };
+  }
+});
+
+// src/editor/storeChanges.ts
+var EditorStoreChanges;
+var init_storeChanges = __esm({
+  "src/editor/storeChanges.ts"() {
+    init_capability_modes();
+    init_storeContent();
+    EditorStoreChanges = class extends EditorStoreContent {
       // ─────────────── правки ───────────────
       touch(path, group = "") {
         if (path.startsWith("quests/") && projectCapabilityMode(this.project, "quests") === "off") {
@@ -1267,28 +1414,6 @@ var init_store = __esm({
         this.lastTouch = { path: "", group: "", at: 0 };
         this.notify();
         return path;
-      }
-      setJson(path, data) {
-        if (path === "project.json") {
-          this.project = data;
-          this.projectFileExists = true;
-          this.capabilityModes = this.resolveModes?.(this.project) ?? null;
-        } else {
-          this.jsonFiles.set(path, data);
-        }
-        this.touch(path);
-      }
-      setText(path, text) {
-        this.textFiles.set(path, text);
-        this.touch(path);
-      }
-      setMeta(meta) {
-        this.meta = meta;
-        this.touch("campaign.json");
-      }
-      setWorld(world) {
-        this.world = world;
-        this.touch("world.json");
       }
       /** создать новый файл и внести в манифест */
       createFile(section, filename, data) {
@@ -1356,6 +1481,17 @@ var init_store = __esm({
         this.persistBaseline();
         this.notify();
       }
+    };
+  }
+});
+
+// src/editor/storeDiff.ts
+var EditorStoreDiff;
+var init_storeDiff = __esm({
+  "src/editor/storeDiff.ts"() {
+    init_aiBaseline();
+    init_storeChanges();
+    EditorStoreDiff = class _EditorStoreDiff extends EditorStoreChanges {
       /** ключ localStorage, по которому лежит снимок базы правок мастера для этой кампании */
       get aiBaselineKey() {
         return aiDiffSnapshotKey(this.basePath);
@@ -1369,12 +1505,12 @@ var init_store = __esm({
       persistBaseline() {
         try {
           const payload = JSON.stringify({
-            v: _EditorStore.AI_BASELINE_VERSION,
+            v: _EditorStoreDiff.AI_BASELINE_VERSION,
             campaign: this.meta?.id ?? "",
             capturedAt: Date.now(),
             files: Object.fromEntries(this.baseline)
           });
-          if (payload.length > _EditorStore.AI_BASELINE_LIMIT) {
+          if (payload.length > _EditorStoreDiff.AI_BASELINE_LIMIT) {
             localStorage.removeItem(this.aiBaselineKey);
             console.warn("[ai-diff] \u0441\u043D\u0438\u043C\u043E\u043A \u0431\u0430\u0437\u044B \u043F\u0440\u0430\u0432\u043E\u043A \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u0432\u0435\u043B\u0438\u043A \u0434\u043B\u044F localStorage; \u043E\u0442\u0441\u043B\u0435\u0436\u0438\u0432\u0430\u043D\u0438\u0435 \u043D\u0435 \u043F\u0435\u0440\u0435\u0436\u0438\u0432\u0451\u0442 \u043F\u0435\u0440\u0435\u0437\u0430\u043F\u0443\u0441\u043A");
             return;
@@ -1394,7 +1530,7 @@ var init_store = __esm({
           const raw = localStorage.getItem(this.aiBaselineKey);
           if (!raw) return false;
           const data = JSON.parse(raw);
-          if (data.v !== _EditorStore.AI_BASELINE_VERSION) return false;
+          if (data.v !== _EditorStoreDiff.AI_BASELINE_VERSION) return false;
           if (typeof data.files !== "object" || data.files === null) return false;
           if (typeof data.campaign === "string" && data.campaign && this.meta?.id && data.campaign !== this.meta.id) return false;
           const files = data.files;
@@ -1420,9 +1556,9 @@ var init_store = __esm({
        *  сериализации (отступы/переносы) не считается правкой мастера (фидбек:
        *  «просто просмотрел диалог — ИИ-мастер записал как изменение»). */
       static canonJson(o) {
-        if (Array.isArray(o)) return `[${o.map((x) => _EditorStore.canonJson(x)).join(",")}]`;
+        if (Array.isArray(o)) return `[${o.map((x) => _EditorStoreDiff.canonJson(x)).join(",")}]`;
         if (o && typeof o === "object") {
-          return `{${Object.keys(o).sort().map((k) => `${JSON.stringify(k)}:${_EditorStore.canonJson(o[k])}`).join(",")}}`;
+          return `{${Object.keys(o).sort().map((k) => `${JSON.stringify(k)}:${_EditorStoreDiff.canonJson(o[k])}`).join(",")}}`;
         }
         return JSON.stringify(o);
       }
@@ -1430,7 +1566,7 @@ var init_store = __esm({
         if (a === b) return true;
         if (!path.endsWith(".json")) return false;
         try {
-          return _EditorStore.canonJson(JSON.parse(a)) === _EditorStore.canonJson(JSON.parse(b));
+          return _EditorStoreDiff.canonJson(JSON.parse(a)) === _EditorStoreDiff.canonJson(JSON.parse(b));
         } catch {
           return false;
         }
@@ -1575,6 +1711,44 @@ var init_store = __esm({
         lines.push("\u041F\u0440\u0438\u043C\u0435\u043D\u0438 \u044D\u0442\u0438 \u0438\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u044F \u043F\u043E\u0432\u0435\u0440\u0445 \u0441\u0432\u043E\u0435\u0439 \u0432\u0435\u0440\u0441\u0438\u0438 \u043F\u0440\u043E\u0435\u043A\u0442\u0430 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 \u0438 \u043F\u0440\u043E\u0434\u043E\u043B\u0436\u0430\u0439 \u0440\u0430\u0437\u0440\u0430\u0431\u043E\u0442\u043A\u0443 \u0441 \u0438\u0445 \u0443\u0447\u0451\u0442\u043E\u043C.");
         return lines.join("\n");
       }
+    };
+  }
+});
+
+// src/editor/store.ts
+var store_exports = {};
+__export(store_exports, {
+  EditorStore: () => EditorStore,
+  FIRE_RULE_MAX_DEPTH: () => FIRE_RULE_MAX_DEPTH
+});
+var EditorStore;
+var init_store = __esm({
+  "src/editor/store.ts"() {
+    init_storeDiff();
+    init_storeShared();
+    EditorStore = class extends EditorStoreDiff {
+      setJson(path, data) {
+        if (path === "project.json") {
+          this.project = data;
+          this.projectFileExists = true;
+          this.capabilityModes = this.resolveModes?.(this.project) ?? null;
+        } else {
+          this.jsonFiles.set(path, data);
+        }
+        this.touch(path);
+      }
+      setText(path, text) {
+        this.textFiles.set(path, text);
+        this.touch(path);
+      }
+      setMeta(meta) {
+        this.meta = meta;
+        this.touch("campaign.json");
+      }
+      setWorld(world) {
+        this.world = world;
+        this.touch("world.json");
+      }
       allPaths() {
         return [
           ...this.projectFileExists ? ["project.json"] : [],
@@ -1621,6 +1795,970 @@ var init_store = __esm({
         this.notify();
       }
     };
+  }
+});
+
+// src/editor/campaignAuditMedia.ts
+function isExternal(path) {
+  return /^(?:https?:)?\/\//i.test(path);
+}
+function mediaType(path) {
+  const clean = path.split(/[?#]/, 1)[0].toLowerCase();
+  if (/\.(?:png|jpe?g|gif|svg|webp|avif)$/.test(clean)) return "\u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435";
+  if (/\.(?:aac|flac|m4a|mp3|ogg|opus|wav)$/.test(clean)) return "\u0430\u0443\u0434\u0438\u043E";
+  if (/\.(?:mp4|mov|webm)$/.test(clean)) return "\u0432\u0438\u0434\u0435\u043E";
+  return "\u0448\u0440\u0438\u0444\u0442";
+}
+function expectedMime(path) {
+  const clean = path.split(/[?#]/, 1)[0].toLowerCase();
+  if (/\.jpe?g$/.test(clean)) return "image/jpeg";
+  if (/\.png$/.test(clean)) return "image/png";
+  if (/\.webp$/.test(clean)) return "image/webp";
+  if (/\.svg$/.test(clean)) return "image/svg+xml";
+  if (/\.avif$/.test(clean)) return "image/avif";
+  if (/\.(?:aac)$/.test(clean)) return "audio/aac";
+  if (/\.(?:mp3)$/.test(clean)) return "audio/mpeg";
+  if (/\.(?:m4a)$/.test(clean)) return "audio/mp4";
+  if (/\.(?:ogg|opus)$/.test(clean)) return "audio/ogg";
+  if (/\.(?:wav)$/.test(clean)) return "audio/wav";
+  if (/\.(?:mp4)$/.test(clean)) return "video/mp4";
+  if (/\.(?:webm)$/.test(clean)) return "video/webm";
+  if (/\.(?:woff2?)$/.test(clean)) return `font/woff${clean.endsWith(".woff2") ? "2" : ""}`;
+  if (/\.ttf$/.test(clean)) return "font/ttf";
+  if (/\.otf$/.test(clean)) return "font/otf";
+  return void 0;
+}
+function collectCampaignMedia(store) {
+  const local = /* @__PURE__ */ new Set();
+  const external = /* @__PURE__ */ new Set();
+  const visit = (value) => {
+    if (typeof value === "string") {
+      const path = value.trim();
+      if (!MEDIA_EXTENSION.test(path)) return;
+      if (isExternal(path)) external.add(path);
+      else if (!/^(?:data|blob):/i.test(path)) local.add(path.split(/[?#]/, 1)[0].replace(/^\.\//, ""));
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (value && typeof value === "object") {
+      Object.values(value).forEach(visit);
+    }
+  };
+  visit(store.meta);
+  visit(store.world);
+  for (const value of store.jsonFiles.values()) visit(value);
+  for (const text of store.textFiles.values()) {
+    for (const match of text.matchAll(/["']([^"'\r\n]+\.(?:avif|gif|jpe?g|png|svg|webp|aac|flac|m4a|mp3|ogg|opus|wav|mp4|mov|webm|otf|ttf|woff2?)(?:[?#][^"'\r\n]*)?)["']/gi)) {
+      const path = match[1].trim();
+      if (isExternal(path)) external.add(path);
+      else local.add(path.split(/[?#]/, 1)[0].replace(/^\.\//, ""));
+    }
+    for (const match of text.matchAll(/#\s*(?:voice|sfx|music|ambient|sound|audio)\s*:\s*([^\s\r\n]+\.(?:avif|gif|jpe?g|png|svg|webp|aac|flac|m4a|mp3|ogg|opus|wav|mp4|mov|webm|otf|ttf|woff2?))/gi)) {
+      const path = match[1].trim();
+      if (isExternal(path)) external.add(path);
+      else local.add(path.split(/[?#]/, 1)[0].replace(/^\.\//, ""));
+    }
+    for (const match of text.matchAll(/\b(assets\/[^\s"'\r\n,;)]+\.(?:avif|gif|jpe?g|png|svg|webp|aac|flac|m4a|mp3|ogg|opus|wav|mp4|mov|webm|otf|ttf|woff2?))/gi)) {
+      const path = match[1].trim();
+      if (isExternal(path)) external.add(path);
+      else local.add(path.split(/[?#]/, 1)[0].replace(/^\.\//, ""));
+    }
+  }
+  return { local: [...local].sort(), external: [...external].sort() };
+}
+function campaignContentHash(store) {
+  const content = store.allPaths().sort().map((path) => `${path}
+${store.fileText(path)}`).join("\n\0\n");
+  let hash = 2166136261;
+  for (let i = 0; i < content.length; i++) {
+    hash ^= content.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+async function inspectLocalMedia(store, paths) {
+  return Promise.all(paths.map(async (path) => {
+    if (!path || path.startsWith("/") || path.includes("\\") || path.split("/").includes("..")) {
+      return { severity: "error", message: `\u041D\u0435\u0434\u043E\u043F\u0443\u0441\u0442\u0438\u043C\u044B\u0439 \u043F\u0443\u0442\u044C \u043C\u0435\u0434\u0438\u0430: \xAB${path}\xBB. \u0418\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0439\u0442\u0435 \u043E\u0442\u043D\u043E\u0441\u0438\u0442\u0435\u043B\u044C\u043D\u044B\u0439 \u043F\u0443\u0442\u044C \u0432\u043D\u0443\u0442\u0440\u0438 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438.` };
+    }
+    try {
+      const url = `${store.basePath}/${path.split("/").map(encodeURIComponent).join("/")}`;
+      let response = await fetch(url, { method: "HEAD", cache: "no-store" });
+      if (response.status === 405 || response.status === 501) response = await fetch(url, { method: "GET", cache: "no-store" });
+      if (!response.ok || (response.headers.get("content-type") ?? "").toLowerCase().includes("text/html")) {
+        return { severity: "error", message: `\u041D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D ${mediaType(path)} \xAB${path}\xBB.` };
+      }
+      const actualMime = (response.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
+      const expected = expectedMime(path);
+      if (expected && actualMime && actualMime !== expected && actualMime !== "application/octet-stream") {
+        return { severity: "warning", message: `\u0424\u0430\u0439\u043B \xAB${path}\xBB \u043E\u0442\u0434\u0430\u0451\u0442\u0441\u044F \u043A\u0430\u043A ${actualMime}, \u043E\u0436\u0438\u0434\u0430\u043B\u0441\u044F ${expected}; \u043F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0434\u0435\u043D\u0438\u0435.` };
+      }
+      if (actualMime === "application/octet-stream") {
+        return { severity: "warning", message: `\u0424\u0430\u0439\u043B \xAB${path}\xBB \u043E\u0442\u0434\u0430\u0451\u0442\u0441\u044F \u043A\u0430\u043A \u043D\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043D\u044B\u0439 \u0431\u0438\u043D\u0430\u0440\u043D\u044B\u0439 \u0442\u0438\u043F; \u043F\u043B\u0435\u0435\u0440 \u043C\u043E\u0436\u0435\u0442 \u043D\u0435 \u0440\u0430\u0441\u043F\u043E\u0437\u043D\u0430\u0442\u044C \u0444\u043E\u0440\u043C\u0430\u0442.` };
+      }
+      return { severity: "info", message: `\u0424\u0430\u0439\u043B \u043D\u0430\u0439\u0434\u0435\u043D: ${path}` };
+    } catch {
+      return { severity: "error", message: `\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C ${mediaType(path)} \xAB${path}\xBB.` };
+    }
+  }));
+}
+function alphaRolePaths(store) {
+  const out = [];
+  const art = store.meta.theme?.menu?.title_art;
+  if (art) out.push({ path: art, role: "\u044D\u043C\u0431\u043B\u0435\u043C\u0430 \u043C\u0435\u043D\u044E (theme.menu.title_art) \u043B\u0435\u0436\u0438\u0442 \u043F\u043E\u0432\u0435\u0440\u0445 \u0444\u043E\u043D\u0430 \u043C\u0435\u043D\u044E" });
+  const frameImg = store.meta.theme?.frame?.image;
+  if (frameImg) out.push({ path: frameImg, role: "\u0440\u0430\u043C\u043A\u0430 \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430 (theme.frame.image) \u043E\u0431\u0440\u0430\u043C\u043B\u044F\u0435\u0442 \u043E\u043A\u043D\u0430" });
+  for (const atm of store.meta.atmospherics ?? []) {
+    if (atm.sprite) out.push({ path: atm.sprite, role: `\u0441\u043F\u0440\u0430\u0439\u0442 \u0430\u0442\u043C\u043E\u0441\u0444\u0435\u0440\u043D\u043E\u0439 \u0447\u0430\u0441\u0442\u0438\u0446\u044B \xAB${atm.label || atm.id}\xBB` });
+  }
+  for (const p of store.entityPaths()) {
+    const e = store.entity(p);
+    const spr = typeof e.scene_sprite === "string" ? e.scene_sprite : void 0;
+    if (spr) out.push({ path: spr, role: `\u0441\u043F\u0440\u0430\u0439\u0442 \u0432 \u0441\u0446\u0435\u043D\u0435 \xAB${e.label}\xBB \u0441\u0442\u043E\u0438\u0442 \u0432 \u0441\u043B\u043E\u0442\u0435 \u043F\u043E\u0432\u0435\u0440\u0445 \u0444\u043E\u043D\u0430 \u0441\u0446\u0435\u043D\u044B` });
+    if ("scene_sprite_states" in e && e.scene_sprite_states) {
+      for (const [st, img] of Object.entries(e.scene_sprite_states)) {
+        if (typeof img === "string") out.push({ path: img, role: `\u0441\u043F\u0440\u0430\u0439\u0442 \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u044F \xAB${st}\xBB \u0432 \u0441\u0446\u0435\u043D\u0435 \xAB${e.label}\xBB` });
+      }
+    }
+    const fig = "combat_figure" in e && typeof e.combat_figure === "string" ? e.combat_figure : void 0;
+    if (fig) out.push({ path: fig, role: `\u0444\u0438\u0433\u0443\u0440\u043A\u0430 \u0431\u043E\u044F \xAB${e.label}\xBB \u0441\u0442\u043E\u0438\u0442 \u043F\u043E\u0432\u0435\u0440\u0445 \u0430\u0440\u0435\u043D\u044B` });
+  }
+  return out;
+}
+async function inspectAlphaRoles(store) {
+  const findings = [];
+  for (const { path, role } of alphaRolePaths(store)) {
+    if (isExternal(path) || path.startsWith("data:") || path.startsWith("blob:")) continue;
+    try {
+      const url = `${store.basePath}/${path.split("/").map(encodeURIComponent).join("/")}`;
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) continue;
+      const bmp = await createImageBitmap(await res.blob());
+      const w = bmp.width;
+      const h = bmp.height;
+      if (!w || !h) continue;
+      const ctx = new OffscreenCanvas(w, h).getContext("2d", { willReadFrequently: true });
+      if (!ctx) continue;
+      ctx.drawImage(bmp, 0, 0);
+      const corners = [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]];
+      const opaque = corners.every(([x, y]) => ctx.getImageData(x, y, 1, 1).data[3] === 255);
+      bmp.close?.();
+      if (opaque) {
+        findings.push({
+          severity: "warning",
+          message: `\xAB${path}\xBB: ${role}, \u043F\u043E\u044D\u0442\u043E\u043C\u0443 \u0442\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F \u043F\u0440\u043E\u0437\u0440\u0430\u0447\u043D\u044B\u0439 \u0444\u043E\u043D (PNG \u0441 \u0430\u043B\u044C\u0444\u043E\u0439); \u0443 \u0444\u0430\u0439\u043B\u0430 \u043D\u0435\u043F\u0440\u043E\u0437\u0440\u0430\u0447\u043D\u044B\u0435 \u0443\u0433\u043B\u044B \u2014 \u043F\u043E\u0445\u043E\u0436\u0435 \u043D\u0430 \u0444\u043E\u043D-\u043F\u043E\u0434\u043B\u043E\u0436\u043A\u0443 \u0438\u043B\u0438 \u043D\u0430\u0440\u0438\u0441\u043E\u0432\u0430\u043D\u043D\u0443\u044E \u0448\u0430\u0445\u043C\u0430\u0442\u043A\u0443. \u0421\u0433\u0435\u043D\u0435\u0440\u0438\u0440\u0443\u0439\u0442\u0435 \u043D\u0430 \u0445\u0440\u043E\u043C\u0430\u043A\u0435\u0435 \u0438 \u0432\u044B\u0440\u0435\u0436\u044C\u0442\u0435: python3 scripts/cutout-chromakey.py "${path}"`
+        });
+      }
+    } catch {
+      findings.push({
+        severity: "warning",
+        message: `\xAB${path}\xBB: ${role}, \u0442\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F \u043F\u0440\u043E\u0437\u0440\u0430\u0447\u043D\u044B\u0439 \u0444\u043E\u043D, \u043D\u043E \u0443\u0433\u043B\u044B \u043F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u043D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u2014 \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435 \u043D\u0435 \u0434\u0435\u043A\u043E\u0434\u0438\u0440\u0443\u0435\u0442\u0441\u044F (\u0431\u0438\u0442\u044B\u0439 \u0444\u0430\u0439\u043B \u0438\u043B\u0438 \u0444\u043E\u0440\u043C\u0430\u0442 \u0432\u043D\u0435 \u043F\u043E\u0434\u0434\u0435\u0440\u0436\u043A\u0438 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438). \u041A\u043E\u043D\u0432\u0435\u0440\u0442\u0438\u0440\u0443\u0439\u0442\u0435 \u0432 PNG 8-\u0431\u0438\u0442 \u0431\u0435\u0437 \u0438\u043D\u0442\u0435\u0440\u043B\u0435\u0439\u0441\u0430 \u0438 \u043F\u0435\u0440\u0435\u043F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435.`
+      });
+    }
+  }
+  return findings;
+}
+var MEDIA_EXTENSION;
+var init_campaignAuditMedia = __esm({
+  "src/editor/campaignAuditMedia.ts"() {
+    MEDIA_EXTENSION = /\.(?:avif|gif|jpe?g|png|svg|webp|aac|flac|m4a|mp3|ogg|opus|wav|mp4|mov|webm|otf|ttf|woff2?)(?:[?#].*)?$/i;
+  }
+});
+
+// src/core/dice.ts
+var init_dice = __esm({
+  "src/core/dice.ts"() {
+  }
+});
+
+// src/core/brp.ts
+var init_brp = __esm({
+  "src/core/brp.ts"() {
+    init_types();
+    init_dice();
+  }
+});
+
+// node_modules/seedrandom/lib/alea.js
+var require_alea = __commonJS({
+  "node_modules/seedrandom/lib/alea.js"(exports, module) {
+    (function(global, module2, define2) {
+      function Alea(seed) {
+        var me = this, mash = Mash();
+        me.next = function() {
+          var t = 2091639 * me.s0 + me.c * 23283064365386963e-26;
+          me.s0 = me.s1;
+          me.s1 = me.s2;
+          return me.s2 = t - (me.c = t | 0);
+        };
+        me.c = 1;
+        me.s0 = mash(" ");
+        me.s1 = mash(" ");
+        me.s2 = mash(" ");
+        me.s0 -= mash(seed);
+        if (me.s0 < 0) {
+          me.s0 += 1;
+        }
+        me.s1 -= mash(seed);
+        if (me.s1 < 0) {
+          me.s1 += 1;
+        }
+        me.s2 -= mash(seed);
+        if (me.s2 < 0) {
+          me.s2 += 1;
+        }
+        mash = null;
+      }
+      function copy(f, t) {
+        t.c = f.c;
+        t.s0 = f.s0;
+        t.s1 = f.s1;
+        t.s2 = f.s2;
+        return t;
+      }
+      function impl(seed, opts) {
+        var xg = new Alea(seed), state = opts && opts.state, prng = xg.next;
+        prng.int32 = function() {
+          return xg.next() * 4294967296 | 0;
+        };
+        prng.double = function() {
+          return prng() + (prng() * 2097152 | 0) * 11102230246251565e-32;
+        };
+        prng.quick = prng;
+        if (state) {
+          if (typeof state == "object") copy(state, xg);
+          prng.state = function() {
+            return copy(xg, {});
+          };
+        }
+        return prng;
+      }
+      function Mash() {
+        var n = 4022871197;
+        var mash = function(data) {
+          data = String(data);
+          for (var i = 0; i < data.length; i++) {
+            n += data.charCodeAt(i);
+            var h = 0.02519603282416938 * n;
+            n = h >>> 0;
+            h -= n;
+            h *= n;
+            n = h >>> 0;
+            h -= n;
+            n += h * 4294967296;
+          }
+          return (n >>> 0) * 23283064365386963e-26;
+        };
+        return mash;
+      }
+      if (module2 && module2.exports) {
+        module2.exports = impl;
+      } else if (define2 && define2.amd) {
+        define2(function() {
+          return impl;
+        });
+      } else {
+        this.alea = impl;
+      }
+    })(
+      exports,
+      typeof module == "object" && module,
+      // present in node.js
+      typeof define == "function" && define
+      // present with an AMD loader
+    );
+  }
+});
+
+// node_modules/seedrandom/lib/xor128.js
+var require_xor128 = __commonJS({
+  "node_modules/seedrandom/lib/xor128.js"(exports, module) {
+    (function(global, module2, define2) {
+      function XorGen(seed) {
+        var me = this, strseed = "";
+        me.x = 0;
+        me.y = 0;
+        me.z = 0;
+        me.w = 0;
+        me.next = function() {
+          var t = me.x ^ me.x << 11;
+          me.x = me.y;
+          me.y = me.z;
+          me.z = me.w;
+          return me.w ^= me.w >>> 19 ^ t ^ t >>> 8;
+        };
+        if (seed === (seed | 0)) {
+          me.x = seed;
+        } else {
+          strseed += seed;
+        }
+        for (var k = 0; k < strseed.length + 64; k++) {
+          me.x ^= strseed.charCodeAt(k) | 0;
+          me.next();
+        }
+      }
+      function copy(f, t) {
+        t.x = f.x;
+        t.y = f.y;
+        t.z = f.z;
+        t.w = f.w;
+        return t;
+      }
+      function impl(seed, opts) {
+        var xg = new XorGen(seed), state = opts && opts.state, prng = function() {
+          return (xg.next() >>> 0) / 4294967296;
+        };
+        prng.double = function() {
+          do {
+            var top = xg.next() >>> 11, bot = (xg.next() >>> 0) / 4294967296, result = (top + bot) / (1 << 21);
+          } while (result === 0);
+          return result;
+        };
+        prng.int32 = xg.next;
+        prng.quick = prng;
+        if (state) {
+          if (typeof state == "object") copy(state, xg);
+          prng.state = function() {
+            return copy(xg, {});
+          };
+        }
+        return prng;
+      }
+      if (module2 && module2.exports) {
+        module2.exports = impl;
+      } else if (define2 && define2.amd) {
+        define2(function() {
+          return impl;
+        });
+      } else {
+        this.xor128 = impl;
+      }
+    })(
+      exports,
+      typeof module == "object" && module,
+      // present in node.js
+      typeof define == "function" && define
+      // present with an AMD loader
+    );
+  }
+});
+
+// node_modules/seedrandom/lib/xorwow.js
+var require_xorwow = __commonJS({
+  "node_modules/seedrandom/lib/xorwow.js"(exports, module) {
+    (function(global, module2, define2) {
+      function XorGen(seed) {
+        var me = this, strseed = "";
+        me.next = function() {
+          var t = me.x ^ me.x >>> 2;
+          me.x = me.y;
+          me.y = me.z;
+          me.z = me.w;
+          me.w = me.v;
+          return (me.d = me.d + 362437 | 0) + (me.v = me.v ^ me.v << 4 ^ (t ^ t << 1)) | 0;
+        };
+        me.x = 0;
+        me.y = 0;
+        me.z = 0;
+        me.w = 0;
+        me.v = 0;
+        if (seed === (seed | 0)) {
+          me.x = seed;
+        } else {
+          strseed += seed;
+        }
+        for (var k = 0; k < strseed.length + 64; k++) {
+          me.x ^= strseed.charCodeAt(k) | 0;
+          if (k == strseed.length) {
+            me.d = me.x << 10 ^ me.x >>> 4;
+          }
+          me.next();
+        }
+      }
+      function copy(f, t) {
+        t.x = f.x;
+        t.y = f.y;
+        t.z = f.z;
+        t.w = f.w;
+        t.v = f.v;
+        t.d = f.d;
+        return t;
+      }
+      function impl(seed, opts) {
+        var xg = new XorGen(seed), state = opts && opts.state, prng = function() {
+          return (xg.next() >>> 0) / 4294967296;
+        };
+        prng.double = function() {
+          do {
+            var top = xg.next() >>> 11, bot = (xg.next() >>> 0) / 4294967296, result = (top + bot) / (1 << 21);
+          } while (result === 0);
+          return result;
+        };
+        prng.int32 = xg.next;
+        prng.quick = prng;
+        if (state) {
+          if (typeof state == "object") copy(state, xg);
+          prng.state = function() {
+            return copy(xg, {});
+          };
+        }
+        return prng;
+      }
+      if (module2 && module2.exports) {
+        module2.exports = impl;
+      } else if (define2 && define2.amd) {
+        define2(function() {
+          return impl;
+        });
+      } else {
+        this.xorwow = impl;
+      }
+    })(
+      exports,
+      typeof module == "object" && module,
+      // present in node.js
+      typeof define == "function" && define
+      // present with an AMD loader
+    );
+  }
+});
+
+// node_modules/seedrandom/lib/xorshift7.js
+var require_xorshift7 = __commonJS({
+  "node_modules/seedrandom/lib/xorshift7.js"(exports, module) {
+    (function(global, module2, define2) {
+      function XorGen(seed) {
+        var me = this;
+        me.next = function() {
+          var X = me.x, i = me.i, t, v, w;
+          t = X[i];
+          t ^= t >>> 7;
+          v = t ^ t << 24;
+          t = X[i + 1 & 7];
+          v ^= t ^ t >>> 10;
+          t = X[i + 3 & 7];
+          v ^= t ^ t >>> 3;
+          t = X[i + 4 & 7];
+          v ^= t ^ t << 7;
+          t = X[i + 7 & 7];
+          t = t ^ t << 13;
+          v ^= t ^ t << 9;
+          X[i] = v;
+          me.i = i + 1 & 7;
+          return v;
+        };
+        function init(me2, seed2) {
+          var j, w, X = [];
+          if (seed2 === (seed2 | 0)) {
+            w = X[0] = seed2;
+          } else {
+            seed2 = "" + seed2;
+            for (j = 0; j < seed2.length; ++j) {
+              X[j & 7] = X[j & 7] << 15 ^ seed2.charCodeAt(j) + X[j + 1 & 7] << 13;
+            }
+          }
+          while (X.length < 8) X.push(0);
+          for (j = 0; j < 8 && X[j] === 0; ++j) ;
+          if (j == 8) w = X[7] = -1;
+          else w = X[j];
+          me2.x = X;
+          me2.i = 0;
+          for (j = 256; j > 0; --j) {
+            me2.next();
+          }
+        }
+        init(me, seed);
+      }
+      function copy(f, t) {
+        t.x = f.x.slice();
+        t.i = f.i;
+        return t;
+      }
+      function impl(seed, opts) {
+        if (seed == null) seed = +/* @__PURE__ */ new Date();
+        var xg = new XorGen(seed), state = opts && opts.state, prng = function() {
+          return (xg.next() >>> 0) / 4294967296;
+        };
+        prng.double = function() {
+          do {
+            var top = xg.next() >>> 11, bot = (xg.next() >>> 0) / 4294967296, result = (top + bot) / (1 << 21);
+          } while (result === 0);
+          return result;
+        };
+        prng.int32 = xg.next;
+        prng.quick = prng;
+        if (state) {
+          if (state.x) copy(state, xg);
+          prng.state = function() {
+            return copy(xg, {});
+          };
+        }
+        return prng;
+      }
+      if (module2 && module2.exports) {
+        module2.exports = impl;
+      } else if (define2 && define2.amd) {
+        define2(function() {
+          return impl;
+        });
+      } else {
+        this.xorshift7 = impl;
+      }
+    })(
+      exports,
+      typeof module == "object" && module,
+      // present in node.js
+      typeof define == "function" && define
+      // present with an AMD loader
+    );
+  }
+});
+
+// node_modules/seedrandom/lib/xor4096.js
+var require_xor4096 = __commonJS({
+  "node_modules/seedrandom/lib/xor4096.js"(exports, module) {
+    (function(global, module2, define2) {
+      function XorGen(seed) {
+        var me = this;
+        me.next = function() {
+          var w = me.w, X = me.X, i = me.i, t, v;
+          me.w = w = w + 1640531527 | 0;
+          v = X[i + 34 & 127];
+          t = X[i = i + 1 & 127];
+          v ^= v << 13;
+          t ^= t << 17;
+          v ^= v >>> 15;
+          t ^= t >>> 12;
+          v = X[i] = v ^ t;
+          me.i = i;
+          return v + (w ^ w >>> 16) | 0;
+        };
+        function init(me2, seed2) {
+          var t, v, i, j, w, X = [], limit = 128;
+          if (seed2 === (seed2 | 0)) {
+            v = seed2;
+            seed2 = null;
+          } else {
+            seed2 = seed2 + "\0";
+            v = 0;
+            limit = Math.max(limit, seed2.length);
+          }
+          for (i = 0, j = -32; j < limit; ++j) {
+            if (seed2) v ^= seed2.charCodeAt((j + 32) % seed2.length);
+            if (j === 0) w = v;
+            v ^= v << 10;
+            v ^= v >>> 15;
+            v ^= v << 4;
+            v ^= v >>> 13;
+            if (j >= 0) {
+              w = w + 1640531527 | 0;
+              t = X[j & 127] ^= v + w;
+              i = 0 == t ? i + 1 : 0;
+            }
+          }
+          if (i >= 128) {
+            X[(seed2 && seed2.length || 0) & 127] = -1;
+          }
+          i = 127;
+          for (j = 4 * 128; j > 0; --j) {
+            v = X[i + 34 & 127];
+            t = X[i = i + 1 & 127];
+            v ^= v << 13;
+            t ^= t << 17;
+            v ^= v >>> 15;
+            t ^= t >>> 12;
+            X[i] = v ^ t;
+          }
+          me2.w = w;
+          me2.X = X;
+          me2.i = i;
+        }
+        init(me, seed);
+      }
+      function copy(f, t) {
+        t.i = f.i;
+        t.w = f.w;
+        t.X = f.X.slice();
+        return t;
+      }
+      ;
+      function impl(seed, opts) {
+        if (seed == null) seed = +/* @__PURE__ */ new Date();
+        var xg = new XorGen(seed), state = opts && opts.state, prng = function() {
+          return (xg.next() >>> 0) / 4294967296;
+        };
+        prng.double = function() {
+          do {
+            var top = xg.next() >>> 11, bot = (xg.next() >>> 0) / 4294967296, result = (top + bot) / (1 << 21);
+          } while (result === 0);
+          return result;
+        };
+        prng.int32 = xg.next;
+        prng.quick = prng;
+        if (state) {
+          if (state.X) copy(state, xg);
+          prng.state = function() {
+            return copy(xg, {});
+          };
+        }
+        return prng;
+      }
+      if (module2 && module2.exports) {
+        module2.exports = impl;
+      } else if (define2 && define2.amd) {
+        define2(function() {
+          return impl;
+        });
+      } else {
+        this.xor4096 = impl;
+      }
+    })(
+      exports,
+      // window object or global
+      typeof module == "object" && module,
+      // present in node.js
+      typeof define == "function" && define
+      // present with an AMD loader
+    );
+  }
+});
+
+// node_modules/seedrandom/lib/tychei.js
+var require_tychei = __commonJS({
+  "node_modules/seedrandom/lib/tychei.js"(exports, module) {
+    (function(global, module2, define2) {
+      function XorGen(seed) {
+        var me = this, strseed = "";
+        me.next = function() {
+          var b = me.b, c = me.c, d = me.d, a = me.a;
+          b = b << 25 ^ b >>> 7 ^ c;
+          c = c - d | 0;
+          d = d << 24 ^ d >>> 8 ^ a;
+          a = a - b | 0;
+          me.b = b = b << 20 ^ b >>> 12 ^ c;
+          me.c = c = c - d | 0;
+          me.d = d << 16 ^ c >>> 16 ^ a;
+          return me.a = a - b | 0;
+        };
+        me.a = 0;
+        me.b = 0;
+        me.c = 2654435769 | 0;
+        me.d = 1367130551;
+        if (seed === Math.floor(seed)) {
+          me.a = seed / 4294967296 | 0;
+          me.b = seed | 0;
+        } else {
+          strseed += seed;
+        }
+        for (var k = 0; k < strseed.length + 20; k++) {
+          me.b ^= strseed.charCodeAt(k) | 0;
+          me.next();
+        }
+      }
+      function copy(f, t) {
+        t.a = f.a;
+        t.b = f.b;
+        t.c = f.c;
+        t.d = f.d;
+        return t;
+      }
+      ;
+      function impl(seed, opts) {
+        var xg = new XorGen(seed), state = opts && opts.state, prng = function() {
+          return (xg.next() >>> 0) / 4294967296;
+        };
+        prng.double = function() {
+          do {
+            var top = xg.next() >>> 11, bot = (xg.next() >>> 0) / 4294967296, result = (top + bot) / (1 << 21);
+          } while (result === 0);
+          return result;
+        };
+        prng.int32 = xg.next;
+        prng.quick = prng;
+        if (state) {
+          if (typeof state == "object") copy(state, xg);
+          prng.state = function() {
+            return copy(xg, {});
+          };
+        }
+        return prng;
+      }
+      if (module2 && module2.exports) {
+        module2.exports = impl;
+      } else if (define2 && define2.amd) {
+        define2(function() {
+          return impl;
+        });
+      } else {
+        this.tychei = impl;
+      }
+    })(
+      exports,
+      typeof module == "object" && module,
+      // present in node.js
+      typeof define == "function" && define
+      // present with an AMD loader
+    );
+  }
+});
+
+// node_modules/seedrandom/seedrandom.js
+var require_seedrandom = __commonJS({
+  "node_modules/seedrandom/seedrandom.js"(exports, module) {
+    (function(global, pool, math) {
+      var width = 256, chunks = 6, digits = 52, rngname = "random", startdenom = math.pow(width, chunks), significance = math.pow(2, digits), overflow = significance * 2, mask = width - 1, nodecrypto;
+      function seedrandom2(seed, options, callback) {
+        var key = [];
+        options = options == true ? { entropy: true } : options || {};
+        var shortseed = mixkey(flatten(
+          options.entropy ? [seed, tostring(pool)] : seed == null ? autoseed() : seed,
+          3
+        ), key);
+        var arc4 = new ARC4(key);
+        var prng = function() {
+          var n = arc4.g(chunks), d = startdenom, x = 0;
+          while (n < significance) {
+            n = (n + x) * width;
+            d *= width;
+            x = arc4.g(1);
+          }
+          while (n >= overflow) {
+            n /= 2;
+            d /= 2;
+            x >>>= 1;
+          }
+          return (n + x) / d;
+        };
+        prng.int32 = function() {
+          return arc4.g(4) | 0;
+        };
+        prng.quick = function() {
+          return arc4.g(4) / 4294967296;
+        };
+        prng.double = prng;
+        mixkey(tostring(arc4.S), pool);
+        return (options.pass || callback || function(prng2, seed2, is_math_call, state) {
+          if (state) {
+            if (state.S) {
+              copy(state, arc4);
+            }
+            prng2.state = function() {
+              return copy(arc4, {});
+            };
+          }
+          if (is_math_call) {
+            math[rngname] = prng2;
+            return seed2;
+          } else return prng2;
+        })(
+          prng,
+          shortseed,
+          "global" in options ? options.global : this == math,
+          options.state
+        );
+      }
+      function ARC4(key) {
+        var t, keylen = key.length, me = this, i = 0, j = me.i = me.j = 0, s = me.S = [];
+        if (!keylen) {
+          key = [keylen++];
+        }
+        while (i < width) {
+          s[i] = i++;
+        }
+        for (i = 0; i < width; i++) {
+          s[i] = s[j = mask & j + key[i % keylen] + (t = s[i])];
+          s[j] = t;
+        }
+        (me.g = function(count) {
+          var t2, r = 0, i2 = me.i, j2 = me.j, s2 = me.S;
+          while (count--) {
+            t2 = s2[i2 = mask & i2 + 1];
+            r = r * width + s2[mask & (s2[i2] = s2[j2 = mask & j2 + t2]) + (s2[j2] = t2)];
+          }
+          me.i = i2;
+          me.j = j2;
+          return r;
+        })(width);
+      }
+      function copy(f, t) {
+        t.i = f.i;
+        t.j = f.j;
+        t.S = f.S.slice();
+        return t;
+      }
+      ;
+      function flatten(obj, depth) {
+        var result = [], typ = typeof obj, prop;
+        if (depth && typ == "object") {
+          for (prop in obj) {
+            try {
+              result.push(flatten(obj[prop], depth - 1));
+            } catch (e) {
+            }
+          }
+        }
+        return result.length ? result : typ == "string" ? obj : obj + "\0";
+      }
+      function mixkey(seed, key) {
+        var stringseed = seed + "", smear, j = 0;
+        while (j < stringseed.length) {
+          key[mask & j] = mask & (smear ^= key[mask & j] * 19) + stringseed.charCodeAt(j++);
+        }
+        return tostring(key);
+      }
+      function autoseed() {
+        try {
+          var out;
+          if (nodecrypto && (out = nodecrypto.randomBytes)) {
+            out = out(width);
+          } else {
+            out = new Uint8Array(width);
+            (global.crypto || global.msCrypto).getRandomValues(out);
+          }
+          return tostring(out);
+        } catch (e) {
+          var browser = global.navigator, plugins = browser && browser.plugins;
+          return [+/* @__PURE__ */ new Date(), global, plugins, global.screen, tostring(pool)];
+        }
+      }
+      function tostring(a) {
+        return String.fromCharCode.apply(0, a);
+      }
+      mixkey(math.random(), pool);
+      if (typeof module == "object" && module.exports) {
+        module.exports = seedrandom2;
+        try {
+          nodecrypto = __require("crypto");
+        } catch (ex) {
+        }
+      } else if (typeof define == "function" && define.amd) {
+        define(function() {
+          return seedrandom2;
+        });
+      } else {
+        math["seed" + rngname] = seedrandom2;
+      }
+    })(
+      // global: `self` in browsers (including strict mode and web workers),
+      // otherwise `this` in Node and other environments
+      typeof self !== "undefined" ? self : exports,
+      [],
+      // pool: entropy pool starts empty
+      Math
+      // math: package containing random, pow, and seedrandom
+    );
+  }
+});
+
+// node_modules/seedrandom/index.js
+var require_seedrandom2 = __commonJS({
+  "node_modules/seedrandom/index.js"(exports, module) {
+    var alea = require_alea();
+    var xor128 = require_xor128();
+    var xorwow = require_xorwow();
+    var xorshift7 = require_xorshift7();
+    var xor4096 = require_xor4096();
+    var tychei = require_tychei();
+    var sr = require_seedrandom();
+    sr.alea = alea;
+    sr.xor128 = xor128;
+    sr.xorwow = xorwow;
+    sr.xorshift7 = xorshift7;
+    sr.xor4096 = xor4096;
+    sr.tychei = tychei;
+    module.exports = sr;
+  }
+});
+
+// src/core/prng.ts
+var import_seedrandom, PRNG;
+var init_prng = __esm({
+  "src/core/prng.ts"() {
+    import_seedrandom = __toESM(require_seedrandom2(), 1);
+    PRNG = class {
+      rng;
+      seed;
+      constructor(seed) {
+        this.seed = seed ?? Math.random().toString(36).slice(2, 10);
+        this.rng = (0, import_seedrandom.default)(this.seed);
+      }
+      /** [0, 1) */
+      next() {
+        return this.rng();
+      }
+      /** целое [min, max] включительно */
+      int(min, max) {
+        return min + Math.floor(this.next() * (max - min + 1));
+      }
+      chance(probability) {
+        return this.next() < probability;
+      }
+      pick(arr) {
+        return arr[this.int(0, arr.length - 1)];
+      }
+    };
+  }
+});
+
+// src/core/charcreate.ts
+function statMin(creation) {
+  return creation.stat_limits.min;
+}
+function statPointsUsed(creation, choice) {
+  let sum = 0;
+  for (const k of STAT_KEYS) sum += Math.max(0, (choice.stats[k] ?? statMin(creation)) - statMin(creation));
+  return sum;
+}
+function skillBaseFloor(creation, id) {
+  const floor = creation.skill_floor ?? 0;
+  return (creation.mandatory_skills ?? []).includes(id) ? Math.max(floor, 25) : floor;
+}
+function charCreationTemplateFindings(creation) {
+  const findings = [];
+  if (!creation.roll) {
+    for (const profession of creation.professions ?? []) {
+      const stats = profession.stats ?? {};
+      const choice = { stats, skills: {}, profession: profession.id, calling: "", name: "" };
+      const used = statPointsUsed(creation, choice);
+      if (used !== creation.total_points) {
+        const delta = creation.total_points - used;
+        findings.push(`\u041F\u0440\u043E\u0438\u0441\u0445\u043E\u0436\u0434\u0435\u043D\u0438\u0435 \xAB${profession.label}\xBB: \u0440\u0430\u0441\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u043E ${used} \u0438\u0437 ${creation.total_points} \u043E\u0447\u043A\u043E\u0432 \u0445\u0430\u0440\u0430\u043A\u0442\u0435\u0440\u0438\u0441\u0442\u0438\u043A (${delta > 0 ? `\u043D\u0435 \u0445\u0432\u0430\u0442\u0430\u0435\u0442 ${delta}` : `\u043F\u0435\u0440\u0435\u0440\u0430\u0441\u0445\u043E\u0434 ${-delta}`}).`);
+      }
+    }
+  }
+  if (creation.skill_points === void 0 || !creation.callings?.length) return findings;
+  const professions = creation.professions?.length ? creation.professions : [{ id: "", label: "\u0431\u0435\u0437 \u043F\u0440\u043E\u0438\u0441\u0445\u043E\u0436\u0434\u0435\u043D\u0438\u044F", skill_bonus: {} }];
+  for (const profession of professions) {
+    for (const call of creation.callings) {
+      let used = 0;
+      const ids = /* @__PURE__ */ new Set([...Object.keys(call.skills ?? {}), ...creation.mandatory_skills ?? [], ...Object.keys(profession.skill_bonus ?? {})]);
+      for (const id of ids) {
+        const floor = skillBaseFloor(creation, id) + (profession.skill_bonus?.[id] ?? 0);
+        const target = call.skills?.[id] ?? floor;
+        const value = Math.max(floor, Math.round(Number.isFinite(target) ? target : floor));
+        const capped = creation.skill_cap === void 0 ? value : Math.min(creation.skill_cap, value);
+        used += Math.max(0, capped - floor);
+      }
+      if (used !== creation.skill_points) {
+        const delta = creation.skill_points - used;
+        findings.push(`\u0421\u043E\u0447\u0435\u0442\u0430\u043D\u0438\u0435 \xAB${profession.label}\xBB + \xAB${call.label}\xBB: \u0440\u0430\u0441\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u043E ${used} \u0438\u0437 ${creation.skill_points} \u043E\u0447\u043A\u043E\u0432 \u043D\u0430\u0432\u044B\u043A\u043E\u0432 (${delta > 0 ? `\u043D\u0435 \u0445\u0432\u0430\u0442\u0430\u0435\u0442 ${delta}` : `\u043F\u0435\u0440\u0435\u0440\u0430\u0441\u0445\u043E\u0434 ${-delta}`}); \u0431\u043E\u043D\u0443\u0441\u044B \u043F\u0440\u043E\u0438\u0441\u0445\u043E\u0436\u0434\u0435\u043D\u0438\u044F \u043D\u0435 \u0432\u0445\u043E\u0434\u044F\u0442 \u0432 \u0431\u044E\u0434\u0436\u0435\u0442.`);
+      }
+    }
+  }
+  return findings;
+}
+var STAT_KEYS, screenRng;
+var init_charcreate = __esm({
+  "src/core/charcreate.ts"() {
+    init_brp();
+    init_dice();
+    init_prng();
+    init_skills();
+    STAT_KEYS = ["STR", "CON", "SIZ", "DEX", "INT", "POW", "CHA"];
+    screenRng = new PRNG();
   }
 });
 
@@ -19154,809 +20292,7 @@ var init_campaign_schema = __esm({
   }
 });
 
-// src/core/dice.ts
-var init_dice = __esm({
-  "src/core/dice.ts"() {
-  }
-});
-
-// src/core/brp.ts
-var init_brp = __esm({
-  "src/core/brp.ts"() {
-    init_types();
-    init_dice();
-  }
-});
-
-// node_modules/seedrandom/lib/alea.js
-var require_alea = __commonJS({
-  "node_modules/seedrandom/lib/alea.js"(exports, module) {
-    (function(global, module2, define2) {
-      function Alea(seed) {
-        var me = this, mash = Mash();
-        me.next = function() {
-          var t = 2091639 * me.s0 + me.c * 23283064365386963e-26;
-          me.s0 = me.s1;
-          me.s1 = me.s2;
-          return me.s2 = t - (me.c = t | 0);
-        };
-        me.c = 1;
-        me.s0 = mash(" ");
-        me.s1 = mash(" ");
-        me.s2 = mash(" ");
-        me.s0 -= mash(seed);
-        if (me.s0 < 0) {
-          me.s0 += 1;
-        }
-        me.s1 -= mash(seed);
-        if (me.s1 < 0) {
-          me.s1 += 1;
-        }
-        me.s2 -= mash(seed);
-        if (me.s2 < 0) {
-          me.s2 += 1;
-        }
-        mash = null;
-      }
-      function copy(f, t) {
-        t.c = f.c;
-        t.s0 = f.s0;
-        t.s1 = f.s1;
-        t.s2 = f.s2;
-        return t;
-      }
-      function impl(seed, opts) {
-        var xg = new Alea(seed), state = opts && opts.state, prng = xg.next;
-        prng.int32 = function() {
-          return xg.next() * 4294967296 | 0;
-        };
-        prng.double = function() {
-          return prng() + (prng() * 2097152 | 0) * 11102230246251565e-32;
-        };
-        prng.quick = prng;
-        if (state) {
-          if (typeof state == "object") copy(state, xg);
-          prng.state = function() {
-            return copy(xg, {});
-          };
-        }
-        return prng;
-      }
-      function Mash() {
-        var n = 4022871197;
-        var mash = function(data) {
-          data = String(data);
-          for (var i = 0; i < data.length; i++) {
-            n += data.charCodeAt(i);
-            var h = 0.02519603282416938 * n;
-            n = h >>> 0;
-            h -= n;
-            h *= n;
-            n = h >>> 0;
-            h -= n;
-            n += h * 4294967296;
-          }
-          return (n >>> 0) * 23283064365386963e-26;
-        };
-        return mash;
-      }
-      if (module2 && module2.exports) {
-        module2.exports = impl;
-      } else if (define2 && define2.amd) {
-        define2(function() {
-          return impl;
-        });
-      } else {
-        this.alea = impl;
-      }
-    })(
-      exports,
-      typeof module == "object" && module,
-      // present in node.js
-      typeof define == "function" && define
-      // present with an AMD loader
-    );
-  }
-});
-
-// node_modules/seedrandom/lib/xor128.js
-var require_xor128 = __commonJS({
-  "node_modules/seedrandom/lib/xor128.js"(exports, module) {
-    (function(global, module2, define2) {
-      function XorGen(seed) {
-        var me = this, strseed = "";
-        me.x = 0;
-        me.y = 0;
-        me.z = 0;
-        me.w = 0;
-        me.next = function() {
-          var t = me.x ^ me.x << 11;
-          me.x = me.y;
-          me.y = me.z;
-          me.z = me.w;
-          return me.w ^= me.w >>> 19 ^ t ^ t >>> 8;
-        };
-        if (seed === (seed | 0)) {
-          me.x = seed;
-        } else {
-          strseed += seed;
-        }
-        for (var k = 0; k < strseed.length + 64; k++) {
-          me.x ^= strseed.charCodeAt(k) | 0;
-          me.next();
-        }
-      }
-      function copy(f, t) {
-        t.x = f.x;
-        t.y = f.y;
-        t.z = f.z;
-        t.w = f.w;
-        return t;
-      }
-      function impl(seed, opts) {
-        var xg = new XorGen(seed), state = opts && opts.state, prng = function() {
-          return (xg.next() >>> 0) / 4294967296;
-        };
-        prng.double = function() {
-          do {
-            var top = xg.next() >>> 11, bot = (xg.next() >>> 0) / 4294967296, result = (top + bot) / (1 << 21);
-          } while (result === 0);
-          return result;
-        };
-        prng.int32 = xg.next;
-        prng.quick = prng;
-        if (state) {
-          if (typeof state == "object") copy(state, xg);
-          prng.state = function() {
-            return copy(xg, {});
-          };
-        }
-        return prng;
-      }
-      if (module2 && module2.exports) {
-        module2.exports = impl;
-      } else if (define2 && define2.amd) {
-        define2(function() {
-          return impl;
-        });
-      } else {
-        this.xor128 = impl;
-      }
-    })(
-      exports,
-      typeof module == "object" && module,
-      // present in node.js
-      typeof define == "function" && define
-      // present with an AMD loader
-    );
-  }
-});
-
-// node_modules/seedrandom/lib/xorwow.js
-var require_xorwow = __commonJS({
-  "node_modules/seedrandom/lib/xorwow.js"(exports, module) {
-    (function(global, module2, define2) {
-      function XorGen(seed) {
-        var me = this, strseed = "";
-        me.next = function() {
-          var t = me.x ^ me.x >>> 2;
-          me.x = me.y;
-          me.y = me.z;
-          me.z = me.w;
-          me.w = me.v;
-          return (me.d = me.d + 362437 | 0) + (me.v = me.v ^ me.v << 4 ^ (t ^ t << 1)) | 0;
-        };
-        me.x = 0;
-        me.y = 0;
-        me.z = 0;
-        me.w = 0;
-        me.v = 0;
-        if (seed === (seed | 0)) {
-          me.x = seed;
-        } else {
-          strseed += seed;
-        }
-        for (var k = 0; k < strseed.length + 64; k++) {
-          me.x ^= strseed.charCodeAt(k) | 0;
-          if (k == strseed.length) {
-            me.d = me.x << 10 ^ me.x >>> 4;
-          }
-          me.next();
-        }
-      }
-      function copy(f, t) {
-        t.x = f.x;
-        t.y = f.y;
-        t.z = f.z;
-        t.w = f.w;
-        t.v = f.v;
-        t.d = f.d;
-        return t;
-      }
-      function impl(seed, opts) {
-        var xg = new XorGen(seed), state = opts && opts.state, prng = function() {
-          return (xg.next() >>> 0) / 4294967296;
-        };
-        prng.double = function() {
-          do {
-            var top = xg.next() >>> 11, bot = (xg.next() >>> 0) / 4294967296, result = (top + bot) / (1 << 21);
-          } while (result === 0);
-          return result;
-        };
-        prng.int32 = xg.next;
-        prng.quick = prng;
-        if (state) {
-          if (typeof state == "object") copy(state, xg);
-          prng.state = function() {
-            return copy(xg, {});
-          };
-        }
-        return prng;
-      }
-      if (module2 && module2.exports) {
-        module2.exports = impl;
-      } else if (define2 && define2.amd) {
-        define2(function() {
-          return impl;
-        });
-      } else {
-        this.xorwow = impl;
-      }
-    })(
-      exports,
-      typeof module == "object" && module,
-      // present in node.js
-      typeof define == "function" && define
-      // present with an AMD loader
-    );
-  }
-});
-
-// node_modules/seedrandom/lib/xorshift7.js
-var require_xorshift7 = __commonJS({
-  "node_modules/seedrandom/lib/xorshift7.js"(exports, module) {
-    (function(global, module2, define2) {
-      function XorGen(seed) {
-        var me = this;
-        me.next = function() {
-          var X = me.x, i = me.i, t, v, w;
-          t = X[i];
-          t ^= t >>> 7;
-          v = t ^ t << 24;
-          t = X[i + 1 & 7];
-          v ^= t ^ t >>> 10;
-          t = X[i + 3 & 7];
-          v ^= t ^ t >>> 3;
-          t = X[i + 4 & 7];
-          v ^= t ^ t << 7;
-          t = X[i + 7 & 7];
-          t = t ^ t << 13;
-          v ^= t ^ t << 9;
-          X[i] = v;
-          me.i = i + 1 & 7;
-          return v;
-        };
-        function init(me2, seed2) {
-          var j, w, X = [];
-          if (seed2 === (seed2 | 0)) {
-            w = X[0] = seed2;
-          } else {
-            seed2 = "" + seed2;
-            for (j = 0; j < seed2.length; ++j) {
-              X[j & 7] = X[j & 7] << 15 ^ seed2.charCodeAt(j) + X[j + 1 & 7] << 13;
-            }
-          }
-          while (X.length < 8) X.push(0);
-          for (j = 0; j < 8 && X[j] === 0; ++j) ;
-          if (j == 8) w = X[7] = -1;
-          else w = X[j];
-          me2.x = X;
-          me2.i = 0;
-          for (j = 256; j > 0; --j) {
-            me2.next();
-          }
-        }
-        init(me, seed);
-      }
-      function copy(f, t) {
-        t.x = f.x.slice();
-        t.i = f.i;
-        return t;
-      }
-      function impl(seed, opts) {
-        if (seed == null) seed = +/* @__PURE__ */ new Date();
-        var xg = new XorGen(seed), state = opts && opts.state, prng = function() {
-          return (xg.next() >>> 0) / 4294967296;
-        };
-        prng.double = function() {
-          do {
-            var top = xg.next() >>> 11, bot = (xg.next() >>> 0) / 4294967296, result = (top + bot) / (1 << 21);
-          } while (result === 0);
-          return result;
-        };
-        prng.int32 = xg.next;
-        prng.quick = prng;
-        if (state) {
-          if (state.x) copy(state, xg);
-          prng.state = function() {
-            return copy(xg, {});
-          };
-        }
-        return prng;
-      }
-      if (module2 && module2.exports) {
-        module2.exports = impl;
-      } else if (define2 && define2.amd) {
-        define2(function() {
-          return impl;
-        });
-      } else {
-        this.xorshift7 = impl;
-      }
-    })(
-      exports,
-      typeof module == "object" && module,
-      // present in node.js
-      typeof define == "function" && define
-      // present with an AMD loader
-    );
-  }
-});
-
-// node_modules/seedrandom/lib/xor4096.js
-var require_xor4096 = __commonJS({
-  "node_modules/seedrandom/lib/xor4096.js"(exports, module) {
-    (function(global, module2, define2) {
-      function XorGen(seed) {
-        var me = this;
-        me.next = function() {
-          var w = me.w, X = me.X, i = me.i, t, v;
-          me.w = w = w + 1640531527 | 0;
-          v = X[i + 34 & 127];
-          t = X[i = i + 1 & 127];
-          v ^= v << 13;
-          t ^= t << 17;
-          v ^= v >>> 15;
-          t ^= t >>> 12;
-          v = X[i] = v ^ t;
-          me.i = i;
-          return v + (w ^ w >>> 16) | 0;
-        };
-        function init(me2, seed2) {
-          var t, v, i, j, w, X = [], limit = 128;
-          if (seed2 === (seed2 | 0)) {
-            v = seed2;
-            seed2 = null;
-          } else {
-            seed2 = seed2 + "\0";
-            v = 0;
-            limit = Math.max(limit, seed2.length);
-          }
-          for (i = 0, j = -32; j < limit; ++j) {
-            if (seed2) v ^= seed2.charCodeAt((j + 32) % seed2.length);
-            if (j === 0) w = v;
-            v ^= v << 10;
-            v ^= v >>> 15;
-            v ^= v << 4;
-            v ^= v >>> 13;
-            if (j >= 0) {
-              w = w + 1640531527 | 0;
-              t = X[j & 127] ^= v + w;
-              i = 0 == t ? i + 1 : 0;
-            }
-          }
-          if (i >= 128) {
-            X[(seed2 && seed2.length || 0) & 127] = -1;
-          }
-          i = 127;
-          for (j = 4 * 128; j > 0; --j) {
-            v = X[i + 34 & 127];
-            t = X[i = i + 1 & 127];
-            v ^= v << 13;
-            t ^= t << 17;
-            v ^= v >>> 15;
-            t ^= t >>> 12;
-            X[i] = v ^ t;
-          }
-          me2.w = w;
-          me2.X = X;
-          me2.i = i;
-        }
-        init(me, seed);
-      }
-      function copy(f, t) {
-        t.i = f.i;
-        t.w = f.w;
-        t.X = f.X.slice();
-        return t;
-      }
-      ;
-      function impl(seed, opts) {
-        if (seed == null) seed = +/* @__PURE__ */ new Date();
-        var xg = new XorGen(seed), state = opts && opts.state, prng = function() {
-          return (xg.next() >>> 0) / 4294967296;
-        };
-        prng.double = function() {
-          do {
-            var top = xg.next() >>> 11, bot = (xg.next() >>> 0) / 4294967296, result = (top + bot) / (1 << 21);
-          } while (result === 0);
-          return result;
-        };
-        prng.int32 = xg.next;
-        prng.quick = prng;
-        if (state) {
-          if (state.X) copy(state, xg);
-          prng.state = function() {
-            return copy(xg, {});
-          };
-        }
-        return prng;
-      }
-      if (module2 && module2.exports) {
-        module2.exports = impl;
-      } else if (define2 && define2.amd) {
-        define2(function() {
-          return impl;
-        });
-      } else {
-        this.xor4096 = impl;
-      }
-    })(
-      exports,
-      // window object or global
-      typeof module == "object" && module,
-      // present in node.js
-      typeof define == "function" && define
-      // present with an AMD loader
-    );
-  }
-});
-
-// node_modules/seedrandom/lib/tychei.js
-var require_tychei = __commonJS({
-  "node_modules/seedrandom/lib/tychei.js"(exports, module) {
-    (function(global, module2, define2) {
-      function XorGen(seed) {
-        var me = this, strseed = "";
-        me.next = function() {
-          var b = me.b, c = me.c, d = me.d, a = me.a;
-          b = b << 25 ^ b >>> 7 ^ c;
-          c = c - d | 0;
-          d = d << 24 ^ d >>> 8 ^ a;
-          a = a - b | 0;
-          me.b = b = b << 20 ^ b >>> 12 ^ c;
-          me.c = c = c - d | 0;
-          me.d = d << 16 ^ c >>> 16 ^ a;
-          return me.a = a - b | 0;
-        };
-        me.a = 0;
-        me.b = 0;
-        me.c = 2654435769 | 0;
-        me.d = 1367130551;
-        if (seed === Math.floor(seed)) {
-          me.a = seed / 4294967296 | 0;
-          me.b = seed | 0;
-        } else {
-          strseed += seed;
-        }
-        for (var k = 0; k < strseed.length + 20; k++) {
-          me.b ^= strseed.charCodeAt(k) | 0;
-          me.next();
-        }
-      }
-      function copy(f, t) {
-        t.a = f.a;
-        t.b = f.b;
-        t.c = f.c;
-        t.d = f.d;
-        return t;
-      }
-      ;
-      function impl(seed, opts) {
-        var xg = new XorGen(seed), state = opts && opts.state, prng = function() {
-          return (xg.next() >>> 0) / 4294967296;
-        };
-        prng.double = function() {
-          do {
-            var top = xg.next() >>> 11, bot = (xg.next() >>> 0) / 4294967296, result = (top + bot) / (1 << 21);
-          } while (result === 0);
-          return result;
-        };
-        prng.int32 = xg.next;
-        prng.quick = prng;
-        if (state) {
-          if (typeof state == "object") copy(state, xg);
-          prng.state = function() {
-            return copy(xg, {});
-          };
-        }
-        return prng;
-      }
-      if (module2 && module2.exports) {
-        module2.exports = impl;
-      } else if (define2 && define2.amd) {
-        define2(function() {
-          return impl;
-        });
-      } else {
-        this.tychei = impl;
-      }
-    })(
-      exports,
-      typeof module == "object" && module,
-      // present in node.js
-      typeof define == "function" && define
-      // present with an AMD loader
-    );
-  }
-});
-
-// node_modules/seedrandom/seedrandom.js
-var require_seedrandom = __commonJS({
-  "node_modules/seedrandom/seedrandom.js"(exports, module) {
-    (function(global, pool, math) {
-      var width = 256, chunks = 6, digits = 52, rngname = "random", startdenom = math.pow(width, chunks), significance = math.pow(2, digits), overflow = significance * 2, mask = width - 1, nodecrypto;
-      function seedrandom2(seed, options, callback) {
-        var key = [];
-        options = options == true ? { entropy: true } : options || {};
-        var shortseed = mixkey(flatten(
-          options.entropy ? [seed, tostring(pool)] : seed == null ? autoseed() : seed,
-          3
-        ), key);
-        var arc4 = new ARC4(key);
-        var prng = function() {
-          var n = arc4.g(chunks), d = startdenom, x = 0;
-          while (n < significance) {
-            n = (n + x) * width;
-            d *= width;
-            x = arc4.g(1);
-          }
-          while (n >= overflow) {
-            n /= 2;
-            d /= 2;
-            x >>>= 1;
-          }
-          return (n + x) / d;
-        };
-        prng.int32 = function() {
-          return arc4.g(4) | 0;
-        };
-        prng.quick = function() {
-          return arc4.g(4) / 4294967296;
-        };
-        prng.double = prng;
-        mixkey(tostring(arc4.S), pool);
-        return (options.pass || callback || function(prng2, seed2, is_math_call, state) {
-          if (state) {
-            if (state.S) {
-              copy(state, arc4);
-            }
-            prng2.state = function() {
-              return copy(arc4, {});
-            };
-          }
-          if (is_math_call) {
-            math[rngname] = prng2;
-            return seed2;
-          } else return prng2;
-        })(
-          prng,
-          shortseed,
-          "global" in options ? options.global : this == math,
-          options.state
-        );
-      }
-      function ARC4(key) {
-        var t, keylen = key.length, me = this, i = 0, j = me.i = me.j = 0, s = me.S = [];
-        if (!keylen) {
-          key = [keylen++];
-        }
-        while (i < width) {
-          s[i] = i++;
-        }
-        for (i = 0; i < width; i++) {
-          s[i] = s[j = mask & j + key[i % keylen] + (t = s[i])];
-          s[j] = t;
-        }
-        (me.g = function(count) {
-          var t2, r = 0, i2 = me.i, j2 = me.j, s2 = me.S;
-          while (count--) {
-            t2 = s2[i2 = mask & i2 + 1];
-            r = r * width + s2[mask & (s2[i2] = s2[j2 = mask & j2 + t2]) + (s2[j2] = t2)];
-          }
-          me.i = i2;
-          me.j = j2;
-          return r;
-        })(width);
-      }
-      function copy(f, t) {
-        t.i = f.i;
-        t.j = f.j;
-        t.S = f.S.slice();
-        return t;
-      }
-      ;
-      function flatten(obj, depth) {
-        var result = [], typ = typeof obj, prop;
-        if (depth && typ == "object") {
-          for (prop in obj) {
-            try {
-              result.push(flatten(obj[prop], depth - 1));
-            } catch (e) {
-            }
-          }
-        }
-        return result.length ? result : typ == "string" ? obj : obj + "\0";
-      }
-      function mixkey(seed, key) {
-        var stringseed = seed + "", smear, j = 0;
-        while (j < stringseed.length) {
-          key[mask & j] = mask & (smear ^= key[mask & j] * 19) + stringseed.charCodeAt(j++);
-        }
-        return tostring(key);
-      }
-      function autoseed() {
-        try {
-          var out;
-          if (nodecrypto && (out = nodecrypto.randomBytes)) {
-            out = out(width);
-          } else {
-            out = new Uint8Array(width);
-            (global.crypto || global.msCrypto).getRandomValues(out);
-          }
-          return tostring(out);
-        } catch (e) {
-          var browser = global.navigator, plugins = browser && browser.plugins;
-          return [+/* @__PURE__ */ new Date(), global, plugins, global.screen, tostring(pool)];
-        }
-      }
-      function tostring(a) {
-        return String.fromCharCode.apply(0, a);
-      }
-      mixkey(math.random(), pool);
-      if (typeof module == "object" && module.exports) {
-        module.exports = seedrandom2;
-        try {
-          nodecrypto = __require("crypto");
-        } catch (ex) {
-        }
-      } else if (typeof define == "function" && define.amd) {
-        define(function() {
-          return seedrandom2;
-        });
-      } else {
-        math["seed" + rngname] = seedrandom2;
-      }
-    })(
-      // global: `self` in browsers (including strict mode and web workers),
-      // otherwise `this` in Node and other environments
-      typeof self !== "undefined" ? self : exports,
-      [],
-      // pool: entropy pool starts empty
-      Math
-      // math: package containing random, pow, and seedrandom
-    );
-  }
-});
-
-// node_modules/seedrandom/index.js
-var require_seedrandom2 = __commonJS({
-  "node_modules/seedrandom/index.js"(exports, module) {
-    var alea = require_alea();
-    var xor128 = require_xor128();
-    var xorwow = require_xorwow();
-    var xorshift7 = require_xorshift7();
-    var xor4096 = require_xor4096();
-    var tychei = require_tychei();
-    var sr = require_seedrandom();
-    sr.alea = alea;
-    sr.xor128 = xor128;
-    sr.xorwow = xorwow;
-    sr.xorshift7 = xorshift7;
-    sr.xor4096 = xor4096;
-    sr.tychei = tychei;
-    module.exports = sr;
-  }
-});
-
-// src/core/prng.ts
-var import_seedrandom, PRNG;
-var init_prng = __esm({
-  "src/core/prng.ts"() {
-    import_seedrandom = __toESM(require_seedrandom2(), 1);
-    PRNG = class {
-      rng;
-      seed;
-      constructor(seed) {
-        this.seed = seed ?? Math.random().toString(36).slice(2, 10);
-        this.rng = (0, import_seedrandom.default)(this.seed);
-      }
-      /** [0, 1) */
-      next() {
-        return this.rng();
-      }
-      /** целое [min, max] включительно */
-      int(min, max) {
-        return min + Math.floor(this.next() * (max - min + 1));
-      }
-      chance(probability) {
-        return this.next() < probability;
-      }
-      pick(arr) {
-        return arr[this.int(0, arr.length - 1)];
-      }
-    };
-  }
-});
-
-// src/core/charcreate.ts
-function statMin(creation) {
-  return creation.stat_limits.min;
-}
-function statPointsUsed(creation, choice) {
-  let sum = 0;
-  for (const k of STAT_KEYS) sum += Math.max(0, (choice.stats[k] ?? statMin(creation)) - statMin(creation));
-  return sum;
-}
-function skillBaseFloor(creation, id) {
-  const floor = creation.skill_floor ?? 0;
-  return (creation.mandatory_skills ?? []).includes(id) ? Math.max(floor, 25) : floor;
-}
-function charCreationTemplateFindings(creation) {
-  const findings = [];
-  if (!creation.roll) {
-    for (const profession of creation.professions ?? []) {
-      const stats = profession.stats ?? {};
-      const choice = { stats, skills: {}, profession: profession.id, calling: "", name: "" };
-      const used = statPointsUsed(creation, choice);
-      if (used !== creation.total_points) {
-        const delta = creation.total_points - used;
-        findings.push(`\u041F\u0440\u043E\u0438\u0441\u0445\u043E\u0436\u0434\u0435\u043D\u0438\u0435 \xAB${profession.label}\xBB: \u0440\u0430\u0441\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u043E ${used} \u0438\u0437 ${creation.total_points} \u043E\u0447\u043A\u043E\u0432 \u0445\u0430\u0440\u0430\u043A\u0442\u0435\u0440\u0438\u0441\u0442\u0438\u043A (${delta > 0 ? `\u043D\u0435 \u0445\u0432\u0430\u0442\u0430\u0435\u0442 ${delta}` : `\u043F\u0435\u0440\u0435\u0440\u0430\u0441\u0445\u043E\u0434 ${-delta}`}).`);
-      }
-    }
-  }
-  if (creation.skill_points === void 0 || !creation.callings?.length) return findings;
-  const professions = creation.professions?.length ? creation.professions : [{ id: "", label: "\u0431\u0435\u0437 \u043F\u0440\u043E\u0438\u0441\u0445\u043E\u0436\u0434\u0435\u043D\u0438\u044F", skill_bonus: {} }];
-  for (const profession of professions) {
-    for (const call of creation.callings) {
-      let used = 0;
-      const ids = /* @__PURE__ */ new Set([...Object.keys(call.skills ?? {}), ...creation.mandatory_skills ?? [], ...Object.keys(profession.skill_bonus ?? {})]);
-      for (const id of ids) {
-        const floor = skillBaseFloor(creation, id) + (profession.skill_bonus?.[id] ?? 0);
-        const target = call.skills?.[id] ?? floor;
-        const value = Math.max(floor, Math.round(Number.isFinite(target) ? target : floor));
-        const capped = creation.skill_cap === void 0 ? value : Math.min(creation.skill_cap, value);
-        used += Math.max(0, capped - floor);
-      }
-      if (used !== creation.skill_points) {
-        const delta = creation.skill_points - used;
-        findings.push(`\u0421\u043E\u0447\u0435\u0442\u0430\u043D\u0438\u0435 \xAB${profession.label}\xBB + \xAB${call.label}\xBB: \u0440\u0430\u0441\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u043E ${used} \u0438\u0437 ${creation.skill_points} \u043E\u0447\u043A\u043E\u0432 \u043D\u0430\u0432\u044B\u043A\u043E\u0432 (${delta > 0 ? `\u043D\u0435 \u0445\u0432\u0430\u0442\u0430\u0435\u0442 ${delta}` : `\u043F\u0435\u0440\u0435\u0440\u0430\u0441\u0445\u043E\u0434 ${-delta}`}); \u0431\u043E\u043D\u0443\u0441\u044B \u043F\u0440\u043E\u0438\u0441\u0445\u043E\u0436\u0434\u0435\u043D\u0438\u044F \u043D\u0435 \u0432\u0445\u043E\u0434\u044F\u0442 \u0432 \u0431\u044E\u0434\u0436\u0435\u0442.`);
-      }
-    }
-  }
-  return findings;
-}
-var STAT_KEYS, screenRng;
-var init_charcreate = __esm({
-  "src/core/charcreate.ts"() {
-    init_brp();
-    init_dice();
-    init_prng();
-    init_skills();
-    STAT_KEYS = ["STR", "CON", "SIZ", "DEX", "INT", "POW", "CHA"];
-    screenRng = new PRNG();
-  }
-});
-
-// src/editor/campaignAudit.ts
-var campaignAudit_exports = {};
-__export(campaignAudit_exports, {
-  auditCounts: () => auditCounts,
-  campaignContentHash: () => campaignContentHash,
-  collectCampaignMedia: () => collectCampaignMedia,
-  formatCampaignAuditReport: () => formatCampaignAuditReport,
-  validateCampaign: () => validateCampaign
-});
+// src/editor/campaignAuditSchema.ts
 function validateSchema(typeName, value, label) {
   let validator = schemaValidators.get(typeName);
   if (!validator) {
@@ -20003,168 +20339,19 @@ function validatePackageSchema(store) {
   }
   return issues;
 }
-function isExternal(path) {
-  return /^(?:https?:)?\/\//i.test(path);
-}
-function mediaType(path) {
-  const clean = path.split(/[?#]/, 1)[0].toLowerCase();
-  if (/\.(?:png|jpe?g|gif|svg|webp|avif)$/.test(clean)) return "\u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435";
-  if (/\.(?:aac|flac|m4a|mp3|ogg|opus|wav)$/.test(clean)) return "\u0430\u0443\u0434\u0438\u043E";
-  if (/\.(?:mp4|mov|webm)$/.test(clean)) return "\u0432\u0438\u0434\u0435\u043E";
-  return "\u0448\u0440\u0438\u0444\u0442";
-}
-function expectedMime(path) {
-  const clean = path.split(/[?#]/, 1)[0].toLowerCase();
-  if (/\.jpe?g$/.test(clean)) return "image/jpeg";
-  if (/\.png$/.test(clean)) return "image/png";
-  if (/\.webp$/.test(clean)) return "image/webp";
-  if (/\.svg$/.test(clean)) return "image/svg+xml";
-  if (/\.avif$/.test(clean)) return "image/avif";
-  if (/\.(?:aac)$/.test(clean)) return "audio/aac";
-  if (/\.(?:mp3)$/.test(clean)) return "audio/mpeg";
-  if (/\.(?:m4a)$/.test(clean)) return "audio/mp4";
-  if (/\.(?:ogg|opus)$/.test(clean)) return "audio/ogg";
-  if (/\.(?:wav)$/.test(clean)) return "audio/wav";
-  if (/\.(?:mp4)$/.test(clean)) return "video/mp4";
-  if (/\.(?:webm)$/.test(clean)) return "video/webm";
-  if (/\.(?:woff2?)$/.test(clean)) return `font/woff${clean.endsWith(".woff2") ? "2" : ""}`;
-  if (/\.ttf$/.test(clean)) return "font/ttf";
-  if (/\.otf$/.test(clean)) return "font/otf";
-  return void 0;
-}
-function collectCampaignMedia(store) {
-  const local = /* @__PURE__ */ new Set();
-  const external = /* @__PURE__ */ new Set();
-  const visit = (value) => {
-    if (typeof value === "string") {
-      const path = value.trim();
-      if (!MEDIA_EXTENSION.test(path)) return;
-      if (isExternal(path)) external.add(path);
-      else if (!/^(?:data|blob):/i.test(path)) local.add(path.split(/[?#]/, 1)[0].replace(/^\.\//, ""));
-      return;
-    }
-    if (Array.isArray(value)) {
-      value.forEach(visit);
-      return;
-    }
-    if (value && typeof value === "object") {
-      Object.values(value).forEach(visit);
-    }
-  };
-  visit(store.meta);
-  visit(store.world);
-  for (const value of store.jsonFiles.values()) visit(value);
-  for (const text of store.textFiles.values()) {
-    for (const match of text.matchAll(/["']([^"'\r\n]+\.(?:avif|gif|jpe?g|png|svg|webp|aac|flac|m4a|mp3|ogg|opus|wav|mp4|mov|webm|otf|ttf|woff2?)(?:[?#][^"'\r\n]*)?)["']/gi)) {
-      const path = match[1].trim();
-      if (isExternal(path)) external.add(path);
-      else local.add(path.split(/[?#]/, 1)[0].replace(/^\.\//, ""));
-    }
-    for (const match of text.matchAll(/#\s*(?:voice|sfx|music|ambient|sound|audio)\s*:\s*([^\s\r\n]+\.(?:avif|gif|jpe?g|png|svg|webp|aac|flac|m4a|mp3|ogg|opus|wav|mp4|mov|webm|otf|ttf|woff2?))/gi)) {
-      const path = match[1].trim();
-      if (isExternal(path)) external.add(path);
-      else local.add(path.split(/[?#]/, 1)[0].replace(/^\.\//, ""));
-    }
-    for (const match of text.matchAll(/\b(assets\/[^\s"'\r\n,;)]+\.(?:avif|gif|jpe?g|png|svg|webp|aac|flac|m4a|mp3|ogg|opus|wav|mp4|mov|webm|otf|ttf|woff2?))/gi)) {
-      const path = match[1].trim();
-      if (isExternal(path)) external.add(path);
-      else local.add(path.split(/[?#]/, 1)[0].replace(/^\.\//, ""));
-    }
+var import__, schema, ajv, schemaValidators;
+var init_campaignAuditSchema = __esm({
+  "src/editor/campaignAuditSchema.ts"() {
+    import__ = __toESM(require__(), 1);
+    init_campaign_schema();
+    schema = campaign_schema_default;
+    ajv = new import__.default({ allErrors: true, strict: false });
+    ajv.addSchema(schema);
+    schemaValidators = /* @__PURE__ */ new Map();
   }
-  return { local: [...local].sort(), external: [...external].sort() };
-}
-function campaignContentHash(store) {
-  const content = store.allPaths().sort().map((path) => `${path}
-${store.fileText(path)}`).join("\n\0\n");
-  let hash = 2166136261;
-  for (let i = 0; i < content.length; i++) {
-    hash ^= content.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0).toString(16).padStart(8, "0");
-}
-async function inspectLocalMedia(store, paths) {
-  return Promise.all(paths.map(async (path) => {
-    if (!path || path.startsWith("/") || path.includes("\\") || path.split("/").includes("..")) {
-      return { severity: "error", message: `\u041D\u0435\u0434\u043E\u043F\u0443\u0441\u0442\u0438\u043C\u044B\u0439 \u043F\u0443\u0442\u044C \u043C\u0435\u0434\u0438\u0430: \xAB${path}\xBB. \u0418\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0439\u0442\u0435 \u043E\u0442\u043D\u043E\u0441\u0438\u0442\u0435\u043B\u044C\u043D\u044B\u0439 \u043F\u0443\u0442\u044C \u0432\u043D\u0443\u0442\u0440\u0438 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438.` };
-    }
-    try {
-      const url = `${store.basePath}/${path.split("/").map(encodeURIComponent).join("/")}`;
-      let response = await fetch(url, { method: "HEAD", cache: "no-store" });
-      if (response.status === 405 || response.status === 501) response = await fetch(url, { method: "GET", cache: "no-store" });
-      if (!response.ok || (response.headers.get("content-type") ?? "").toLowerCase().includes("text/html")) {
-        return { severity: "error", message: `\u041D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D ${mediaType(path)} \xAB${path}\xBB.` };
-      }
-      const actualMime = (response.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
-      const expected = expectedMime(path);
-      if (expected && actualMime && actualMime !== expected && actualMime !== "application/octet-stream") {
-        return { severity: "warning", message: `\u0424\u0430\u0439\u043B \xAB${path}\xBB \u043E\u0442\u0434\u0430\u0451\u0442\u0441\u044F \u043A\u0430\u043A ${actualMime}, \u043E\u0436\u0438\u0434\u0430\u043B\u0441\u044F ${expected}; \u043F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0434\u0435\u043D\u0438\u0435.` };
-      }
-      if (actualMime === "application/octet-stream") {
-        return { severity: "warning", message: `\u0424\u0430\u0439\u043B \xAB${path}\xBB \u043E\u0442\u0434\u0430\u0451\u0442\u0441\u044F \u043A\u0430\u043A \u043D\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043D\u044B\u0439 \u0431\u0438\u043D\u0430\u0440\u043D\u044B\u0439 \u0442\u0438\u043F; \u043F\u043B\u0435\u0435\u0440 \u043C\u043E\u0436\u0435\u0442 \u043D\u0435 \u0440\u0430\u0441\u043F\u043E\u0437\u043D\u0430\u0442\u044C \u0444\u043E\u0440\u043C\u0430\u0442.` };
-      }
-      return { severity: "info", message: `\u0424\u0430\u0439\u043B \u043D\u0430\u0439\u0434\u0435\u043D: ${path}` };
-    } catch {
-      return { severity: "error", message: `\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C ${mediaType(path)} \xAB${path}\xBB.` };
-    }
-  }));
-}
-function alphaRolePaths(store) {
-  const out = [];
-  const art = store.meta.theme?.menu?.title_art;
-  if (art) out.push({ path: art, role: "\u044D\u043C\u0431\u043B\u0435\u043C\u0430 \u043C\u0435\u043D\u044E (theme.menu.title_art) \u043B\u0435\u0436\u0438\u0442 \u043F\u043E\u0432\u0435\u0440\u0445 \u0444\u043E\u043D\u0430 \u043C\u0435\u043D\u044E" });
-  const frameImg = store.meta.theme?.frame?.image;
-  if (frameImg) out.push({ path: frameImg, role: "\u0440\u0430\u043C\u043A\u0430 \u0438\u043D\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430 (theme.frame.image) \u043E\u0431\u0440\u0430\u043C\u043B\u044F\u0435\u0442 \u043E\u043A\u043D\u0430" });
-  for (const atm of store.meta.atmospherics ?? []) {
-    if (atm.sprite) out.push({ path: atm.sprite, role: `\u0441\u043F\u0440\u0430\u0439\u0442 \u0430\u0442\u043C\u043E\u0441\u0444\u0435\u0440\u043D\u043E\u0439 \u0447\u0430\u0441\u0442\u0438\u0446\u044B \xAB${atm.label || atm.id}\xBB` });
-  }
-  for (const p of store.entityPaths()) {
-    const e = store.entity(p);
-    const spr = typeof e.scene_sprite === "string" ? e.scene_sprite : void 0;
-    if (spr) out.push({ path: spr, role: `\u0441\u043F\u0440\u0430\u0439\u0442 \u0432 \u0441\u0446\u0435\u043D\u0435 \xAB${e.label}\xBB \u0441\u0442\u043E\u0438\u0442 \u0432 \u0441\u043B\u043E\u0442\u0435 \u043F\u043E\u0432\u0435\u0440\u0445 \u0444\u043E\u043D\u0430 \u0441\u0446\u0435\u043D\u044B` });
-    if ("scene_sprite_states" in e && e.scene_sprite_states) {
-      for (const [st, img] of Object.entries(e.scene_sprite_states)) {
-        if (typeof img === "string") out.push({ path: img, role: `\u0441\u043F\u0440\u0430\u0439\u0442 \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u044F \xAB${st}\xBB \u0432 \u0441\u0446\u0435\u043D\u0435 \xAB${e.label}\xBB` });
-      }
-    }
-    const fig = "combat_figure" in e && typeof e.combat_figure === "string" ? e.combat_figure : void 0;
-    if (fig) out.push({ path: fig, role: `\u0444\u0438\u0433\u0443\u0440\u043A\u0430 \u0431\u043E\u044F \xAB${e.label}\xBB \u0441\u0442\u043E\u0438\u0442 \u043F\u043E\u0432\u0435\u0440\u0445 \u0430\u0440\u0435\u043D\u044B` });
-  }
-  return out;
-}
-async function inspectAlphaRoles(store) {
-  const findings = [];
-  for (const { path, role } of alphaRolePaths(store)) {
-    if (isExternal(path) || path.startsWith("data:") || path.startsWith("blob:")) continue;
-    try {
-      const url = `${store.basePath}/${path.split("/").map(encodeURIComponent).join("/")}`;
-      const res = await fetch(url, { cache: "no-store" });
-      if (!res.ok) continue;
-      const bmp = await createImageBitmap(await res.blob());
-      const w = bmp.width;
-      const h = bmp.height;
-      if (!w || !h) continue;
-      const ctx = new OffscreenCanvas(w, h).getContext("2d", { willReadFrequently: true });
-      if (!ctx) continue;
-      ctx.drawImage(bmp, 0, 0);
-      const corners = [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]];
-      const opaque = corners.every(([x, y]) => ctx.getImageData(x, y, 1, 1).data[3] === 255);
-      bmp.close?.();
-      if (opaque) {
-        findings.push({
-          severity: "warning",
-          message: `\xAB${path}\xBB: ${role}, \u043F\u043E\u044D\u0442\u043E\u043C\u0443 \u0442\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F \u043F\u0440\u043E\u0437\u0440\u0430\u0447\u043D\u044B\u0439 \u0444\u043E\u043D (PNG \u0441 \u0430\u043B\u044C\u0444\u043E\u0439); \u0443 \u0444\u0430\u0439\u043B\u0430 \u043D\u0435\u043F\u0440\u043E\u0437\u0440\u0430\u0447\u043D\u044B\u0435 \u0443\u0433\u043B\u044B \u2014 \u043F\u043E\u0445\u043E\u0436\u0435 \u043D\u0430 \u0444\u043E\u043D-\u043F\u043E\u0434\u043B\u043E\u0436\u043A\u0443 \u0438\u043B\u0438 \u043D\u0430\u0440\u0438\u0441\u043E\u0432\u0430\u043D\u043D\u0443\u044E \u0448\u0430\u0445\u043C\u0430\u0442\u043A\u0443. \u0421\u0433\u0435\u043D\u0435\u0440\u0438\u0440\u0443\u0439\u0442\u0435 \u043D\u0430 \u0445\u0440\u043E\u043C\u0430\u043A\u0435\u0435 \u0438 \u0432\u044B\u0440\u0435\u0436\u044C\u0442\u0435: python3 scripts/cutout-chromakey.py "${path}"`
-        });
-      }
-    } catch {
-      findings.push({
-        severity: "warning",
-        message: `\xAB${path}\xBB: ${role}, \u0442\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F \u043F\u0440\u043E\u0437\u0440\u0430\u0447\u043D\u044B\u0439 \u0444\u043E\u043D, \u043D\u043E \u0443\u0433\u043B\u044B \u043F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u043D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u2014 \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435 \u043D\u0435 \u0434\u0435\u043A\u043E\u0434\u0438\u0440\u0443\u0435\u0442\u0441\u044F (\u0431\u0438\u0442\u044B\u0439 \u0444\u0430\u0439\u043B \u0438\u043B\u0438 \u0444\u043E\u0440\u043C\u0430\u0442 \u0432\u043D\u0435 \u043F\u043E\u0434\u0434\u0435\u0440\u0436\u043A\u0438 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438). \u041A\u043E\u043D\u0432\u0435\u0440\u0442\u0438\u0440\u0443\u0439\u0442\u0435 \u0432 PNG 8-\u0431\u0438\u0442 \u0431\u0435\u0437 \u0438\u043D\u0442\u0435\u0440\u043B\u0435\u0439\u0441\u0430 \u0438 \u043F\u0435\u0440\u0435\u043F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435.`
-      });
-    }
-  }
-  return findings;
-}
+});
+
+// src/editor/campaignAuditValidation.ts
 async function validateCampaign(store, lastPlaytest) {
   let structure = [];
   try {
@@ -20516,39 +20703,13 @@ async function validateCampaign(store, lastPlaytest) {
   playtest.push({ severity: "info", message: "\u042D\u0442\u0430 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u043D\u0435 \u0441\u0438\u043C\u0443\u043B\u0438\u0440\u0443\u0435\u0442 \u0438\u0433\u0440\u043E\u0432\u043E\u0439 \u043C\u0430\u0440\u0448\u0440\u0443\u0442. \u0414\u043B\u044F \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438 \u0432\u0437\u0430\u0438\u043C\u043E\u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0439 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0439\u0442\u0435 \u043A\u043D\u043E\u043F\u043A\u0443 \xAB\u041F\u043B\u0435\u0439\u0442\u0435\u0441\u0442\xBB." });
   return { checkedAt: Date.now(), structure, media, playtest };
 }
-function formatCampaignAuditReport(report) {
-  const lines = [
-    `\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 Chronicle Forge \u2014 ${new Date(report.checkedAt).toLocaleString()}`,
-    "",
-    "\u0421\u0422\u0420\u0423\u041A\u0422\u0423\u0420\u0410 \u0418 \u0421\u0421\u042B\u041B\u041A\u0418",
-    ...report.structure.length ? report.structure.map((finding) => `${finding.severity.toUpperCase()}: ${finding.message}`) : ["\u041F\u0420\u041E\u0411\u041B\u0415\u041C \u041D\u0415\u0422"],
-    "\u041C\u0415\u0414\u0418\u0410 \u0418 \u0424\u0410\u0419\u041B\u042B",
-    ...report.media.length ? report.media.map((finding) => `${finding.severity.toUpperCase()}: ${finding.message}`) : ["\u041F\u0420\u041E\u0411\u041B\u0415\u041C \u041D\u0415\u0422"],
-    "\u041F\u041B\u0415\u0419\u0422\u0415\u0421\u0422",
-    ...report.playtest.length ? report.playtest.map((finding) => `${finding.severity.toUpperCase()}: ${finding.message}`) : ["\u0418\u041D\u0424\u041E\u0420\u041C\u0410\u0426\u0418\u042F \u041D\u0415 \u0417\u0410\u041F\u0418\u0421\u0410\u041D\u0410"]
-  ];
-  return lines.join("\n");
-}
-function auditCounts(report) {
-  const findings = [...report.structure, ...report.media, ...report.playtest];
-  return {
-    errors: findings.filter((finding) => finding.severity === "error").length,
-    warnings: findings.filter((finding) => finding.severity === "warning").length,
-    info: findings.filter((finding) => finding.severity === "info").length
-  };
-}
-var import__, schema, ajv, schemaValidators, MEDIA_EXTENSION, ENGINE_INK_FNS;
-var init_campaignAudit = __esm({
-  "src/editor/campaignAudit.ts"() {
-    import__ = __toESM(require__(), 1);
-    init_campaign_schema();
+var ENGINE_INK_FNS;
+var init_campaignAuditValidation = __esm({
+  "src/editor/campaignAuditValidation.ts"() {
     init_charcreate();
     init_types();
-    schema = campaign_schema_default;
-    ajv = new import__.default({ allErrors: true, strict: false });
-    ajv.addSchema(schema);
-    schemaValidators = /* @__PURE__ */ new Map();
-    MEDIA_EXTENSION = /\.(?:avif|gif|jpe?g|png|svg|webp|aac|flac|m4a|mp3|ogg|opus|wav|mp4|mov|webm|otf|ttf|woff2?)(?:[?#].*)?$/i;
+    init_campaignAuditSchema();
+    init_campaignAuditMedia();
     ENGINE_INK_FNS = /* @__PURE__ */ new Set([
       "get_flag",
       "set_flag",
@@ -20600,6 +20761,43 @@ var init_campaignAudit = __esm({
       "has_meta_achievement",
       "get_meta_counter"
     ]);
+  }
+});
+
+// src/editor/campaignAudit.ts
+var campaignAudit_exports = {};
+__export(campaignAudit_exports, {
+  auditCounts: () => auditCounts,
+  campaignContentHash: () => campaignContentHash,
+  collectCampaignMedia: () => collectCampaignMedia,
+  formatCampaignAuditReport: () => formatCampaignAuditReport,
+  validateCampaign: () => validateCampaign
+});
+function formatCampaignAuditReport(report) {
+  const lines = [
+    `\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 Narthex \u2014 ${new Date(report.checkedAt).toLocaleString()}`,
+    "",
+    "\u0421\u0422\u0420\u0423\u041A\u0422\u0423\u0420\u0410 \u0418 \u0421\u0421\u042B\u041B\u041A\u0418",
+    ...report.structure.length ? report.structure.map((finding) => `${finding.severity.toUpperCase()}: ${finding.message}`) : ["\u041F\u0420\u041E\u0411\u041B\u0415\u041C \u041D\u0415\u0422"],
+    "\u041C\u0415\u0414\u0418\u0410 \u0418 \u0424\u0410\u0419\u041B\u042B",
+    ...report.media.length ? report.media.map((finding) => `${finding.severity.toUpperCase()}: ${finding.message}`) : ["\u041F\u0420\u041E\u0411\u041B\u0415\u041C \u041D\u0415\u0422"],
+    "\u041F\u041B\u0415\u0419\u0422\u0415\u0421\u0422",
+    ...report.playtest.length ? report.playtest.map((finding) => `${finding.severity.toUpperCase()}: ${finding.message}`) : ["\u0418\u041D\u0424\u041E\u0420\u041C\u0410\u0426\u0418\u042F \u041D\u0415 \u0417\u0410\u041F\u0418\u0421\u0410\u041D\u0410"]
+  ];
+  return lines.join("\n");
+}
+function auditCounts(report) {
+  const findings = [...report.structure, ...report.media, ...report.playtest];
+  return {
+    errors: findings.filter((finding) => finding.severity === "error").length,
+    warnings: findings.filter((finding) => finding.severity === "warning").length,
+    info: findings.filter((finding) => finding.severity === "info").length
+  };
+}
+var init_campaignAudit = __esm({
+  "src/editor/campaignAudit.ts"() {
+    init_campaignAuditMedia();
+    init_campaignAuditValidation();
   }
 });
 
