@@ -172,7 +172,7 @@ if (owner) {
   const warnsBad = importMonolith(new EditorStore('/campaigns/ai2'), JSON.parse(JSON.stringify(mono)))
   check('ИИ импорт: ошибка текста названа строкой', warnsBad.some((w) => w.includes('полетать')), warnsBad.join(' | ').slice(0, 200))
 
-  // тот же текст, но в .chronicle-пакете (sidecar без узлов) — ink собирается при чтении
+  // тот же текст, но в .narthex-пакете (sidecar без узлов) — ink собирается при чтении
   const jsonFiles = new Map<string, unknown>()
   for (const [path, val] of store.jsonFiles) jsonFiles.set(path, JSON.parse(JSON.stringify(val)))
   jsonFiles.set('campaign.json', JSON.parse(JSON.stringify(store.meta))) // в пакете он отдельным файлом

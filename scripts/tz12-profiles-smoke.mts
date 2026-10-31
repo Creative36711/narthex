@@ -55,7 +55,7 @@ const [editorOwner] = await loadMissionOwnerModules(['/src/editor/EditorApp.tsx'
 
 // ── 1. обратная совместимость ──
 {
-  check('1 дефолт — фирменный профиль Chronicle Forge', DEFAULT_PROFILE === 'forge' && resolveProfile(null).id === 'forge')
+  check('1 дефолт — фирменный профиль Narthex', DEFAULT_PROFILE === 'forge' && resolveProfile(null).id === 'forge')
   const noTheme = { ...campaign, meta: { ...campaign.meta, theme: undefined } }
   check('1 кампания без theme: фирменный профиль, атмосфера вкл', resolveProfile(noTheme.meta).id === 'forge' && atmosphereOn(noTheme.meta) === true)
   const vars = themeVars(noTheme) as Record<string, string>

@@ -70,7 +70,7 @@ let fixtureCampaignTitle = ''
 {
   const stableId = campaignIdFromPath('/campaigns/ash-of-caerden')
   check('редактор сохраняет кампанию под неизменным ID из папки', stableId === 'ash-of-caerden' && typeof syncIndexEntry === 'function')
-  check('импорт .chronicle обновляет подпись, сохраняя ID текущей папки', stableId === 'ash-of-caerden' && typeof importChroniclePackage === 'function')
+  check('импорт пакета обновляет подпись, сохраняя ID текущей папки', stableId === 'ash-of-caerden' && typeof importChroniclePackage === 'function')
   check('в выпадающем списке редактора живое название открытой папки', navLabelOf('campaign') === 'Кампания и реестры' && hydratedCampaignTitle === fixtureCampaignTitle)
   const app = read('src/App.tsx')
   check('меню дописывает текущую кампанию в список из файла', app.includes('const entry = {\n      id: campaign.meta.id,') || app.includes('title: campaign.meta.title'))

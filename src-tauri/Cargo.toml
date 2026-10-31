@@ -1,7 +1,7 @@
 [package]
-name = "chronicle-forge"
+name = "narthex"
 version = "0.8.0"
-description = "Chronicle Forge — редактор и рантайм тактических визуальных новелл"
+description = "Narthex — редактор и рантайм тактических визуальных новелл"
 authors = ["you"]
 license = ""
 repository = ""

@@ -1,4 +1,4 @@
-/** Chronicle Forge ScriptCat Drive gateway. Deploy as a web app executing as the owner. */
+/** Narthex ScriptCat Drive gateway. Deploy as a web app executing as the owner. */
 const CF_RUN_LOG_FOLDER_ID = "19ljf2TgeDg6j-jIamGira8K8_2NjC1BT";
 const CF_KEY_PROPERTY = "CF_GATEWAY_KEY";
 
@@ -19,7 +19,7 @@ function setupGatewayKey() {
 function doGet() {
   return json_({
     ok: true,
-    service: "Chronicle Forge Drive gateway",
+    service: "Narthex Drive gateway",
     version: "1.2",
   });
 }
