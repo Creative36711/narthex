@@ -264,7 +264,17 @@ function visibleEndingId(campaignId, title) {
 
 async function chooseCampaign(page, definition) {
   await page.getByRole('button', { name: 'Кампании', exact: true }).click()
-  const row = page.locator('.campaign-row').filter({ hasText: definition.card }).first()
+  // Карточка narrative-кампании несёт поставленное название без dev-метки,
+  // поэтому выбираем по названию и отсекаем adventure-полигон того же пака.
+  let rows = page.locator('.campaign-row').filter({ hasText: definition.card })
+  if (definition.cardNot) rows = rows.filter({ hasNotText: definition.cardNot })
+  if ((await rows.count()) === 0) {
+    // Ожидание карточки без неё самой даёт «Timeout 8000ms exceeded» и прячет
+    // причину: в меню другие названия. Называем их сразу — это и есть диагноз.
+    const titles = await page.locator('.campaign-card-title').allInnerTexts()
+    throw new Error(`карточка кампании ${definition.id} не найдена по тексту ${definition.card}: в меню ${titles.length ? titles.map((title) => `«${title.trim()}»`).join(', ') : 'нет ни одной кампании'}`)
+  }
+  const row = rows.first()
   await row.waitFor({ state: 'visible', timeout: 8000 })
   await row.locator('.campaign-card').click()
   await page.waitForFunction((pattern) => {
@@ -275,7 +285,7 @@ async function chooseCampaign(page, definition) {
 }
 
 async function runAshExamRoute(page, addFinding, setFinal) {
-  const definition = { id: 'ash-of-caerden', card: /эталон narrative/i, title: /Пепел Каэрдена/i }
+  const definition = { id: 'ash-of-caerden', card: /Пепел Каэрдена/i, cardNot: /adventure/i, title: /Пепел Каэрдена/i, charChoices: [/Посланник/, /Торговец/] }
   await page.waitForTimeout(700)
   const home = await step(page, `${definition.id}-01-home`, 'Стартовое меню')
   if (/Кампаний пока нет/i.test(home.text)) addFinding('старт показывает «Кампаний пока нет»')
@@ -296,6 +306,10 @@ async function runAshExamRoute(page, addFinding, setFinal) {
     const value = Number((await row.locator('.char-stat-val').innerText()).trim())
     for (let point = value; point > 3; point--) await row.getByRole('button').first().click()
   }
+  // «Железный человек»: бой в лесу становится воспроизводимо смертельным для
+  // слабого (но валидного) героя выше. Сложность объявляет no_autosave, поэтому
+  // проверка сохранений идёт через ручной слот — он стиранием автосейва не
+  // затрагивается (SavesPanel: «ручные слоты сохраняются»).
   const ironDifficulty = page.getByRole('button', { name: /Железный человек/ })
   if (await ironDifficulty.count()) await ironDifficulty.click()
   await page.getByRole('button', { name: 'Начать забег', exact: true }).click()
@@ -320,6 +334,11 @@ async function runAshExamRoute(page, addFinding, setFinal) {
     await dismissMessages(page)
   }
   await step(page, `${definition.id}-05-gates-ready`, 'Стартовая сцена и диалог закрыты')
+
+  // Ручной слот до финала: финал стирает автосейв (roguelike gameOver) и запирает
+  // запись в слот, поэтому «сохранение после финала» проверяется на этом снимке.
+  await saveToSlot(page)
+  await step(page, `${definition.id}-05b-save-slot`, 'Забег записан в ручной слот до финала')
 
   await page.getByRole('button', { name: 'Карта', exact: true }).click()
   await page.locator('.map-screen').waitFor({ state: 'visible', timeout: 5000 })
@@ -369,10 +388,11 @@ async function runAshExamRoute(page, addFinding, setFinal) {
     addFinding(`после прибытия в лес не достигнут итоговый экран; последнее состояние: ${arrival.text.slice(-220).replace(/\n/g, ' ')}`)
   }
   setFinal(finalState, finalVisibleText)
+  await runSaveExam(page, definition, addFinding)
 }
 
 async function runAdventureExamRoute(page, addFinding, setFinal) {
-  const definition = { id: 'ash-of-caerden-adventure', card: /проект adventure/i, title: /проект adventure/i }
+  const definition = { id: 'ash-of-caerden-adventure', card: /проект adventure/i, title: /проект adventure/i, charChoices: [/Солдат/, /Наёмник/] }
   await page.waitForTimeout(700)
   const home = await step(page, `${definition.id}-01-home`, 'Стартовое меню')
   if (/Кампаний пока нет/i.test(home.text)) addFinding('старт показывает «Кампаний пока нет»')
@@ -434,6 +454,10 @@ async function runAdventureExamRoute(page, addFinding, setFinal) {
   await page.waitForTimeout(350)
   await dismissMessages(page)
 
+  // Ручной слот до финала — тот же шаг проверки сохранений, что и в narrative-маршруте.
+  await saveToSlot(page)
+  await step(page, `${definition.id}-09b-save-slot`, 'Забег записан в ручной слот до финала')
+
   await page.locator('[data-adventure-open-riddle]').first().click()
   await page.waitForSelector('[data-adventure-riddle]', { timeout: 5000 })
   await step(page, `${definition.id}-10-riddle`, 'Крупный план загадки ворот')
@@ -448,6 +472,197 @@ async function runAdventureExamRoute(page, addFinding, setFinal) {
   const ending = await page.locator('[data-adventure-ending="ending_gate_unlocked"]').innerText()
   await step(page, `${definition.id}-12-ending`, 'Финал: ending_gate_unlocked')
   setFinal('ending_gate_unlocked', ending.slice(0, 700))
+  await runSaveExam(page, definition, addFinding)
+}
+
+/**
+ * Сохранения в браузере: движок пишет их в localStorage (src/core/save/keys.ts) —
+ * автосейв под ключом `narthex:save:<id>`, ручной слот под `narthex:save:<id>@<n>`.
+ * Читаем тот же канал, которым пользуется игра, чтобы сравнивать данные, а не разметку.
+ */
+const saveKeyOf = (campaignId, slot = 'auto') => (slot === 'auto' ? `narthex:save:${campaignId}` : `narthex:save:${campaignId}@${slot}`)
+/** Ручной слот, в который маршрут пишет сохранение до финала. */
+const MANUAL_SLOT = 1
+
+/** Прочитать сохранение слота и снять краткую сводку состояния для сравнения. */
+async function readSave(page, campaignId, slot = 'auto') {
+  return page.evaluate((key) => {
+    const raw = localStorage.getItem(key)
+    const keys = Object.keys(localStorage).filter((item) => item.startsWith('narthex:save:'))
+    if (!raw) return { raw: null, key, keys, state: null }
+    try {
+      const envelope = JSON.parse(raw)
+      const state = envelope.state ?? envelope
+      return {
+        raw,
+        key,
+        keys,
+        bytes: raw.length,
+        envelope: {
+          envelope_version: envelope.envelope_version ?? null,
+          save_version: envelope.save_version ?? null,
+          campaign_id: envelope.campaign_id ?? null,
+          campaign_version: envelope.campaign_version ?? null,
+          engine_version: envelope.engine_version ?? null,
+          updated_at: envelope.updated_at ?? null,
+        },
+        state: {
+          seed: state.seed ?? null,
+          tick: state.tick ?? null,
+          scene: state.scene ?? null,
+          location: state.location ?? null,
+          region: state.region ?? null,
+          hp: state.player?.hp ?? null,
+          max_hp: state.player?.max_hp ?? null,
+          difficulty: state.player?.difficulty ?? null,
+          inventory: (state.inventory ?? []).map((item) => `${item.id}x${item.quantity ?? 1}`).sort(),
+          flags: Object.keys(state.flags ?? {}).sort(),
+          fired_rules: (state.fired_rules ?? []).length,
+          log: (state.log ?? []).length,
+          game_over: state.game_over ? String(state.game_over.type ?? state.game_over.kind ?? true) : null,
+        },
+      }
+    } catch (error) {
+      return { raw, key, keys, parseError: String(error?.message || error).slice(0, 200), state: null }
+    }
+  }, saveKeyOf(campaignId, slot))
+}
+
+/** Поля сводки, которые обязаны совпасть до и после reload. */
+const SAVE_COMPARE_FIELDS = ['seed', 'tick', 'scene', 'location', 'region', 'hp', 'max_hp', 'inventory', 'flags', 'fired_rules', 'log', 'game_over']
+
+/**
+ * Строка ручного слота в панели «Сохранения».
+ * Ищем по точному заголовку `<b>Слот N</b>`: у занятого слота описание
+ * начинается с цифры, и в textContent «Слот 1» склеивается с «31.10…»,
+ * поэтому граница слова в регексе не срабатывает.
+ */
+function slotRow(page, panel, slot) {
+  return panel.locator('.save-slot-row').filter({ has: page.getByText(`Слот ${slot}`, { exact: true }) }).first()
+}
+
+/** Записать текущий забег в ручной слот через панель «Сохранения» (путь игрока). */
+async function saveToSlot(page, slot = MANUAL_SLOT) {
+  await page.locator('button[aria-label="Сохранения"]').first().click()
+  const panel = page.locator('.side-panel').filter({ hasText: 'Сохранения' })
+  await panel.waitFor({ state: 'visible', timeout: 8000 })
+  const row = slotRow(page, panel, slot)
+  await row.waitFor({ state: 'visible', timeout: 5000 })
+  await row.getByRole('button', { name: 'Записать' }).click()
+  // первая запись в пустой слот проходит без подтверждения; если слот занят —
+  // панель спрашивает overwrite, и согласие тоже игрок даёт сам
+  const overwrite = page.locator('.modal-box').getByRole('button', { name: 'Да', exact: true })
+  if (await overwrite.waitFor({ state: 'visible', timeout: 2000 }).catch(() => null)) await overwrite.first().click()
+  await row.locator('.muted.small').filter({ hasNotText: 'пусто' }).first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => {})
+  await panel.locator('.panel-header button').first().click()
+  await panel.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {})
+}
+
+/**
+ * Проверка сохранений — отдельный шаг после финала.
+ *
+ * Финал в Narthex стирает автосейв (`packs/narrative/roguelike.ts`, gameOver) и
+ * запрещает запись в слот (`SavesPanel`: кнопка «Записать» заперта при game_over),
+ * поэтому «сохранение после финала» — это ручной слот, записанный маршрутом до
+ * финала: он обязан пережить финал и reload, а загрузка из него — вернуть те же
+ * данные. Проверяется путь игрока, а не внутренние функции движка.
+ */
+async function runSaveExam(page, definition, addFinding) {
+  const slot = await readSave(page, definition.id, MANUAL_SLOT)
+  if (!slot.raw) {
+    addFinding(`слот ${MANUAL_SLOT} не записан до финала: ключей narthex:save:* — ${slot.keys.length ? slot.keys.join(', ') : 'нет'}`)
+    return { ok: false }
+  }
+  const auto = await readSave(page, definition.id)
+  const finale = await step(page, `${definition.id}-13-save-after-final`, 'Сохранение слота пережило финал')
+  if (/Игра столкнулась с ошибкой/i.test(finale.text)) addFinding('экран ошибки на шаге сохранения после финала')
+
+  await page.reload({ waitUntil: 'networkidle', timeout: 45000 })
+  const reloaded = await readSave(page, definition.id, MANUAL_SLOT)
+  if (!reloaded.raw) {
+    addFinding(`после reload слот ${MANUAL_SLOT} пропал`)
+    return { ok: false }
+  }
+  if (reloaded.raw !== slot.raw) addFinding(`после reload сохранение слота изменилось: было ${slot.bytes} байт, стало ${reloaded.bytes}`)
+  await step(page, `${definition.id}-14-reload-save`, `После reload слот ${MANUAL_SLOT} на месте`)
+
+  // Возврат в ту же кампанию: App помнит выбор только в пределах страницы
+  // (cf_last_campaign пишется, но при загрузке не читается — дефект вне зоны),
+  // поэтому после reload кампанию открывает «Кампании», как это делает игрок.
+  await page.getByRole('button', { name: 'Кампании', exact: true }).click()
+  let rows = page.locator('.campaign-row').filter({ hasText: definition.card })
+  if (definition.cardNot) rows = rows.filter({ hasNotText: definition.cardNot })
+  await rows.first().locator('.campaign-card').click()
+  await page.getByRole('button', { name: 'Новый забег', exact: true }).click()
+  await page.waitForTimeout(350)
+  for (const choice of definition.charChoices ?? []) {
+    const button = page.getByRole('button', { name: choice })
+    if (await button.count()) await button.first().click()
+  }
+  await page.getByRole('button', { name: 'Начать забег', exact: true }).click()
+  await page.locator('.hud').first().waitFor({ state: 'visible', timeout: 20000 })
+  // Новый забег начинается со вступления и диалога: они перекрывают HUD, и
+  // «Сохранения» недоступны, пока игрок их не закроет. Это те же шаги, что в
+  // начале маршрута, а не обход интерфейса.
+  if (!(await dismissCutscene(page))) addFinding('не удалось закрыть вступление перед загрузкой слота')
+  await dismissIntro(page)
+  // Стартовый диалог нового забега закрывается ответом реплики и «Закончить
+  // разговор» — ровно как в начале маршрута; пока он открыт, HUD перекрыт.
+  const dialogueChoices = page.locator('.dialogue-overlay').getByRole('button', { name: /Ищу работу|Просто путник/ })
+  if (await dialogueChoices.count()) {
+    await dialogueChoices.first().click()
+    await dismissIntro(page)
+  }
+  const endTalk = page.locator('.dialogue-overlay').getByRole('button', { name: /Закончить разговор/ })
+  if (await endTalk.count()) await endTalk.last().click()
+  await dismissMessages(page)
+  await page.waitForTimeout(300)
+
+  await page.locator('button[aria-label="Сохранения"]').first().click()
+  const panel = page.locator('.side-panel').filter({ hasText: 'Сохранения' })
+  await panel.waitFor({ state: 'visible', timeout: 8000 })
+  const row = slotRow(page, panel, MANUAL_SLOT)
+  await row.getByRole('button', { name: 'Загрузить' }).click()
+  await panel.waitFor({ state: 'hidden', timeout: 8000 }).catch(() => {})
+  await page.locator('.hud').first().waitFor({ state: 'visible', timeout: 15000 })
+  await page.waitForTimeout(500)
+
+  const restored = await step(page, `${definition.id}-15-save-restored`, 'Забег восстановлен из сохранения')
+  if (/Игра столкнулась с ошибкой/i.test(restored.text)) addFinding('восстановленный забег показывает экран ошибки')
+
+  // Что именно вернулось из слота — проверяем данными, а не разметкой: игрок
+  // записывает восстановленный забег в соседний пустой слот, и его состояние
+  // обязано совпасть со слотом 1. Автосейв для сравнения не годится: при
+  // «Железном человеке» движок его не пишет (difficulty.no_autosave), а у
+  // обычного забега автосейв мог остаться от забега, открытого до загрузки.
+  await saveToSlot(page, MANUAL_SLOT + 1)
+  const after = await readSave(page, definition.id, MANUAL_SLOT + 1)
+  if (!after?.state) {
+    addFinding('восстановленный забег не записался в контрольный слот: сравнивать нечего')
+    return { ok: false }
+  }
+  const changed = SAVE_COMPARE_FIELDS.filter((field) => JSON.stringify(slot.state[field]) !== JSON.stringify(after.state[field]))
+  if (changed.length) {
+    const detail = changed.map((field) => `${field}: ${JSON.stringify(slot.state[field])} → ${JSON.stringify(after.state[field])}`).join('; ')
+    addFinding(`данные восстановленного забега не совпали со слотом 1: ${detail}`)
+  }
+  // Итог проверки — одной строкой в лог экзамена: ключ, байты, состояние
+  // до reload и после загрузки, чтобы отчёт цитировал факты, а не «ок».
+  visualLog(
+    `  [save] ${definition.id}: ${saveKeyOf(definition.id, MANUAL_SLOT)} ${slot.bytes} Б · tick ${slot.state.tick} · scene ${slot.state.scene} · hp ${slot.state.hp}/${slot.state.max_hp} · ` +
+      `после reload ${reloaded.bytes} Б (байт в байт) · контрольный слот ${after.bytes} Б · расхождений ${changed.length}`,
+  )
+  return {
+    ok: changed.length === 0,
+    slotKey: saveKeyOf(definition.id, MANUAL_SLOT),
+    slotBytes: slot.bytes,
+    savedAt: slot.envelope?.updated_at ?? null,
+    autosaveAfterFinale: auto.raw ? { key: auto.key, bytes: auto.bytes } : null,
+    slotStateBeforeReload: slot.state,
+    restoredState: after.state,
+    controlSlotKey: saveKeyOf(definition.id, MANUAL_SLOT + 1),
+    changedFields: changed,
+  }
 }
 
 async function runExamPack(definition) {
@@ -525,7 +740,9 @@ async function runExamPack(definition) {
     if (definition.id === 'ash-of-caerden') await runAshExamRoute(page, addFinding, setFinal)
     else await runAdventureExamRoute(page, addFinding, setFinal)
   } catch (error) {
-    routeError = String(error?.message || error).split('\n')[0]
+    // Первая строка сообщения Playwright («Timeout 30000ms exceeded») не называет
+    // селектор — берём и строки ожидания, иначе причина снова прячется.
+    routeError = String(error?.message || error).split('\n').map((line) => line.trim()).filter(Boolean).slice(0, 4).join(' | ').slice(0, 400)
     const relevantFailure = resourceFailures.find((failure) => /nar37-missing|scene_gates_front/i.test(failure.url)) || resourceFailures[0]
     addFinding(`ошибка маршрута: ${routeError}${relevantFailure ? `; URL ${relevantFailure.url} (${relevantFailure.reason})` : `; URL ${page?.url() || base}`}`)
   } finally {
@@ -627,8 +844,8 @@ async function runBrowserExam() {
   visualLog(`Browser: ${engine}`)
   visualLog(`Fixture root: ${report.fixtureRoot}`)
   const allDefinitions = [
-    { id: 'ash-of-caerden', card: /эталон narrative/i, title: /Пепел Каэрдена/i },
-    { id: 'ash-of-caerden-adventure', card: /проект adventure/i, title: /проект adventure/i },
+    { id: 'ash-of-caerden', card: /Пепел Каэрдена/i, cardNot: /adventure/i, title: /Пепел Каэрдена/i, charChoices: [/Посланник/, /Торговец/] },
+    { id: 'ash-of-caerden-adventure', card: /проект adventure/i, title: /проект adventure/i, charChoices: [/Солдат/, /Наёмник/] },
   ]
   const definitions = adventureOnly ? allDefinitions.filter((definition) => definition.id === 'ash-of-caerden-adventure') : allDefinitions
   report.packs = []
