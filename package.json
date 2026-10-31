@@ -72,7 +72,7 @@
     "smoke:capability-modes": "tsx scripts/smoke/capability-modes-smoke.mts",
     "smoke:char-templates": "tsx scripts/char-template-smoke.mts",
     "smoke:chronicle-manifest": "tsx scripts/chronicle-manifest-smoke.mts",
-    "smoke:core": "tsx scripts/core-semantics-smoke.mts",
+    "smoke:core": "node --import=tsx --import=./packs/narrative/index.ts scripts/core-semantics-smoke.mts",
     "smoke:craft-fail-time": "tsx scripts/smoke-craft-fail-time.mts",
     "smoke:currency": "tsx scripts/currency-smoke.mts",
     "smoke:cutout": "tsx scripts/smoke-chromakey-guide.mts",

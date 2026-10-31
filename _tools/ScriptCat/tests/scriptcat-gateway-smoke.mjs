@@ -1,77 +1,180 @@
+// Current Narthex userscript ↔ Drive Gateway 1.5 contract.
+// This is a local boundary probe with fake network responses; the Apps Script
+// implementation itself is exercised by drive-gateway-arena-smoke.mjs.
+
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 
-const source = await readFile(new URL('../dispatch.user.js', import.meta.url), 'utf8');
-const helperStart = source.indexOf('  function normalizeRunLogResponse(');
-const helperEnd = source.indexOf('  function runLogResponseShape(', helperStart);
-assert(helperStart >= 0 && helperEnd > helperStart, 'run-log response normalizer exists');
-const normalizeRunLogResponse = new Function(
-  `${source.slice(helperStart, helperEnd)}\nreturn normalizeRunLogResponse;`,
-)();
+const userScriptUrl = new URL('../narthex.user.js', import.meta.url);
+const legacyDispatchUrl = new URL('../dispatch.user.js', import.meta.url);
+assert.equal(await existsSync(legacyDispatchUrl), false, 'legacy dispatch.user.js is not restored');
+const source = await readFile(userScriptUrl, 'utf8');
+const version = source.match(/^\/\/ @version\s+(\d+\.\d+\.\d+)\s*$/m)?.[1];
+assert.ok(version, 'active userscript has a semantic version');
 
-const driveId = '1AFhkcvDg9FnzONcEZFdpLvoNJtlpyYhh';
-const name = 'dispatch-id_run-id.md';
-assert.deepEqual(
-  normalizeRunLogResponse({ ok: true, result: { fileId: driveId, name } }),
-  { fileId: driveId, name },
-  'current Apps Script result-wrapped response is recognized',
-);
-assert.deepEqual(
-  normalizeRunLogResponse({ ok: true, fileId: driveId, name, result: { fileId: driveId, name } }),
-  { fileId: driveId, name },
-  'new top-level Apps Script response is recognized',
-);
-assert.deepEqual(
-  normalizeRunLogResponse({ content: JSON.stringify({ result: { fileId: driveId, name } }) }),
-  { fileId: driveId, name },
-  'JSON-encoded nested response wrappers are recognized',
-);
-assert.deepEqual(
-  normalizeRunLogResponse({ data: { file: { id: driveId, name } } }),
-  { fileId: driveId, name },
-  'generic file envelopes are recognized only with file metadata',
-);
-assert.deepEqual(
-  normalizeRunLogResponse(`https://drive.google.com/file/d/${driveId}/view`),
-  { fileId: driveId },
-  'Drive links are normalized to their file ID',
-);
-assert.equal(normalizeRunLogResponse({ ok: true, result: 'duplicate' }), null, 'non-ID result is not mistaken for a log');
-assert.equal(normalizeRunLogResponse({ id: driveId, name: 'unrelated-page' }), null, 'unrelated generic IDs are rejected');
+const gatewaySource = await readFile(new URL('../drive-gateway.gs', import.meta.url), 'utf8');
+assert.match(gatewaySource, /Narthex ScriptCat Drive gateway 1\.5/);
+assert.match(gatewaySource, /version: "1\.5"/);
+assert.match(gatewaySource, /Same Dispatch\/Run pair|dispatchId.*runId/s, 'Gateway uses the dispatch/run identity');
+assert.match(gatewaySource, /CF_ARENA_FOLDER_NAME = "Arena"/);
+assert.match(gatewaySource, /CF_LOGS_FOLDER_NAME = "logs"/);
+assert.match(gatewaySource, /Запись разрешена только в текстовые файлы Arena\/logs/);
+assert.match(gatewaySource, /old\.includes\(marker\).*duplicate/s, 'duplicate markers are idempotent');
 
-assert(source.includes('resolve(action === "createLog" ? x : x.content ?? x.result ?? "")'), 'createLog keeps the full response envelope');
-assert(source.includes('attempt <= 2'), 'createLog performs one bounded retry only');
-assert(source.includes('Same Dispatch/Run pair is an idempotency key'), 'retry is protected by stable Dispatch/Run identity');
-const retryableStart = source.indexOf('  function retryableRunLogError(');
-const retryableEnd = source.indexOf('  async function createRunLog(', retryableStart);
-const retryableRunLogError = new Function(
-  `${source.slice(retryableStart, retryableEnd)}\nreturn retryableRunLogError;`,
-)();
-assert.equal(retryableRunLogError(new Error('Истекло время ожидания Google Apps Script шлюза.')), true);
-assert.equal(retryableRunLogError(new Error('Неверный ключ шлюза.')), false, 'auth errors are not retried');
-const shapeStart = source.indexOf('  function runLogResponseShape(');
-const shapeEnd = source.indexOf('  function retryableRunLogError(', shapeStart);
-const runLogResponseShape = new Function(
-  `${source.slice(shapeStart, shapeEnd)}\nreturn runLogResponseShape;`,
-)();
-const createStart = source.indexOf('  async function createRunLog(');
-const createEnd = source.indexOf('  async function recordRunLog(', createStart);
-let calls = [];
-const createRunLog = new Function(
-  'gateway', 'C', 'normalizeRunLogResponse', 'retryableRunLogError', 'runLogResponseShape',
-  `${source.slice(createStart, createEnd)}\nreturn createRunLog;`,
-)((action, fileId, extra) => {
-  calls.push({ action, fileId, extra });
-  return Promise.resolve(calls.length === 1 ? { ok: true, result: 'created' } : { ok: true, result: { fileId: driveId, name } });
-}, { runLogFolder: 'folder' }, normalizeRunLogResponse, retryableRunLogError, runLogResponseShape);
-assert.deepEqual(await createRunLog('dispatch-id', 'run-id'), { fileId: driveId, name });
-assert.equal(calls.length, 2, 'one malformed success gets one idempotent retry');
-assert.deepEqual(calls[0].extra, calls[1].extra, 'retry reuses the same Dispatch/Run identity');
-assert.equal(calls[1].extra.dispatchId, 'dispatch-id');
-assert.equal(calls[1].extra.runId, 'run-id');
+const objectSource = (name) => {
+  const start = source.indexOf(`  const ${name} = {`);
+  const end = source.indexOf('\n  };', start);
+  assert.ok(start >= 0 && end > start, `${name} configuration exists`);
+  return source.slice(start, end + '\n  };'.length);
+};
+const config = new Function(`${objectSource('C')}\nreturn C;`)();
+const keys = new Function(`${objectSource('K')}\nreturn K;`)();
+const networkStart = source.indexOf('  const networkish = (text) =>');
+const networkEnd = source.indexOf('\n\n  /**', networkStart);
+assert.ok(networkStart > 0 && networkEnd > networkStart, 'network error classifier exists');
+const networkish = new Function(`${source.slice(networkStart, networkEnd)}\nreturn networkish;`)();
+const gatewayStart = source.indexOf('  async function gateway(action, fileId, extra = {}) {');
+const gatewayEnd = source.indexOf('\n  // ───────────────────────────── Notion', gatewayStart);
+assert.ok(gatewayStart > 0 && gatewayEnd > gatewayStart, 'active gateway transport exists');
+const makeGateway = ({ store, request, fetchImpl }) => {
+  const waits = [];
+  const gateway = new Function(
+    'GM_getValue', 'K', 'request', 'networkish', 'sleep', 'fetch',
+    `${source.slice(gatewayStart, gatewayEnd)}\nreturn gateway;`,
+  )(
+    (key, fallback) => (store.has(key) ? store.get(key) : fallback),
+    keys,
+    request,
+    networkish,
+    async (ms) => { waits.push(ms); },
+    fetchImpl,
+  );
+  return { gateway, waits };
+};
+const baseStore = () => new Map([
+  [keys.gwUrl, 'https://script.google.com/macros/s/test/exec'],
+  [keys.gwKey, 'test-gateway-key'],
+]);
 
-const gateway = await readFile(new URL('../drive-gateway.gs', import.meta.url), 'utf8');
-assert.equal((gateway.match(/fileId: result\.fileId/g) || []).length, 2, 'new and idempotent gateway results expose a top-level fileId');
-assert(gateway.includes('version: "1.2"'), 'gateway source version reflects the response-contract change');
+// 1. A successful createLog response is passed through, including the current
+//    Apps Script top-level and nested result envelope.
+{
+  const store = baseStore();
+  const calls = [];
+  const response = { ok: true, fileId: 'drive-file-123456', name: 'dispatch_run.md', result: { fileId: 'drive-file-123456', name: 'dispatch_run.md' } };
+  const { gateway } = makeGateway({
+    store,
+    request: async (method, url, headers, payload) => {
+      calls.push({ method, url, headers, payload: JSON.parse(payload) });
+      return response;
+    },
+    fetchImpl: async () => { throw new Error('fetch fallback must not run'); },
+  });
+  assert.deepEqual(await gateway('createLog', '', { dispatchId: 'dispatch-1', runId: 'run-1' }), response);
+  assert.equal(calls.length, 1, 'successful GM request is not duplicated');
+  assert.equal(calls[0].method, 'POST');
+  assert.equal(calls[0].url, store.get(keys.gwUrl));
+  assert.equal(calls[0].headers['Content-Type'], 'text/plain;charset=utf-8');
+  assert.deepEqual(calls[0].payload, {
+    action: 'createLog', fileId: '', key: 'test-gateway-key', dispatchId: 'dispatch-1', runId: 'run-1',
+  });
+}
 
-console.log('ScriptCat Gateway run-log contract smoke checks passed.');
+// 2. Only a network failure is retried (twice via GM), then fetch is the
+//    bounded fallback. The same request identity and payload are retained.
+{
+  const store = baseStore();
+  const gmPayloads = [];
+  const fetchCalls = [];
+  let attempts = 0;
+  const { gateway, waits } = makeGateway({
+    store,
+    request: async (_method, _url, _headers, payload) => {
+      gmPayloads.push(payload);
+      attempts += 1;
+      throw new Error('Failed to fetch');
+    },
+    fetchImpl: async (url, options) => {
+      fetchCalls.push({ url, options });
+      return { status: 200, json: async () => ({ ok: true, fileId: 'drive-file-123456', name: 'dispatch_run.md' }) };
+    },
+  });
+  const result = await gateway('createLog', '', { dispatchId: 'dispatch-2', runId: 'run-2' });
+  assert.equal(result.fileId, 'drive-file-123456');
+  assert.equal(attempts, 2, 'GM retry is bounded at two attempts');
+  assert.equal(waits.length, 2, 'only the two bounded network retries wait');
+  assert.deepEqual(new Set(gmPayloads), new Set([gmPayloads[0]]), 'same identity is reused on retry');
+  assert.equal(fetchCalls.length, 1, 'one fetch fallback follows exhausted GM attempts');
+  assert.equal(fetchCalls[0].url, store.get(keys.gwUrl));
+  assert.equal(JSON.parse(fetchCalls[0].options.body).dispatchId, 'dispatch-2');
+  assert.equal(JSON.parse(fetchCalls[0].options.body).runId, 'run-2');
+}
+
+// 3. A clear server refusal is not retried and does not fall through to fetch.
+{
+  const store = baseStore();
+  let calls = 0;
+  let fetchCalls = 0;
+  const { gateway } = makeGateway({
+    store,
+    request: async () => { calls += 1; return { ok: false, error: 'Неверный ключ шлюза.' }; },
+    fetchImpl: async () => { fetchCalls += 1; throw new Error('must not retry a refusal'); },
+  });
+  await assert.rejects(
+    () => gateway('createLog', '', { dispatchId: 'dispatch-3', runId: 'run-3' }),
+    (error) => {
+      assert.match(error.message, /шлюз Drive отказал/);
+      assert.equal(error.refused, true);
+      assert.equal(error.reason, 'Неверный ключ шлюза.');
+      assert.equal(error.narthex, 'gateway');
+      return true;
+    },
+  );
+  assert.equal(calls, 1, 'a refusal has no repeated side effect');
+  assert.equal(fetchCalls, 0, 'refusal is not disguised as a transport failure');
+}
+
+// 4. Duplicate append response means the same CF_DISPATCH marker was already
+//    committed; it is success, not a second write or a false failure.
+{
+  const { gateway } = makeGateway({
+    store: baseStore(),
+    request: async () => ({ ok: false, error: 'duplicate marker already present' }),
+    fetchImpl: async () => { throw new Error('duplicate must not fall through'); },
+  });
+  assert.deepEqual(await gateway('append', 'drive-file-123456', { marker: '<!-- CF_DISPATCH d:r -->', entry: '<!-- CF_DISPATCH d:r -->' }), {
+    ok: true, duplicate: true,
+  });
+}
+
+// 5. Missing setup and exhausted transports stay explicit errors, not success.
+{
+  const store = baseStore();
+  store.set(keys.gwUrl, '');
+  let called = false;
+  const { gateway } = makeGateway({
+    store,
+    request: async () => { called = true; return { ok: true }; },
+    fetchImpl: async () => { called = true; return { status: 200, json: async () => ({ ok: true }) }; },
+  });
+  await assert.rejects(() => gateway('ping', '', {}), /Не задан URL шлюза Drive/);
+  assert.equal(called, false, 'missing endpoint has no network side effect');
+
+  const { gateway: offline } = makeGateway({
+    store: baseStore(),
+    request: async () => { throw new Error('Failed to fetch'); },
+    fetchImpl: async () => { throw new Error('network offline'); },
+  });
+  await assert.rejects(
+    () => offline('ping', '', {}),
+    (error) => {
+      assert.match(error.message, /шлюз Drive не ответил/);
+      assert.equal(error.refused, false);
+      assert.equal(error.narthex, 'gateway');
+      return true;
+    },
+  );
+}
+
+console.log(`OK: narthex ${version} ↔ Drive Gateway 1.5 — bounded transport, explicit refusals, idempotent append`);

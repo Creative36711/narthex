@@ -194,7 +194,9 @@ const uuid = () => '00000000-0000-4000-8000-000000000000';
 {
   const drive = makeDrive();
   const { call } = loadGateway(drive);
-  const res = call({ action: 'createLog', dispatchId: uuid(), runId: uuid() });
+  const dispatchId = uuid();
+  const runId = uuid();
+  const res = call({ action: 'createLog', dispatchId, runId });
   assert.equal(res.ok, true, 'createLog выполняется');
   assert.equal(drive.root.folders.length, 1, 'в корне появилась ровно одна папка');
   const arena = drive.root.folders[0];
@@ -203,6 +205,12 @@ const uuid = () => '00000000-0000-4000-8000-000000000000';
   assert.ok(logs, 'логи лежат в Arena/logs');
   assert.equal(logs.files.length, 1);
   assert.equal(logs.files[0].parent, logs, 'файл создан внутри Arena/logs');
+  const duplicate = call({ action: 'createLog', dispatchId, runId });
+  assert.equal(duplicate.fileId, res.fileId, 'повтор той же Dispatch/Run пары возвращает тот же лог');
+  assert.equal(logs.files.length, 1, 'идемпотентный повтор не создаёт дубль');
+  const invalid = call({ action: 'createLog', dispatchId: 'dispatch-1', runId: 'run-1' });
+  assert.equal(invalid.ok, false, 'не-UUID Dispatch/Run IDs отклоняются');
+  assert.equal(logs.files.length, 1, 'невалидная пара не создаёт файл');
 }
 
 // ── 2. Ключ обязателен ──────────────────────────────────────────────────────
@@ -288,6 +296,16 @@ const uuid = () => '00000000-0000-4000-8000-000000000000';
   const ok = call({ action: 'append', fileId: created.fileId, marker, entry: `\n## Ответ\n\n${marker}\nтекст` });
   assert.equal(ok.ok, true, 'запись в лог Arena/logs разрешена');
   assert.equal(ok.result, 'appended');
+  const storedContent = drive.getFileById(created.fileId).getBlob().getDataAsString();
+  const duplicate = call({ action: 'append', fileId: created.fileId, marker, entry: `\nповтор\n${marker}\nтекст` });
+  assert.equal(duplicate.ok, true, 'повтор того же маркера считается успешной идемпотентной записью');
+  assert.equal(duplicate.result, 'duplicate');
+  assert.equal(drive.getFileById(created.fileId).getBlob().getDataAsString(), storedContent, 'duplicate не меняет журнал второй раз');
+
+  const badMarker = call({ action: 'append', fileId: created.fileId, marker: '<!-- CF_POLL old -->', entry: '<!-- CF_POLL old -->' });
+  assert.equal(badMarker.ok, false, 'устаревший маркер CF_POLL отклоняется');
+  assert.match(badMarker.error, /Некорректный маркер записи/);
+  assert.equal(drive.getFileById(created.fileId).getBlob().getDataAsString(), storedContent, 'невалидный маркер ничего не записывает');
 
   const outside = drive.root.createFile('вне.md', 'текст', 'text/plain');
   const bad = call({ action: 'append', fileId: outside.id, marker, entry: `x${marker}` });
@@ -307,4 +325,4 @@ const uuid = () => '00000000-0000-4000-8000-000000000000';
   assert.equal(ping.logs.id, drive.root.folders[0].folders.find((f) => f.name === 'logs').id);
 }
 
-console.log('OK: шлюз 1.5 — корень Диска не трогает, пишет только в Arena/{logs,payloads}');
+console.log('OK: локальный Apps Script harness Gateway 1.5 — проверены Arena/{logs,payloads}, valid IDs и idempotency; live Drive не затронут');
