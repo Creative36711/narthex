@@ -24,7 +24,7 @@ import {
   createStory,
   clearDialogueCache,
   firstInkKnot,
-} from '../src/core/dialogue'
+} from '../packs/narrative/dialogue'
 import { GameEngine } from '../src/core/engine'
 import { assetUrl, assetUrlOrNull, loadCampaign } from '../src/core/loader'
 import type { CampaignData, DlgDoc, NpcDef, SceneDef } from '../src/shared/types'
