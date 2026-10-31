@@ -23,6 +23,12 @@
 import { mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync, statSync } from 'node:fs'
 import { extname, join, relative, resolve, sep } from 'node:path'
 import { declaredAbsences } from './absence-policy.mjs'
+import {
+  auditConsoleErrors,
+  auditKnownAbsences,
+  loadObservationRegistry,
+  OBSERVATION_REGISTRY_RELATIVE_PATH,
+} from './observation-policy.mjs'
 
 const positional = process.argv.slice(2).filter((arg) => !arg.startsWith('--'))
 const adventureOnly = process.argv.includes('--adventure')
@@ -36,6 +42,15 @@ if (fixtureRoot && !examMode) {
 const base = positional[0] || 'http://localhost:4173'
 const outDir = resolve(positional[1] || (examMode ? 'out/playthrough-exam' : 'out/play'))
 const campaignRoot = fixtureRoot ?? resolve('public/campaigns')
+let observationRegistry = null
+if (examMode) {
+  try {
+    observationRegistry = loadObservationRegistry()
+  } catch (error) {
+    console.error(String(error?.message || error))
+    process.exit(1)
+  }
+}
 mkdirSync(outDir, { recursive: true })
 
 let browser
@@ -89,7 +104,7 @@ function visualLog(line) {
 async function openPage(context) {
   const page = await context.newPage()
   page.on('pageerror', (e) => errors.push(String(e)))
-  page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text().slice(0, 300)) })
+  page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text()) })
   if (fixtureRoot) {
     // Только exam harness: временная fixture-копия кампаний может подменяться
     // для mutation-test. Производственные ресурсы/репозиторий не изменяются.
@@ -104,6 +119,14 @@ async function openPage(context) {
         return route.fulfill({ status: 403, contentType: 'text/plain', body: 'Forbidden' })
       }
       if (!existsSync(file) || !statSync(file).isFile()) {
+        const [campaignId, ...assetSegments] = relativePath.split('/')
+        const assetPath = assetSegments.join('/')
+        if (declaredAbsences(campaignRoot, campaignId).includes(assetPath)) {
+          // The production preview serves declared omissions through its SPA
+          // fallback. Keep that exact response in fixture-root exams too; an
+          // undeclared missing asset remains a real 404 for the §4 mutation gate.
+          return route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><html><body></body></html>' })
+        }
         return route.fulfill({ status: 404, contentType: 'text/plain', body: `Missing fixture: ${relativePath}` })
       }
       const mime = ({
@@ -761,11 +784,21 @@ async function runExamPack(definition) {
   const errorScreens = packObservations.filter((entry) => strictExamErrorScreen.test(entry.text)).length
   const startsWithEmptyCatalog = !packObservations.length || /Кампаний пока нет/i.test(packObservations[0].text)
   const knownAbsencePaths = new Set(declaredAbsencesFor(definition.id))
-  const knownAbsences = knownAbsenceChecks.map((check) => ({
-    ...check,
-    knownAbsence: check.status === 'fetch-error' || check.status >= 400 || !check.contentType.startsWith('image/'),
-    servedAsImage: String(check.contentType || '').toLowerCase().startsWith('image/'),
-  }))
+  const absenceAudit = auditKnownAbsences({
+    campaignId: definition.id,
+    declaredPaths: [...knownAbsencePaths],
+    observations: knownAbsenceChecks,
+    registry: observationRegistry,
+    responseMode: fixtureRoot ? 'fixtureRoot' : 'preview',
+  })
+  const knownAbsences = absenceAudit.observations
+  const consoleErrorAudit = auditConsoleErrors({
+    campaignId: definition.id,
+    messages: packConsoleErrors,
+    registry: observationRegistry,
+  })
+  for (const finding of absenceAudit.findings) addFinding(`STAB-1.25 absence registry: ${finding}`)
+  for (const finding of consoleErrorAudit.findings) addFinding(`STAB-1.25 console registry: ${finding}`)
   const blockingResourceFailures = [...new Map(
     resourceFailures
       .filter((failure) => isBlockingCampaignResponseFailure(failure) && !knownAbsencePaths.has(failure.path))
@@ -809,7 +842,16 @@ async function runExamPack(definition) {
     rawNpcIds,
     startsWithEmptyCatalog,
     knownAbsences,
+    absenceAudit: {
+      observedCount: absenceAudit.observedCount,
+      expectedCount: absenceAudit.expectedCount,
+      registeredCount: absenceAudit.registeredCount,
+      unexplainedCount: absenceAudit.unexplainedCount,
+      registryEntryCount: absenceAudit.registryEntryCount,
+      driftCount: absenceAudit.driftCount,
+    },
     consoleErrors: packConsoleErrors,
+    consoleErrorAudit,
     failedCampaignResponses: blockingResourceFailures,
     nonBlockingCampaignResponses: resourceFailures.filter((failure) => !knownAbsencePaths.has(failure.path) && !isBlockingCampaignResponseFailure(failure)),
     finalState: finalState || 'not-reached',
@@ -835,7 +877,10 @@ async function runBrowserExam() {
     emptySrcImages: 0,
     rawNpcIds: 0,
     emptyCatalogAtStart: false,
-    declaredAbsences: 'dev-fixture.json → known_absent_images (D-076)',
+    declaredAbsences: 'D-076 known_absent_images plus exact campaign/path/status/content-type entries in the STAB-1.25 registry',
+    consoleErrors: 'exact campaign/path/template/occurrence matches only; no generic console-error suppression in --exam',
+    unexplainedObservations: 0,
+    observationRegistry: OBSERVATION_REGISTRY_RELATIVE_PATH,
     adventureFinal: 'ending_gate_unlocked',
     ashFinal: 'visible end screen with campaign ending id when identifiable',
   }
@@ -853,23 +898,52 @@ async function runBrowserExam() {
     visualLog(`\n--- ${definition.id} ---`)
     const result = await runExamPack(definition)
     report.packs.push(result)
-    visualLog(`${result.ok ? 'PASS' : 'FAIL'} ${result.id}: steps=${result.steps}; pageerror=${result.pageErrors}; errorScreens=${result.errorScreens}; brokenImg=${result.brokenImgOccurrences}; emptySrcImg=${result.emptySrcImgOccurrences}; rawNpcIds=${result.rawNpcIds}; emptyStart=${result.startsWithEmptyCatalog}`)
+    visualLog(`${result.ok ? 'PASS' : 'FAIL'} ${result.id}: steps=${result.steps}; pageerror=${result.pageErrors}; errorScreens=${result.errorScreens}; brokenImg=${result.brokenImgOccurrences}; emptySrcImg=${result.emptySrcImgOccurrences}; rawNpcIds=${result.rawNpcIds}; emptyStart=${result.startsWithEmptyCatalog}; registeredAbsences=${result.absenceAudit.registeredCount}/${result.absenceAudit.observedCount}; registeredConsoleErrors=${result.consoleErrorAudit.registeredCount}/${result.consoleErrorAudit.observedCount}; unexplained=${result.absenceAudit.unexplainedCount + result.consoleErrorAudit.unexplainedCount}`)
     visualLog(`  finalState=${result.finalState}`)
     visualLog(`  finalFrame=${result.finalFrame || 'not captured'}`)
     for (const absence of result.knownAbsences) {
-      visualLog(`  known-absence=${absence.path}; status=${absence.status}; content-type=${absence.contentType || 'none'}; ${absence.reason}`)
+      visualLog(`  known-absence=${absence.path}; status=${absence.status}; content-type=${absence.contentType || 'none'}; classification=${absence.classification}; source=${absence.registrySource || 'none'}; date=${absence.registryDate || 'none'}; reason=${absence.registryReason || absence.reason}`)
     }
     for (const finding of result.findings) visualLog(`  finding=${finding}`)
     for (const failure of result.failedCampaignResponses.slice(0, 5)) visualLog(`  resource=${failure.path} status=${failure.status} ${failure.url} (${failure.reason})`)
-    for (const consoleError of result.consoleErrors) visualLog(`  console-error=${consoleError}`)
+    for (const diagnostic of result.consoleErrorAudit.observations) {
+      visualLog(`  console-error=${diagnostic.message}; classification=${diagnostic.classification}; template=${diagnostic.template || 'unmatched'}; path=${diagnostic.path || 'unmatched'}; occurrence=${diagnostic.occurrence ?? 'n/a'}/${diagnostic.expectedOccurrences ?? 'n/a'}; source=${diagnostic.registrySource || 'none'}; date=${diagnostic.registryDate || 'none'}; reason=${diagnostic.registryReason || 'no registered reason'}`)
+    }
   }
-  report.ok = report.packs.length === definitions.length && report.packs.every((pack) => pack.ok)
+  const sumAudit = (field, metric) => report.packs.reduce((sum, pack) => sum + pack[field][metric], 0)
+  report.observationAudit = {
+    registry: OBSERVATION_REGISTRY_RELATIVE_PATH,
+    responseMode: fixtureRoot ? 'fixtureRoot' : 'preview',
+    knownAbsences: {
+      observed: sumAudit('absenceAudit', 'observedCount'),
+      expected: sumAudit('absenceAudit', 'expectedCount'),
+      registered: sumAudit('absenceAudit', 'registeredCount'),
+      unexplained: sumAudit('absenceAudit', 'unexplainedCount'),
+      registryEntries: sumAudit('absenceAudit', 'registryEntryCount'),
+      drift: sumAudit('absenceAudit', 'driftCount'),
+    },
+    consoleErrors: {
+      observed: sumAudit('consoleErrorAudit', 'observedCount'),
+      expected: sumAudit('consoleErrorAudit', 'expectedCount'),
+      registered: sumAudit('consoleErrorAudit', 'registeredCount'),
+      unexplained: sumAudit('consoleErrorAudit', 'unexplainedCount'),
+      registryEntries: sumAudit('consoleErrorAudit', 'registryEntryCount'),
+      drift: sumAudit('consoleErrorAudit', 'driftCount'),
+    },
+  }
+  report.observationAudit.unexplainedCount = report.observationAudit.knownAbsences.unexplained + report.observationAudit.consoleErrors.unexplained
+  report.observationAudit.registryDriftCount = report.observationAudit.knownAbsences.drift + report.observationAudit.consoleErrors.drift
+  report.ok = report.packs.length === definitions.length
+    && report.packs.every((pack) => pack.ok)
+    && report.observationAudit.unexplainedCount === 0
+    && report.observationAudit.registryDriftCount === 0
   report.pageErrors = report.packs.reduce((sum, pack) => sum + pack.pageErrors, 0)
   report.errorScreens = report.packs.reduce((sum, pack) => sum + pack.errorScreens, 0)
   report.brokenImgOccurrences = report.packs.reduce((sum, pack) => sum + pack.brokenImgOccurrences, 0)
   report.emptySrcImgOccurrences = report.packs.reduce((sum, pack) => sum + pack.emptySrcImgOccurrences, 0)
   report.rawNpcIds = report.packs.reduce((sum, pack) => sum + pack.rawNpcIds, 0)
   report.finishedAt = new Date().toISOString()
+  visualLog(`Observation registry ${OBSERVATION_REGISTRY_RELATIVE_PATH} (${report.observationAudit.responseMode}): absences=${report.observationAudit.knownAbsences.registered}/${report.observationAudit.knownAbsences.observed}, console-errors=${report.observationAudit.consoleErrors.registered}/${report.observationAudit.consoleErrors.observed}, unexplained=${report.observationAudit.unexplainedCount}, registry-drift=${report.observationAudit.registryDriftCount}`)
   visualLog(`\nRESULT: ${report.ok ? 'PASS' : 'FAIL'}; packs=${report.packs.length}; steps=${report.steps.length}; findings=${report.findings.length}`)
   report.findings.forEach((finding) => visualLog(`  finding=${finding}`))
   writeFileSync(join(outDir, 'report.json'), JSON.stringify(report, null, 2) + '\n')
@@ -893,15 +967,20 @@ async function runBrowserExam() {
     ...table, '',
     '## Финалы', '',
     ...report.packs.map((pack) => `- **${pack.id}:** \`${pack.finalState}\`; кадр: \`${pack.finalFrame || 'не снят'}\`. ${pack.finalVisibleText.replace(/\s+/g, ' ').slice(0, 500)}`), '',
+    '## Аудит наблюдений', '',
+    `- Реестр: ${report.observationAudit.registry}; responseMode=${report.observationAudit.responseMode}.`,
+    `- known-absence: observed=${report.observationAudit.knownAbsences.observed}; registered=${report.observationAudit.knownAbsences.registered}; unexplained=${report.observationAudit.knownAbsences.unexplained}; registry-drift=${report.observationAudit.knownAbsences.drift}.`,
+    `- console-error: observed=${report.observationAudit.consoleErrors.observed}; registered=${report.observationAudit.consoleErrors.registered}; unexplained=${report.observationAudit.consoleErrors.unexplained}; registry-drift=${report.observationAudit.consoleErrors.drift}.`,
+    `- Итого необъяснённых наблюдений: ${report.observationAudit.unexplainedCount}; дрейф реестра: ${report.observationAudit.registryDriftCount}.`, '',
     '## Известные намеренные отсутствия изображений', '',
-    ...report.packs.flatMap((pack) => pack.knownAbsences.map((absence) => `- ${pack.id}: \`${absence.path}\` — status=\`${absence.status}\`, content-type=\`${absence.contentType || 'none'}\`; ${absence.reason}`)), '',
+    ...report.packs.flatMap((pack) => pack.knownAbsences.map((absence) => `- ${pack.id}: \`${absence.path}\` — status=\`${absence.status}\`, content-type=\`${absence.contentType || 'none'}\`; classification=${absence.classification}; source=${absence.registrySource || 'none'}; date=${absence.registryDate || 'none'}; registry-reason=${absence.registryReason || 'none'}; observation=${absence.reason}`)), '',
     '## Неожиданные ошибки ресурсов кампаний', '',
     ...report.packs.flatMap((pack) => pack.failedCampaignResponses.length
       ? pack.failedCampaignResponses.map((failure) => `- ${pack.id}: \`${failure.path}\` — ${failure.status} ${failure.url} — ${failure.reason}`)
       : [`- ${pack.id}: нет`]), '',
-    '## console.error (не подавлялись)', '',
-    ...report.packs.flatMap((pack) => pack.consoleErrors.length
-      ? pack.consoleErrors.map((message) => `- ${pack.id}: ${message.replaceAll('|', '&#124;')}`)
+    '## console.error (не подавлялись; классификация не скрывает сообщения)', '',
+    ...report.packs.flatMap((pack) => pack.consoleErrorAudit.observations.length
+      ? pack.consoleErrorAudit.observations.map((diagnostic) => `- ${pack.id}: ${diagnostic.message.replaceAll('|', '&#124;')}; classification=${diagnostic.classification}; template=${diagnostic.template || 'unmatched'}; path=${diagnostic.path || 'unmatched'}; occurrence=${diagnostic.occurrence ?? 'n/a'}/${diagnostic.expectedOccurrences ?? 'n/a'}; source=${diagnostic.registrySource || 'none'}; date=${diagnostic.registryDate || 'none'}; reason=${diagnostic.registryReason || 'no registered reason'}`)
       : [`- ${pack.id}: нет`]), '',
     '## Находки', '',
     ...(report.findings.length ? report.findings.map((finding) => `- ${finding}`) : ['- нет']), '',
