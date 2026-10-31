@@ -147,7 +147,13 @@ async function openPage(context) {
 
 async function step(page, name, label) {
   if (examMode) {
-    await page.waitForFunction(() => [...document.images].every((image) => image.complete), undefined, { timeout: 3000 }).catch(() => {})
+    // `complete` flips before an image's onError handler has necessarily committed its React fallback.
+    // Wait for every remaining DOM image to load; a failed image that remains mounted is still counted below.
+    await page.waitForFunction(
+      () => [...document.images].every((image) => image.complete && image.naturalWidth > 0),
+      undefined,
+      { timeout: 3000 },
+    ).catch(() => {})
   }
   const info = await page.evaluate((inspectImages) => {
     const fullText = document.body.innerText
