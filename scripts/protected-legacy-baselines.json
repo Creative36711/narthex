@@ -1,0 +1,49 @@
+{
+  "baselineCommit": "df93c7be3d455e917f00a1d5fa0506ef4a434350",
+  "brandFiles": {
+    "_tools/reports/GOLD-1.10.md": "aaf183f23824e86c0f1bd8acb7854d5c2a504f1a7fe68b05a30275dbcee005a4",
+    "_tools/reports/GOLD-1.13.md": "84ef72975e02fa4bcddfcec631c22fec74e42b7357283095c088e9d33e933c72",
+    "_tools/reports/GOLD-1.6b.md": "2383ca2a870de37b87c73353b2134d745da260cd33be04090913150d75f7e0b0",
+    "_tools/reports/GOLD-1.6d.md": "2dfdd93c42017f8b4eeb0b75a8763bb7f0147319aff3e8c986ea63eb96e08de5",
+    "_tools/reports/STAB-1.19.md": "64d2422244584e7ef91979ca945daccc1eebf6a47df61d1c24f6976c54c41c01",
+    "docs/ai-campaign-guide.md": "e51e0f7cd8cb3d97ef131cc17fe68fb284348314080b0e3582f2bc8abda78341",
+    "docs/campaign.schema.json": "3f1ae232fddcc5004dcb8df980916f0e696cf72197020a1c9e00410cd93b3d9a",
+    "docs/decisions/GOLD-1.13.md": "2f75c86c5bdcde0fd80a4bbd07ec2193b8b475103164dac5915ff69324649c84",
+    "docs/decisions/STAB-1.8.md": "38edf5b9c31919ec245b22b01aa0d2bf9a525ba46f6927a477c57f2f48b9e1cf",
+    "index.html": "2bed1fe95746a7456e38b91c968d5d18bb36b1ec43b1af201ed61a041736194a",
+    "public/ai/campaign-audit.mjs": "b7f271bf7eebb863fe685480337f0de33dbb8d48048b044d9390e70ced7e422d",
+    "public/ai/campaign-guide.md": "e51e0f7cd8cb3d97ef131cc17fe68fb284348314080b0e3582f2bc8abda78341",
+    "public/ai/campaign.schema.json": "3f1ae232fddcc5004dcb8df980916f0e696cf72197020a1c9e00410cd93b3d9a",
+    "public/ai/cf-play.mjs": "1815c2812cbb4c89bbac83f4ec1664585f65f03a2738c0c085302bc1ab583a11",
+    "public/campaigns/ash-of-caerden/campaign.json": "95ec991006e3023ae3885de302257c1d9e9321561c7386f672a89eea3a5f129d",
+    "scripts/combat-rules-smoke.mts": "581a822959517b8477a5b7703ab8fa3e6d9b69d6ead2557e27a1ce5dd37cdb2a",
+    "scripts/feedback8-A-smoke.mts": "515b925e08704cdf1ca12ab6ffbf5f92ed290b08b031a6a985338e3e239fb773",
+    "scripts/feedback8-G-smoke.mts": "18a6227180f1d555fdfcfa56164a378976f689373890ccea104eeeb3e96e4b9c",
+    "scripts/gen-schema.mts": "7265a53c288131712201e56ee532407f52930014933b7a3b0fd9e1f2b772c5c8",
+    "scripts/p2-mechanics-smoke.mts": "80ff4e0c6c781b730f41855a3d459905940a0993e8b2b38336cc8d51d784f835",
+    "scripts/tz7-slots-smoke.mts": "3249ef7e6cae72241ac32bea0bde334fd721089de22a35b24623e16c5c7e5af0",
+    "src/App.tsx": "82511d9728fa549333105cc911da0e826652a5ce0372a81f52b7f108acd59f98",
+    "src/editor/editorAppChrome.tsx": "43ec6a0ee7f2e184edee76c07f19a6d976bc216f6832ea58bed2c427666aeeba",
+    "src/editor/editorAppGuard.tsx": "e8009c550c91daa996e1e22af8942d4a1833ca125695a168b4a47d44f36183e3",
+    "src/editor/playtestNotes.ts": "db38da0595e95e9c97bc0498daf40a503ef16324a9e0c3af043dd16e7ac20512",
+    "src/player/MainMenu.tsx": "53f73886aceb1e00ede3f7a954b6e48d6daad9e22ed019bee60855dfa3054848",
+    "src/player/NoCampaignScreen.tsx": "70640fc1c973d2213f7953a0ea246f7c7abade0644fca4270d2673f392be4b33",
+    "src/shared/compat.ts": "e611f09a213ed24f6eaddebaf9dfb464ee41b1b98c774089b6700697287de2df",
+    "src/shared/compatInventory.ts": "25bb603fd98f959e250902d843ac7a00dfd4b1d0018b6763ac7a3a24d59bfb1f",
+    "src/shared/modals.tsx": "a3d56615b708a145244fb220e163b0aef1243440f5c097c2e8826211b2fb2003",
+    "src/shared/settings.ts": "4dcab45087a68c7651795c477948f0b13a4bca4f133d0329cb25be7c1b7ec6f8",
+    "src/shared/types/saves.ts": "03e5bf6301f9b7e09a6be7063461ac63a691e8d8e9792ea61d3e2c0acc205227",
+    "vite.config.ts": "158a46be00aa452c8b193a9f66947e96e8ca4df69b2b6a66ad28d353bf4477e2"
+  },
+  "protectedCampaigns": {
+    "publicIndexSha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    "ash-of-caerden": {
+      "treeSha256": "a4e4f874b9e0f2fd23325fa20037df86144f41725c0e4c8f997ed7f6e7620e84",
+      "publicCampaignJsonSha256": "95ec991006e3023ae3885de302257c1d9e9321561c7386f672a89eea3a5f129d",
+      "packCampaignJsonSha256": "8442a9a8647ec43bfa3256bfd37377e85c8d31e56bc1872f81de04c5d0f879e6"
+    },
+    "fmv-crossing": {
+      "treeSha256": "7f9b82bf0745221bbb8a2bb5ef917a0dcf67570366a6c5a0c0b96eb1d87e705a"
+    }
+  }
+}

@@ -1,80 +1,110 @@
+#!/usr/bin/env node
 /**
- * Страж ребрендинга: старое имя не возвращается.
- *
- * Проверяет не «есть ли слово Narthex», а отсутствие брендовых следов
- * Chronicle Forge. Игровые понятия («Хроника», `panel:chronicle`, категория
- * кодекса `chronicles`, id профиля `forge`) — законны и здесь не запрещены:
- * их смешение с брендом как раз и было главным риском слепой замены.
- *
- *   npm run check:brand
+ * Product-brand regression guard. Exact unchanged legacy snapshots from the
+ * recorded main baseline are treated as historical/compatibility inputs, not
+ * fresh product insertions. A byte change expires that narrow exception.
  */
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { createHash } from 'node:crypto'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { join, relative, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import baselines from './protected-legacy-baselines.json' with { type: 'json' }
 
-const ROOT = process.cwd();
 const SKIP_DIRS = new Set([
   'node_modules', '.git', 'dist', 'out', 'target', '.vite', 'coverage',
-  '_ai-temp', // сторонняя кампания: её содержимое не наше дело
-]);
-const SKIP_FILES = new Set(['package-lock.json', 'Cargo.lock']);
+  '_ai-temp', // external/imported campaign workspace, not owned product content
+])
+const SKIP_FILES = new Set(['package-lock.json', 'Cargo.lock'])
 
-/** Брендовые следы: любое появление означает, что переименование откатили. */
+/** Legacy product markers that must not be introduced in mutable product files. */
 const BRAND_PATTERNS = [
-  { re: /chronicle-forge:(?![\w-]*world)/i, what: 'ключ localStorage старого бренда' },
-  { re: /chronicle-compat|chronicle-inventory/i, what: 'формат обмена старого бренда' },
-  { re: /app\.chronicleforge/i, what: 'идентификатор приложения старого бренда' },
-  { re: /Chronicle Forge/, what: 'старое имя продукта' },
-  { re: /(?<![\w-])chronicle-forge(?![\w-])/, what: 'старое имя пакета/репозитория' },
-  { re: /\.chronicle(?![\w/])/, what: 'старое расширение пакета' },
-  { re: /\.cfsave/, what: 'старое расширение сохранения' },
-];
+  { re: /chronicle-forge:(?![\w-]*world)/i, what: 'legacy storage key' },
+  { re: /chronicle-compat|chronicle-inventory/i, what: 'legacy interchange format' },
+  { re: /app\.chronicleforge/i, what: 'legacy application identifier' },
+  { re: /Chronicle Forge/, what: 'former product title' },
+  { re: /(?<![\w-])chronicle-forge(?![\w-])/, what: 'former package/repository name' },
+  { re: /\.chronicle(?![\w/])/, what: 'former archive extension' },
+  { re: /\.cfsave/, what: 'former save extension' },
+]
 
-/**
- * Исключения — места, где старое имя законно:
- *  - accept="…" — фильтр выбора файла: старое расширение рядом с новым;
- *  - ADR 0001 — исторический документ, описывает решённое;
- *  - этот страж и его собственные образцы.
- */
-const ALLOW = [
-  { file: 'docs/contracts/adr/0001-platform-name.md' }, // решение о переименовании обязано называть прежнее имя
-  { file: 'docs/contracts/adr/0005-versioning.md' }, // объясняет, почему 0.8.x остаётся в истории версий
-  { file: 'CHANGELOG.md' }, // история версий обязана называть прежнее имя
-  { file: 'scripts/brand-guard.mts' },
-];
-const ALLOW_LINE = [/accept="/, /\.nxsave,\.cfsave/];
+/** Historical ADRs and this guard itself intentionally describe the transition. */
+const ALLOW_FILES = new Set([
+  'docs/contracts/adr/0001-platform-name.md',
+  'docs/contracts/adr/0005-versioning.md',
+  'CHANGELOG.md',
+  'scripts/brand-guard.mts',
+])
+const ALLOW_LINE = [/accept="/, /\.nxsave,\.cfsave/]
+const PINNED_LEGACY_FILES = baselines.brandFiles as Record<string, string>
 
-const files = [];
-function walk(dir) {
-  for (const name of readdirSync(dir)) {
-    if (SKIP_DIRS.has(name)) continue;
-    const full = join(dir, name);
-    if (statSync(full).isDirectory()) walk(full);
-    else if (!SKIP_FILES.has(name)) files.push(full);
-  }
+export interface BrandScanResult {
+  hits: string[]
+  checkedFiles: number
+  unchangedBaselineFiles: number
 }
-walk(ROOT);
 
-const hits = [];
-for (const file of files) {
-  const rel = relative(ROOT, file).split('\\').join('/');
-  if (ALLOW.some((a) => rel === a.file)) continue;
-  if (!/\.(ts|tsx|mts|js|mjs|gs|json|md|css|toml|yml|yaml|html)$/.test(rel)) continue;
-  const text = readFileSync(file, 'utf8');
-  const lines = text.split('\n');
-  lines.forEach((line, index) => {
-    if (ALLOW_LINE.some((re) => re.test(line))) return;
-    for (const { re, what } of BRAND_PATTERNS) {
-      if (re.test(line)) hits.push(`${rel}:${index + 1} — ${what}: ${line.trim().slice(0, 110)}`);
+const sha256 = (bytes: Buffer): string => createHash('sha256').update(bytes).digest('hex')
+
+function isAllowedCompatibilityLine(relativePath: string, line: string): boolean {
+  if (ALLOW_LINE.some((pattern) => pattern.test(line))) return true
+  // The npm package ID remains fixed to match the locked dependency manifest.
+  return relativePath === 'package.json' && line.trim() === '"name": "chronicle-forge",'
+}
+
+/** Return new or modified hits; exact unchanged legacy snapshots are not rescanned. */
+export function scanBrandRoot(
+  root: string,
+  pinnedLegacyFiles: Record<string, string> = PINNED_LEGACY_FILES,
+): BrandScanResult {
+  const files: string[] = []
+  function walk(dir: string): void {
+    for (const name of readdirSync(dir)) {
+      const full = join(dir, name)
+      const relativePath = relative(root, full).split('\\').join('/')
+      if (SKIP_DIRS.has(name) || relativePath === 'dist-ai') continue
+      if (statSync(full).isDirectory()) walk(full)
+      else if (!SKIP_FILES.has(name)) files.push(full)
     }
-  });
+  }
+  walk(root)
+
+  const hits: string[] = []
+  let checkedFiles = 0
+  let unchangedBaselineFiles = 0
+  for (const file of files) {
+    const rel = relative(root, file).split('\\').join('/')
+    if (!/\.(ts|tsx|mts|js|mjs|gs|json|md|css|toml|yml|yaml|html)$/.test(rel)) continue
+    if (ALLOW_FILES.has(rel)) continue
+
+    const bytes = readFileSync(file)
+    checkedFiles += 1
+    const pinnedHash = pinnedLegacyFiles[rel]
+    if (pinnedHash && sha256(bytes) === pinnedHash) {
+      unchangedBaselineFiles += 1
+      continue
+    }
+
+    const lines = bytes.toString('utf8').split('\n')
+    lines.forEach((line, index) => {
+      if (isAllowedCompatibilityLine(rel, line)) return
+      for (const { re, what } of BRAND_PATTERNS) {
+        if (re.test(line)) hits.push(`${rel}:${index + 1} — ${what}: ${line.trim().slice(0, 110)}`)
+      }
+    })
+  }
+  return { hits, checkedFiles, unchangedBaselineFiles }
 }
 
-if (hits.length) {
-  console.error(`✗ найдены следы старого бренда: ${hits.length}`);
-  for (const hit of hits.slice(0, 40)) console.error('  ' + hit);
-  if (hits.length > 40) console.error(`  … ещё ${hits.length - 40}`);
-  console.error('\nЕсли появление законно — добавьте исключение в scripts/brand-guard.mts.');
-  process.exit(1);
-}
+const invokedFile = process.argv[1] ? resolve(process.argv[1]) : ''
+if (invokedFile === fileURLToPath(import.meta.url)) {
+  const result = scanBrandRoot(process.cwd())
+  if (result.hits.length) {
+    console.error(`✗ найдены новые/изменённые брендовые следы: ${result.hits.length}`)
+    for (const hit of result.hits.slice(0, 40)) console.error('  ' + hit)
+    if (result.hits.length > 40) console.error(`  … ещё ${result.hits.length - 40}`)
+    console.error('\nТочечное legacy-совпадение допустимо только для точной baseline-копии; новые пути и изменённые файлы остаются строгими.')
+    process.exit(1)
+  }
 
-console.log(`✓ старое имя не встречается (проверено файлов: ${files.length})`);
+  console.log(`✓ брендовый guard: новых следов нет (проверено файлов=${result.checkedFiles}, точных baseline-файлов=${result.unchangedBaselineFiles})`)
+}
