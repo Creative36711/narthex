@@ -7,6 +7,7 @@
  * untouched. A missing browser remains a hard failure, never a skip.
  */
 import { createRequire } from 'node:module'
+import { performance } from 'node:perf_hooks'
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -103,6 +104,8 @@ async function launchBrowserTools(): Promise<{
   version: string
   cleanup: () => void
 }> {
+  const preparationStartedAt = performance.now()
+  console.log('NAR-4.6 browser package preparation: start.')
   const configuredPrefix = process.env[browserInstallPrefixEnv]?.trim()
   const cachePrefix = configuredPrefix ? resolve(configuredPrefix) : null
   const rootHasPackages = browserPackagesAvailable()
@@ -175,9 +178,15 @@ async function launchBrowserTools(): Promise<{
         : 'Headless Chromium driver: installed in a temporary npm prefix for this check.')
     }
 
+    console.log(`NAR-4.6 browser package preparation: complete in ${(performance.now() - preparationStartedAt).toFixed(1)} ms.`)
+    console.log('NAR-4.6 browser helper import: start.')
+    const helperStartedAt = performance.now()
     const browserTools = await import(pathToFileURL(browserToolsPath).href) as unknown as LocalBrowserTools
-    console.log('NAR-4.6 launching Chromium from the prepared browser packages.')
+    console.log(`NAR-4.6 browser helper import: ${(performance.now() - helperStartedAt).toFixed(1)} ms.`)
+    console.log('NAR-4.6 Chromium startup: start.')
+    const launchStartedAt = performance.now()
     const browser = await browserTools.launchChromium()
+    console.log(`NAR-4.6 Chromium startup: ${(performance.now() - launchStartedAt).toFixed(1)} ms.`)
     const version = `Chromium ${browser.version()}`
     console.log(`NAR-4.6 Chromium launched: ${version}.`)
     return {
@@ -186,6 +195,7 @@ async function launchBrowserTools(): Promise<{
       cleanup,
     }
   } catch (error) {
+    console.log(`NAR-4.6 browser preparation/startup failed after ${(performance.now() - preparationStartedAt).toFixed(1)} ms.`)
     cleanup()
     throw error
   }
@@ -230,8 +240,13 @@ export async function runParity(): Promise<void> {
     runtime,
     dt: FIXED_DT_MS,
   })))
+  console.log('NAR-4.6 Node/cf-play parity repeats: start.')
+  const nodeRunsStartedAt = performance.now()
   const cfPlayFirst = cases.map(({ seed, runtime, dt }) => runCycle(runtime, seed, dt))
   const cfPlaySecond = cases.map(({ seed, runtime, dt }) => runCycle(runtime, seed, dt))
+  console.log(`NAR-4.6 Node/cf-play parity repeats: ${(performance.now() - nodeRunsStartedAt).toFixed(1)} ms.`)
+  console.log('NAR-4.6 browser bundle build: start.')
+  const bundleStartedAt = performance.now()
   const packageJson = JSON.parse(await (await import('node:fs/promises')).readFile(join(root, 'package.json'), 'utf8')) as { version: string }
   const bundled = await build({
     entryPoints: [browserBundleEntry],
@@ -244,13 +259,20 @@ export async function runParity(): Promise<void> {
     write: false,
     logLevel: 'silent',
   })
+  console.log(`NAR-4.6 browser bundle build: ${(performance.now() - bundleStartedAt).toFixed(1)} ms.`)
   const browserSource = bundled.outputFiles[0]?.text
   if (!browserSource) throw new Error('NAR-4.6 browser bundle is empty')
 
   const { browser, version, cleanup } = await launchBrowserTools()
   try {
+    console.log('NAR-4.6 browser replay 1/2: start.')
+    const browserFirstStartedAt = performance.now()
     const browserFirst = await runInBrowser(browser, browserSource, cases)
+    console.log(`NAR-4.6 browser replay 1/2: ${(performance.now() - browserFirstStartedAt).toFixed(1)} ms.`)
+    console.log('NAR-4.6 browser replay 2/2: start.')
+    const browserSecondStartedAt = performance.now()
     const browserSecond = await runInBrowser(browser, browserSource, cases)
+    console.log(`NAR-4.6 browser replay 2/2: ${(performance.now() - browserSecondStartedAt).toFixed(1)} ms.`)
     const rows: ParityRow[] = cases.map((test, index) => {
       const browser = browserFirst[index]!
       const browserRepeat = browserSecond[index]!
