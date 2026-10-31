@@ -105,7 +105,17 @@ jobs:
         run: npm run smoke:mission
 
       - name: Изолированный smoke пустого реестра
-        run: npm run smoke:no-campaign
+        run: |
+          set -euo pipefail
+          npm run dev -- --host 127.0.0.1 --port 5173 --strictPort > /tmp/narthex-empty-state-dev.log 2>&1 &
+          SERVER_PID=$!
+          cleanup() {
+            kill "$SERVER_PID" 2>/dev/null || true
+            wait "$SERVER_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          npx --yes wait-on@8 http://127.0.0.1:5173 --timeout 60000
+          npm run smoke:no-campaign
 
       - name: Эталон narrative
         run: node public/ai/cf-play.mjs check public/campaigns/ash-of-caerden
