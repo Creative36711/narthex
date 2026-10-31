@@ -156,6 +156,7 @@ jobs:
           node scripts/visual/shots.mjs http://127.0.0.1:4174 out/visual
           SHOTS=$?
           kill "$EMPTY_PID" 2>/dev/null
+          wait "$EMPTY_PID" 2>/dev/null || true
           rm -rf "$EMPTY_DIR"
 
           # Игровой маршрут и Ash экзамен используют обычный билд. Сам player
@@ -181,20 +182,26 @@ jobs:
           mkdir -p "$CAMPAIGN_START_DIR"
           cp -a dist/. "$CAMPAIGN_START_DIR/"
           printf '[{"id":"fmv-crossing","title":"Перекрёсток огней"}]\n' > "$CAMPAIGN_START_DIR/campaigns/index.json"
-          ./node_modules/.bin/vite preview --outDir "$CAMPAIGN_START_DIR" --port 4174 --strictPort --host 127.0.0.1 &
+          ./node_modules/.bin/vite preview --outDir "$CAMPAIGN_START_DIR" --port 4175 --strictPort --host 127.0.0.1 &
           START_SERVER_PID=$!
-          npx --yes wait-on@8 http://127.0.0.1:4174 --timeout 60000
+          npx --yes wait-on@8 http://127.0.0.1:4175 --timeout 60000
           START_WAIT=$?
           if [ "$START_WAIT" -eq 0 ]; then
-            npm run smoke:campaign-start -- http://127.0.0.1:4174 out/visual/campaign-start
+            npm run smoke:campaign-start -- http://127.0.0.1:4175 out/visual/campaign-start
             START=$?
           else
             echo "Изолированный FMV smoke preview не поднялся за 60 с"
             START=$START_WAIT
           fi
           kill "$START_SERVER_PID" 2>/dev/null
+          wait "$START_SERVER_PID" 2>/dev/null || true
           rm -rf "$CAMPAIGN_START_DIR"
           kill "$SERVER_PID" 2>/dev/null
+          wait "$SERVER_PID" 2>/dev/null || true
+          echo "VISUAL_RESULT shots=$SHOTS play=$PLAY exam=$EXAM campaignStart=$START"
+          if [ "$SHOTS" -ne 0 ] || [ "$PLAY" -ne 0 ] || [ "$EXAM" -ne 0 ] || [ "$START" -ne 0 ]; then
+            echo "::error title=visual result::SHOTS=$SHOTS PLAY=$PLAY EXAM=$EXAM START=$START"
+          fi
           if [ "$SHOTS" -ne 0 ]; then exit "$SHOTS"; fi
           if [ "$PLAY" -ne 0 ]; then exit "$PLAY"; fi
           if [ "$EXAM" -ne 0 ]; then exit "$EXAM"; fi
