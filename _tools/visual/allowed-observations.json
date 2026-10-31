@@ -1,0 +1,1042 @@
+{
+  "schemaVersion": 1,
+  "knownAbsences": [
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/arenas/camp_topdown.jpg",
+      "source": "public/campaigns/ash-of-caerden/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal narrative oracle fixture, intentionally not listed in campaigns/index.json. Its marker records that 27 linked image files were removed in 60a2da5 while JSON references remain for path-oracle coverage. D-076 preserves this non-release fixture because smoke:no-campaign requires the empty assets/img tree; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/arenas/cellar_topdown.jpg",
+      "source": "public/campaigns/ash-of-caerden/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal narrative oracle fixture, intentionally not listed in campaigns/index.json. Its marker records that 27 linked image files were removed in 60a2da5 while JSON references remain for path-oracle coverage. D-076 preserves this non-release fixture because smoke:no-campaign requires the empty assets/img tree; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/arenas/forest_road_topdown.jpg",
+      "source": "public/campaigns/ash-of-caerden/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal narrative oracle fixture, intentionally not listed in campaigns/index.json. Its marker records that 27 linked image files were removed in 60a2da5 while JSON references remain for path-oracle coverage. D-076 preserves this non-release fixture because smoke:no-campaign requires the empty assets/img tree; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/arenas/gates_topdown.jpg",
+      "source": "public/campaigns/ash-of-caerden/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal narrative oracle fixture, intentionally not listed in campaigns/index.json. Its marker records that 27 linked image files were removed in 60a2da5 while JSON references remain for path-oracle coverage. D-076 preserves this non-release fixture because smoke:no-campaign requires the empty assets/img tree; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/arenas/market_topdown.jpg",
+      "source": "public/campaigns/ash-of-caerden/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal narrative oracle fixture, intentionally not listed in campaigns/index.json. Its marker records that 27 linked image files were removed in 60a2da5 while JSON references remain for path-oracle coverage. D-076 preserves this non-release fixture because smoke:no-campaign requires the empty assets/img tree; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/maps/caerden_valley.jpg",
+      "source": "public/campaigns/ash-of-caerden/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal narrative oracle fixture, intentionally not listed in campaigns/index.json. Its marker records that 27 linked image files were removed in 60a2da5 while JSON references remain for path-oracle coverage. D-076 preserves this non-release fixture because smoke:no-campaign requires the empty assets/img tree; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/npc/aldric_neutral.jpg",
+      "source": "public/campaigns/ash-of-caerden/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal narrative oracle fixture, intentionally not listed in campaigns/index.json. Its marker records that 27 linked image files were removed in 60a2da5 while JSON references remain for path-oracle coverage. D-076 preserves this non-release fixture because smoke:no-campaign requires the empty assets/img tree; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/npc/bandit_neutral.jpg",
+      "source": "public/campaigns/ash-of-caerden/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal narrative oracle fixture, intentionally not listed in campaigns/index.json. Its marker records that 27 linked image files were removed in 60a2da5 while JSON references remain for path-oracle coverage. D-076 preserves this non-release fixture because smoke:no-campaign requires the empty assets/img tree; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/npc/bran_neutral.jpg",
+      "source": "public/campaigns/ash-of-caerden/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal narrative oracle fixture, intentionally not listed in campaigns/index.json. Its marker records that 27 linked image files were removed in 60a2da5 while JSON references remain for path-oracle coverage. D-076 preserves this non-release fixture because smoke:no-campaign requires the empty assets/img tree; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/npc/corvin_neutral.jpg",
+      "source": "public/campaigns/ash-of-caerden/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal narrative oracle fixture, intentionally not listed in campaigns/index.json. Its marker records that 27 linked image files were removed in 60a2da5 while JSON references remain for path-oracle coverage. D-076 preserves this non-release fixture because smoke:no-campaign requires the empty assets/img tree; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/npc/lena_neutral.jpg",
+      "source": "public/campaigns/ash-of-caerden/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal narrative oracle fixture, intentionally not listed in campaigns/index.json. Its marker records that 27 linked image files were removed in 60a2da5 while JSON references remain for path-oracle coverage. D-076 preserves this non-release fixture because smoke:no-campaign requires the empty assets/img tree; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/npc/maeva_neutral.jpg",
+      "source": "public/campaigns/ash-of-caerden/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal narrative oracle fixture, intentionally not listed in campaigns/index.json. Its marker records that 27 linked image files were removed in 60a2da5 while JSON references remain for path-oracle coverage. D-076 preserves this non-release fixture because smoke:no-campaign requires the empty assets/img tree; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/npc/player_portrait.jpg",
+      "source": "public/campaigns/ash-of-caerden/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal narrative oracle fixture, intentionally not listed in campaigns/index.json. Its marker records that 27 linked image files were removed in 60a2da5 while JSON references remain for path-oracle coverage. D-076 preserves this non-release fixture because smoke:no-campaign requires the empty assets/img tree; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/npc/rat_token.jpg",
+      "source": "public/campaigns/ash-of-caerden/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal narrative oracle fixture, intentionally not listed in campaigns/index.json. Its marker records that 27 linked image files were removed in 60a2da5 while JSON references remain for path-oracle coverage. D-076 preserves this non-release fixture because smoke:no-campaign requires the empty assets/img tree; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/npc/yorek_neutral.jpg",
+      "source": "public/campaigns/ash-of-caerden/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal narrative oracle fixture, intentionally not listed in campaigns/index.json. Its marker records that 27 linked image files were removed in 60a2da5 while JSON references remain for path-oracle coverage. D-076 preserves this non-release fixture because smoke:no-campaign requires the empty assets/img tree; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/scenes/barracks.jpg",
+      "source": "public/campaigns/ash-of-caerden/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal narrative oracle fixture, intentionally not listed in campaigns/index.json. Its marker records that 27 linked image files were removed in 60a2da5 while JSON references remain for path-oracle coverage. D-076 preserves this non-release fixture because smoke:no-campaign requires the empty assets/img tree; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/scenes/forest_edge.jpg",
+      "source": "public/campaigns/ash-of-caerden/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal narrative oracle fixture, intentionally not listed in campaigns/index.json. Its marker records that 27 linked image files were removed in 60a2da5 while JSON references remain for path-oracle coverage. D-076 preserves this non-release fixture because smoke:no-campaign requires the empty assets/img tree; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/scenes/gates_front_day.jpg",
+      "source": "public/campaigns/ash-of-caerden/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal narrative oracle fixture, intentionally not listed in campaigns/index.json. Its marker records that 27 linked image files were removed in 60a2da5 while JSON references remain for path-oracle coverage. D-076 preserves this non-release fixture because smoke:no-campaign requires the empty assets/img tree; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/scenes/gates_front_night.jpg",
+      "source": "public/campaigns/ash-of-caerden/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal narrative oracle fixture, intentionally not listed in campaigns/index.json. Its marker records that 27 linked image files were removed in 60a2da5 while JSON references remain for path-oracle coverage. D-076 preserves this non-release fixture because smoke:no-campaign requires the empty assets/img tree; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/scenes/guardroom.jpg",
+      "source": "public/campaigns/ash-of-caerden/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal narrative oracle fixture, intentionally not listed in campaigns/index.json. Its marker records that 27 linked image files were removed in 60a2da5 while JSON references remain for path-oracle coverage. D-076 preserves this non-release fixture because smoke:no-campaign requires the empty assets/img tree; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/scenes/market_day.jpg",
+      "source": "public/campaigns/ash-of-caerden/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal narrative oracle fixture, intentionally not listed in campaigns/index.json. Its marker records that 27 linked image files were removed in 60a2da5 while JSON references remain for path-oracle coverage. D-076 preserves this non-release fixture because smoke:no-campaign requires the empty assets/img tree; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/scenes/market_night.jpg",
+      "source": "public/campaigns/ash-of-caerden/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal narrative oracle fixture, intentionally not listed in campaigns/index.json. Its marker records that 27 linked image files were removed in 60a2da5 while JSON references remain for path-oracle coverage. D-076 preserves this non-release fixture because smoke:no-campaign requires the empty assets/img tree; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/scenes/mine_deep.jpg",
+      "source": "public/campaigns/ash-of-caerden/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal narrative oracle fixture, intentionally not listed in campaigns/index.json. Its marker records that 27 linked image files were removed in 60a2da5 while JSON references remain for path-oracle coverage. D-076 preserves this non-release fixture because smoke:no-campaign requires the empty assets/img tree; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/scenes/mine_entrance.jpg",
+      "source": "public/campaigns/ash-of-caerden/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal narrative oracle fixture, intentionally not listed in campaigns/index.json. Its marker records that 27 linked image files were removed in 60a2da5 while JSON references remain for path-oracle coverage. D-076 preserves this non-release fixture because smoke:no-campaign requires the empty assets/img tree; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/scenes/ravine_camp.jpg",
+      "source": "public/campaigns/ash-of-caerden/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal narrative oracle fixture, intentionally not listed in campaigns/index.json. Its marker records that 27 linked image files were removed in 60a2da5 while JSON references remain for path-oracle coverage. D-076 preserves this non-release fixture because smoke:no-campaign requires the empty assets/img tree; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/scenes/tavern_hall.jpg",
+      "source": "public/campaigns/ash-of-caerden/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal narrative oracle fixture, intentionally not listed in campaigns/index.json. Its marker records that 27 linked image files were removed in 60a2da5 while JSON references remain for path-oracle coverage. D-076 preserves this non-release fixture because smoke:no-campaign requires the empty assets/img tree; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/scenes/temple.jpg",
+      "source": "public/campaigns/ash-of-caerden/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal narrative oracle fixture, intentionally not listed in campaigns/index.json. Its marker records that 27 linked image files were removed in 60a2da5 while JSON references remain for path-oracle coverage. D-076 preserves this non-release fixture because smoke:no-campaign requires the empty assets/img tree; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/arenas/camp_topdown.jpg",
+      "source": "public/campaigns/ash-of-caerden-adventure/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal adventure projection of the narrative data, intentionally omitted from the player registry to exercise the engine/pack seam. Its marker lists this path as intentionally absent; no campaign image files are shipped in this fixture. D-076 preserves the test fixture and its path oracle; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/arenas/cellar_topdown.jpg",
+      "source": "public/campaigns/ash-of-caerden-adventure/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal adventure projection of the narrative data, intentionally omitted from the player registry to exercise the engine/pack seam. Its marker lists this path as intentionally absent; no campaign image files are shipped in this fixture. D-076 preserves the test fixture and its path oracle; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/arenas/forest_road_topdown.jpg",
+      "source": "public/campaigns/ash-of-caerden-adventure/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal adventure projection of the narrative data, intentionally omitted from the player registry to exercise the engine/pack seam. Its marker lists this path as intentionally absent; no campaign image files are shipped in this fixture. D-076 preserves the test fixture and its path oracle; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/arenas/gates_topdown.jpg",
+      "source": "public/campaigns/ash-of-caerden-adventure/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal adventure projection of the narrative data, intentionally omitted from the player registry to exercise the engine/pack seam. Its marker lists this path as intentionally absent; no campaign image files are shipped in this fixture. D-076 preserves the test fixture and its path oracle; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/arenas/market_topdown.jpg",
+      "source": "public/campaigns/ash-of-caerden-adventure/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal adventure projection of the narrative data, intentionally omitted from the player registry to exercise the engine/pack seam. Its marker lists this path as intentionally absent; no campaign image files are shipped in this fixture. D-076 preserves the test fixture and its path oracle; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/maps/caerden_valley.jpg",
+      "source": "public/campaigns/ash-of-caerden-adventure/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal adventure projection of the narrative data, intentionally omitted from the player registry to exercise the engine/pack seam. Its marker lists this path as intentionally absent; no campaign image files are shipped in this fixture. D-076 preserves the test fixture and its path oracle; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/npc/aldric_neutral.jpg",
+      "source": "public/campaigns/ash-of-caerden-adventure/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal adventure projection of the narrative data, intentionally omitted from the player registry to exercise the engine/pack seam. Its marker lists this path as intentionally absent; no campaign image files are shipped in this fixture. D-076 preserves the test fixture and its path oracle; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/npc/bandit_neutral.jpg",
+      "source": "public/campaigns/ash-of-caerden-adventure/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal adventure projection of the narrative data, intentionally omitted from the player registry to exercise the engine/pack seam. Its marker lists this path as intentionally absent; no campaign image files are shipped in this fixture. D-076 preserves the test fixture and its path oracle; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/npc/bran_neutral.jpg",
+      "source": "public/campaigns/ash-of-caerden-adventure/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal adventure projection of the narrative data, intentionally omitted from the player registry to exercise the engine/pack seam. Its marker lists this path as intentionally absent; no campaign image files are shipped in this fixture. D-076 preserves the test fixture and its path oracle; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/npc/corvin_neutral.jpg",
+      "source": "public/campaigns/ash-of-caerden-adventure/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal adventure projection of the narrative data, intentionally omitted from the player registry to exercise the engine/pack seam. Its marker lists this path as intentionally absent; no campaign image files are shipped in this fixture. D-076 preserves the test fixture and its path oracle; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/npc/lena_neutral.jpg",
+      "source": "public/campaigns/ash-of-caerden-adventure/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal adventure projection of the narrative data, intentionally omitted from the player registry to exercise the engine/pack seam. Its marker lists this path as intentionally absent; no campaign image files are shipped in this fixture. D-076 preserves the test fixture and its path oracle; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/npc/maeva_neutral.jpg",
+      "source": "public/campaigns/ash-of-caerden-adventure/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal adventure projection of the narrative data, intentionally omitted from the player registry to exercise the engine/pack seam. Its marker lists this path as intentionally absent; no campaign image files are shipped in this fixture. D-076 preserves the test fixture and its path oracle; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/npc/player_portrait.jpg",
+      "source": "public/campaigns/ash-of-caerden-adventure/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal adventure projection of the narrative data, intentionally omitted from the player registry to exercise the engine/pack seam. Its marker lists this path as intentionally absent; no campaign image files are shipped in this fixture. D-076 preserves the test fixture and its path oracle; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/npc/rat_token.jpg",
+      "source": "public/campaigns/ash-of-caerden-adventure/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal adventure projection of the narrative data, intentionally omitted from the player registry to exercise the engine/pack seam. Its marker lists this path as intentionally absent; no campaign image files are shipped in this fixture. D-076 preserves the test fixture and its path oracle; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/npc/yorek_neutral.jpg",
+      "source": "public/campaigns/ash-of-caerden-adventure/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal adventure projection of the narrative data, intentionally omitted from the player registry to exercise the engine/pack seam. Its marker lists this path as intentionally absent; no campaign image files are shipped in this fixture. D-076 preserves the test fixture and its path oracle; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/scenes/barracks.jpg",
+      "source": "public/campaigns/ash-of-caerden-adventure/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal adventure projection of the narrative data, intentionally omitted from the player registry to exercise the engine/pack seam. Its marker lists this path as intentionally absent; no campaign image files are shipped in this fixture. D-076 preserves the test fixture and its path oracle; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/scenes/forest_edge.jpg",
+      "source": "public/campaigns/ash-of-caerden-adventure/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal adventure projection of the narrative data, intentionally omitted from the player registry to exercise the engine/pack seam. Its marker lists this path as intentionally absent; no campaign image files are shipped in this fixture. D-076 preserves the test fixture and its path oracle; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/scenes/gates_front_day.jpg",
+      "source": "public/campaigns/ash-of-caerden-adventure/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal adventure projection of the narrative data, intentionally omitted from the player registry to exercise the engine/pack seam. Its marker lists this path as intentionally absent; no campaign image files are shipped in this fixture. D-076 preserves the test fixture and its path oracle; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/scenes/gates_front_night.jpg",
+      "source": "public/campaigns/ash-of-caerden-adventure/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal adventure projection of the narrative data, intentionally omitted from the player registry to exercise the engine/pack seam. Its marker lists this path as intentionally absent; no campaign image files are shipped in this fixture. D-076 preserves the test fixture and its path oracle; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/scenes/guardroom.jpg",
+      "source": "public/campaigns/ash-of-caerden-adventure/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal adventure projection of the narrative data, intentionally omitted from the player registry to exercise the engine/pack seam. Its marker lists this path as intentionally absent; no campaign image files are shipped in this fixture. D-076 preserves the test fixture and its path oracle; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/scenes/market_day.jpg",
+      "source": "public/campaigns/ash-of-caerden-adventure/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal adventure projection of the narrative data, intentionally omitted from the player registry to exercise the engine/pack seam. Its marker lists this path as intentionally absent; no campaign image files are shipped in this fixture. D-076 preserves the test fixture and its path oracle; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/scenes/market_night.jpg",
+      "source": "public/campaigns/ash-of-caerden-adventure/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal adventure projection of the narrative data, intentionally omitted from the player registry to exercise the engine/pack seam. Its marker lists this path as intentionally absent; no campaign image files are shipped in this fixture. D-076 preserves the test fixture and its path oracle; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/scenes/mine_deep.jpg",
+      "source": "public/campaigns/ash-of-caerden-adventure/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal adventure projection of the narrative data, intentionally omitted from the player registry to exercise the engine/pack seam. Its marker lists this path as intentionally absent; no campaign image files are shipped in this fixture. D-076 preserves the test fixture and its path oracle; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/scenes/mine_entrance.jpg",
+      "source": "public/campaigns/ash-of-caerden-adventure/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal adventure projection of the narrative data, intentionally omitted from the player registry to exercise the engine/pack seam. Its marker lists this path as intentionally absent; no campaign image files are shipped in this fixture. D-076 preserves the test fixture and its path oracle; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/scenes/ravine_camp.jpg",
+      "source": "public/campaigns/ash-of-caerden-adventure/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal adventure projection of the narrative data, intentionally omitted from the player registry to exercise the engine/pack seam. Its marker lists this path as intentionally absent; no campaign image files are shipped in this fixture. D-076 preserves the test fixture and its path oracle; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/scenes/tavern_hall.jpg",
+      "source": "public/campaigns/ash-of-caerden-adventure/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal adventure projection of the narrative data, intentionally omitted from the player registry to exercise the engine/pack seam. Its marker lists this path as intentionally absent; no campaign image files are shipped in this fixture. D-076 preserves the test fixture and its path oracle; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/scenes/temple.jpg",
+      "source": "public/campaigns/ash-of-caerden-adventure/dev-fixture.json#known_absent_images (D-076)",
+      "reason": "Internal adventure projection of the narrative data, intentionally omitted from the player registry to exercise the engine/pack seam. Its marker lists this path as intentionally absent; no campaign image files are shipped in this fixture. D-076 preserves the test fixture and its path oracle; restoring artwork requires a separate campaign-release decision.",
+      "date": "2026-10-31",
+      "expected": {
+        "preview": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "fixtureRoot": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "occurrences": 1
+      }
+    }
+  ],
+  "consoleErrors": [
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/scenes/gates_front_day.jpg",
+      "template": "[сцена] фон не загрузился: {url}",
+      "source": "src/player/SceneScreen.tsx#LiveImg.onError (D-076)",
+      "reason": "D-076 intentionally retains this console diagnostic. LiveImg switches to the neutral .scene-bg-fallback, while the strict route still checks for error screens, broken images, and the expected ending. This asset is also declared in the campaign known_absent_images list.",
+      "date": "2026-10-31",
+      "expectedOccurrences": 2
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/npc/aldric_neutral.jpg",
+      "template": "Failed to load resource: portrait fallback {url}",
+      "source": "src/player/GameView.tsx#recoverBrokenPortrait",
+      "reason": "The protected fixture intentionally omits this NPC portrait. recoverBrokenPortrait logs the failed URL and replaces or removes the broken image with a placeholder; the strict route asserts there are no broken <img> elements and still reaches its expected ending.",
+      "date": "2026-10-31",
+      "expectedOccurrences": 4
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/maps/caerden_valley.jpg",
+      "template": "Failed to load resource: map image fallback {url}",
+      "source": "src/player/MapScreen.tsx#noteImageFailure",
+      "reason": "The protected fixture intentionally omits this map image. noteImageFailure records the path and MapScreen switches to its map-bg-fallback while keeping the location pins usable; the route retains its map and final-state assertions.",
+      "date": "2026-10-31",
+      "expectedOccurrences": 1
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/scenes/forest_edge.jpg",
+      "template": "Failed to load resource: map image fallback {url}",
+      "source": "src/player/MapScreen.tsx#noteImageFailure",
+      "reason": "The protected fixture intentionally omits this forest image. noteImageFailure records the failed path and the map travel preview falls back to its text-only header; the strict route continues to the expected ending and checks for broken images and error screens.",
+      "date": "2026-10-31",
+      "expectedOccurrences": 1
+    },
+    {
+      "campaignId": "ash-of-caerden",
+      "path": "assets/img/scenes/forest_edge.jpg",
+      "template": "[сцена] фон не загрузился: {url}",
+      "source": "src/player/SceneScreen.tsx#LiveImg.onError (D-076)",
+      "reason": "D-076 intentionally retains this console diagnostic. LiveImg switches to the neutral .scene-bg-fallback for the forest scene; the strict route checks the visible state, error screens, broken images, and ending. This asset is also declared in the campaign known_absent_images list.",
+      "date": "2026-10-31",
+      "expectedOccurrences": 1
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/scenes/gates_front_day.jpg",
+      "template": "[сцена] фон не загрузился: {url}",
+      "source": "src/player/SceneScreen.tsx#LiveImg.onError (D-076)",
+      "reason": "D-076 intentionally retains this console diagnostic. LiveImg switches to the neutral .scene-bg-fallback; the Adventure route independently checks its ending screen and error states. This asset is also declared in the campaign known_absent_images list.",
+      "date": "2026-10-31",
+      "expectedOccurrences": 3
+    },
+    {
+      "campaignId": "ash-of-caerden-adventure",
+      "path": "assets/img/npc/aldric_neutral.jpg",
+      "template": "Failed to load resource: portrait fallback {url}",
+      "source": "src/player/GameView.tsx#recoverBrokenPortrait",
+      "reason": "The protected fixture intentionally omits this NPC portrait. recoverBrokenPortrait logs the failed URL and replaces or removes the broken image with a placeholder; the Adventure route still checks the dialogue, save state, and expected ending.",
+      "date": "2026-10-31",
+      "expectedOccurrences": 6
+    }
+  ]
+}
