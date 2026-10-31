@@ -14,7 +14,7 @@ const zip = new JSZip()
 zip.file('campaign.json', JSON.stringify({ id: '3b7f552a-a345-41dc-ae87-d6259cec7050', title: 'Новая кампания' }))
 const packageFile = new File([await zip.generateAsync({ type: 'uint8array' })], 'new-campaign.chronicle')
 const identity = await readChronicleCampaignIdentity(packageFile)
-check('импорт предварительно считывает ID и название из .chronicle',
+check('импорт предварительно считывает ID и название из пакета',
   identity.id === '3b7f552a-a345-41dc-ae87-d6259cec7050' && identity.title === 'Новая кампания')
 
 const [editorOwner] = await loadMissionOwnerModules(['/src/editor/EditorApp.tsx'])

@@ -106,7 +106,7 @@ try {
   store.setCampaignId(originalId)
   check('смена названия не связана с ID', store.meta.id === originalId && store.meta.title === 'Колокол без имени')
 
-  // Минимальный автономный архив .chronicle.
+  // Минимальный автономный архив пакета.
   const fixtureMeta = JSON.parse(read('public/campaigns/ash-of-caerden/campaign.json')) as Record<string, unknown>
   const baseMeta = {
     ...fixtureMeta,
