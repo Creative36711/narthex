@@ -66,7 +66,7 @@ export function EditorTopbar({ ui }: { ui: EditorUi }) {
             <button className="editor-toolbar-item" onClick={ui.ops.newCampaign}><Ico n="plus" /> Новая кампания</button>
             <div className="editor-toolbar-divider" />
             <div className="editor-toolbar-divider" />
-            <button className="editor-toolbar-item" onClick={() => ui.fileInput.current?.click()}><Ico n="up" /> Импорт .chronicle / патча…</button>
+            <button className="editor-toolbar-item" onClick={() => ui.fileInput.current?.click()}><Ico n="up" /> Импорт .narthex / патча…</button>
             <button className="editor-toolbar-item" onClick={() => ui.folderInput.current?.click()}><Ico n="folder" /> Импорт папки проекта…</button>
             <button className="editor-toolbar-item" onClick={ui.doImportJson}><Ico n="up" /> Импорт из JSON</button>
             <div className="editor-toolbar-divider" />
@@ -76,10 +76,10 @@ export function EditorTopbar({ ui }: { ui: EditorUi }) {
               disabled={ui.modifiedCount === 0}
               data-tip={ui.modifiedCount > 0 ? `Экспортировать только изменённые файлы (${ui.modifiedCount}) в микро-архив` : 'Нет изменений относительно исходной базы'}
             >
-              <Ico n="download" /> Экспорт правок для ИИ (.chronicle)
+              <Ico n="download" /> Экспорт правок для ИИ (.narthex)
               {ui.modifiedCount > 0 && <span className="ai-btn-badge">{ui.modifiedCount}</span>}
             </button>
-            <button className="editor-toolbar-item" onClick={ui.fileOps.doExport}><Ico n="download" /> Экспорт всей кампании (.chronicle)</button>
+            <button className="editor-toolbar-item" onClick={ui.fileOps.doExport}><Ico n="download" /> Экспорт всей кампании (.narthex)</button>
             <button className="editor-toolbar-item" onClick={ui.fileOps.doExportJson}><Ico n="download" /> Экспорт JSON (монолит)</button>
             <div className="editor-toolbar-divider" />
             <button className="editor-toolbar-item danger" onClick={ui.ops.deleteCampaign}><Ico n="trash" /> Удалить кампанию</button>
@@ -123,7 +123,7 @@ export function EditorTopbar({ ui }: { ui: EditorUi }) {
         <input
           ref={ui.fileInput}
           type="file"
-          accept=".chronicle,.zip"
+          accept=".narthex,.chronicle,.zip"
           hidden
           onChange={(e) => {
             const f = e.target.files?.[0]

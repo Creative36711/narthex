@@ -56,7 +56,7 @@ export function editorGuardScreen(props: EditorGuardProps): ReactNode {
           <h2>Кампаний пока нет</h2>
           <p>
             В <code>public/campaigns</code> пока нет кампаний. Создайте первую вручную, импортируйте JSON или подготовьте задание для внешнего ИИ;
-            готовую кампанию можно вернуть одним файлом <code>.chronicle</code>.
+            готовую кампанию можно вернуть одним файлом <code>.narthex</code>.
           </p>
           <div className="menu-buttons">
             <button className="btn btn-primary" onClick={() => void ops.newCampaign()} disabled={!!busy}>
@@ -66,12 +66,12 @@ export function editorGuardScreen(props: EditorGuardProps): ReactNode {
               Импортировать JSON
             </button>
             <button className="btn" onClick={() => fileInput.current?.click()} disabled={!!busy}>
-              Импортировать .chronicle
+              Импортировать .narthex
             </button>
             <input
               ref={fileInput}
               type="file"
-              accept=".chronicle,application/zip"
+              accept=".narthex,.chronicle,application/zip"
               hidden
               onChange={(e) => {
                 const file = e.target.files?.[0]

@@ -40,12 +40,12 @@ export function createFileOps(ctx: FileOpsCtx, ops: CampaignOps) {
     const res = await askChecked(
       external.length
         ? `Экспорт «${store.meta.title}». В кампании ${external.length} внешних ссылок (картинки/звук с чужого сервера).`
-        : `Экспорт «${store.meta.title}» одним файлом .chronicle.`,
+        : `Экспорт «${store.meta.title}» одним файлом .narthex.`,
       'Вшить внешние ссылки в пакет (кампания станет автономной)',
       'Экспорт',
     )
     if (!res.ok) return
-    setBusy('Экспорт .chronicle…')
+    setBusy('Экспорт .narthex…')
     try {
       const notes: string[] = []
       if (res.checked) {
@@ -53,7 +53,7 @@ export function createFileOps(ctx: FileOpsCtx, ops: CampaignOps) {
         notes.push(...(await embedExternalAssets(store)))
       }
       const blob = await exportChronicle(store)
-      downloadBlob(blob, `${store.meta.id}.chronicle`)
+      downloadBlob(blob, `${store.meta.id}.narthex`)
       if (notes.length) {
         void showList(
           `Пакет собран (${notes.length} внешних файлов)`,

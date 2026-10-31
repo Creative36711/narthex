@@ -123,7 +123,7 @@ export async function exportPatchChronicle(
 
   const dateSlug = new Date().toISOString().slice(0, 10)
   const safeName = (store.meta.title || store.meta.id || 'campaign').toLowerCase().replace(/[^a-z0-9а-яё_-]+/gi, '_').slice(0, 30)
-  const filename = `${safeName}-patch-${dateSlug}.chronicle`
+  const filename = `${safeName}-patch-${dateSlug}.narthex`
 
   const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' })
   return { blob, filename, modifiedCount: changedFiles.length }

@@ -216,7 +216,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       const sameId = !!identity.id && normalizeCampaignId(identity.id) === normalizeCampaignId(stableId)
       if (!sameId) {
         const importSeparately = await askConfirm(
-          `.chronicle содержит ID «${identity.id || 'не задан'}» для «${identity.title}», а сейчас открыта кампания «${store.meta.title}» с ID «${stableId}». Импортировать файл как отдельную кампанию? При выборе обновления содержимое заменится, но ID открытой кампании сохранится.`,
+          `.narthex содержит ID «${identity.id || 'не задан'}» для «${identity.title}», а сейчас открыта кампания «${store.meta.title}» с ID «${stableId}». Импортировать файл как отдельную кампанию? При выборе обновления содержимое заменится, но ID открытой кампании сохранится.`,
           'Импортировать отдельно',
           'Обновить открытую',
         )
