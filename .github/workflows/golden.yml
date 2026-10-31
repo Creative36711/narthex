@@ -79,6 +79,40 @@ jobs:
       - name: Prove cf-play rejects a warning-only fixture
         run: npm run cf-play:negative
 
+      - name: Publish GOLD-1.15 soak boundaries
+        if: always()
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync, existsSync, readFileSync } from 'node:fs'
+
+          const logPath = '_tools/reports/GOLD-1.15.log'
+          if (!existsSync(logPath)) {
+            console.log('::warning title=GOLD-1.15 soak boundaries::timeline log is missing')
+            process.exit(0)
+          }
+
+          const records = readFileSync(logPath, 'utf8')
+            .split(/\r?\n/)
+            .filter(Boolean)
+            .map((line) => JSON.parse(line))
+          const soakRunId = records.filter((record) => record.task === 'GOLD-1.15' && record.event === 'run_start').at(-1)?.runId
+          const last = (event) => records.filter((record) => record.task === 'GOLD-1.15' && record.runId === soakRunId && record.event === event).at(-1)
+          const started = last('session_start')
+          const ended = last('active_session_end')
+          const completed = last('run_complete')
+          if (!soakRunId || !started?.at || !ended?.at || !completed) {
+            console.log(`::warning title=GOLD-1.15 soak boundaries::incomplete timeline for run ${soakRunId ?? 'unknown'} (session_start=${Boolean(started)} active_session_end=${Boolean(ended)} run_complete=${Boolean(completed)})`)
+            process.exit(0)
+          }
+
+          const wallSeconds = (Date.parse(ended.at) - Date.parse(started.at)) / 1000
+          const detail = `start=${started.at} end=${ended.at} wallSeconds=${wallSeconds.toFixed(1)} activeDurationSeconds=${completed.activeDurationSeconds} verdict=${completed.verdict}`
+          console.log(`::notice title=GOLD-1.15 actual soak boundaries::${detail}`)
+          if (process.env.GITHUB_STEP_SUMMARY) {
+            appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### GOLD-1.15 actual soak boundaries\n\n- ${detail}\n`)
+          }
+          NODE
+
       - name: Upload GOLD-1.6 evidence
         if: always()
         uses: actions/upload-artifact@v4
