@@ -1,0 +1,37 @@
+{
+  "campaign": "campaign.json",
+  "world": "world.json",
+  "scenes": [
+    "scene_office.json"
+  ],
+  "entities": [
+    "player_hero.json",
+    "npc_brin.json",
+    "npc_maeva.json",
+    "npc_rud.json",
+    "npc_torg.json",
+    "npc_caleb.json",
+    "npc_peddler.json",
+    "npc_vera.json",
+    "item_knife.json",
+    "item_coat.json"
+  ],
+  "rules": [],
+  "dialogues": [
+    "brin.ink",
+    "caleb.ink",
+    "maeva.ink",
+    "peddler.ink",
+    "rud.ink",
+    "torg.ink",
+    "vera.ink"
+  ],
+  "arenas": [],
+  "quests": [],
+  "encounters": [
+    "encounters.json"
+  ],
+  "cutscenes": [],
+  "recipes": [],
+  "codex": []
+}

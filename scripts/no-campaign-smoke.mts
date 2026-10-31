@@ -67,7 +67,7 @@ const emptyEditorMarkup = renderToStaticMarkup(createElement(EditorApp as never,
   check('выбор кампании идёт из реестра', app.includes('function pickCampaign('))
   check('пустой реестр не грузит несуществующий путь', app.includes('if (!campaignId) return'))
   check('движок показывает экран без кампаний', app.includes('<NoCampaignScreen'))
-  check('экран пустого реестра предлагает создать и загрузить кампанию', read('src/player/NoCampaignScreen.tsx').includes('Создать кампанию') && read('src/player/NoCampaignScreen.tsx').includes('.chronicle'))
+  check('экран пустого реестра предлагает создать и загрузить кампанию', read('src/player/NoCampaignScreen.tsx').includes('Создать кампанию') && read('src/player/NoCampaignScreen.tsx').includes('.narthex'))
   check('движок и редактор целы', existsSync('src/core/engine.ts') && existsSync('src/editor/EditorApp.tsx') && typeof editorOwner.EditorApp === 'function')
   check('создание выдаёт UUID, а не slug названия', typeof newAvailableCampaignId === 'function' && UUID.test(createCampaignUuid()))
   check('JSON-импорт пустого редактора выдаёт приложением новый ID', typeof newAvailableCampaignId === 'function')
@@ -79,7 +79,7 @@ const emptyEditorMarkup = renderToStaticMarkup(createElement(EditorApp as never,
   check('редактор доступен без кампании', emptyEditorMarkup.includes('Кампаний пока нет'))
   check('из пустого редактора можно создать и импортировать кампанию', emptyEditorMarkup.includes('Создать кампанию') && emptyEditorMarkup.includes('Импортировать JSON'))
   check('ID инициализируется при пустом JSON-импорте', typeof newAvailableCampaignId === 'function')
-  check('импорт .chronicle спрашивает об обновлении/копии при конфликте', read('src/player/NoCampaignScreen.tsx').includes('Обновить кампанию') && read('src/player/NoCampaignScreen.tsx').includes('Импортировать копию'))
+  check('импорт .narthex спрашивает об обновлении/копии при конфликте', read('src/player/NoCampaignScreen.tsx').includes('Обновить кампанию') && read('src/player/NoCampaignScreen.tsx').includes('Импортировать копию'))
 }
 
 const importedIds: string[] = []
@@ -119,12 +119,12 @@ try {
     zip.file('campaign.json', JSON.stringify(meta, null, 2))
     if (includeWorld) zip.file('world.json', JSON.stringify(world, null, 2))
     zip.file('manifest.json', JSON.stringify({ scenes: [], entities: [], rules: [], quests: [], dialogues: [] }, null, 2))
-    return new File([await zip.generateAsync({ type: 'uint8array' })], 'offline-test.chronicle')
+    return new File([await zip.generateAsync({ type: 'uint8array' })], 'offline-test.narthex')
   }
 
   const initial = await importChroniclePackage(await makeArchive(baseMeta))
   importedIds.push(initial.id)
-  check('свободный .chronicle сохраняет исходный стабильный ID', initial.id === baseMeta.id)
+  check('свободный .narthex сохраняет исходный стабильный ID', initial.id === baseMeta.id)
   const same = await importChroniclePackage(await makeArchive(baseMeta))
   check('повторный идентичный импорт распознаётся и не дублируется', same.alreadyInstalled === true && same.id === initial.id)
   let missingFileConflict = false

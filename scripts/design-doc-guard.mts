@@ -107,8 +107,8 @@ check(
     && !/пока мастер не сказал «ок»|только после\s+«ок»/i.test(template),
 )
 check(
-  'инструкция: полный результат — .chronicle, JSON оставлен для правок без медиа',
-  /готовый `.chronicle`/.test(instruction)
+  'инструкция: полный результат — .narthex, JSON оставлен для правок без медиа',
+  /готовый `.narthex`/.test(instruction)
     && /«Файл → Импорт из JSON»/.test(instruction)
     && /бинарные медиа/.test(instruction),
 )
@@ -132,13 +132,17 @@ check(
 {
   const actual = readdirSync('public/ai').sort()
   const manifest = AI_KIT_FILES.map((f) => f.name).sort()
-  const extra = actual.filter((name) => !manifest.includes(name))
   const missing = manifest.filter((name) => !actual.includes(name))
+  const standaloneTools = ['PLAYKIT.md', 'cf-play.mjs']
+  const unexpected = actual.filter((name) => !manifest.includes(name) && !standaloneTools.includes(name))
+  const missingTools = standaloneTools.filter((name) => !actual.includes(name))
   const taskBundle = readEditorFile('src/editor/aiTask.ts', 'utf8')
   check(
-    'манифест справочных файлов совпадает с public/ai',
-    extra.length === 0 && missing.length === 0,
-    extra.length || missing.length ? `лишние: ${extra.join(', ') || '—'}; нет: ${missing.join(', ') || '—'}` : undefined,
+    'манифест справочных файлов ссылается на доступные файлы; инструменты остаются отдельными',
+    missing.length === 0 && unexpected.length === 0 && missingTools.length === 0,
+    missing.length || unexpected.length || missingTools.length
+      ? `нет в public/ai: ${missing.join(', ') || '—'}; неучтённые: ${unexpected.join(', ') || '—'}; нет инструментов: ${missingTools.join(', ') || '—'}`
+      : `самостоятельные инструменты: ${standaloneTools.join(', ')}`,
   )
   check(
     'задание ИИ собирает контекст кампании, бриф, руководство и отчёт проверки',

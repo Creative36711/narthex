@@ -12,7 +12,7 @@ import type { CampaignData, EntityDef, GameState, SceneDef } from '../src/shared
 console.log('--- Смоук-тест раунда 32: Экипировка, Диалоги, Вера Сокол, Условия ---')
 
 // ── 1. Загрузка сохранения и сохранение базовых слотов weapon/armor ──
-const dir = '_ai-temp/campaing'
+const dir = join(import.meta.dirname, 'mission-smokes/fixtures/dialogue-encounters')
 const meta = JSON.parse(readFileSync(join(dir, 'campaign.json'), 'utf8'))
 const world = JSON.parse(readFileSync(join(dir, 'world.json'), 'utf8'))
 const entities: Record<string, EntityDef> = {}

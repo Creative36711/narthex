@@ -1,0 +1,8 @@
+{
+  "id": "item_coat",
+  "type": "item",
+  "label": "Плащ",
+  "description": "Проверка сохранённого слота.",
+  "weight": 1,
+  "equip_slot": "armor"
+}

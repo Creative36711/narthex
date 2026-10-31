@@ -1,0 +1,22 @@
+{
+  "id": "player_hero",
+  "type": "npc",
+  "label": "Инспектор",
+  "description": "Главный герой фикстуры.",
+  "portrait": {},
+  "stats": {
+    "STR": 10,
+    "CON": 10,
+    "SIZ": 10,
+    "DEX": 10,
+    "INT": 10,
+    "POW": 10,
+    "CHA": 10,
+    "HP": 20,
+    "MP": 10
+  },
+  "skills": {
+    "brawl": 10
+  },
+  "inventory": []
+}

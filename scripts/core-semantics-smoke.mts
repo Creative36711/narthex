@@ -10,7 +10,9 @@
  */
 
 let failures = 0
+let checks = 0
 function expect(name: string, cond: boolean, detail = ''): void {
+  checks += 1
   if (cond) {
     console.log(`✓ ${name}`)
   } else {
@@ -60,7 +62,7 @@ function makeCampaign(metaOverrides: Record<string, unknown> = {}): Record<strin
 
 async function main(): Promise<void> {
   const { GameEngine } = await import('../src/core/engine')
-  const { evalCondition } = await import('../src/core/conditions')
+  const { evalCondition, evalSceneCondition } = await import('../src/core/conditions')
   const { startTick } = await import('../src/shared/types')
 
   type AnyEngine = InstanceType<typeof GameEngine>
@@ -166,8 +168,84 @@ async function main(): Promise<void> {
     )
   }
 
+  // ── 6. остальные условия: независимые граничные якоря ──────────────────────
+  {
+    const eng = fresh()
+    eng.state.tick = 99
+    expect('tick_elapsed до абсолютной границы ложно', evalCondition({ type: 'tick_elapsed', min_tick: 100 } as never, eng) === false)
+
+    eng.state.location = 'loc_probe'
+    expect('player_enters_location совпадает с текущей локацией', evalCondition({ type: 'player_enters_location', location: 'loc_probe' } as never, eng))
+    expect('player_enters_location отвергает другую локацию', evalCondition({ type: 'player_enters_location', location: 'loc_other' } as never, eng) === false)
+    eng.state.scene = 'scene_probe'
+    expect('player_enters_scene совпадает с текущей сценой', evalCondition({ type: 'player_enters_scene', scene: 'scene_probe' } as never, eng))
+    expect('player_enters_scene отвергает другую сцену', evalCondition({ type: 'player_enters_scene', scene: 'scene_other' } as never, eng) === false)
+
+    eng.state.variables['probe_number'] = 7
+    expect('variable_compare ==', evalCondition({ type: 'variable_compare', var: 'probe_number', operator: '==', value: 7 } as never, eng))
+    expect('variable_compare !=', evalCondition({ type: 'variable_compare', var: 'probe_number', operator: '!=', value: 8 } as never, eng))
+    expect('variable_compare <', evalCondition({ type: 'variable_compare', var: 'probe_number', operator: '<', value: 8 } as never, eng))
+    expect('variable_compare >', evalCondition({ type: 'variable_compare', var: 'probe_number', operator: '>', value: 6 } as never, eng))
+    expect('variable_compare <=', evalCondition({ type: 'variable_compare', var: 'probe_number', operator: '<=', value: 7 } as never, eng))
+    expect('variable_compare >=', evalCondition({ type: 'variable_compare', var: 'probe_number', operator: '>=', value: 7 } as never, eng))
+    expect('variable_compare treats an absent variable as zero', evalCondition({ type: 'variable_compare', var: 'missing', operator: '==', value: 0 } as never, eng))
+
+    const yes = { type: 'flag_set', flag: 'probe' }
+    const no = { type: 'flag_not_set', flag: 'absent' }
+    eng.state.flags['probe'] = true
+    expect('and requires all nested conditions', evalCondition({ type: 'and', conditions: [yes, no] } as never, eng))
+    expect('and fails when one nested condition is false', evalCondition({ type: 'and', conditions: [yes, { type: 'flag_set', flag: 'absent' }] } as never, eng) === false)
+    expect('or succeeds when one nested condition is true', evalCondition({ type: 'or', conditions: [{ type: 'flag_set', flag: 'absent' }, yes] } as never, eng))
+    expect('or fails when every nested condition is false', evalCondition({ type: 'or', conditions: [{ type: 'flag_set', flag: 'absent' }, { type: 'flag_set', flag: 'also_absent' }] } as never, eng) === false)
+    expect('not inverts its nested condition', evalCondition({ type: 'not', condition: { type: 'flag_set', flag: 'absent' } } as never, eng))
+
+    eng.state.player.hp = 12
+    eng.state.player.needs['hunger'] = 25
+    eng.state.player.skills['sword'] = 60
+    ;(eng.state.player.stats as unknown as Record<string, number>)['STR'] = 12
+    expect('hp_le accepts a value at or below its boundary', evalCondition({ type: 'hp_le', threshold: 12 } as never, eng))
+    expect('hp_ge accepts a value at or above its boundary', evalCondition({ type: 'hp_ge', threshold: 12 } as never, eng))
+    expect('need_le accepts a value at or below its boundary', evalCondition({ type: 'need_le', need: 'hunger', threshold: 25 } as never, eng))
+    expect('need_ge accepts a value at or above its boundary', evalCondition({ type: 'need_ge', need: 'hunger', threshold: 25 } as never, eng))
+    expect('skill_ge reads the player skill threshold', evalCondition({ type: 'skill_ge', skill: 'sword', threshold: 60 } as never, eng))
+    expect('stat_ge reads the player stat threshold', evalCondition({ type: 'stat_ge', stat: 'STR', threshold: 12 } as never, eng))
+
+    eng.state.player.inventory.push({ item: 'item_probe', quantity: 2 })
+    eng.state.player.equipment['weapon'] = 'item_probe'
+    expect('has_item defaults to a quantity of one', evalCondition({ type: 'has_item', item: 'item_probe' } as never, eng))
+    expect('has_item honors its minimum quantity', evalCondition({ type: 'has_item', item: 'item_probe', min_quantity: 2 } as never, eng))
+    expect('equipped recognizes a matching equipment slot', evalCondition({ type: 'equipped', item: 'item_probe' } as never, eng))
+    expect('equipped rejects a different item', evalCondition({ type: 'equipped', item: 'item_other' } as never, eng) === false)
+
+    expect('entity_alive is true before an entity is recorded dead', evalCondition({ type: 'entity_alive', entity: 'npc_probe' } as never, eng))
+    eng.state.dead_entities.push('npc_probe')
+    expect('entity_dead is true after an entity is recorded dead', evalCondition({ type: 'entity_dead', entity: 'npc_probe' } as never, eng))
+    eng.state.weather = 'rain'
+    expect('weather_is matches current weather', evalCondition({ type: 'weather_is', weather: 'rain' } as never, eng))
+    const calm = fresh()
+    expect('weather_is reads missing weather as the empty string', evalCondition({ type: 'weather_is', weather: '' } as never, calm))
+
+    ;(eng.state as never)['party'] = [{ entity: 'npc_comp', needs: { hunger: 20 } }]
+    expect('in_party recognizes a listed companion', evalCondition({ type: 'in_party', entity: 'npc_comp' } as never, eng))
+    expect('in_party rejects an absent companion', evalCondition({ type: 'in_party', entity: 'npc_other' } as never, eng) === false)
+    expect('companion_need_le compares a tracked need', evalCondition({ type: 'companion_need_le', entity: 'npc_comp', need: 'hunger', threshold: 20 } as never, eng))
+    expect('companion_need_ge rejects a tracked value below threshold', evalCondition({ type: 'companion_need_ge', entity: 'npc_comp', need: 'hunger', threshold: 21 } as never, eng) === false)
+    expect('companion_need_le is false for a missing companion', evalCondition({ type: 'companion_need_le', entity: 'npc_missing', need: 'hunger', threshold: 20 } as never, eng) === false)
+    expect('companion_need_ge is true for an untracked companion need', evalCondition({ type: 'companion_need_ge', entity: 'npc_missing', need: 'hunger', threshold: 20 } as never, eng))
+
+    expect('scene condition defaults to true when absent', evalSceneCondition(undefined, eng))
+    eng.state.flags['scene_flag'] = true
+    expect('scene condition requires its flag', evalSceneCondition({ flag: 'scene_flag' } as never, eng))
+    expect('scene condition rejects a missing required flag', evalSceneCondition({ flag: 'absent' } as never, eng) === false)
+    expect('scene not_flag accepts an unset flag', evalSceneCondition({ not_flag: 'absent' } as never, eng))
+  }
+
+  const expectedChecks = 55
+  const passed = checks - failures
+  const rc = failures === 0 && checks === expectedChecks ? 0 : 1
   console.log(failures === 0 ? '\nвсе якоря зелёные' : `\n${failures} якорь(ей) упал(и)`)
-  process.exit(failures === 0 ? 0 : 1)
+  console.log(`SUMMARY ${passed}/${expectedChecks} passed; probes=${checks}; rc=${rc}`)
+  process.exit(rc)
 }
 
 main().catch((e) => {

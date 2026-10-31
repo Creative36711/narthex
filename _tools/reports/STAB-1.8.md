@@ -58,7 +58,7 @@ Behaviour was not redesigned: every restored branch is the `c501d32` branch. Two
 1. **Bundle rebuild vs. bundle prohibition.** *Неясно:* the card requires `npm run check:audit-bundle` rc 0 **and** forbids rebuilding `public/ai/*`, but `scripts/campaign-audit.mts:353` does `await import('../src/editor/store')`, so `store.ts` is bundled into `public/ai/campaign-audit.mjs`; any honest restore of the store makes the checked-in bundle stale. *Решил:* keep the published artifact untouched (the explicit prohibition wins, and the mission assigns bundle coherence to the Tools «Согласованность сборки» card), report rc 1 with exact figures. *Откат:* `npm run build:ai-bundle` in a build/tools card — nothing to revert, the file is untouched.
 2. **`panels` and auto-select.** *Неясно:* `c501d32` excluded `packs` but not `panels` from the document auto-select effect although its file list excluded both. *Решил:* exclude both (a section whose main pane is a workbench must not silently change the selected document). *Откат:* delete `'panels'` from the array at `EditorApp.tsx` (one token).
 3. **`setCapabilityMode` write path.** *Неясно:* `c501d32` wrote `project.json` with a private field assignment plus `this.touch('project.json')`; `scripts/view-write-smoke.mts` rejects any new `.touch(` call site outside its whitelist (and the whitelist file is out of zone). *Решил:* route the write through the existing internal `setJson('project.json', …)`, which performs exactly the same sequence (`project`/`projectFileExists`/`capabilityModes` update, then `touch`), so the invariant «просмотр ≠ запись» stays green without editing the smoke. *Откат:* replace the `setJson` call with the three field assignments plus `touch` and add the whitelist entry in the same change.
-4. **Brand strings.** *Неясно:* the same GOLD-1 revision left `Chronicle Forge` / `.chronicle` in `EditorApp.tsx` even though `scripts/brand-guard.mts` now treats those as the old brand. *Решил:* do not rename product text in a `tsc`-repair card — `npm run check:brand` is red on `main` with 298 hits before and after this patch, and the brand file list belongs to the «Согласованность сборки и проверок» card. *Откат:* re-run `npm run check:brand` and hand the file list to the brand card.
+4. **Brand strings.** *Неясно:* the same GOLD-1 revision left the former product name / legacy package extension in `EditorApp.tsx` even though `scripts/brand-guard.mts` now treats those as the old brand. *Решил:* do not rename product text in a `tsc`-repair card — `npm run check:brand` is red on `main` with 298 hits before and after this patch, and the brand file list belongs to the «Согласованность сборки и проверок» card. *Откат:* re-run `npm run check:brand` and hand the file list to the brand card.
 
 ## Commands and return codes
 
@@ -81,7 +81,7 @@ Behaviour was not redesigned: every restored branch is the `c501d32` branch. Two
 
 ### Smoke baseline (all 73 `npm run -s smoke:*`)
 
-The sweep was run twice — once on the untouched base (`/tmp/base`) and once with the patch (`/tmp/after`) — because 47 of the 73 fail on `main` for reasons unrelated to this card (engine `PACK_OPERATION_MISSING`, the deleted `src/core/dialogue`, strict audit warnings on the Ash fixture, missing ScriptCat fixtures, no browser in the sandbox).
+The sweep was run twice — once on the untouched base (`/tmp/base`) and once with the patch (`/tmp/after`) — because 47 of the 73 fail on `main` for reasons unrelated to this card (engine `PACK_OPERATION_MISSING`, the deleted `src/core/dialogue`, strict audit warnings on the Ash fixture, missing ScriptCat fixtures, and a missing Chromium dependency in one baseline runner).
 
 | | base | after |
 |---|---:|---:|
@@ -96,7 +96,7 @@ Flipped by this patch (no other smoke changed state, none regressed):
 | `smoke:dlg-script` | rc 1 | rc 0 (`мастерский сценарий: все проверки зелёные`) |
 | `smoke:pack-panels` | rc 1 | rc 0 (`PACK_PANELS_SMOKE passed`, incl. «проект открывается и сохраняется без потерь полей» — 98 files, `diff полей пуст`, and «студия не знает имён паков и панелей» — 0 id branches) |
 
-`smoke:capability-modes` and `smoke:pack-missing` are still rc 1 but now progress further: they pass the capability/`PACK_MISSING` sections restored here and stop at the unchanged pre-existing strict-warning assertion of `Проверка кампании · Пепел Каэрдена` (`✗ warning не допускается: 3`, three `flag_written_never_read` findings) — the same assertion that fails on the untouched base. `smoke:campaign-start` rc 2 = `Chromium не запустился: Не найден пакет @sparticuz/chromium` (no browser in the sandbox, pre-existing).
+`smoke:capability-modes` and `smoke:pack-missing` are still rc 1 but now progress further: they pass the capability/`PACK_MISSING` sections restored here and stop at the unchanged pre-existing strict-warning assertion of `Проверка кампании · Пепел Каэрдена` (`✗ warning не допускается: 3`, three `flag_written_never_read` findings) — the same assertion that fails on the untouched base. `smoke:campaign-start` rc 2 = `Chromium не запустился: Не найден пакет @sparticuz/chromium` (pre-existing missing Chromium dependency in that environment; see `docs/agents/browser.md` for setup).
 
 ## Known failures and refusals (not reported as passes)
 

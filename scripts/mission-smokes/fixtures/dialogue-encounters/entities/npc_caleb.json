@@ -1,0 +1,20 @@
+{
+  "id": "npc_caleb",
+  "type": "npc",
+  "label": "Калеб",
+  "description": "Калеб",
+  "portrait": {},
+  "stats": {
+    "STR": 10,
+    "CON": 10,
+    "SIZ": 10,
+    "DEX": 10,
+    "INT": 10,
+    "POW": 10,
+    "CHA": 10,
+    "HP": 20,
+    "MP": 10
+  },
+  "skills": {},
+  "dialogue": "dialogues/caleb.ink"
+}

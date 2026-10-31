@@ -1,0 +1,20 @@
+{
+  "id": "npc_vera",
+  "type": "npc",
+  "label": "Капитан Вера Сокол",
+  "description": "Капитан Вера Сокол",
+  "portrait": {},
+  "stats": {
+    "STR": 10,
+    "CON": 10,
+    "SIZ": 10,
+    "DEX": 10,
+    "INT": 10,
+    "POW": 10,
+    "CHA": 10,
+    "HP": 20,
+    "MP": 10
+  },
+  "skills": {},
+  "dialogue": "dialogues/vera.ink"
+}
