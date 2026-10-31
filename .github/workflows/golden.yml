@@ -20,6 +20,7 @@ on:
       - 'scripts/playkit/**'
       - 'scripts/pack-ai-kit.mts'
       - 'scripts/visual/local-browser.mjs'
+      - 'scripts/visual/playthrough.mjs'
   push:
     branches: [main]
     paths:
@@ -39,6 +40,7 @@ on:
       - 'scripts/playkit/**'
       - 'scripts/pack-ai-kit.mts'
       - 'scripts/visual/local-browser.mjs'
+      - 'scripts/visual/playthrough.mjs'
   workflow_dispatch:
 
 jobs:
