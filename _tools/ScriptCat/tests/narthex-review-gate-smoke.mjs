@@ -29,7 +29,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.90)\s*$/m);
+const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.91)\s*$/m);
 assert.ok(versionMatch, 'narthex.user.js must declare a version in x.y.z format');
 
 const sliceBetween = (startMarker, endMarker) => {
@@ -73,7 +73,7 @@ assert.match(
 const block = sliceBetween('  const reviewerRole = async () =>', '  async function dispatchTask(');
 
 const store = new Map();
-const calls = { sends: [], patches: [], plans: [], pauses: [], logs: [], autos: [] };
+const calls = { sends: [], patches: [], plans: [], pauses: [], logs: [], logOptions: [], autos: [] };
 
 const api = new Function(
   'C',
@@ -121,7 +121,10 @@ const api = new Function(
     calls.patches.push({ id, props });
     return {};
   },
-  (text) => calls.logs.push(String(text)),
+  (text, error, options) => {
+    calls.logs.push(String(text));
+    calls.logOptions.push({ text: String(text), error, options, autoAtLog: calls.autos.at(-1) });
+  },
   (reason, context = {}) => calls.pauses.push({ reason: String(reason), kind: context.kind }),
   (on) => calls.autos.push(on),
   (key, fallback) => (store.has(key) ? store.get(key) : fallback),
@@ -198,6 +201,7 @@ const reset = () => {
   calls.plans.length = 0;
   calls.pauses.length = 0;
   calls.logs.length = 0;
+  calls.logOptions.length = 0;
   calls.autos.length = 0;
 };
 
@@ -271,6 +275,10 @@ const reset = () => {
   assert.equal(store.get(key), true, 'событие объявлено тем же ключом, что и в missionDoneNotice');
   assert.equal(store.get('cfn-review:mission-1'), 'accept', 'отметка «закрыто приёмкой» поставлена');
   assert.ok(calls.logs.some((l) => /принята «Warden»/.test(l)), 'принятие названо');
+  const notice = calls.logOptions.find((row) => /принята «Warden»/.test(row.text));
+  assert.equal(notice.autoAtLog, false, 'автоцикл выключен до отправки события');
+  assert.equal(notice.options.ntfy, 'loud');
+  assert.equal(notice.options.cycleStopped, true, 'громкое событие имеет подтверждённую остановку');
   assert.ok(calls.logs.some((l) => /приёмка: оракул закрыт/i.test(l) || /Приёмка: оракул закрыт/.test(l)), 'чем принято — в журнале');
 }
 

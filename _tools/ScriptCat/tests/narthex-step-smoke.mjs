@@ -16,7 +16,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.90)\s*$/m);
+const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.91)\s*$/m);
 assert.ok(versionMatch, 'narthex.user.js must declare a version in x.y.z format');
 
 const tickStart = src.indexOf('async function tick(');
@@ -199,7 +199,7 @@ assert.match(noSendBlock, /GM_setValue\(K\.expect, null\);/, 'ожидание �
 assert.match(noSendBlock, /GM_setValue\("cfn-plan-at", 0\);/, 'троттлинг плана сбрасывается');
 assert.match(noSendBlock, /снимаю ожидание и начинаю ход заново/, 'причина видна в журнале');
 assert.match(noSendBlock, /expect = null;/, 'шаг продолжается без ожидания');
-assert.match(src, /watermark: mark, sentAt: Date\.now\(\), verified: true/, 'отметка ставится только после подтверждённой доставки');
+assert.match(src, /const mark = delivery\.msgId \|\| watermark;\s*const sentAt = Date\.now\(\);\s*GM_setValue\(K\.expect, \{\s*\.\.\.expect, watermark: mark, sentAt, verified: true/, 'отметка ставится только после подтверждённой доставки');
 assert.match(src, /pendingTtlMs: 600000/, 'TTL очереди в конфиге');
 assert.match(src, /replyWaitMs: 1800000/, 'предел ожидания ответа в конфиге');
 assert.match(src, /function dropHandoff\(reason\)/, 'зависшая передача снимается целиком');
@@ -326,7 +326,7 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     (e) => Boolean(e && e.isConnected && e.getClientRects().length),
     () => "m1",
     () => {},
-    (text, error) => out.logs.push({ text, error: Boolean(error) }),
+    (text, error, options) => out.logs.push({ text, error: Boolean(error), options }),
     (text, ctx) => out.pauses.push({ text, ctx }),
     async (gone, why) => {
       out.rollback.calls.push({ expect: gone, why });
@@ -430,6 +430,46 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   const saved = out.sets.get("cfn-expect");
   assert.equal(typeof saved?.sentAt, "number", 'sentAt записан в момент Send');
   assert.equal(saved?.kind, "plan", 'остальные поля ожидания сохранены');
+}
+
+// Подтверждённая доставка сообщает карточку и роль ровно один раз; мёртвый
+// Send не должен создавать ложный пуш о начале работы.
+{
+  const expect = { kind: 'dispatch', roleId: 'coordinator', roleName: 'Tools', ref: 'card-1', runId: 'run-1', title: 'STAB-1.18 · bundle', text: pending.text };
+  const ok = load({ pending, expect, editor: freshEditor(), send: true });
+  await ok.api.consumePending(true);
+  const delivery = ok.out.logs.filter((row) => row.options?.ntfyKey === 'dispatch-sent:card-1:run-1');
+  assert.equal(delivery.length, 1, 'подтверждённая доставка порождает одну веху');
+  assert.equal(delivery[0].options.ntfy, 'quiet');
+  assert.match(delivery[0].options.ntfyText, /STAB-1\.18.*Tools/);
+  const delivered = ok.out.sets.get('cfn-expect');
+  assert.ok(delivered.sentAt > 0, 'сначала сохраняется момент доставки');
+  assert.equal(delivered.dispatchSentAt, delivered.sentAt, 'для времени работы запомнена первая отправка карточки');
+
+  const reminder = load({ pending, expect: { ...expect, tries: 1, dispatchSentAt: 900_000 }, editor: freshEditor(), send: true });
+  await reminder.api.consumePending(true);
+  assert.ok(reminder.out.sets.get('cfn-expect').sentAt > 900_000, 'напоминание обновляет свою отметку');
+  assert.equal(reminder.out.sets.get('cfn-expect').dispatchSentAt, 900_000, 'начало работы не заменяется временем напоминания');
+  assert.ok(!reminder.out.logs.some((row) => row.options?.ntfyKey?.startsWith('dispatch-sent:')),
+    'напоминание о маркере не выдаётся за повторную отправку задания');
+  const resumedReminder = load({
+    pending, expect: { ...expect, tries: 0, isDispatchReminder: true, dispatchSentAt: 900_000 }, editor: freshEditor(), send: true,
+  });
+  await resumedReminder.api.consumePending(true);
+  assert.equal(resumedReminder.out.sets.get('cfn-expect').dispatchSentAt, 900_000, 'сброс счётчика паузой не меняет время');
+  assert.ok(!resumedReminder.out.logs.some((row) => row.options?.ntfyKey?.startsWith('dispatch-sent:')),
+    'после снятия паузы напоминание всё ещё не задание');
+  const mismatched = load({ pending, expect: { ...expect, text: 'чужая очередь' }, editor: freshEditor(), send: true });
+  await mismatched.api.consumePending(true);
+  assert.ok(!mismatched.out.logs.some((row) => row.options?.ntfyKey?.startsWith('dispatch-sent:')),
+    'при несовпадении очереди и ожидания не называем чужую карточку доставленной');
+  assert.equal(mismatched.out.sets.get('cfn-expect').dispatchSentAt, undefined,
+    'и не приписываем чужому ходу время этой отправки');
+
+  const dead = load({ pending, expect, editor: freshEditor(), send: true, deadSend: true });
+  await dead.api.consumePending(true);
+  assert.equal(dead.out.logs.filter((row) => row.options?.ntfyKey?.startsWith('dispatch-sent:')).length, 0,
+    'неподтверждённая отправка не объявляется доставленной');
 }
 
 // 6.2. Плашка завершённой задачи закрывается до вставки.
@@ -607,6 +647,24 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   assert.equal(saved?.captcha, false, 'признак капчи снят');
   assert.deepEqual(out.clicks, [], 'повторной отправки нет');
   assert.ok(out.logs.some((l) => /После капчи сообщение уже в чате/.test(l.text)), 'видно, почему не отправили заново');
+  const dispatched = load({
+    pending: carried, editor: freshEditor(), send: true, sentAlready: true,
+    expect: { roleId: 'coordinator', roleName: 'Tools', kind: 'dispatch', ref: 'card-1', runId: 'run-1', title: 'STAB-1.18', text: carried.text, captcha: true, seen: [] },
+  });
+  await dispatched.api.consumePending(true);
+  const notice = dispatched.out.logs.find((row) => row.options?.ntfyKey === 'dispatch-sent:card-1:run-1');
+  assert.match(notice.options.ntfyText, /STAB-1\.18.*Tools/, 'подтверждённая доставка после капчи тоже сообщает задание и роль');
+  assert.equal(dispatched.out.sets.get('cfn-expect').dispatchSentAt, dispatched.out.sets.get('cfn-expect').sentAt);
+  assert.deepEqual(dispatched.out.clicks, [], 'дополнительной отправки при этом нет');
+  const legacy = load({
+    pending: carried, editor: freshEditor(), send: true, sentAlready: true,
+    expect: { roleId: 'coordinator', roleName: 'Tools', kind: 'dispatch', ref: 'card-1', runId: 'run-1', title: 'STAB-1.18', text: carried.text, captcha: true },
+  });
+  await legacy.api.consumePending(true);
+  assert.ok(legacy.out.logs.some((row) => /После капчи сообщение уже в чате/.test(row.text)), 'старая совместимость не меняется');
+  assert.ok(!legacy.out.logs.some((row) => row.options?.ntfyKey?.startsWith('dispatch-sent:')),
+    'без снимка старую реплику не выдаём за достоверный push о доставке');
+  assert.equal(legacy.out.sets.get('cfn-expect').dispatchSentAt, 0, 'ненадёжное время не выдаём за начало работы');
 }
 
 // 6.5.1. Просроченная очередь: снимаем, объясняем и продолжаем шаг.

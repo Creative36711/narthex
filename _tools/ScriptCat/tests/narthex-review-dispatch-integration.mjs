@@ -33,6 +33,11 @@ const OTHER_MISSION = '4086f0cf-5705-81ea-94c6-e47bd6c3ba79';
 const AGENT = '01a18b9c-0c8b-71fd-8696-eb881e2e5217';
 const TURN = '09999999-aaaa-4bbb-8ccc-eeeeeeeeeeee';
 const NAME = 'GOLD-1 · Золотая кампания Каркас';
+const FIXED_NOW = Date.parse('2026-10-30T15:00:05.000Z');
+class TestDate extends Date {
+  constructor(...args) { super(...(args.length ? args : [FIXED_NOW])); }
+  static now() { return FIXED_NOW; }
+}
 const reviewer = { id: AGENT, name: 'Warden', fn: 'Reviewer', url: '/agent/warden' };
 const coordinator = { id: 'coord', name: 'Coordinator', fn: 'Coordinator' };
 const rich = (s) => ({ rich_text: s ? [{ plain_text: s }] : [] });
@@ -107,7 +112,7 @@ function harness({ reviewRequired = true } = {}) {
   };
   const pause = (reason, context = {}) => pauses.push({ reason, ...context });
   const env = {
-    C: { minAnswerChars: 200, markerReminders: 2, reworkLimit: 3 },
+    C: { minAnswerChars: 200, markerReminders: 2, reworkLimit: 3 }, Date: TestDate,
     K: { expect: 'expect', pending: 'pending', lastResult: 'lastResult', ghAsk: 'ghAsk' }, GM_getValue, GM_setValue,
     norm: (x) => String(x || '').replace(/-/g, '').toLowerCase(), rt: propText, taskState: state,
     taskTitle: (p) => propText(p?.properties?.['Запрос']),
@@ -121,7 +126,11 @@ function harness({ reviewRequired = true } = {}) {
     missionKind: (p) => p?.properties?.['Состояние']?.select?.name || '',
     nowIso: () => '2026-10-30T15:00:00.000Z', oneLine: (s, n) => String(s).slice(0, n), firstLine: (s) => String(s).split('\n')[0],
     questionInMarker: () => ({ kind: 'none' }), askQuestion: async () => { throw new Error('вопросов в тесте нет'); },
-    ensureMerged: async () => { calls.merge++; throw new Error('Reviewer не должен ждать PR'); },
+    ensureMerged: async () => {
+      calls.merge++;
+      if (h.mergeResult) return h.mergeResult;
+      throw new Error('Reviewer не должен ждать PR');
+    },
     prDeclined: (r) => r && Object.hasOwn(r, 'pr') && r.pr === null,
     prUrl: () => '', hasMergedClaim: () => false, rememberAnswerStamp: () => {}, lastMergeCheck: null,
     markerMissing: async (_role, _expect, name, _manual, why = '') => { calls.markerMissing.push({ name, why }); return false; },
@@ -130,7 +139,7 @@ function harness({ reviewRequired = true } = {}) {
     returnMission: async (_mission, decision) => { calls.returns.push(decision); return true; },
   };
   const create = new Function('env', `
-    const { C, K, GM_getValue, GM_setValue, norm, rt, taskState, taskTitle, richText,
+    const { C, K, Date, GM_getValue, GM_setValue, norm, rt, taskState, taskTitle, richText,
       notion, patch, gateway, activeMission, lastClosedMission, queueOf, messagesAfter, messages,
       roleFromPath, isUserNode, nodeId, messageRaw, roles, goTo, log, pause, autoOn, autoSet,
       setStatus, missionKind, nowIso, oneLine, firstLine, questionInMarker, askQuestion,
@@ -175,10 +184,15 @@ function harness({ reviewRequired = true } = {}) {
 // Координатор, и только отдельный вердикт закрывает миссию.
 {
   const h = harness();
-  const e = expectDispatch(); h.expect(e);
+  const e = expectDispatch({ sentAt: FIXED_NOW - 1_000, dispatchSentAt: FIXED_NOW - 75_000, tries: 1 }); h.expect(e);
   h.replies = [message(`${longBody}\n${reviewResult()}\n${agentResult()}`)];
   await h.submitExecutor(reviewer, e);
   assert.equal(state(h.pages.get(CARD)), 'Submitted');
+  const resultNotice = h.logs.find((row) => /→ Submitted/.test(row.text));
+  assert.equal(resultNotice.opts.ntfy, 'quiet');
+  assert.match(resultNotice.opts.ntfyText, /GOLD-1\.12.*Warden.*Submitted/, 'тихий результат называет карточку, роль и состояние');
+  assert.match(resultNotice.opts.ntfyText, /До обработки ответа: 1 мин 15 с/, 'длительность считается от отправки, а не напоминания');
+  assert.equal(resultNotice.opts.ntfyKey, `dispatch-result:${CARD}:${RUN}`, 'событие привязано к конкретной выдаче');
   assert.equal(h.pages.get(MID).properties['Состояние'].select.name, 'Активна');
   assert.equal(h.calls.writes, 1);
   assert.match([...h.logFile.values()][0], /CF_REVIEW_RESULT/);
@@ -205,6 +219,25 @@ function harness({ reviewRequired = true } = {}) {
   assert.equal(h.pages.get(MID).properties['Состояние'].select.name, 'Завершена');
   assert.equal(h.storage.get(`cfn-review:${MID}`), 'accept');
   assert.equal(h.getExpect(), null);
+}
+
+// PR не слит или заявленный мерж не подтвердился: карточка действительно
+// уходит Координатору, а результат уведомляет тихо, с названием и временем.
+for (const mergeResult of ['closed', 'unconfirmed', 'claim-rejected']) {
+  const h = harness({ reviewRequired: false });
+  const e = expectDispatch({ sentAt: FIXED_NOW - 13_000, dispatchSentAt: FIXED_NOW - 13_000 });
+  const worker = { id: AGENT, name: 'Tools', fn: 'Executor' };
+  h.expect(e);
+  h.mergeResult = mergeResult;
+  h.replies = [message(`${longBody}\n${agentResult({ pr: 123, merged: mergeResult === 'claim-rejected' })}`)];
+  await h.submitExecutor(worker, e);
+  assert.equal(state(h.pages.get(CARD)), 'Rework', mergeResult);
+  assert.deepEqual(h.calls.sends, ['Coordinator'], 'цикл возвращает ход Координатору');
+  assert.equal(h.pauses.length, 0, 'отсутствие мержа само по себе не останавливает цикл');
+  const resultNotice = h.logs.find((row) => row.opts?.ntfyKey === `dispatch-result:${CARD}:${RUN}`);
+  assert.equal(resultNotice.opts.ntfy, 'quiet');
+  assert.match(resultNotice.opts.ntfyText, /GOLD-1\.12.*Tools.*Rework/);
+  assert.match(resultNotice.opts.ntfyText, /До обработки ответа: 13 с/);
 }
 
 // Вердикт rework — отчёт принят к рассмотрению, но не принятие миссии.
@@ -472,6 +505,16 @@ for (const mode of ['expect', 'pending', 'race']) {
   assert.equal(result.ok, true);
   assert.equal(state(h.pages.get(CARD)), 'Submitted');
   assert.equal(h.calls.writes, 1);
+  const note = h.logs.find((row) => row.opts?.ntfyKey === `dispatch-result:${CARD}:${RUN}`);
+  assert.doesNotMatch(note.opts.ntfyText, /До обработки ответа/, 'без даты ручной поиск не выдумывает длительность');
+}
+{
+  const h = harness();
+  h.pages.get(CARD).properties['Started At'] = { date: { start: new Date(FIXED_NOW - 120_000).toISOString() } };
+  h.replies = [message(`${longBody}\n${reviewResult()}\n${agentResult()}`)];
+  assert.equal((await h.adoptPageAnswer()).ok, true);
+  const note = h.logs.find((row) => row.opts?.ntfyKey === `dispatch-result:${CARD}:${RUN}`);
+  assert.match(note.opts.ntfyText, /До обработки ответа: 2 мин 0 с/, 'ручной поиск считает от Started At, а не от своего sentAt');
 }
 {
   const h = harness();

@@ -45,8 +45,8 @@ const noticeBlock = sliceBetween('  async function missionDoneNotice(expect) {',
 assert.match(noticeBlock, /autoSet\(false\)/, 'автоцикл выключается: цикл остановлен, а не «ждёт»');
 assert.match(
   noticeBlock,
-  /ntfy: failed \? "loud" : "quiet"/,
-  'громко только «Провалена»: закрытие без приёмки — тихая пауза, принятую объявляет приёмка',
+  /ntfy: failed && \(running \|\| waited\) \? "loud" : "quiet"/,
+  'громко только «Провалена», остановившая цикл или ход: принятую объявляет приёмка',
 );
 assert.match(noticeBlock, /tone: failed \? "warn" : "ok"/, 'успех зелёный, провал жёлтый');
 assert.match(noticeBlock, /cfn-mission-done:/, 'событие объявляется один раз на миссию');
@@ -226,6 +226,24 @@ const closedMission = (state = 'Завершена', at = '2026-10-24') => ({
   assert.match(logs[0].t, /закрыта как «Провалена»/, 'провал не выдаётся за успех');
   assert.equal(logs[0].o.tone, 'warn', 'строка жёлтая');
   assert.equal(logs[0].o.ntfy, 'loud', 'провал звонит: разбирать его Мастеру');
+}
+
+// 2d-bis. Провал, замеченный на уже выключенном стенде, не объявляем сиреной.
+{
+  const { call, logs, store } = makeNotice({ closed: closedMission('Провалена', '2026-10-28'), expect: null });
+  await call(null);
+  assert.equal(store.get('auto'), false, 'стенд и так выключен');
+  assert.match(logs[0].t, /«Провалена»/);
+  assert.equal(logs[0].o.ntfy, 'quiet', 'провал без остановленного хода не будит');
+}
+// Включённый автоцикл при обнаружении провала действительно выключается.
+{
+  const { call, logs, store } = makeNotice({ closed: closedMission('Провалена', '2026-10-28'), expect: null });
+  store.set('auto', true);
+  await call(null);
+  assert.equal(store.get('auto'), false);
+  assert.equal(logs[0].o.ntfy, 'loud');
+  assert.equal(logs[0].o.cycleStopped, true);
 }
 
 // 2e. Миссию закрыли без приёмки — это стоп с объяснением, а не «конец работы».

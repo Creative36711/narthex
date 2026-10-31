@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.90
+// @version      1.4.91
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -279,24 +279,17 @@
     renderLog();
     setStatus();
     const plan = classifyNtfy(text, error, options);
-    if (plan) notifyNtfy(text, plan);
+    if (plan) notifyNtfy(options.ntfyText || text, plan);
   }
 
   // ───────────────────────────── ntfy ─────────────────────────────
   /**
-   * Два уровня пушей, как в старом dispatch:
-   *   тихий  (priority 2, memo)          — вехи, после которых цикл идёт сам:
-   *                                        ход выдан, ответ записан → Submitted,
-   *                                        пауза снята Мастером.
-   *   громкий (priority 5, warning)      — всё, что требует человека: пауза,
-   *                                        ошибка Notion/Drive/сети, таймаут PR,
-   *                                        маркер не пришёл после напоминаний,
-   *                                        видимая ошибка Arena, конец миссии.
-   * Рутинные шаги не уведомляются вовсе.
+   * Громкий пуш разрешён только событию, которое остановило цикл. Ошибка в
+   * журнале сама по себе этого не доказывает: например, PR без мержа может
+   * вернуться Координатору, а временный сбой — повториться автоматически.
+   * Тихие события ограничиваются ниже при отправке, журнал остаётся полным.
    */
   const QUIET_NTFY = [
-    /^Выдан ход /,
-    /^Задание отправлено/,
     /→ Submitted/,
     /^Пауза снята Мастером/,
     /^Миссия завершена/,
@@ -307,18 +300,21 @@
     if (options.skip || options.ntfy === false) return null;
     const clean = String(text || "").trim();
     if (!clean) return null;
-    if (options.ntfy === "loud" || options.urgent === true) {
-      return { loud: true, priority: "5", tags: "warning,rotating_light", title: options.title || "Narthex: нужен Мастер" };
+    const requestedLoud = options.ntfy === "loud" || options.urgent === true;
+    if (requestedLoud && options.cycleStopped === true) {
+      return {
+        loud: true, priority: "5", tags: "warning,rotating_light",
+        title: options.title || "Narthex: цикл остановлен", cycleStopped: true, key: options.ntfyKey || "",
+      };
     }
-    if (options.ntfy === "quiet") {
-      return { loud: false, priority: "2", tags: "memo", title: options.title || "Narthex" };
+    if (requestedLoud || options.ntfy === "quiet" || QUIET_NTFY.some((re) => re.test(clean))) {
+      return {
+        loud: false, priority: "2", tags: "memo", title: options.title || "Narthex",
+        cycleStopped: options.cycleStopped === true, key: options.ntfyKey || "",
+      };
     }
-    if (error) {
-      return { loud: true, priority: "5", tags: "warning,rotating_light", title: options.title || "Narthex: ошибка" };
-    }
-    if (QUIET_NTFY.some((re) => re.test(clean))) {
-      return { loud: false, priority: "2", tags: "memo", title: options.title || "Narthex" };
-    }
+    // Непредусмотренная ошибка остаётся в журнале; если она остановит цикл,
+    // pause() отправит одно уведомление с настоящей причиной остановки.
     return null;
   }
 
@@ -344,7 +340,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.90";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.91";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -631,13 +627,51 @@
     window.__narthex = debugApi;
   }
 
-  function notifyNtfy(text, { title = "Narthex", priority = "2", tags = "memo" } = {}) {
-    const topic = GM_getValue(K.ntfyTopic, "");
-    if (!normalizeNtfyTopic(topic)) return;
-    ntfyPublish(topic, GM_getValue(K.ntfyToken, ""), { message: text, title, priority, tags }).catch((e) => {
-      console.warn("[Narthex ntfy]", e.message);
-      log(`ntfy: пуш не ушёл — ${e.message}`, true, { skip: true });
-    });
+  // Повтор одной тихой вехи подавляется на 10 минут. Не больше восьми обычных
+  // тихих пушей на топик за это окно; тихая остановка не теряется из-за лимита.
+  // История лежит в ScriptCat, поэтому действует и после перехода страницы.
+  const NTFY_QUIET_WINDOW_MS = 10 * 60_000;
+  const NTFY_QUIET_LIMIT = 8;
+  function allowQuietNtfy(topic, key, essential = false, now = Date.now()) {
+    const saved = GM_getValue("cfn-ntfy-recent", []);
+    const recent = (Array.isArray(saved) ? saved : []).filter((item) =>
+      item && typeof item.key === "string" && Number.isFinite(Number(item.at)) &&
+      Number(item.at) <= now && now - Number(item.at) < NTFY_QUIET_WINDOW_MS,
+    );
+    const eventKey = `${topic}:${String(key).slice(0, 350)}`;
+    if (recent.some((item) => item.key === eventKey)) return false;
+    if (!essential && recent.filter((item) => item.topic === topic && !item.essential).length >= NTFY_QUIET_LIMIT) {
+      return false;
+    }
+    GM_setValue("cfn-ntfy-recent", [...recent, { topic, key: eventKey, at: now, essential }].slice(-100));
+    return true;
+  }
+
+  function notifyNtfy(text, { title = "Narthex", priority = "2", tags = "memo", cycleStopped = false, key = "" } = {}) {
+    try {
+      const topic = normalizeNtfyTopic(GM_getValue(K.ntfyTopic, ""));
+      if (!topic) return;
+      // Последняя защита: даже ошибочно помеченная «громкой» запись не звонит,
+      // пока автоцикл действительно идёт и пауза не поставлена.
+      const stopped = cycleStopped && (isPaused() || !autoOn());
+      if (Number(priority) >= 4 && !stopped) {
+        priority = "2";
+        tags = "memo";
+      }
+      if (Number(priority) < 4 && !allowQuietNtfy(topic, key || `${title}:${text}`, stopped)) return;
+      ntfyPublish(topic, GM_getValue(K.ntfyToken, ""), { message: text, title, priority, tags }).catch((e) => {
+        console.warn("[Narthex ntfy]", e.message);
+        try {
+          log(`ntfy: пуш не ушёл — ${e.message}`, true, { skip: true });
+        } catch (logError) {
+          console.warn("[Narthex ntfy] не удалось записать ошибку:", logError);
+        }
+      });
+    } catch (e) {
+      // Уведомление не должно остановить живую выдачу, даже если хранилище
+      // ScriptCat недоступно. В таком случае диагностика остаётся в консоли.
+      console.warn("[Narthex ntfy] уведомление пропущено:", e);
+    }
   }
 
   /** Гудок в браузере: страховка, если ntfy не настроен или телефон молчит. */
@@ -743,6 +777,8 @@
         title: context.notifyTitle || "Narthex: пауза",
         priority: "2",
         tags: "memo",
+        cycleStopped: true,
+        key: `pause:${info.kind}:${info.ref}:${info.runId}:${info.turnId}:${info.reason}`,
       });
       setStatus();
       return;
@@ -751,6 +787,7 @@
       title: context.notifyTitle || "Narthex: пауза",
       priority: "5",
       tags: "warning,rotating_light",
+      cycleStopped: true,
     });
     playAlert();
     setStatus();
@@ -1325,8 +1362,8 @@
         <button id="cfn-ntfy-close" title="Закрыть" style="${btnStyle()}">✕</button>
       </div>
       <div style="opacity:.7;margin-bottom:8px">Топик на ntfy.sh; пусто — уведомления выключены.<br>
-      Тихие (priority 2): ход выдан, ответ записан, пауза снята.<br>
-      Громкие (priority 5): пауза, ошибка, таймаут, конец миссии.</div>
+      Тихие (priority 2): задание отправлено, ответ записан, пауза снята.<br>
+      Громкие (priority 5): только когда цикл остановлен. Громкий тест — тоже только на паузе или при выключенном цикле.</div>
       <label style="display:block;margin-bottom:6px">Топик или ссылка<br>
         <input id="cfn-ntfy-topic" placeholder="arena-creative36711" style="${inputStyle()}"></label>
       <label style="display:block;margin-bottom:6px">Access token (необязательно)<br>
@@ -1369,6 +1406,10 @@
     };
 
     const test = async (priority, tags, title, label) => {
+      if (Number(priority) >= 4 && !isPaused() && autoOn()) {
+        say("Громкий тест доступен только на паузе или при выключенном автоцикле.", true);
+        return;
+      }
       say(`Отправляю в https://ntfy.sh/${normalizeNtfyTopic(topic.value) || "…"} …`);
       // Сторож: если менеджер скриптов не ответил ни успехом, ни ошибкой,
       // молчания быть не должно — через 25 с диалог сам скажет о зависании.
@@ -2121,9 +2162,10 @@
       {
         tone: failed ? "warn" : "ok",
         // Принятую миссию объявляет сама приёмка (`closeMission`) — громко и
-        // один раз. Здесь остаётся закрытие в обход приёмки: о нём Мастер уже
-        // знает из тихой паузы, звонить второй раз незачем (1.4.80).
-        ntfy: failed ? "loud" : "quiet",
+        // один раз. Провал звонит, только если остановил работающий цикл или
+        // незавершённый ход; на уже выключенном стенде достаточно тихо.
+        ntfy: failed && (running || waited) ? "loud" : "quiet",
+        cycleStopped: true,
         title: failed ? "Narthex: миссия провалена" : "Narthex: миссия завершена",
       },
     );
@@ -3409,6 +3451,12 @@
         title: expect.title,
         url: expect.url,
         tries: sent + 1,
+        // Не считать время с напоминания временем работы по карточке.
+        // Старые ожидания без отметки используют Started At из карточки.
+        ...(expect.kind === "dispatch" ? {
+          dispatchSentAt: Number(expect.dispatchSentAt) || 0,
+          isDispatchReminder: true,
+        } : {}),
       });
       return true;
     }
@@ -5302,6 +5350,24 @@
     return { expect, rolled };
   }
 
+  /** Уведомление и время относятся только к той очереди, что совпала с ходом. */
+  function isDispatchAssignment(expect, pending, me) {
+    return Boolean(expect && pending && expect.kind === "dispatch" && expect.ref && expect.runId &&
+      !expect.isDispatchReminder && !(Number(expect.tries) > 0) && norm(expect.roleId) === norm(me) &&
+      typeof expect.text === "string" && expect.text === pending.text);
+  }
+
+  /** Тихая веха только для подтверждённой доставки текущего хода карточки. */
+  function dispatchDeliveryNtfy(expect, pending, me) {
+    if (!isDispatchAssignment(expect, pending, me)) return { ntfy: false };
+    return {
+      ntfy: "quiet",
+      title: "Narthex: задание отправлено",
+      ntfyText: `«${expect.title || expect.ref}» — задание отправлено в чат «${expect.roleName || "исполнителя"}».`,
+      ntfyKey: `dispatch-sent:${expect.ref}:${expect.runId}`,
+    };
+  }
+
   /**
    * Досылает задание, сохранённое перед переходом на страницу адресата.
    *
@@ -5416,10 +5482,23 @@
       // Водяной знак не переписываем: он снят до отправки. Если за время
       // капчи агент успел ответить, последним сообщением окажется уже ответ —
       // и граница «после отправки» съела бы его целиком.
-      if (waiting) GM_setValue(K.expect, { ...waiting, sentAt: Date.now(), verified: true, captcha: false });
+      if (waiting) {
+        const sentAt = Date.now();
+        GM_setValue(K.expect, {
+          ...waiting, sentAt, verified: true, captcha: false,
+          ...(isDispatchAssignment(waiting, pending, me) ? { dispatchSentAt: captchaKnown ? sentAt : 0 } : {}),
+        });
+      }
       GM_setValue(K.pending, null);
       pendingNoticeAt = 0;
-      log("После капчи сообщение уже в чате — отправку не повторяю, жду ответа.");
+      // Старое ожидание без снимка распознаётся по последней реплике только
+      // ради совместимости. Для пуша о доставке нужно более сильное
+      // подтверждение: новая реплика относительно снимка до отправки.
+      log(
+        "После капчи сообщение уже в чате — отправку не повторяю, жду ответа.",
+        false,
+        captchaKnown ? dispatchDeliveryNtfy(waiting, pending, me) : { ntfy: false },
+      );
       return true;
     }
 
@@ -5598,7 +5677,13 @@
       // старое сообщение с тем же текстом границу не сдвигает (1.4.84).
       // Если id не пришёл (старая ветка), остаётся прежний водяной знак.
       const mark = delivery.msgId || watermark;
-      GM_setValue(K.expect, { ...expect, watermark: mark, sentAt: Date.now(), verified: true, seen });
+      const sentAt = Date.now();
+      GM_setValue(K.expect, {
+        ...expect, watermark: mark, sentAt, verified: true, seen,
+        // sentAt обновляется также для напоминаний; отдельная отметка нужна
+        // только для продолжительности работы и не управляет состоянием хода.
+        ...(isDispatchAssignment(expect, pending, me) ? { dispatchSentAt: sentAt } : {}),
+      });
       dbg("Send: доставка подтверждена, отметка внутри чата", { watermark: mark, via: delivery.via || "message" });
     }
     GM_setValue(K.pending, null);
@@ -5611,6 +5696,8 @@
     log(
       `Задание отправлено (${String(pending.text || "").length} символов` +
         `${delivery.msgId ? `, сообщение ${delivery.msgId}` : ""}).`,
+      false,
+      dispatchDeliveryNtfy(expect, pending, me),
     );
     return true;
   }
@@ -6101,7 +6188,8 @@
         `Заявка «${prLabelOf(result)} слит» не подтвердилась: ${check.why}. ` +
           "Карточка вернётся в Rework — работа в main не попала.",
         true,
-        { tone: "warn", ntfy: "quiet", title: "Narthex: заявка о мерже не подтвердилась" },
+        // Итоговый тихий пуш с названием карточки отправляется после Rework.
+        { tone: "warn", ntfy: false },
       );
       return "claim-rejected";
     }
@@ -7046,7 +7134,30 @@
     return "";
   }
 
+  /** Время до чтения ответа, без проверки PR и без подмены началом напоминания. */
+  function executorDuration(expect, page, finishedAt = Date.now()) {
+    let start = Number(expect?.dispatchSentAt) || 0;
+    if (!start) start = Date.parse(page?.properties?.["Started At"]?.date?.start || "");
+    // sentAt мог относиться к напоминанию или ручному поиску ответа, поэтому
+    // без исходной отметки и Started At время не угадываем.
+    if (!Number.isFinite(start) || start <= 0 || !Number.isFinite(finishedAt) || start > finishedAt) return "";
+    const seconds = Math.floor((finishedAt - start) / 1000);
+    if (!seconds) return "менее 1 с";
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours) return `${hours} ч ${minutes} мин`;
+    if (minutes) return `${minutes} мин ${seconds % 60} с`;
+    return `${seconds} с`;
+  }
+
+  function executorNtfyText(page, role, expect, finishedAt, outcome) {
+    const duration = executorDuration(expect, page, finishedAt);
+    return `«${taskTitle(page)}» — ${role.name}: ${outcome}.` +
+      (duration ? ` До обработки ответа: ${duration}.` : "");
+  }
+
   async function submitExecutor(role, expect, manual = false) {
+    const receivedAt = Date.now();
     if (!expect || expect.kind !== "dispatch") {
       pause("Это не ход по карточке: ответ не записываю.", { kind: "handoff-kind", ref: expect?.ref || "" });
       return true;
@@ -7300,6 +7411,10 @@
       GM_setValue(`cfn-done:${result.dispatch_id}:${result.run_id}`, true);
       log(`«${taskTitle(page)}» → Rework: заявка о мерже не подтвердилась (${why}).`, true, {
         tone: "warn",
+        ntfy: "quiet",
+        title: "Narthex: карточка возвращена",
+        ntfyText: executorNtfyText(page, role, expect, receivedAt, `мёрж не подтвердился, карточка в Rework (${why})`),
+        ntfyKey: `dispatch-result:${result.dispatch_id}:${result.run_id}`,
       });
       const coord = (await roles()).find((r) => r.fn === "Coordinator");
       if (!coord) throw new Error("Нет активного Coordinator.");
@@ -7329,7 +7444,12 @@
         "Ответ": { rich_text: richText(`${reason} Ответ ${hit.id} в логе ${logId}.`) },
       });
       GM_setValue(`cfn-done:${result.dispatch_id}:${result.run_id}`, true);
-      log(`«${taskTitle(page)}» → Rework: PR закрыт без мержа.`);
+      log(`«${taskTitle(page)}» → Rework: PR закрыт без мержа.`, false, {
+        ntfy: "quiet",
+        title: "Narthex: карточка возвращена",
+        ntfyText: executorNtfyText(page, role, expect, receivedAt, "PR не слит, карточка в Rework"),
+        ntfyKey: `dispatch-result:${result.dispatch_id}:${result.run_id}`,
+      });
       const coord = (await roles()).find((r) => r.fn === "Coordinator");
       if (!coord) throw new Error("Нет активного Coordinator.");
       if (currentDispatch(expect)) GM_setValue(K.expect, null);
@@ -7359,6 +7479,13 @@
         ? `Ответ ${role.name} записан${review?.verdict ? ` (вердикт: ${review.verdict})` : ""}, PR не нужен, задача → Submitted.`
         : `Ответ ${role.name} записан, PR ${merged === "claimed" ? "слит (по маркеру)" : "слит"}, задача → Submitted.` +
             (link ? ` PR: ${link}` : " (номер PR не указан в маркере)"),
+      false,
+      {
+        ntfy: "quiet",
+        title: "Narthex: ответ записан",
+        ntfyText: executorNtfyText(page, role, expect, receivedAt, "ответ записан, карточка Submitted"),
+        ntfyKey: `dispatch-result:${result.dispatch_id}:${result.run_id}`,
+      },
     );
 
     if (!currentDispatch(expect)) {
@@ -9449,7 +9576,7 @@
       `Миссия «${name}» принята «${reviewer.name}»: закрыта, автоцикл остановлен. ` +
         "Следующая работа — новым ТЗ и новой миссией, а не хвостом этой.",
       false,
-      { tone: "ok", ntfy: "loud", title: "Narthex: миссия принята" },
+      { tone: "ok", ntfy: "loud", cycleStopped: true, title: "Narthex: миссия принята" },
     );
     return true;
   }

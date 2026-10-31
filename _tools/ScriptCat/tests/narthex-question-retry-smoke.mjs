@@ -187,7 +187,7 @@ has('queueQuestion(q, ctx);', 'неудачная запись попадает 
 has('Строка отложена и повторится сама', 'Мастер видит, что вопрос не потерян');
 has('await flushQuestionQueue();', 'повтор запускается при обновлении вопросов');
 has('qQueue: "cfn-q-queue",', 'ключ хранилища очереди');
-const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.90)\s*$/m);
+const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.91)\s*$/m);
 assert.ok(versionMatch, 'narthex.user.js must declare a version in x.y.z format');
 const V = versionMatch[1];
 has(`@version      ${V}`, `версия ${V}`);

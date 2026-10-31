@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и новый адрес ntfy.
-const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.90)\s*$/m);
+const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.91)\s*$/m);
 assert.ok(versionMatch, 'narthex.user.js must declare a version in x.y.z format');
 const version = versionMatch[1];
 assert.match(src, /@connect\s+ntfy\.sh/, 'ntfy.sh разрешён в @connect');
@@ -84,19 +84,49 @@ const missingFn = src.slice(src.indexOf('async function markerMissing('), src.in
 assert.match(missingFn, /sendToRole\(role, markerReminder/, 'напоминание содержит шаблон маркера');
 assert.match(missingFn, /pause\(/, 'после лимита — пауза для Мастера');
 assert.match(missingFn, /tries/, 'счётчик попыток хранится в ожидании');
+// Действительная отправка напоминания переносит время исходной выдачи, не
+// подменяя его временем нового служебного сообщения.
+{
+  const calls = [];
+  const missing = new Function(
+    'stillWorking', 'pageReady', 'messagesAfter', 'dbg', 'tail', 'markerRejectHint', 'markerStep',
+    'log', 'sendToRole', 'markerReminder', 'C',
+    `${missingFn}\nreturn markerMissing;`,
+  )(
+    () => false, () => ({ ok: true }), () => [{ id: 'm1', raw: 'отчёт', text: 'отчёт', ended: true }],
+    () => {}, (text) => text, () => '', (sent) => sent < 2 ? 'remind' : 'pause',
+    () => {}, async (...args) => calls.push(args), () => 'напоминание', { markerReminders: 2 },
+  );
+  const role = { name: 'Tools' };
+  const base = { kind: 'dispatch', ref: 'card', runId: 'run', sentAt: 10_000, tries: 0 };
+  await missing(role, { ...base, dispatchSentAt: 10_000 }, 'CF_AGENT_RESULT');
+  assert.equal(calls.at(-1)[4].dispatchSentAt, 10_000);
+  assert.equal(calls.at(-1)[4].tries, 1);
+  assert.equal(calls.at(-1)[4].isDispatchReminder, true, 'служебная выдача не называется заданием после снятия паузы');
+  await missing(role, { ...base, dispatchSentAt: 10_000, sentAt: 70_000, tries: 1 }, 'CF_AGENT_RESULT');
+  assert.equal(calls.at(-1)[4].dispatchSentAt, 10_000, 'второе напоминание сохраняет начало');
+  await missing(role, base, 'CF_AGENT_RESULT');
+  assert.equal(calls.at(-1)[4].dispatchSentAt, 0, 'у старого ожидания sentAt может быть от напоминания — не угадываем');
+  await missing(role, { ...base, dispatchSentAt: 0 }, 'CF_AGENT_RESULT');
+  assert.equal(calls.at(-1)[4].dispatchSentAt, 0, 'неизвестная дата не заменяется вымышленной');
+  await missing(role, { ...base, adopted: true }, 'CF_AGENT_RESULT');
+  assert.equal(calls.at(-1)[4].dispatchSentAt, 0, 'время ручного поиска ответа не считается отправкой');
+}
 assert.match(src, /const watermark = lastMessageId\(\);/, 'водяной знак снимается на странице адресата до отправки');
-assert.match(src, /watermark: mark, sentAt: Date\.now\(\)/, 'отметка ставится после успешной доставки');
+assert.match(src, /const mark = delivery\.msgId \|\| watermark;\s*const sentAt = Date\.now\(\);\s*GM_setValue\(K\.expect, \{\s*\.\.\.expect, watermark: mark, sentAt, verified: true/, 'отметка ставится после успешной доставки');
 
 // 7. Классификатор ntfy: тихо / громко / молча.
 const ntfyStart = src.indexOf('const QUIET_NTFY = [');
 const ntfyEnd = src.indexOf('function notifyNtfy(', ntfyStart);
 const classifyNtfy = new Function(`${src.slice(ntfyStart, ntfyEnd)}\nreturn classifyNtfy;`)();
 assert.equal(classifyNtfy('Проверяю роль и очередь…', false), null, 'рутина не уходит в ntfy');
-assert.equal(classifyNtfy('Выдан ход Kernel: «NAR-1.3».', false)?.priority, '2', 'выдача хода — тихий пуш');
+assert.equal(classifyNtfy('Выдан ход Kernel: «NAR-1.3».', false), null, 'до подтверждённой отправки отдельного пуша нет');
 assert.equal(classifyNtfy('Ответ Kernel записан, PR слит, задача → Submitted.', false)?.priority, '2', 'Submitted — тихий пуш');
 assert.equal(classifyNtfy('Пауза снята Мастером (кнопка «Продолжить»). Продолжаю.', false)?.priority, '2', 'снятие паузы — тихий пуш');
-assert.equal(classifyNtfy('Ошибка цикла: HTTP 502', true)?.priority, '5', 'ошибка — громкий пуш');
-assert.equal(classifyNtfy('ПАУЗА: агент молчит', true)?.priority, '5', 'пауза — громкий пуш');
+assert.equal(classifyNtfy('Ошибка цикла: HTTP 502', true), null, 'сама ошибка без остановки не будит Мастера');
+assert.equal(classifyNtfy('ПАУЗА: агент молчит', true), null, 'строка журнала сама по себе не подтверждает остановку');
+assert.equal(classifyNtfy('Цикл остановлен', true, { ntfy: 'loud', cycleStopped: true })?.priority, '5', 'явное событие остановки — громкое');
+assert.equal(classifyNtfy('PR не слит, работа продолжается', true, { ntfy: 'loud' })?.priority, '2', 'нельзя сделать громким событие продолжающегося цикла');
 assert.equal(classifyNtfy('Ответ без маркера', true, { ntfy: 'quiet' })?.priority, '2', 'напоминание о маркере не будит ночью');
 
 // 8. Панель: кнопки очистки и ntfy, без автоперезагрузки страницы.

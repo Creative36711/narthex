@@ -20,12 +20,12 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.90)\s*$/m);
-assert.ok(versionMatch, 'narthex.user.js must declare the independently expected release 1.4.90');
+const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.91)\s*$/m);
+assert.ok(versionMatch, 'narthex.user.js must declare the independently expected release 1.4.91');
 
 // Negative control: deriving both sides from the modified manifest is a false
 // positive; the independent pinned guard must reject the substituted value.
-const substitutedManifest = src.replace(/^\/\/ @version\s+1\.4\.90\s*$/m, '// @version      9.9.9');
+const substitutedManifest = src.replace(/^\/\/ @version\s+1\.4\.91\s*$/m, '// @version      9.9.9');
 assert.notEqual(substitutedManifest, src, 'the version substitution fixture must actually change the manifest');
 const selfDerivedVersion = substitutedManifest.match(/^\/\/ @version\s+(\d+\.\d+\.\d+)\s*$/m)?.[1];
 assert.equal(selfDerivedVersion, '9.9.9');
@@ -36,7 +36,7 @@ assert.match(
 );
 assert.doesNotMatch(
   substitutedManifest,
-  /^\/\/ @version\s+1\.4\.90\s*$/m,
+  /^\/\/ @version\s+1\.4\.91\s*$/m,
   'the independent release oracle rejects the substituted manifest',
 );
 
@@ -100,8 +100,8 @@ assert.match(
 assert.match(src, /if \(context\.quiet\) \{/, 'пауза умеет молчать');
 assert.match(
   src,
-  /ntfy: failed \? "loud" : "quiet",/,
-  'конец миссии без приёмки больше не звонит: принятую объявляет сама приёмка',
+  /ntfy: failed && \(running \|\| waited\) \? "loud" : "quiet",/,
+  'без приёмки конец не звонит; провал громкий, только когда остановил работу',
 );
 
 // ── 4. Сам блок ответа ─────────────────────────────────────────────────────
