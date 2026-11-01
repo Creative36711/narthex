@@ -34,34 +34,43 @@ assert.equal(audited.registeredCount, entries.length, 'all exact registered resp
 assert.deepEqual(audited.findings, [])
 const auditedEntry = audited.observations.find((observation) => observation.path === entry.path)
 assert.ok(auditedEntry, `expected an audited response for ${entry.path}`)
-const expected = entry.expected.preview
-const reason = auditedEntry.reason
 
 const expectedResponse = {
   path: entry.path,
-  status: expected.status,
-  contentType: expected.contentType,
-  reason,
+  status: entry.expected.preview.status,
+  contentType: entry.expected.preview.contentType,
+  reason: auditedEntry.reason,
   url: `http://127.0.0.1/campaigns/${campaignId}/${entry.path}`,
 }
-const exact = splitCampaignResponseFailures({
-  campaignId,
-  failures: [expectedResponse],
-  knownAbsences: audited.observations,
-})
-assert.equal(exact.blocking.length, 0, 'the exact registered 200 text/html response stays allowed')
+const failuresByCase = {
+  registered: expectedResponse,
+  'status-500': { ...expectedResponse, status: 500, reason: 'HTTP 500' },
+  'wrong-mime': {
+    ...expectedResponse,
+    contentType: 'application/json',
+    reason: 'expected image/*, received application/json',
+  },
+}
+const selected = process.argv[2] || 'all'
+const caseNames = selected === 'all' ? Object.keys(failuresByCase) : [selected]
+assert.ok(caseNames.every((name) => failuresByCase[name]), `unknown case ${selected}; use all, registered, status-500, or wrong-mime`)
 
-// An unrelated HTTP 500 at the same known path was hidden by the former
-// `!knownAbsencePaths.has(failure.path)` filter. It must now be blocking.
-const unrelated = { ...expectedResponse, status: 500, reason: 'HTTP 500' }
-const pathOnlyWouldSuppress = new Set([entry.path]).has(unrelated.path)
-const rejected = splitCampaignResponseFailures({
-  campaignId,
-  failures: [unrelated],
-  knownAbsences: audited.observations,
+const results = caseNames.map((name) => {
+  const failure = failuresByCase[name]
+  const partition = splitCampaignResponseFailures({
+    campaignId,
+    failures: [failure],
+    knownAbsences: audited.observations,
+  })
+  const productionRc = partition.blocking.length > 0 ? 1 : 0
+  const pathOnlyWouldSuppress = new Set([entry.path]).has(failure.path)
+  const expectedRc = name === 'registered' ? 0 : 1
+  console.log(`RESPONSE-FILTER-PROBE PASS case=${name} pathOnlyWouldSuppress=${pathOnlyWouldSuppress}; blocking=${partition.blocking.length}; nonBlocking=${partition.nonBlocking.length}; production-rc=${productionRc}; record=${failure.status} ${failure.contentType}; path=${campaignId}/${entry.path}`)
+  assert.equal(productionRc, expectedRc, `${name} must produce the real response filter's expected rc`)
+  assert.equal(partition.blocking.length, expectedRc, `${name} blocking count must determine rc`)
+  return { name, productionRc, blocking: partition.blocking.length }
 })
-assert.equal(pathOnlyWouldSuppress, true, 'demonstrate the prior path-only blind spot')
-assert.equal(rejected.blocking.length, 1, 'unrelated response on the known path must be rejected')
 
-console.log(`NEGATIVE-PROBE PASS: path-only-suppressed=${pathOnlyWouldSuppress}; exact-known=allowed; unrelated status=500 on ${campaignId}/${entry.path} => blocking=${rejected.blocking.length}; intentional exit rc=1`)
-process.exitCode = 1
+// The process exit is the production blocking result, not an unconditional
+// negative-test exit. Run each case separately to observe its real rc.
+process.exitCode = results.some((result) => result.blocking > 0) ? 1 : 0

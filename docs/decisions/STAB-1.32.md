@@ -1,30 +1,30 @@
 # STAB-1.32 — ADR: точка проверки битых изображений и фильтр известных путей
 
-- Статус: proposed
+- Статус: accepted
 - Дата: 2026-11-01
 - Baseline main: `fdc3246a6ede8fadb3e5cadeb13ec57d6b5370ae`
+- Ответ Мастера: вариант A принят 2026-11-01 (run `a01bcd83-36c7-4c9e-9af0-47a1e95b4aee`).
 
 ## Неясно
 
-- В PR #192 (`c78bb16` → `fdc3246`) изменён защищённый workflow-файл `.github/workflows/golden.yml`: в `pull_request.paths` и `push.paths` добавлен `scripts/visual/playthrough.mjs`, а после golden-проверок добавлена публикация границ soak. Эти строки сами по себе не меняют временную точку проверки изображения.
-- Проверка времени находится в другом файле того же PR — `scripts/visual/playthrough.mjs`. Изменение `step()` может отложить снимок до тех пор, пока React fallback удалит неудачный `<img>` из DOM; тогда данная ситуация уже не попадёт в подсчёт `brokenImages`.
-- Фильтр `blockingResourceFailures` пропускает все ошибки, если совпал только `failure.path` с D-076 путём. Он не проверяет статус, content-type или reason конкретного ответа; посторонний HTTP 500 на том же пути поэтому мог исчезнуть из результата.
+- PR #192 (`c78bb16` → `fdc3246`) изменил защищённый `.github/workflows/golden.yml`: добавил `scripts/visual/playthrough.mjs` в path-фильтры и публикацию границ soak. Эти изменения workflow не являются проверкой момента снимка.
+- Код изображения находится в `scripts/visual/playthrough.mjs`. PR #192 сменил ожидание `image.complete` на ожидание `image.complete && image.naturalWidth > 0`; оно может ждать fallback до 3000 ms и тем самым снимать состояние уже после удаления broken `<img>`.
+- Предыдущий PR #193 также поставил animation frame перед снимком и убрал строгое ожидание успешной загрузки. Chromium 131 probe показал, что при fallback на следующем кадре снимок после кадра видит 0 broken `<img>` из 8, а снимок до кадра видит 8 из 8; поэтому кадр перед первым снимком теряет наблюдение.
+- Ответы по известному D-076 пути нельзя разрешать только по path: HTTP 500 либо неверный MIME на том же пути не являются зарегистрированным отсутствием.
 
-## Что именно изменено в PR #192
+## Что именно меняет PR #192
 
-### Защищённый путь из diff
+Точный защищённый путь из списка PR #192: `.github/workflows/golden.yml`. Он не меняется в STAB-1.32. Судьба его path-фильтров/soak notice не утверждена ответом по этой ADR; отдельное решение — STAB-1.34.
 
-Точный защищённый путь из списка PR #192: `.github/workflows/golden.yml`. В нём PR добавил путь `scripts/visual/playthrough.mjs` в оба списка запуска workflow и шаг публикации уже существующих времён soak. Файл не содержит изменённой точки проверки `<img>`; в STAB-1.32 его содержимое не меняется.
+Фактическая точка — `scripts/visual/playthrough.mjs`.
 
-### Фактическая временная точка в `scripts/visual/playthrough.mjs`
-
-Фрагмент до PR #192:
+До PR #192:
 
 ```js
 await page.waitForFunction(() => [...document.images].every((image) => image.complete), undefined, { timeout: 3000 }).catch(() => {})
 ```
 
-Фрагмент, добавленный PR #192:
+После PR #192:
 
 ```js
 await page.waitForFunction(
@@ -34,25 +34,41 @@ await page.waitForFunction(
 ).catch(() => {})
 ```
 
-Итоговый фрагмент STAB-1.32 возвращает старое условие `image.complete` и после его завершения даёт ровно один animation frame для доставки `error`-события и commit React fallback:
+Вариант PR #193 — снимок после animation frame без сохранения строгого ожидания — отклонён. Вариант A сохраняет старую точку счётчиков и добавляет строгое ожидание после неё в том же лимите:
 
 ```js
-await page.waitForFunction(() => [...document.images].every((image) => image.complete), undefined, { timeout: 3000 }).catch(() => {})
-await page.evaluate(() => new Promise((resolveFrame) => requestAnimationFrame(resolveFrame)))
+const imageObservation = await observeImageCheckpoint(page, {
+  inspectImages: true,
+  timeoutMs: IMAGE_CHECKPOINT_BUDGET_MS, // 3000 ms total
+})
+// observeImageCheckpoint: wait for image.complete → freeze checkpoint counters →
+// wait for image.complete && image.naturalWidth > 0 using the remaining budget.
 ```
 
-PR #192 ждал успешной загрузки всех оставшихся изображений; для broken image ожидание могло дойти до 3-секундного таймаута, за который React `onError` успевал убрать `<img>` в пользу fallback. Следующий снимок проверял уже суженный набор ситуаций. STAB-1.32 не использует `naturalWidth > 0` как условие ожидания: после одной frame все оставшиеся `<img>` всё ещё проверяются прежними `brokenImages`/`emptySrcImages` порогами. Frame не является 3-секундным grace period для загрузки: если broken `<img>` не удалён fallback-ом после своего `error`-обработчика, он остаётся в DOM и экзамен проваливается. Seed, число шагов/повторов, browser/parity-команды, non-zero rc handling и `pipefail` не изменяются.
+`checkpoint` хранит счётчики/URL до строгого ожидания; `settled` хранится отдельно и не перезаписывает ранние наблюдения. Между ними нет `requestAnimationFrame`. Общий бюджет обоих ожиданий — не более 3000 ms; второе ожидание получает только остаток.
 
-## Варианты
+## Решил — вариант A принят
 
-Точка проверки рассматривается отдельно от обязательного исправления фильтра ответов: при любом варианте ниже посторонний ответ на D-076 пути должен остаться blocking.
+1. Восстановить прежнюю временную точку: после `image.complete` снять и сохранить `brokenImages`, `emptySrcImages`, портреты и URL каждого наблюдения немедленно, до кадра и до ожидания `naturalWidth > 0`.
+2. Сохранить дополнительное строгое ожидание `image.complete && image.naturalWidth > 0`, но отдать ему только остаток общего 3000-ms бюджета. Снимок/счётчики checkpoint остаются неизменны после fallback.
+3. Разрешать переходный broken image как намеренное отсутствие только при точном совпадении фактического campaign/path/status/MIME/reason с `classification: allowed` в реестре и если image исчез/исправился к settled snapshot. Его исходный checkpoint-счётчик всё равно остаётся в отчёте. Нерегистрируемый transition и persistent broken image дают finding; пустой `src` всегда остаётся finding.
+4. Для resource failures оставить fail-closed matcher: точный зарегистрированный ответ допустим, а несоответствие campaign/path/status/content-type/reason блокируется. Не фильтровать по одному пути.
+5. Оставить seed, число шагов/повторов, image-пороги, browser/parity-набор, обработку ненулевого rc и `pipefail` без изменений.
+6. `.github/workflows/golden.yml` и его изменения из PR #192 не менять; их решение относится к STAB-1.34.
 
-1. **Вернуть прежнюю точку** — ждать `image.complete` с прежним пределом 3000 ms, дать один animation frame на commit `onError` fallback и зафиксировать все оставшиеся `<img>`. Сохранить все проверки `brokenImages`/`emptySrcImages` и закрыть path-only исключение фильтра. **Default этой ADR и вариант, применённый в STAB-1.32.**
-2. **Принять новую точку** — оставить ожидание `image.complete && image.naturalWidth > 0` только с явным решением Мастера и обоснованием остаточного риска: broken image, заменённый fallback до снимка, не будет учтён как broken `<img>` в этой точке.
-3. **Оставить точку как есть** — сохранить поведение PR #192 и описанный выше риск; это не закрывает исходную находку о полноте наблюдения.
+### Рассмотренные варианты
 
-До ответа Мастера запись остаётся `proposed`. Вопрос и три варианта передаются в поле `question` маркера этой сдачи; предложенное карточкой действие по умолчанию — вариант 1. Исправление фильтра независимо от выбора временной точки остаётся обязательным: исключать ответ только по пути нельзя.
+- **A — вернуть прежнюю точку, сохранить строгий wait в остатке того же лимита. Принят.** Счётчики фиксируются до fallback; результат после fallback не может превратить сохранённый неожиданный FAIL в PASS.
+- **B — принять ожидание `complete && naturalWidth > 0` как первую точку с обоснованием остаточного риска. Отклонён Мастером.** Оно может снять наблюдение после замены broken `<img>`.
+- **C — оставить текущую точку без изменения. Отклонён Мастером.** Вариант не закрывает потерю раннего наблюдения.
+- Сдвиг первого снимка на animation frame также отклонён: синтетическая проба показала потерю всех 8/8 временно битых image.
+
+## Проверяемые пробы
+
+`image-checkpoint-probe.mjs` использует тот же production helper, запускает Chromium и фиксирует оба снимка. Временный broken image, удалённый fallback на следующем кадре, должен остаться ранним FAIL; постоянный broken image и пустой `src` также должны дать FAIL; исправная картинка должна пройти. Таймаут каждой пробы подтверждает общий предел 3000 ms.
+
+`response-filter-negative.mjs` запускает production partition отдельно для точной записи, HTTP 500 на известном пути и неверного MIME на том же пути. Код возврата вычисляется из `blocking.length`; для двух несовпадений ожидается `rc=1`, для точной записи — `rc=0`.
 
 ## Откат
 
-Если Мастер выберет вариант 2 или 3, возвратить в `scripts/visual/playthrough.mjs` соответственно условие `complete && naturalWidth > 0` либо точное поведение PR #192; не удалять подсчёт и провал по `brokenImages`/`emptySrcImages`. Сохранить `splitCampaignResponseFailures`: любое отличие от единственного зарегистрированного статуса, content-type, reason или canonical campaign/path остаётся blocking. Не менять seed, повторы, browser/parity-набор, ненулевые коды возврата или `pipefail`.
+Откат разрешён только отдельной принятой ADR. Возвратить freeze counters после `image.complete`, удалить strict `complete && naturalWidth > 0` или перенести первый снимок за animation frame можно лишь новым решением; при любом изменении сохранить лимит, исходные счётчики, negative probes и проверку persistent broken/empty-src. Не менять защищённый `.github/workflows/golden.yml` в рамках STAB-1.32.
