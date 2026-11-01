@@ -20,7 +20,7 @@ export function readUserscriptVersionFields(source) {
     metadataVersion: metadataMatch[1],
     metadataLine: lineAt(source, metadataMatch.index),
     runtimeFallback: runtimeMatch[1],
-    runtimeLine: lineAt(source, runtimeMatch.index),
+    runtimeLine: lineAt(source, runtimeMatch.index + runtimeMatch[0].lastIndexOf(runtimeMatch[1])),
   };
 }
 
