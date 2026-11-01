@@ -70,7 +70,7 @@ jobs:
       - name: Детерминизм циклов
         # Keep the deterministic gate intact; allow headless-browser startup/runner variance
         # and preserve its complete output as an artifact if the step fails.
-        timeout-minutes: 10
+        timeout-minutes: 5
         env:
           NARTHEX_PARITY_BROWSER_PREFIX: ${{ runner.temp }}/narthex-parity-browser
           TMPDIR: ${{ runner.temp }}/narthex-parity-runtime
