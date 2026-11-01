@@ -26,9 +26,16 @@ import { declaredAbsences } from './absence-policy.mjs'
 import {
   auditConsoleErrors,
   auditKnownAbsences,
+  isExactRegisteredKnownAbsenceResponse,
   loadObservationRegistry,
   OBSERVATION_REGISTRY_RELATIVE_PATH,
+  splitCampaignResponseFailures,
 } from './observation-policy.mjs'
+import {
+  captureImageMetrics,
+  IMAGE_CHECKPOINT_BUDGET_MS,
+  observeImageCheckpoint,
+} from './image-checkpoint.mjs'
 
 const positional = process.argv.slice(2).filter((arg) => !arg.startsWith('--'))
 const adventureOnly = process.argv.includes('--adventure')
@@ -146,36 +153,25 @@ async function openPage(context) {
 }
 
 async function step(page, name, label) {
+  let info
   if (examMode) {
-    // `complete` flips before an image's onError handler has necessarily committed its React fallback.
-    // Wait for every remaining DOM image to load; a failed image that remains mounted is still counted below.
-    await page.waitForFunction(
-      () => [...document.images].every((image) => image.complete && image.naturalWidth > 0),
-      undefined,
-      { timeout: 3000 },
-    ).catch(() => {})
+    const imageObservation = await observeImageCheckpoint(page, {
+      inspectImages: true,
+      timeoutMs: IMAGE_CHECKPOINT_BUDGET_MS,
+    })
+    info = {
+      ...imageObservation.checkpoint,
+      settledBrokenImages: imageObservation.settled.brokenImages,
+      settledBrokenImageUrls: imageObservation.settled.brokenImageUrls || [],
+      settledBrokenPortraitImages: imageObservation.settled.brokenPortraitImages,
+      settledBrokenPortraitImageUrls: imageObservation.settled.brokenPortraitImageUrls || [],
+      settledEmptySrcImages: imageObservation.settled.emptySrcImages,
+      settledEmptySrcImageUrls: imageObservation.settled.emptySrcImageUrls || [],
+      imageCheckpointTiming: imageObservation.timing,
+    }
+  } else {
+    info = await captureImageMetrics(page, false)
   }
-  const info = await page.evaluate((inspectImages) => {
-    const fullText = document.body.innerText
-    const text = fullText.replace(/\n{2,}/g, '\n').slice(0, 1500)
-    const images = [...document.querySelectorAll('img')]
-    const broken = images.filter((i) => i.complete && i.naturalWidth === 0)
-    const emptySrc = images.filter((i) => !(i.getAttribute('src') || '').trim())
-    const result = {
-      text,
-      buttons: [...document.querySelectorAll('button')].map((b) => (b.innerText || '').trim()).filter(Boolean).slice(0, 40),
-      brokenImages: broken.length,
-      emptySrcImages: emptySrc.length,
-      brokenPortraitImages: [...document.querySelectorAll('.dialogue-portrait img, .message-portrait')].filter((i) => i.complete && i.naturalWidth === 0).length,
-      videos: document.querySelectorAll('video').length,
-    }
-    if (inspectImages) {
-      result.brokenImageSources = [...new Set(broken.map((image) => image.currentSrc || image.src))]
-      result.emptySrcImageSources = [...new Set(emptySrc.map((image) => image.currentSrc || image.src || '(empty src)'))]
-      result.rawNpcIds = (fullText.match(/\bnpc_[a-z0-9_-]+\b/gi) || []).length
-    }
-    return result
-  }, examMode)
   observations.push({ pack: activePackId, name, ...info })
   if (recordSteps) {
     const file = join(activeOutDir, `${name}.png`)
@@ -275,11 +271,98 @@ function campaignRelativePath(url, campaignId) {
   }
 }
 
-function isBlockingCampaignResponseFailure(failure) {
-  const pathname = new URL(failure.url).pathname
-  // project.json и encounters index могут отсутствовать у legacy-паков;
-  // изображения и игровые сцены, напротив, должны реально загружаться.
-  return !pathname.endsWith('/project.json') && !pathname.endsWith('/encounters/encounters.json')
+function hasExactRegisteredImageFailure({ campaignId, source, resourceFailures, knownAbsences }) {
+  if (!source) return false
+  return resourceFailures.some((failure) => failure.url === source
+    && isExactRegisteredKnownAbsenceResponse({ campaignId, failure, knownAbsences }))
+}
+
+function auditCheckpointImages({ campaignId, observations, resourceFailures, knownAbsences }) {
+  const broken = []
+  const brokenPortraits = []
+  let observedBroken = 0
+  let observedBrokenPortraits = 0
+  let observedEmptySrc = 0
+  let settledEmptySrc = 0
+  const emptySrcSources = []
+
+  for (const observation of observations) {
+    const earlyBrokenUrls = Array.isArray(observation.brokenImageUrls) ? observation.brokenImageUrls : []
+    const settledBrokenUrls = Array.isArray(observation.settledBrokenImageUrls) ? observation.settledBrokenImageUrls : []
+    observedBroken += observation.brokenImages || 0
+    const unknownBrokenCount = Math.max(0, (observation.brokenImages || 0) - earlyBrokenUrls.length)
+    for (let index = 0; index < unknownBrokenCount; index++) {
+      broken.push({ step: observation.name, source: null, disposition: 'unexplained' })
+    }
+    for (const source of earlyBrokenUrls) {
+      const exactRegisteredResponse = hasExactRegisteredImageFailure({
+        campaignId,
+        source,
+        resourceFailures,
+        knownAbsences,
+      })
+      const remainsBroken = settledBrokenUrls.includes(source)
+      broken.push({
+        step: observation.name,
+        source,
+        exactRegisteredResponse,
+        remainsBroken,
+        disposition: exactRegisteredResponse && !remainsBroken ? 'registered-transient' : 'blocking',
+      })
+    }
+    for (const source of settledBrokenUrls) {
+      if (!earlyBrokenUrls.includes(source)) {
+        broken.push({ step: observation.name, source, exactRegisteredResponse: false, remainsBroken: true, disposition: 'blocking-settled' })
+      }
+    }
+
+    const earlyPortraitUrls = Array.isArray(observation.brokenPortraitImageUrls) ? observation.brokenPortraitImageUrls : []
+    const settledPortraitUrls = Array.isArray(observation.settledBrokenPortraitImageUrls) ? observation.settledBrokenPortraitImageUrls : []
+    observedBrokenPortraits += observation.brokenPortraitImages || 0
+    const unknownPortraitCount = Math.max(0, (observation.brokenPortraitImages || 0) - earlyPortraitUrls.length)
+    for (let index = 0; index < unknownPortraitCount; index++) {
+      brokenPortraits.push({ step: observation.name, source: null, disposition: 'unexplained' })
+    }
+    for (const source of earlyPortraitUrls) {
+      const exactRegisteredResponse = hasExactRegisteredImageFailure({
+        campaignId,
+        source,
+        resourceFailures,
+        knownAbsences,
+      })
+      const remainsBroken = settledPortraitUrls.includes(source)
+      brokenPortraits.push({
+        step: observation.name,
+        source,
+        exactRegisteredResponse,
+        remainsBroken,
+        disposition: exactRegisteredResponse && !remainsBroken ? 'registered-transient' : 'blocking',
+      })
+    }
+    for (const source of settledPortraitUrls) {
+      if (!earlyPortraitUrls.includes(source)) {
+        brokenPortraits.push({ step: observation.name, source, exactRegisteredResponse: false, remainsBroken: true, disposition: 'blocking-settled' })
+      }
+    }
+
+    observedEmptySrc += observation.emptySrcImages || 0
+    settledEmptySrc += observation.settledEmptySrcImages || 0
+    emptySrcSources.push(...(observation.emptySrcImageSources || []), ...(observation.settledEmptySrcImageUrls || []))
+  }
+
+  return {
+    broken,
+    blockingBroken: broken.filter((entry) => entry.disposition !== 'registered-transient'),
+    registeredTransientBroken: broken.filter((entry) => entry.disposition === 'registered-transient'),
+    brokenPortraits,
+    blockingBrokenPortraits: brokenPortraits.filter((entry) => entry.disposition !== 'registered-transient'),
+    registeredTransientBrokenPortraits: brokenPortraits.filter((entry) => entry.disposition === 'registered-transient'),
+    observedBroken,
+    observedBrokenPortraits,
+    observedEmptySrc,
+    settledEmptySrc,
+    emptySrcSources: [...new Set(emptySrcSources)],
+  }
 }
 
 function visibleEndingId(campaignId, title) {
@@ -782,10 +865,11 @@ async function runExamPack(definition) {
   const packSteps = report.steps.filter((entry) => entry.pack === definition.id)
   const packErrors = errors.slice(errorsBefore)
   const packConsoleErrors = consoleErrors.slice(consoleErrorsBefore)
-  const brokenImageCount = packObservations.reduce((sum, entry) => sum + (entry.brokenImages || 0), 0)
-  const brokenImageSources = [...new Set(packObservations.flatMap((entry) => entry.brokenImageSources || []))]
-  const emptySrcImageCount = packObservations.reduce((sum, entry) => sum + (entry.emptySrcImages || 0), 0)
-  const emptySrcImageSources = [...new Set(packObservations.flatMap((entry) => entry.emptySrcImageSources || []))]
+  const observedBrokenImageCount = packObservations.reduce((sum, entry) => sum + (entry.brokenImages || 0), 0)
+  const observedBrokenPortraitImageCount = packObservations.reduce((sum, entry) => sum + (entry.brokenPortraitImages || 0), 0)
+  const observedBrokenImageSources = [...new Set(packObservations.flatMap((entry) => entry.brokenImageSources || []))]
+  const settledBrokenImageSources = [...new Set(packObservations.flatMap((entry) => entry.settledBrokenImageUrls || []))]
+  const settledEmptySrcImageCount = packObservations.reduce((sum, entry) => sum + (entry.settledEmptySrcImages || 0), 0)
   const rawNpcIds = packObservations.reduce((sum, entry) => sum + (entry.rawNpcIds || 0), 0)
   const errorScreens = packObservations.filter((entry) => strictExamErrorScreen.test(entry.text)).length
   const startsWithEmptyCatalog = !packObservations.length || /Кампаний пока нет/i.test(packObservations[0].text)
@@ -805,11 +889,23 @@ async function runExamPack(definition) {
   })
   for (const finding of absenceAudit.findings) addFinding(`STAB-1.25 absence registry: ${finding}`)
   for (const finding of consoleErrorAudit.findings) addFinding(`STAB-1.25 console registry: ${finding}`)
-  const blockingResourceFailures = [...new Map(
-    resourceFailures
-      .filter((failure) => isBlockingCampaignResponseFailure(failure) && !knownAbsencePaths.has(failure.path))
-      .map((failure) => [failure.url, failure]),
-  ).values()]
+  const { blocking: blockingResourceFailures, nonBlocking: nonBlockingResourceFailures } = splitCampaignResponseFailures({
+    campaignId: definition.id,
+    failures: resourceFailures,
+    knownAbsences,
+  })
+  const checkpointImageAudit = auditCheckpointImages({
+    campaignId: definition.id,
+    observations: packObservations,
+    resourceFailures,
+    knownAbsences,
+  })
+  const brokenImageCount = checkpointImageAudit.blockingBroken.length
+  const brokenImageSources = [...new Set(checkpointImageAudit.blockingBroken.map((entry) => entry.source).filter(Boolean))]
+  const registeredTransientBrokenImageCount = checkpointImageAudit.registeredTransientBroken.length
+  const brokenPortraitImageCount = checkpointImageAudit.blockingBrokenPortraits.length
+  const emptySrcImageCount = checkpointImageAudit.observedEmptySrc
+  const emptySrcImageSources = checkpointImageAudit.emptySrcSources
 
   // Объявленный путь, который внезапно начал отдаваться картинкой, — устаревшая
   // декларация, а не успех: фикстура перестала соответствовать данным.
@@ -822,8 +918,9 @@ async function runExamPack(definition) {
   if (packSteps.length < 8) addFinding(`снято ${packSteps.length} шагов, требуется не менее 8`)
   if (packErrors.length) addFinding(`pageerror: ${packErrors.length} (${packErrors[0].slice(0, 180)})`)
   if (errorScreens) addFinding(`экранов ошибки: ${errorScreens}`)
-  if (brokenImageCount) addFinding(`битых <img>: ${brokenImageCount}; URL: ${brokenImageSources.slice(0, 5).join(', ') || 'источник не определён'}`)
-  if (emptySrcImageCount) addFinding(`пустых src у <img>: ${emptySrcImageCount}; URL: ${emptySrcImageSources.slice(0, 5).join(', ') || '(empty src)'}`)
+  if (brokenImageCount) addFinding(`битых <img>: ${brokenImageCount} необъяснённых или persistent; URL: ${brokenImageSources.slice(0, 5).join(', ') || 'источник не определён'}`)
+  if (brokenPortraitImageCount) addFinding(`битых портретов: ${brokenPortraitImageCount}; raw checkpoint=${observedBrokenPortraitImageCount}`)
+  if (emptySrcImageCount || settledEmptySrcImageCount) addFinding(`пустых src у <img>: checkpoint=${emptySrcImageCount}, after strict wait=${settledEmptySrcImageCount}; URL: ${emptySrcImageSources.slice(0, 5).join(', ') || '(empty src)'}`)
   if (rawNpcIds) addFinding(`сырых NPC id: ${rawNpcIds}`)
   if (startsWithEmptyCatalog) addFinding('стартовый экран показывает «Кампаний пока нет»')
   if (blockingResourceFailures.length) {
@@ -842,8 +939,21 @@ async function runExamPack(definition) {
     pageErrors: packErrors.length,
     errorScreens,
     brokenImgOccurrences: brokenImageCount,
+    observedBrokenImgOccurrences: observedBrokenImageCount,
+    registeredTransientBrokenImgOccurrences: registeredTransientBrokenImageCount,
     brokenImageSources,
+    observedBrokenImageSources,
+    settledBrokenImageSources,
+    brokenImageAudit: {
+      checkpointOccurrences: observedBrokenImageCount,
+      registeredTransientOccurrences: registeredTransientBrokenImageCount,
+      blockingOccurrences: brokenImageCount,
+      blockingObservations: checkpointImageAudit.blockingBroken,
+    },
+    brokenPortraitImgOccurrences: brokenPortraitImageCount,
+    observedBrokenPortraitImgOccurrences: observedBrokenPortraitImageCount,
     emptySrcImgOccurrences: emptySrcImageCount,
+    settledEmptySrcImgOccurrences: settledEmptySrcImageCount,
     emptySrcImageSources,
     rawNpcIds,
     startsWithEmptyCatalog,
@@ -859,7 +969,7 @@ async function runExamPack(definition) {
     consoleErrors: packConsoleErrors,
     consoleErrorAudit,
     failedCampaignResponses: blockingResourceFailures,
-    nonBlockingCampaignResponses: resourceFailures.filter((failure) => !knownAbsencePaths.has(failure.path) && !isBlockingCampaignResponseFailure(failure)),
+    nonBlockingCampaignResponses: nonBlockingResourceFailures,
     finalState: finalState || 'not-reached',
     finalVisibleText,
     finalFrame: packSteps.findLast((entry) => /ending/.test(entry.name))?.file || null,
@@ -904,7 +1014,7 @@ async function runBrowserExam() {
     visualLog(`\n--- ${definition.id} ---`)
     const result = await runExamPack(definition)
     report.packs.push(result)
-    visualLog(`${result.ok ? 'PASS' : 'FAIL'} ${result.id}: steps=${result.steps}; pageerror=${result.pageErrors}; errorScreens=${result.errorScreens}; brokenImg=${result.brokenImgOccurrences}; emptySrcImg=${result.emptySrcImgOccurrences}; rawNpcIds=${result.rawNpcIds}; emptyStart=${result.startsWithEmptyCatalog}; registeredAbsences=${result.absenceAudit.registeredCount}/${result.absenceAudit.observedCount}; registeredConsoleErrors=${result.consoleErrorAudit.registeredCount}/${result.consoleErrorAudit.observedCount}; unexplained=${result.absenceAudit.unexplainedCount + result.consoleErrorAudit.unexplainedCount}`)
+    visualLog(`${result.ok ? 'PASS' : 'FAIL'} ${result.id}: steps=${result.steps}; pageerror=${result.pageErrors}; errorScreens=${result.errorScreens}; brokenImgBlocking=${result.brokenImgOccurrences}; brokenImgCheckpoint=${result.observedBrokenImgOccurrences}; registeredTransient=${result.registeredTransientBrokenImgOccurrences}; emptySrc=${result.emptySrcImgOccurrences}/${result.settledEmptySrcImgOccurrences}; rawNpcIds=${result.rawNpcIds}; emptyStart=${result.startsWithEmptyCatalog}; registeredAbsences=${result.absenceAudit.registeredCount}/${result.absenceAudit.observedCount}; registeredConsoleErrors=${result.consoleErrorAudit.registeredCount}/${result.consoleErrorAudit.observedCount}; unexplained=${result.absenceAudit.unexplainedCount + result.consoleErrorAudit.unexplainedCount}`)
     visualLog(`  finalState=${result.finalState}`)
     visualLog(`  finalFrame=${result.finalFrame || 'not captured'}`)
     for (const absence of result.knownAbsences) {
@@ -946,7 +1056,10 @@ async function runBrowserExam() {
   report.pageErrors = report.packs.reduce((sum, pack) => sum + pack.pageErrors, 0)
   report.errorScreens = report.packs.reduce((sum, pack) => sum + pack.errorScreens, 0)
   report.brokenImgOccurrences = report.packs.reduce((sum, pack) => sum + pack.brokenImgOccurrences, 0)
+  report.observedBrokenImgOccurrences = report.packs.reduce((sum, pack) => sum + pack.observedBrokenImgOccurrences, 0)
+  report.registeredTransientBrokenImgOccurrences = report.packs.reduce((sum, pack) => sum + pack.registeredTransientBrokenImgOccurrences, 0)
   report.emptySrcImgOccurrences = report.packs.reduce((sum, pack) => sum + pack.emptySrcImgOccurrences, 0)
+  report.settledEmptySrcImgOccurrences = report.packs.reduce((sum, pack) => sum + pack.settledEmptySrcImgOccurrences, 0)
   report.rawNpcIds = report.packs.reduce((sum, pack) => sum + pack.rawNpcIds, 0)
   report.finishedAt = new Date().toISOString()
   visualLog(`Observation registry ${OBSERVATION_REGISTRY_RELATIVE_PATH} (${report.observationAudit.responseMode}): absences=${report.observationAudit.knownAbsences.registered}/${report.observationAudit.knownAbsences.observed}, console-errors=${report.observationAudit.consoleErrors.registered}/${report.observationAudit.consoleErrors.observed}, unexplained=${report.observationAudit.unexplainedCount}, registry-drift=${report.observationAudit.registryDriftCount}`)
@@ -955,12 +1068,12 @@ async function runBrowserExam() {
   writeFileSync(join(outDir, 'report.json'), JSON.stringify(report, null, 2) + '\n')
   writeFileSync(join(outDir, 'exam.stdout.txt'), examOutputLines.join('\n') + '\n')
   const table = [
-    '| Pack | Steps | pageerror | Error screens | Broken img | Empty-src img | Raw NPC ids | Empty catalog | Final state | Known absences (path/status) | Findings | Result |',
+    '| Pack | Steps | pageerror | Error screens | Broken img (blocking / checkpoint) | Empty-src (checkpoint / settled) | Raw NPC ids | Empty catalog | Final state | Known absences (path/status) | Findings | Result |',
     '|---|---:|---:|---:|---:|---:|---:|---|---|---|---|---|',
     ...report.packs.map((pack) => {
       const known = pack.knownAbsences.map((absence) => `${absence.path} — ${absence.status} (${absence.contentType || 'no content-type'})`).join('<br>') || 'none'
       const findings = pack.findings.map((finding) => finding.replaceAll('|', '&#124;')).join('<br>') || 'none'
-      return `| ${pack.id} | ${pack.steps} | ${pack.pageErrors} | ${pack.errorScreens} | ${pack.brokenImgOccurrences} | ${pack.emptySrcImgOccurrences} | ${pack.rawNpcIds} | ${pack.startsWithEmptyCatalog ? 'yes' : 'no'} | ${pack.finalState} | ${known} | ${findings} | ${pack.ok ? 'PASS' : 'FAIL'} |`
+      return `| ${pack.id} | ${pack.steps} | ${pack.pageErrors} | ${pack.errorScreens} | ${pack.brokenImgOccurrences} / ${pack.observedBrokenImgOccurrences} | ${pack.emptySrcImgOccurrences} / ${pack.settledEmptySrcImgOccurrences} | ${pack.rawNpcIds} | ${pack.startsWithEmptyCatalog ? 'yes' : 'no'} | ${pack.finalState} | ${known} | ${findings} | ${pack.ok ? 'PASS' : 'FAIL'} |`
     }),
   ]
   const markdown = [
@@ -1247,13 +1360,15 @@ for (const e of errors.slice(0, 10)) report.findings.push(`pageerror: ${e.slice(
 const pageErrors = errors.length
 const errorScreenPattern = /Фон сцены не загрузился|Игра столкнулась с ошибкой|Кампаний пока нет|Ошибка загрузки кампании/i
 const errorScreens = report.steps.filter((entry) => errorScreenPattern.test(entry.text)).length
-const brokenPortraitImages = observations.reduce((sum, entry) => sum + (entry.brokenPortraitImages || 0), 0)
+const observedBrokenPortraitImages = observations.reduce((sum, entry) => sum + (entry.brokenPortraitImages || 0), 0)
+const brokenPortraitImages = (report.packs || []).reduce((sum, pack) => sum + (pack.brokenPortraitImgOccurrences || 0), 0)
 const rawNpcIds = observations.reduce((sum, entry) => sum + (entry.text.match(/\bnpc_[a-z0-9_]+\b/gi) || []).length, 0)
 report.pageErrors = pageErrors
 report.errorScreens = errorScreens
 report.brokenPortraitImages = brokenPortraitImages
+report.observedBrokenPortraitImages = observedBrokenPortraitImages
 report.rawNpcIds = rawNpcIds
-if (brokenPortraitImages > 0) report.findings.push(`битых портретов: ${brokenPortraitImages}`)
+if (brokenPortraitImages > 0) report.findings.push(`необъяснённых/persistent битых портретов: ${brokenPortraitImages}`)
 if (rawNpcIds > 0) report.findings.push(`экранов с необработанными id персонажа: ${rawNpcIds}`)
 if (pageErrors > 0) report.findings.push(`pageerror: ${pageErrors}`)
 if (errorScreens > 0) report.findings.push(`экранов ошибки: ${errorScreens}`)
