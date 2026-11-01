@@ -7,7 +7,7 @@
 //
 // Здесь проверяется: в шапке есть кнопка сворачивания, свёрнутое состояние
 // прячет журнал и служебные кнопки, оставляет статус, «Стоп» и счётчики
-// вопросов и решений прямо на кнопке, а выбор переживает перезагрузку страницы.
+// обратной связи прямо на кнопке, а выбор переживает перезагрузку страницы.
 
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
@@ -61,7 +61,6 @@ function makeDom() {
     'cfn-step',
     'cfn-ntfy',
     'cfn-questions',
-    'cfn-adr',
     'cfn-gh',
     'cfn-debug-toggle',
     'cfn-reset',
@@ -69,7 +68,6 @@ function makeDom() {
     'cfn-setup',
     'cfn-collapse',
     'cfn-q-badge',
-    'cfn-adr-badge',
   ]) {
     make(id);
   }
@@ -90,7 +88,6 @@ function makePanel() {
     step: 'cfn-step',
     ntfy: 'cfn-ntfy',
     questions: 'cfn-questions',
-    adr: 'cfn-adr',
     gh: 'cfn-gh',
     debug: 'cfn-debug-toggle',
     reset: 'cfn-reset',
@@ -98,7 +95,6 @@ function makePanel() {
     setup: 'cfn-setup',
     collapse: 'cfn-collapse',
     qBadge: 'cfn-q-badge',
-    adrBadge: 'cfn-adr-badge',
   };
   const api = new Function(
     'document',
@@ -141,10 +137,9 @@ function makePanel() {
 
   // Счётчики видны прямо на кнопке: свёрнутое окно не прячет работу.
   p.el.get('cfn-q-badge').textContent = '2';
-  p.el.get('cfn-adr-badge').textContent = '1';
   p.paintPanelChrome();
-  assert.match(p.el.get('cfn-collapse').textContent, /❓2/, 'вопросы видны в свёрнутом окне');
-  assert.match(p.el.get('cfn-collapse').textContent, /⚖1/, 'решения тоже');
+  assert.match(p.el.get('cfn-collapse').textContent, /💬2/, 'единая обратная связь видна в свёрнутом окне');
+  assert.doesNotMatch(p.el.get('cfn-collapse').textContent, /⚖/, 'отдельного счётчика ADR нет');
   assert.match(p.el.get('cfn-collapse').title, /Развернуть панель/, 'подсказка говорит, что делать');
 
   p.togglePanel();
@@ -165,7 +160,6 @@ function makePanel() {
     step: 'cfn-step',
     ntfy: 'cfn-ntfy',
     questions: 'cfn-questions',
-    adr: 'cfn-adr',
     gh: 'cfn-gh',
     debug: 'cfn-debug-toggle',
     reset: 'cfn-reset',
@@ -173,7 +167,6 @@ function makePanel() {
     setup: 'cfn-setup',
     collapse: 'cfn-collapse',
     qBadge: 'cfn-q-badge',
-    adrBadge: 'cfn-adr-badge',
   };
   const api = new Function(
     'document',

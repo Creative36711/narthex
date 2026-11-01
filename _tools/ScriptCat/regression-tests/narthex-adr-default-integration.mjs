@@ -22,6 +22,7 @@ const question = (id, text, status, answer = '') => ({ id, properties: {
   'Вопрос': { title: [{ plain_text: text }] },
   'Статус': { select: { name: status } },
   'По умолчанию': prop('оставить как есть'), 'Ответ': prop(answer),
+  'Срок': { date: { start: '2000-01-01T00:00:00.000Z' } },
 } });
 const expired = question('expired', 'Предложение docs/decisions/STAB-1.32.md: принять?', Q.byDefault, 'оставить как есть');
 const answered = question('answered', 'Предложение docs/decisions/STAB-1.34.md: принять?', Q.done, 'принять точный diff');
@@ -31,9 +32,11 @@ const unanswered = question('missing', 'Предложение docs/decisions/NA
 // остаётся открытым до настоящего решения приёмки или Мастера.
 {
   const patches = [];
-  const closeExpired = new Function('rt', 'patch', 'Q', 'richText', 'log', `${expireBlock}\nreturn closeExpired;`)(
+  const closeExpired = new Function('rt', 'patch', 'Q', 'richText', 'log', 'recordQuestionChange', 'sel', 'notion', 'withQuestionWriteLock', `${expireBlock}\nreturn closeExpired;`)(
     rt, async (id, data) => patches.push({ id, data }), Q,
-    (text) => [{ type: 'text', text: { content: text } }], () => {},
+    (text) => [{ type: 'text', text: { content: text } }], () => {}, () => {}, sel,
+    async (_method, path) => [ordinary, adr1, adr2].find((row) => path === `pages/${row.id}`),
+    (work) => work(),
   );
   const ordinary = question('ordinary', 'Какой формат отчёта выбрать?', Q.wait);
   const adr1 = question('adr1', 'ADR STAB-1.32: изменить оракул?', Q.wait);
@@ -55,15 +58,16 @@ const unanswered = question('missing', 'Предложение docs/decisions/NA
   const failed = question('failed', 'Сбойная запись', Q.wait);
   const data = [ordinary, adr, failed];
   const patched = [], adopted = [], output = new Map();
-  const close = new Function('rt', 'patch', 'Q', 'richText', 'log', `${expireBlock}\nreturn closeExpired;`)(
+  const close = new Function('rt', 'patch', 'Q', 'richText', 'log', 'recordQuestionChange', 'sel', 'notion', 'withQuestionWriteLock', `${expireBlock}\nreturn closeExpired;`)(
     rt, async (id) => { if (id === 'failed') throw new Error('Notion 503'); patched.push(id); },
-    Q, (text) => [{ type: 'text', text: { content: text } }], () => {},
+    Q, (text) => [{ type: 'text', text: { content: text } }], () => {}, () => {}, sel,
+    async (_method, path) => data.find((row) => path === `pages/${row.id}`), (work) => work(),
   );
   const run = new Function(
     'flushQuestionQueue', 'dbg', 'openQuestions', 'C', 'paintQuestions', 'questionRows', 'Q',
     'activeMission', 'rt', 'missionSame', 'expiredQuestions', 'closeExpired', 'GM_getValue',
     'answerHandoffKey', 'handWaitingRow', 'questionFromRow', 'log', 'qText', 'qFallback',
-    'GM_setValue', 'notifyNewQuestions',
+    'GM_setValue', 'notifyNewQuestions', 'questionRevision', 'mergeQuestionChanges', 'questionClosedAfter', 'pruneQuestionSeen',
     `${refresh}\nreturn refreshQuestions;`,
   )(
     async () => {}, () => {}, () => ({ at: 0, rows: [] }), { questionCheckMs: 100 }, () => {},
@@ -72,7 +76,7 @@ const unanswered = question('missing', 'Предложение docs/decisions/NA
     rt, (a, b) => a === b, (rows) => rows, close, (_key, fallback) => fallback,
     (id) => `handoff:${id}`, (row) => adopted.push(row.id), (row) => ({ text: rt(row.properties['Вопрос']) }),
     () => {}, (row) => rt(row.properties['Вопрос']), (row) => rt(row.properties['По умолчанию']),
-    (key, value) => output.set(key, value), () => {},
+    (key, value) => output.set(key, value), () => {}, 0, (rows) => rows, () => false, () => {},
   );
   const open = await run({ force: true });
   assert.deepEqual(patched, ['ordinary']);
@@ -89,7 +93,7 @@ const unanswered = question('missing', 'Предложение docs/decisions/NA
   );
   const line = answersLine([expired]);
   assert.match(line, /только default, фактического решения приёмки по ADR нет/);
-  assert.match(line, /ответы приёмки/);
+  assert.match(line, /Ответы на обратную связь от Мастера и приёмки/);
 }
 
 const crossReference = question('cross', 'ADR docs/decisions/STAB-1.35.md: принять?', Q.done,
@@ -119,6 +123,7 @@ const { adrKeysOf, adrSubjectKeysOf, decidedAdrNames } = new Function('questionR
 const { askQuestion } = new Function(
   'norm', 'rt', 'sel', 'Q', 'questionRows', 'GM_getValue', 'GM_setValue', 'log', 'dbg',
   'notion', 'C', 'questionProps', 'noteQuestionAsked', 'appendQuestionBody', 'queueAnswer', 'queueQuestion',
+  'withQuestionWriteLock', 'questionMaterial',
   `${questionBlock}\nreturn { askQuestion };`,
 )(
   norm, rt, sel, Q, questionRows,
@@ -138,15 +143,17 @@ const { askQuestion } = new Function(
   () => {}, async () => {},
   (row, q, context) => { calls.queued.push({ row, q, context }); return { row, q }; },
   () => { throw new Error('неожиданная очередь ошибок'); },
+  (work) => work(), (url) => url || '',
 );
 
 const { deliverProposals, proposalQuestion } = new Function(
-  'ADR_FOLDER', 'askQuestion', 'activeMission', 'questionRows', 'Q', 'rt', 'sel', 'adrSubjectKeysOf', 'adrKeyOf', 'dbg',
+  'ADR_FOLDER', 'askQuestion', 'activeMission', 'questionRows', 'Q', 'rt', 'sel', 'adrSubjectKeysOf', 'adrKeyOf', 'dbg', 'C',
   `${proposalBlock}\nreturn { deliverProposals, proposalQuestion };`,
 )(
   'docs/decisions', askQuestion,
   async () => ({ id: 'mission', properties: { 'Миссия': { title: [{ plain_text: 'STAB-1' }] } } }),
   questionRows, Q, rt, sel, adrSubjectKeysOf, (s) => String(s).replace(/\.md$/i, '').toLowerCase(), () => {},
+  { repo: 'Creative36711/narthex' },
 );
 const proposal = proposalQuestion({ file: 'STAB-1.32.md' }, 'STAB-1');
 assert.match(proposal.fullText, /истечение срока не являются фактическим решением/);
@@ -160,8 +167,8 @@ assert.deepEqual(expired, oldSnapshot, 'старая строка не меня�
 assert.equal(calls.queued.length, 1, 'уточнение идёт приёмке');
 assert.match(calls.queued[0].q.text, /^Уточнение: Предложение docs\/decisions\/STAB-1\.32\.md/);
 assert.match(calls.queued[0].q.fullText, /default не является решением/);
-assert.equal(calls.queued[0].context.key, 'adr-confirm:STAB-1.32.md');
-assert.equal(store.has('cfn-asked:adr-confirm:STAB-1.32.md'), true);
+assert.equal(calls.queued[0].context.key, 'adr-confirm:STAB-1.32.md:expired');
+assert.equal(store.has('cfn-asked:adr-confirm:STAB-1.32.md:expired'), true);
 assert.equal(calls.created[0].properties['Статус'].select.name, Q.wait);
 
 await deliverProposals([{ file: 'STAB-1.32.md' }, { file: 'STAB-1.34.md' }]);
@@ -172,7 +179,7 @@ assert.equal(calls.queued.length, 1);
 {
   const sends = [];
   const fn = new Function(
-    'ADR_FOLDER', 'askQuestion', 'activeMission', 'questionRows', 'Q', 'rt', 'sel', 'adrSubjectKeysOf', 'adrKeyOf', 'dbg',
+    'ADR_FOLDER', 'askQuestion', 'activeMission', 'questionRows', 'Q', 'rt', 'sel', 'adrSubjectKeysOf', 'adrKeyOf', 'dbg', 'C',
     `${proposalBlock}\nreturn deliverProposals;`,
   )('docs/decisions', (...args) => sends.push(args), async () => null,
     async () => { throw new Error('Notion offline'); }, Q, rt, sel, adrSubjectKeysOf,

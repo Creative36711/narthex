@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.92
+// @version      1.4.93
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -51,7 +51,7 @@
     roles: "ed076bfe-99dd-447d-9cac-55ca14661e99",
     missions: "c84a3f11-2dcf-414d-b4bf-35beaa7b2c0c",
     requests: "11b41fcc-7c84-406d-bc3b-5bf76ace79bb",
-    // База «Вопросы»: вопросы агентов к Мастеру, которые не останавливают цикл.
+    // Единая база «Обратная связь»: вопросы и предложения в прежнем источнике Notion.
     questions: "54ac1a79-fef2-4384-ac2c-c0f53379d3ab",
     questionsUrl: "https://app.notion.com/p/e00d99c8b526461ea7e900b9e988e149",
     questionHours: 24, // срок молчания по умолчанию: дальше действует вариант агента
@@ -145,8 +145,6 @@
     gh: "cfn-gh",
     questions: "cfn-questions",
     qBadge: "cfn-q-badge",
-    adr: "cfn-adr",
-    adrBadge: "cfn-adr-badge",
     collapse: "cfn-collapse",
     count: "cfn-log-count",
     debug: "cfn-debug-toggle",
@@ -340,7 +338,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.92";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.93";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -1172,7 +1170,7 @@
     panel.style.width = collapsed ? "208px" : "360px";
     const log = document.getElementById(ui.log);
     if (log) log.style.display = collapsed ? "none" : "";
-    for (const id of [ui.step, ui.ntfy, ui.questions, ui.adr, ui.gh, ui.debug, ui.reset, ui.clear, ui.setup]) {
+    for (const id of [ui.step, ui.ntfy, ui.questions, ui.gh, ui.debug, ui.reset, ui.clear, ui.setup]) {
       const el = document.getElementById(id);
       if (el) el.style.display = collapsed ? "none" : "";
     }
@@ -1182,11 +1180,10 @@
     if (!button) return;
     const count = (id) => Number(document.getElementById(id)?.textContent || 0) || 0;
     const openQ = count(ui.qBadge);
-    const openAdr = count(ui.adrBadge);
-    const marks = `${openQ ? ` ❓${openQ}` : ""}${openAdr ? ` ⚖${openAdr}` : ""}`;
+    const marks = openQ ? ` 💬${openQ}` : "";
     button.textContent = collapsed ? `▸${marks}` : "▾";
     button.title = collapsed
-      ? `Развернуть панель${openQ || openAdr ? ` (ждут: ${openQ ? `вопросов ${openQ}` : ""}${openQ && openAdr ? ", " : ""}${openAdr ? `решений ${openAdr}` : ""})` : ""}`
+      ? `Развернуть панель${openQ ? ` (открытых записей обратной связи: ${openQ})` : ""}`
       : "Свернуть панель";
     button.style.background = collapsed ? "#2c3a2f" : "#242833";
   }
@@ -1216,8 +1213,7 @@
         <button id="${ui.step}" title="Один шаг цикла" style="${btnStyle()}">Шаг</button>
         <button id="${ui.toggle}" style="${btnStyle()}">▶ Включить</button>
         <button id="${ui.ntfy}" title="Уведомления ntfy: тихие вехи и громкие тревоги" style="${btnStyle()}">🔔</button>
-        <button id="${ui.questions}" title="Вопросы агентов к Мастеру — база «Вопросы» в Notion" style="${btnStyle()}">❓<span id="${ui.qBadge}" style="display:none;margin-left:3px;padding:0 4px;border-radius:7px;background:#b23b3b;color:#fff;font-size:10px;line-height:14px;vertical-align:middle">0</span></button>
-        <button id="${ui.adr}" title="Решения (ADR) со статусом proposed — ждут Мастера" style="${btnStyle()}">⚖<span id="${ui.adrBadge}" style="display:none;margin-left:3px;padding:0 4px;border-radius:7px;background:#8a6b2a;color:#fff;font-size:10px;line-height:14px;vertical-align:middle">0</span></button>
+        <button id="${ui.questions}" aria-label="Открыть обратную связь в Notion" title="Обратная связь — вопросы и предложения в Notion" style="${btnStyle()}">💬 Обратная связь<span id="${ui.qBadge}" style="display:none;margin-left:3px;padding:0 4px;border-radius:7px;background:#b23b3b;color:#fff;font-size:10px;line-height:14px;vertical-align:middle">0</span></button>
         <button id="${ui.gh}" title="GitHub: токен для приватного репозитория и возврат карточки после ложного отказа" style="${btnStyle()}">🐙</button>
         <button id="${ui.debug}" title="Отладка в консоли браузера (F12)" style="${btnStyle()}">🐞</button>
         <button id="${ui.reset}" title="Снять ход: очередь, ожидание и карточки в Running без хода (журнал и настройки останутся)" style="${btnStyle()}">↺</button>
@@ -1251,8 +1247,6 @@
       paintDebugButton();
     };
     document.getElementById(ui.questions).onclick = () => window.open(C.questionsUrl, "_blank", "noopener");
-    document.getElementById(ui.adr).onclick = () =>
-      window.open(`https://github.com/${C.repo}/tree/main/docs/decisions`, "_blank", "noopener");
     document.getElementById(ui.ntfy).onclick = () => ntfyDialog();
     document.getElementById(ui.gh).onclick = () => githubDialog();
     document.getElementById(ui.stop).onclick = () => {
@@ -1275,7 +1269,7 @@
     paintPanelChrome();
     paintQuestions(openQuestions().rows);
     watchQuestions();
-    paintDecisions(openDecisions().rows);
+    // ADR без записи всё ещё обнаруживается в фоне и попадает в ту же базу.
     watchDecisions();
     maybeGhDialog();
   }
@@ -6908,6 +6902,7 @@
       `Зона записи${role && role.zone ? ` (${role.zone})` : ""} — рамка по умолчанию; Scope карточки расширяет её на этот ход. На этот ход карточка главнее общей рамки.`,
       "Неоднозначность решаешь сам: минимальное изменение, «Допущение: …» строкой в отчёт; меняет контракт — запись в docs/decisions.",
       'Вопрос задаётся только полем question в маркере: {"text":"…","options":["A","B"],"default":"A","hours":24}. Вариант по умолчанию обязателен — по нему ты работаешь сразу, не дожидаясь ответа. Вопрос уходит приёмке сразу, как только записан: ответ придёт строкой в следующем промпте, обычно в том же ходе цикла. Больше одного вопроса за ход не задавай.',
+      "Вопросы и предложения попадают в одну базу «Обратная связь» в Notion. Если есть материал, добавь в question необязательное поле url с полной HTTP(S)-ссылкой: она сохранится в поле «Материал».",
       "Вопрос уместен, только если ответ меняет то, что будет построено, и ни ТЗ, ни карточка его не дают. Порядок, формулировки, оформление — решай сам.",
       "Предложение (ADR `proposed` в docs/decisions) — это тоже вопрос, и оно не работает без второго шага: в том же ходе задай question со ссылкой на файл, тремя вариантами и default = «оставить как есть». Иначе решение лежит в репозитории, где Мастер его не увидит. Ответ придёт строкой в следующем промпте — тогда и меняй статус: `accepted` или `rejected`, с датой. Оставлять `proposed` после ответа нельзя: это выглядит как нерешённый вопрос.",
       "Статус решения не должен замораживаться тестом: оракул, который требует `Статус: proposed`, защищает открытый вопрос от ответа. Проверка вправе требовать только допустимый статус, а не конкретный.",
@@ -7845,19 +7840,43 @@
    */
   const Q = { wait: "Ждёт", done: "Решено", byDefault: "Принят дефолт", cancelled: "Отменён" };
 
+  // Сторож ADR, маркер агента и повтор очереди могут писать одновременно.
+  // В одной вкладке проверка дубля и POST идут последовательно; между разными
+  // вкладками Notion не предоставляет атомарный compare-and-set.
+  let questionWriteTail = Promise.resolve();
+  function withQuestionWriteLock(work) {
+    const run = questionWriteTail.then(work);
+    questionWriteTail = run.catch(() => {});
+    return run;
+  }
+
+  // Локальные создания/закрытия, случившиеся во время чтения Notion, не должны
+  // потеряться при перезаписи снимка панели более старым ответом запроса.
+  let questionRevision = 0;
+  const questionChanges = new Map();
+  function recordQuestionChange(id, row) {
+    if (!id) return;
+    questionChanges.set(id, { revision: ++questionRevision, row });
+  }
+  function questionClosedAfter(id, since) {
+    const change = questionChanges.get(id);
+    return Boolean(change && change.revision > since && !change.row);
+  }
+  function mergeQuestionChanges(rows, since) {
+    const merged = new Map((rows || []).map((row) => [row.id, row]));
+    for (const [id, change] of questionChanges) {
+      if (change.revision <= since) continue;
+      if (change.row) merged.set(id, change.row);
+      else merged.delete(id);
+    }
+    return [...merged.values()];
+  }
+
   /**
-   * Вопросы к Мастеру: счётчик на панели и громкий пуш о новом.
-   *
-   * 25.10 Мастер заметил: вопрос в Notion легко пропустить, а рядом со знаком
-   * «?» на панели не было ни числа, ни подсказки. Теперь счётчик открытых
-   * вопросов висит на самой кнопке, подсказка перечисляет первые три, а каждый
-   * новый вопрос даёт громкое уведомление в ntfy — ровно один раз: id
-   * запоминаются. Снимок списка лежит в ScriptCat, поэтому панель показывает
-   * число сразу после загрузки страницы, ещё до запроса в Notion.
-   *
-   * Опрос — не чаще раза в questionCheckMs (10 минут): Notion не любит лишних
-   * запросов, а вопрос, который ждёт сутки, за десять минут не изменится.
-   * Вопрос, который задал сам скрипт, уходит в пуш сразу из `askQuestion`.
+   * Единая обратная связь: одна кнопка и счётчик строк Notion со статусом
+   * «Ждёт», включая предложения ADR. Новые записи уведомляются тихо один раз;
+   * старые запоминаются при первом опросе. Снимок хранится в ScriptCat, чтобы
+   * число было видно до ответа Notion. Опрос работает также на паузе.
    */
   const qText = (row) => row.text ?? rt(row?.properties?.["Вопрос"]);
   const qFallback = (row) => row.fallback ?? rt(row?.properties?.["По умолчанию"]);
@@ -7883,10 +7902,10 @@
       return `«${qText(row)}»${fallback ? ` (по умолчанию: ${fallback})` : ""}`;
     });
     button.title = list.length
-      ? `Открытых вопросов к Мастеру: ${list.length}. ${shown.join("; ")}${
+      ? `Открытых записей обратной связи: ${list.length}. ${shown.join("; ")}${
           list.length > 3 ? `; и ещё ${list.length - 3}` : ""
-        }. Нажмите, чтобы открыть базу «Вопросы».`
-      : "Вопросов к Мастеру нет — база «Вопросы» в Notion";
+        }. Нажмите, чтобы открыть базу «Обратная связь».`
+      : "Открытых записей нет — база «Обратная связь» в Notion";
     button.style.background = list.length ? "#3a3320" : "#242833";
     button.style.borderColor = list.length ? "#8a6b2a" : "#343a46";
     // Свёрнутая панель показывает те же числа на своей кнопке: вопрос не
@@ -7903,12 +7922,11 @@
       const cache = openQuestions();
       if (!questionsSeen()) rememberQuestionSeen(cache.rows.map((item) => item.id));
       rememberQuestionSeen([row.id]);
+      const item = { id: row.id, text: q.text, fallback: q.fallback, due: row.properties?.["Срок"]?.date?.start || "" };
+      recordQuestionChange(row.id, item);
       GM_setValue("cfn-q-open", {
         at: cache.at || Date.now(),
-        rows: [
-          ...cache.rows.filter((item) => item.id !== row.id),
-          { id: row.id, text: q.text, fallback: q.fallback, due: row.properties?.["Срок"]?.date?.start || "" },
-        ],
+        rows: [...cache.rows.filter((previous) => previous.id !== row.id), item],
       });
       paintQuestions(openQuestions().rows);
     } catch (e) {
@@ -7922,19 +7940,26 @@
   }
 
   function rememberQuestionSeen(ids) {
-    const seen = questionsSeen() || [];
-    GM_setValue("cfn-q-seen", [...seen, ...(ids || []).filter((id) => !seen.includes(id))].slice(-200));
+    const seen = new Set(questionsSeen() || []);
+    for (const id of ids || []) if (id) seen.add(id);
+    GM_setValue("cfn-q-seen", [...seen]);
   }
 
-  /**
-   * Новый вопрос — громкий пуш. Первый запуск не будит Мастера пачкой старых:
-   * он только запоминает их и пишет число в журнал.
-   */
+  /** Храним все открытые ID и хвост закрытых, чтобы не спамить и не копить историю вечно. */
+  function pruneQuestionSeen(rows) {
+    const seen = questionsSeen();
+    if (!seen) return;
+    const open = new Set((rows || []).map((row) => row.id));
+    const recent = seen.filter((id) => !open.has(id)).slice(-200);
+    GM_setValue("cfn-q-seen", [...recent, ...seen.filter((id) => open.has(id))]);
+  }
+
+  /** Новая запись — тихое уведомление один раз; первый запуск не спамит. */
   function notifyNewQuestions(rows) {
     const seen = questionsSeen();
     if (!seen) {
       rememberQuestionSeen((rows || []).map((row) => row.id));
-      if ((rows || []).length) log(`Открытых вопросов к Мастеру: ${rows.length}. Смотрите базу «Вопросы».`);
+      if ((rows || []).length) log(`Открытых записей обратной связи: ${rows.length}. Смотрите базу «Обратная связь».`);
       return 0;
     }
     const fresh = (rows || []).filter((row) => !seen.includes(row.id));
@@ -7943,15 +7968,15 @@
     for (const row of fresh.slice(0, 3)) {
       const fallback = qFallback(row);
       log(
-        `Новый вопрос: «${qText(row)}»${fallback ? ` — по умолчанию: ${fallback}` : ""}. Отвечает приёмка.`,
+        `Новая обратная связь: «${qText(row)}»${fallback ? ` — по умолчанию: ${fallback}` : ""}. Отвечает приёмка.`,
         false,
-        { ntfy: "quiet", title: "Narthex: новый вопрос" },
+        { ntfy: "quiet", title: "Narthex: обратная связь" },
       );
     }
     if (fresh.length > 3) {
-      log(`И ещё ${fresh.length - 3} новых вопроса — откройте базу «Вопросы».`, false, {
+      log(`И ещё ${fresh.length - 3} новых записей — откройте базу «Обратная связь».`, false, {
         ntfy: "quiet",
-        title: "Narthex: вопросы",
+        title: "Narthex: обратная связь",
       });
     }
     return fresh.length;
@@ -7976,6 +8001,7 @@
       return cache.rows;
     }
     try {
+      const revision = questionRevision;
       const rows = await questionRows([Q.wait]);
       const closed = new Set();
       const active = await activeMission().catch(() => null);
@@ -7983,7 +8009,7 @@
         const wanted = rt(active.properties["Миссия"]).trim();
         const mine = rows.filter((row) => {
           const value = rt(row.properties["Миссия"]).trim();
-          return !value || missionSame(value, wanted);
+          return !questionClosedAfter(row.id, revision) && (!value || missionSame(value, wanted));
         });
         const due = expiredQuestions(mine).filter((row) => rt(row.properties["По умолчанию"]));
         // Скрываем только реально записанные закрытия: ошибка Notion и ADR,
@@ -7996,6 +8022,7 @@
         const adopted = mine.filter(
           (row) =>
             !closed.has(row.id) &&
+            !questionClosedAfter(row.id, revision) &&
             !rt(row.properties["Ответ"]).trim() &&
             !GM_getValue(answerHandoffKey(row.id), 0),
         );
@@ -8014,17 +8041,18 @@
           );
         }
       }
-      const open = rows
+      const open = mergeQuestionChanges(rows
         .filter((row) => !closed.has(row.id))
         .map((row) => ({
           id: row.id,
           text: qText(row),
           fallback: qFallback(row),
           due: row.properties?.["Срок"]?.date?.start || "",
-        }));
+        })), revision);
       GM_setValue("cfn-q-open", { at: Date.now(), rows: open });
       paintQuestions(open);
       if (!quiet) notifyNewQuestions(open);
+      pruneQuestionSeen(open);
       return open;
     } catch (e) {
       dbg("вопросы: список не обновлён", e.message);
@@ -8044,6 +8072,27 @@
   /** Одна строка без переводов и лишних пробелов — Notion не любит простыни. */
   const oneLine = (value, max) =>
     String(value == null ? "" : value).replace(/\s+/g, " ").trim().slice(0, max);
+
+  /** Только HTTP(S)-ссылка: остальные значения не отправляем в поле URL Notion. */
+  const questionUrl = (value) => {
+    try {
+      const url = new URL(String(value || "").trim());
+      return ["https:", "http:"].includes(url.protocol) && url.href.length <= 2000 ? url.href : "";
+    } catch (e) {
+      return "";
+    }
+  };
+
+  /** Если в тексте указан ADR, делаем ссылку даже у старого маркера без url. */
+  const questionMaterial = (url, text) => {
+    const supplied = questionUrl(url);
+    if (supplied) return supplied;
+    const files = new Set([...String(text || "").matchAll(/\bdocs\/decisions\/([\w.-]+\.md)\b/gi)]
+      .map((hit) => hit[1]));
+    if (files.size !== 1 || !C.repo) return "";
+    const file = [...files][0];
+    return `https://github.com/${C.repo}/blob/main/docs/decisions/${encodeURIComponent(file)}`;
+  };
 
   /**
    * Вариант ответа из маркера — строкой.
@@ -8102,6 +8151,7 @@
       fullText,
       fallback,
       options,
+      url: questionMaterial(raw.url, raw.text),
       blocks: oneLine(raw.blocks, 200),
       hours: Number.isFinite(hours) && hours >= 1 ? Math.min(hours, 168) : C.questionHours,
     };
@@ -8141,6 +8191,7 @@
         text,
         fullText: oneLine(rawText, C.questionTextFull),
         options,
+        url: questionMaterial(obj.url, rawText),
         blocks: oneLine(obj.blocks, 200),
         hours: Number.isFinite(hours) && hours >= 1 ? Math.min(hours, 168) : C.questionHours,
         fallback: oneLine(optionLabel(fallback), C.questionDefaultMax) || "Работа идёт по решению агента",
@@ -8169,7 +8220,7 @@
       .map((row) => `«${rt(row.properties["Вопрос"])}» (по умолчанию: ${rt(row.properties["По умолчанию"])})`);
     const more = all.length > shown.length ? `; и ещё ${all.length - shown.length}` : "";
     return (
-      `Вопросы к Мастеру без ответа: ${shown.join("; ")}${more}. ` +
+      `Обратная связь без ответа (вопросы и предложения): ${shown.join("; ")}${more}. ` +
       "Ответ придёт на следующем ходе — не задавай их снова и не останавливайся."
     );
   }
@@ -8183,14 +8234,14 @@
       const title = rt(row.properties["Вопрос"]);
       const answer = rt(row.properties["Ответ"]);
       const hint = byDefault
-        ? /\bADR\b|docs\/decisions\//i.test(title)
+        ? /\bADR\b|docs\/decisions\//i.test(`${title} ${row.properties?.["Материал"]?.url || ""}`)
           ? " (срок истёк: это только default, фактического решения приёмки по ADR нет)"
           : " (срок истёк, принят вариант по умолчанию)"
         : "";
       return `«${title}» → ${answer}${hint}`;
     });
     const more = all.length > shown.length ? `; и ещё ${all.length - shown.length}` : "";
-    return `Ответы Мастера на вопросы и ответы приёмки — учти их в этом ходе: ${shown.join("; ")}${more}.`;
+    return `Ответы на обратную связь от Мастера и приёмки — учти их в этом ходе: ${shown.join("; ")}${more}.`;
   }
 
   /** Свойства строки базы «Вопросы». */
@@ -8207,6 +8258,8 @@
     };
     if (q.blocks) props["Что блокирует"] = text(q.blocks);
     if (q.options.length) props["Варианты"] = text(q.options.join(" · "));
+    const url = questionMaterial(q.url, `${q.text || ""} ${q.fullText || ""}`);
+    if (url) props["Материал"] = { url };
     return props;
   }
 
@@ -8260,52 +8313,62 @@
     const sameText = norm(q?.text);
     if (sameText && list.some((item) => norm(item?.q?.text) === sameText)) return;
     list.push({ q, ctx, at: Date.now() });
-    GM_setValue(K.qQueue, list.slice(-10));
+    GM_setValue(K.qQueue, list);
   }
 
   async function flushQuestionQueue() {
     const stored = GM_getValue(K.qQueue, []);
-    const list = Array.isArray(stored) ? stored : [];
+    const list = Array.isArray(stored) ? [...stored] : [];
     if (!list.length) return 0;
     const left = [];
     let saved = 0;
     for (const item of list) {
       if (!item || !item.q || !item.q.text) continue;
-      // Пока вопрос лежал в очереди, Мастер мог уже ответить на такой же (или на
-      // тот же ADR) — тогда не пишем и не будим.
-      const same = await sameQuestionRow(item.q.text);
-      if (same) {
-        // Строка «Ждёт» без «Ответа» — это не «вопрос уже задан», а вопрос,
-        // который никто не передал приёмке (1.4.82). Молча пропустить его
-        // значит потерять его совсем: так NAR-5 висел с 15:41.
-        const handled = handWaitingRow(same.row, item.q, item.ctx || {});
-        log(
-          handled
-            ? `Отложенный вопрос «${item.q.text}» уже есть в «Вопросах» и ждёт без ответа — передаю приёмке, второй строки не пишу.`
-            : `Отложенный вопрос «${item.q.text}» уже есть в «Вопросах» с ответом — не записываю второй раз.`,
-          false,
-          { ntfy: false },
-        );
-        continue;
-      }
-      try {
-        const row = await notion("POST", "pages", {
-          parent: { type: "data_source_id", data_source_id: C.questions },
-          properties: questionProps(item.q, item.ctx || {}),
-        });
-        noteQuestionAsked(row, item.q);
-        await appendQuestionBody(row, item.q);
-        queueAnswer(row, item.q, item.ctx || {});
-        saved += 1;
-        log(`Отложенный вопрос записался: «${item.q.text}» — отвечает приёмка.`, false, {
-          ntfy: "quiet",
-          title: "Narthex: вопрос приёмке",
-        });
-      } catch (e) {
-        left.push(item);
-      }
+      // Одна блокировка с обычной записью: проверка и создание не могут
+      // пересечься с обнаружением того же ADR в этой вкладке.
+      const outcome = await withQuestionWriteLock(async () => {
+        try {
+          const same = await sameQuestionRow(item.q.text, {
+            automatic: Boolean(item.q.autoAdr),
+            material: questionMaterial(item.q.url, item.q.fullText || item.q.text),
+          });
+          if (same) {
+            const handled = handWaitingRow(same.row, item.q, item.ctx || {});
+            log(
+              handled
+                ? `Отложенный вопрос «${item.q.text}» уже есть в «Обратной связи» и ждёт без ответа — передаю приёмке, второй строки не пишу.`
+                : `Отложенный вопрос «${item.q.text}» уже есть в «Обратной связи» с ответом — не записываю второй раз.`,
+              false,
+              { ntfy: false },
+            );
+            return "existing";
+          }
+          const row = await notion("POST", "pages", {
+            parent: { type: "data_source_id", data_source_id: C.questions },
+            properties: questionProps(item.q, item.ctx || {}),
+          });
+          noteQuestionAsked(row, item.q);
+          await appendQuestionBody(row, item.q);
+          queueAnswer(row, item.q, item.ctx || {});
+          log(`Отложенный вопрос записался: «${item.q.text}» — отвечает приёмка.`, false, {
+            ntfy: "quiet",
+            title: "Narthex: вопрос приёмке",
+          });
+          return "saved";
+        } catch (e) {
+          // Ошибка проверки дубля тоже означает повтор, а не запись вслепую.
+          return "retry";
+        }
+      });
+      if (outcome === "retry") left.push(item);
+      else if (outcome === "saved") saved += 1;
     }
-    GM_setValue(K.qQueue, left);
+    // В ходе сетевого запроса другая задача могла добавить новый вопрос.
+    // Не затираем такие записи снимком очереди, сделанным до запроса.
+    const batch = new Set(list.map((item) => norm(item?.q?.text)).filter(Boolean));
+    const latest = GM_getValue(K.qQueue, []);
+    const added = (Array.isArray(latest) ? latest : []).filter((item) => !batch.has(norm(item?.q?.text)));
+    GM_setValue(K.qQueue, [...left, ...added]);
     if (left.length && saved === 0) {
       dbg("вопросы: очередь не ушла", left.length);
     }
@@ -8351,15 +8414,17 @@
     const options = qOptions(row);
     const fallback = rt(row?.properties?.["По умолчанию"]);
     const blocks = rt(row?.properties?.["Что блокирует"]).trim();
+    const url = questionMaterial(row?.properties?.["Материал"]?.url, text);
     const full = [
       text,
+      url ? `Материал: ${url}` : "",
       options.length ? `Варианты: ${options.join(" · ")}` : "",
       fallback ? `Вариант по умолчанию: ${fallback}` : "",
       blocks ? `Что блокирует: ${blocks}` : "",
     ]
       .filter(Boolean)
       .join("\n");
-    return { text, fullText: full, fallback, options, hours: 168 };
+    return { text, fullText: full, fallback, options, url, hours: 168 };
   }
 
   /** Отметка «эту строку приёмке уже передавали» — чтобы не гонять её кругом. */
@@ -8391,16 +8456,21 @@
    * открытый ADR NAR-2.14.md?» при готовом ответе «принять F3–F5»). Поэтому
    * сравниваются и нормализованный текст, и ссылки на ADR.
    */
-  async function sameQuestionRow(text) {
+  async function sameQuestionRow(text, { automatic = false, material = "" } = {}) {
     const wanted = norm(text);
     if (!wanted) return null;
-    const refs = adrRefsOf(text);
+    const refs = adrRefsOf(`${text} ${material}`);
     try {
       const rows = await questionRows([Q.wait, Q.done, Q.byDefault]);
       for (const row of rows) {
         const raw = rt(row.properties["Вопрос"]);
         const got = norm(raw);
         if (!got) continue;
+        // Ни истёкший default, ни «Решено» с пустым ответом не являются
+        // фактическим решением ADR и не должны подавлять новый запрос.
+        const status = sel(row.properties?.["Статус"]);
+        const adr = /\bADR\b|docs\/decisions\//i.test(`${raw} ${text} ${material} ${row.properties?.["Материал"]?.url || ""}`);
+        if (adr && (status === Q.byDefault || (status === Q.done && !rt(row.properties?.["Ответ"]).trim()))) continue;
         if (got === wanted) return { row, why: "text" };
         const long = wanted.length >= 60 && got.length >= 60;
         if (long && (got.startsWith(wanted.slice(0, 60)) || wanted.startsWith(got.slice(0, 60)))) return { row, why: "text" };
@@ -8408,72 +8478,84 @@
         // второй раз («как решить…» вместо «принять или отклонить»), и Мастер
         // получил уведомление о том, на что уже ответил. Ссылка на решение —
         // достаточный признак: вопрос про тот же ADR уже задан.
-        if (refs.size && !followUpOf(text)) {
-          const seen = adrRefsOf(raw);
+        if (refs.size && (!followUpOf(text) || automatic)) {
+          const seen = adrRefsOf(`${raw} ${row.properties?.["Материал"]?.url || ""}`);
           const shared = [...refs].find((ref) => seen.has(ref));
           if (shared) return { row, why: "adr", ref: shared.replace(/^(adr|file):/, "") };
         }
       }
     } catch (e) {
       dbg("вопросы: дубль не проверен", e.message);
+      throw e;
     }
     return null;
   }
 
   async function askQuestion(q, ctx = {}) {
-    const key = `cfn-asked:${ctx.key || q.text}`;
-    if (GM_getValue(key, false)) return null;
-    const same = await sameQuestionRow(q.text);
-    if (same) {
-      const status = sel(same.row.properties?.["Статус"]);
-      const answer = rt(same.row.properties?.["Ответ"]).replace(/\s+/g, " ").trim();
-      GM_setValue(key, Date.now());
-      const where = same.why === "adr" ? `По решению «${String(same.ref).toUpperCase()}»` : "Такой вопрос уже задан:";
-      // Строка «Ждёт» с пустым «Ответом» — это вопрос, который не дошёл до
-      // приёмки. Раньше он считался «Мастер уже ответил» и второй раз не
-      // записывался: 28.10 строка про NAR-5 висела с 15:41 до вечера, а скрипт
-      // писал, что отвечать нечего. Теперь такая строка передаётся приёмке.
-      if (status === Q.wait && !answer) {
-        handWaitingRow(same.row, q, ctx);
-        log(`${where} строка есть, но она «Ждёт» без ответа: «${q.text}» — передаю приёмке, второй не пишу.`, false, {
-          ntfy: false,
+    return withQuestionWriteLock(async () => {
+      try {
+        const key = `cfn-asked:${ctx.key || q.text}`;
+        const askedBefore = GM_getValue(key, false);
+        // Для обычного маркера ключ защищает от повтора хода. Сторож ADR всё
+        // равно сверяет Notion: строку могли отменить или удалить после записи.
+        if (askedBefore && !q.autoAdr) return null;
+        const same = await sameQuestionRow(q.text, {
+          automatic: Boolean(q.autoAdr),
+          material: questionMaterial(q.url, q.fullText || q.text),
         });
-        return same.row;
+        if (same) {
+          // Уже переданное предложение не двигаем в очереди и не уведомляем
+          // повторно; если строки нет, ниже будет создана новая.
+          if (askedBefore && q.autoAdr) return same.row;
+          const status = sel(same.row.properties?.["Статус"]);
+          const answer = rt(same.row.properties?.["Ответ"]).replace(/\s+/g, " ").trim();
+          GM_setValue(key, Date.now());
+          const where = same.why === "adr" ? `По решению «${String(same.ref).toUpperCase()}»` : "Такой вопрос уже задан:";
+          // Строка «Ждёт» с пустым «Ответом» — это вопрос, который не дошёл до
+          // приёмки. Раньше он считался «Мастер уже ответил» и второй раз не
+          // записывался: 28.10 строка про NAR-5 висела с 15:41 до вечера, а скрипт
+          // писал, что отвечать нечего. Теперь такая строка передаётся приёмке.
+          if (status === Q.wait && !answer) {
+            handWaitingRow(same.row, q, ctx);
+            log(`${where} строка есть, но она «Ждёт» без ответа: «${q.text}» — передаю приёмке, второй не пишу.`, false, {
+              ntfy: false,
+            });
+            return same.row;
+          }
+          log(
+            `${where} приёмка уже ответила${answer ? `: «${answer.slice(0, 140)}»` : ""} — второй раз не записываю и не уведомляю.`,
+            false,
+            { ntfy: false },
+          );
+          return null;
+        }
+        const row = await notion("POST", "pages", {
+          parent: { type: "data_source_id", data_source_id: C.questions },
+          properties: questionProps(q, ctx),
+        });
+        GM_setValue(key, Date.now());
+        noteQuestionAsked(row, q);
+        await appendQuestionBody(row, q);
+        // Вопрос сразу ставится в очередь приёмки: она отвечает вместо Мастера
+        // (1.4.80). Громкого пуша нет — вопрос больше не требует человека.
+        queueAnswer(row, q, ctx);
+        log(`Вопрос записан: «${q.text}». По умолчанию: ${q.fallback} — отвечает приёмка.`, false, {
+          ntfy: "quiet",
+          title: "Narthex: вопрос приёмке",
+        });
+        return row;
+      } catch (e) {
+        // Запись, которая уже не повторится, — потерянный вопрос: Мастер увидит
+        // его только в маркере. Поэтому строка ждёт в очереди и повторяется.
+        queueQuestion(q, ctx);
+        log(
+          `Вопрос к Мастеру в базу не записался (${e.message}). Строка отложена и повторится сама; ` +
+            `пока агент идёт по варианту по умолчанию: ${q.fallback}.`,
+          true,
+        );
+        return null;
       }
-      log(
-        `${where} приёмка уже ответила${answer ? `: «${answer.slice(0, 140)}»` : ""} — второй раз не записываю и не уведомляю.`,
-        false,
-        { ntfy: false },
-      );
-      return null;
-    }
-    try {
-      const row = await notion("POST", "pages", {
-        parent: { type: "data_source_id", data_source_id: C.questions },
-        properties: questionProps(q, ctx),
-      });
-      GM_setValue(key, Date.now());
-      noteQuestionAsked(row, q);
-      await appendQuestionBody(row, q);
-      // Вопрос сразу ставится в очередь приёмки: она отвечает вместо Мастера
-      // (1.4.80). Громкого пуша нет — вопрос больше не требует человека.
-      queueAnswer(row, q, ctx);
-      log(`Вопрос записан: «${q.text}». По умолчанию: ${q.fallback} — отвечает приёмка.`, false, {
-        ntfy: "quiet",
-        title: "Narthex: вопрос приёмке",
-      });
-      return row;
-    } catch (e) {
-      // Запись, которая уже не повторится, — потерянный вопрос: Мастер увидит
-      // его только в маркере. Поэтому строка ждёт в очереди и повторяется.
-      queueQuestion(q, ctx);
-      log(
-        `Вопрос к Мастеру в базу не записался (${e.message}). Строка отложена и повторится сама; ` +
-          `пока агент идёт по варианту по умолчанию: ${q.fallback}.`,
-        true,
-      );
-      return null;
-    }
+    });
   }
 
   /** Отметить ответы доставленными — только после того, как промпт ушёл. */
@@ -8487,30 +8569,49 @@
     }
   }
 
-  /** Срок вышел — закрываем вопрос вариантом по умолчанию, но не молча. */
+  /** Срок вышел — закрываем обычный вопрос вариантом по умолчанию, но не молча. */
   async function closeExpired(rows, closedIds = null) {
     let closed = 0;
     for (const row of rows || []) {
-      const fallback = rt(row.properties["По умолчанию"]);
-      if (!fallback) continue;
-      // Предложение ADR требует фактического ответа: срок и default не
-      // превращают его в решение и не разрешают менять защищённый оракул.
       const title = rt(row.properties["Вопрос"]);
-      if (/\bADR\b|docs\/decisions\//i.test(title)) continue;
+      // ADR никогда не закрывается по сроку, даже если ссылка только в URL.
+      if (!rt(row.properties["По умолчанию"]) ||
+          /\bADR\b|docs\/decisions\//i.test(`${title} ${row.properties?.["Материал"]?.url || ""}`)) continue;
       try {
-        await patch(row.id, {
-          "Статус": { select: { name: Q.byDefault } },
-          "Ответ": { rich_text: richText(fallback) },
+        const result = await withQuestionWriteLock(async () => {
+          // Снимок списка может устареть: Мастер уже ответил или срок изменён.
+          // Перечитываем прямо перед PATCH и не перезаписываем чужое решение.
+          const latest = await notion("GET", `pages/${row.id}`);
+          const state = sel(latest?.properties?.["Статус"]);
+          if (!state) throw new Error("статус строки не прочитан");
+          if (state !== Q.wait) {
+            recordQuestionChange(row.id, null);
+            if (closedIds) closedIds.add(row.id);
+            return null;
+          }
+          const props = latest.properties;
+          const freshTitle = rt(props["Вопрос"]);
+          const fallback = rt(props["По умолчанию"]);
+          const due = props["Срок"]?.date?.start || "";
+          if (rt(props["Ответ"]).trim() || !fallback || !due || !(Date.parse(due) < Date.now()) ||
+              /\bADR\b|docs\/decisions\//i.test(`${freshTitle} ${props["Материал"]?.url || ""}`)) return null;
+          await patch(row.id, {
+            "Статус": { select: { name: Q.byDefault } },
+            "Ответ": { rich_text: richText(fallback) },
+          });
+          recordQuestionChange(row.id, null);
+          if (closedIds) closedIds.add(row.id);
+          return { freshTitle, fallback };
         });
+        if (!result) continue;
         closed += 1;
-        if (closedIds) closedIds.add(row.id);
         log(
-          `Вопрос «${rt(row.properties["Вопрос"])}» ждал дольше срока — принят вариант по умолчанию: ${fallback}.`,
+          `Вопрос «${result.freshTitle}» ждал дольше срока — принят вариант по умолчанию: ${result.fallback}.`,
           false,
           { ntfy: "quiet", title: "Narthex: вопрос закрыт по умолчанию" },
         );
       } catch (e) {
-        log(`Вопрос «${rt(row.properties["Вопрос"])}» не закрылся по сроку: ${e.message}`, true);
+        log(`Вопрос «${title}» не закрылся по сроку: ${e.message}`, true);
       }
     }
     return closed;
@@ -8541,29 +8642,21 @@
         questionRows([Q.wait], mission),
         questionRows([Q.done, Q.byDefault], mission),
       ]);
-      const fresh = answered.filter((row) => !row.properties?.["Доставлено"]?.date?.start);
+      const fresh = answered.filter((row) =>
+        !row.properties?.["Доставлено"]?.date?.start && rt(row.properties?.["Ответ"]).trim());
       return { fresh, openLine: openQuestionsLine(open), answersLine: answersLine(fresh) };
     } catch (e) {
-      log(`База «Вопросы» не читается: ${e.message}`, true);
+      log(`База «Обратная связь» не читается: ${e.message}`, true);
       return { fresh: [], openLine: "", answersLine: "" };
     }
   }
 
   // ─────────────────────────── решения на Мастере (ADR) ───────────────────────
   /**
-   * Предложение живёт в репозитории, а не в Notion: `docs/decisions/<X>.md` со
-   * строкой `Статус: proposed`.
-   *
-   * 25.10 Мастер спросил: «предложено — это кто предложил?» Оказалось, что
-   * механизм предложения работает наполовину: агент законно пишет ADR и должен
-   * остановиться, но остановки не происходит, а сам файл никто не читает — из
-   * 21 журнала поле `Статус:` было у двух. Счётчик вопросов тут не спасает:
-   * вопрос — отдельная запись, а ADR мог появиться и без вопроса.
-   *
-   * Поэтому счётчик решений читает репозиторий напрямую: имена файлов и их
-   * `Статус:` из `docs/decisions` в main. Содержимое кэшируется по sha: за
-   * проверку уходит один запрос на каталог, а файл перечитывается только когда
-   * его sha изменился. Ошибка чтения — не пауза: без счётчика цикл работает.
+   * ADR `proposed` может появиться в `docs/decisions` без маркера question.
+   * Фоновый сторож читает main и направляет такие файлы в ту же обратную связь
+   * и очередь приёмки, а не показывает вторую кнопку. Содержимое кэшируется по
+   * sha; ошибка чтения не останавливает цикл и не создаёт запись вслепую.
    */
   const ADR_FOLDER = "docs/decisions";
   const ADR_PROPOSED = "proposed";
@@ -8612,7 +8705,7 @@
       for (const row of rows) {
         const answer = rt(row.properties?.["Ответ"]).trim();
         if (!answer) continue;
-        for (const key of adrSubjectKeysOf(rt(row.properties?.["Вопрос"]))) names.add(key);
+        for (const key of adrSubjectKeysOf(`${rt(row.properties?.["Вопрос"])} ${row.properties?.["Материал"]?.url || ""}`)) names.add(key);
       }
     } catch (e) {
       // `null` — «не знаю», а не «решений нет»: иначе сбой чтения вернул бы в
@@ -8646,55 +8739,6 @@
     }
   }
 
-  function paintDecisions(rows, settled = []) {
-    if (typeof document === "undefined") return;
-    const list = rows || [];
-    const waiting = (settled || []).map((row) => row.file);
-    const badge = document.getElementById(ui.adrBadge);
-    if (badge) {
-      badge.textContent = list.length ? String(list.length) : "";
-      badge.style.display = list.length ? "inline-block" : "none";
-    }
-    const button = document.getElementById(ui.adr);
-    if (!button) return;
-    const decidedHint = waiting.length
-      ? ` Решение уже принято, ждёт записи в репозиторий (это работа агентов): ${waiting.slice(0, 4).join(", ")}.`
-      : "";
-    button.title = list.length
-      ? `Решений на Мастере: ${list.length} — ${list
-          .slice(0, 4)
-          .map((row) => row.file)
-          .join(", ")}${list.length > 4 ? "…" : ""}. Нажмите, чтобы открыть ${ADR_FOLDER}.${decidedHint}`
-      : `Решений, ждущих Мастера, нет — ${ADR_FOLDER} в main.${decidedHint}`;
-    button.style.background = list.length ? "#3a3320" : "#242833";
-    button.style.borderColor = list.length ? "#8a6b2a" : "#343a46";
-    if (typeof paintPanelChrome === "function") paintPanelChrome();
-  }
-
-  /**
-   * Новое предложение — громкий пуш. Первый запуск молчит и только запоминает,
-   * что уже висит: иначе Мастер получает пачку из старых решений и перестаёт
-   * верить каналу (ровно та же ошибка, что была с вопросами).
-   */
-  function announceDecisions(rows) {
-    const cache = openDecisions();
-    const names = (rows || []).map((row) => row.file);
-    const before = Array.isArray(cache.known) ? cache.known : null;
-    GM_setValue("cfn-adr-open", { at: Date.now(), rows: rows || [], known: names });
-    if (!before) {
-      if (names.length)
-        log(`Решений на Мастере: ${names.length} (${names.join(", ")}).`, false, { ntfy: false });
-      return 0;
-    }
-    const fresh = names.filter((name) => !before.includes(name));
-    if (!fresh.length) return 0;
-    log(`Новое предложение ждёт решения: ${fresh.join(", ")} — ${ADR_FOLDER} в main.`, false, {
-      ntfy: "quiet",
-      title: "Narthex: новое предложение (ADR)",
-    });
-    return fresh.length;
-  }
-
   /** Ключ файла предложения: `0016-capability-registry-boundary.md` → без `.md`. */
   const adrKeyOf = (file) => String(file || "").replace(/\.md$/i, "").toLowerCase();
 
@@ -8709,10 +8753,14 @@
   function proposalQuestion(row, missionName = "") {
     const file = String(row?.file || "");
     const path = `${ADR_FOLDER}/${file}`;
+    const url = `https://github.com/${C.repo}/blob/main/${ADR_FOLDER}/${encodeURIComponent(file)}`;
     return {
       text: `Предложение ${path}: принять, отклонить или оставить как есть?`,
+      url,
+      autoAdr: true,
       fullText: [
         `Предложение лежит в репозитории: ${path} (main), статус «proposed».`,
+        `Материал: ${url}`,
         missionName ? `Миссия: ${missionName}` : "",
         "",
         "ЧТО РЕШИТЬ",
@@ -8732,12 +8780,8 @@
   /**
    * Довести нерешённые предложения до приёмки.
    *
-   * Счётчик «⚖» — подсказка панели, а не доставка. 28.10 Мастер: «висит 1
-   * предложение (/docs/decisions), не ушло к тебе». Так и было: статус файла
-   * читался, число рисовалось, а строки в «Вопросах» не появлялось — приёмка о
-   * предложении не знала, и оно могло лежать неделями.
-   *
-   * Теперь каждое `proposed` без принятого решения получает строку со ссылкой
+   * ADR без вопроса нельзя терять. Каждое `proposed` без принятого решения
+   * получает строку в «Обратной связи» со ссылкой
    * на файл и сразу ставится в очередь приёмки. Повторная строка не
    * создаётся: `sameQuestionRow` сравнивает ссылки на решение, а отметка
    * `cfn-asked:adr:<файл>` помнит факт передачи.
@@ -8761,29 +8805,38 @@
       return;
     }
     const answered = new Set();
-    const expired = new Set();
+    const unresolved = new Map();
     for (const question of history) {
-      const keys = adrSubjectKeysOf(rt(question.properties?.["Вопрос"]));
+      const keys = adrSubjectKeysOf(`${rt(question.properties?.["Вопрос"])} ${question.properties?.["Материал"]?.url || ""}`);
       const status = sel(question.properties?.["Статус"]);
-      if (status === Q.done && rt(question.properties?.["Ответ"]).trim())
-        for (const key of keys) answered.add(key);
-      if (status === Q.byDefault) for (const key of keys) expired.add(key);
+      const answer = rt(question.properties?.["Ответ"]).trim();
+      if (status === Q.done && answer) for (const key of keys) answered.add(key);
+      if (status === Q.byDefault || (status === Q.done && !answer)) {
+        for (const key of keys) {
+          const items = unresolved.get(key) || [];
+          items.push(question.id);
+          unresolved.set(key, items);
+        }
+      }
     }
     for (const row of rows || []) {
       try {
         const fileKey = adrKeyOf(row.file);
         if (answered.has(fileKey)) continue;
-        const needsReview = expired.has(fileKey);
+        const problems = (unresolved.get(fileKey) || []).sort();
+        const needsReview = problems.length > 0;
         const question = proposalQuestion(row, missionName);
         if (needsReview) {
           question.text = `Уточнение: ${question.text}`;
-          question.fullText = "Предыдущий вопрос закрыт по сроку, а не ответом: default не является решением. Нужен ответ по существу.\n\n" + question.fullText;
+          question.fullText = "Предыдущий вопрос закрыт без фактического ответа (по сроку или с пустым полем): default не является решением. Нужен ответ по существу.\n\n" + question.fullText;
         }
         await askQuestion(question, {
           roleName: "Narthex (транспорт)",
           card: "",
           mission: missionName,
-          key: `${needsReview ? "adr-confirm" : "adr"}:${row.file}`,
+          // Идентификаторы старых строк дают новому уточнению свой ключ, даже
+          // если прежнее уточнение затем ошибочно закрыли без ответа.
+          key: needsReview ? `adr-confirm:${row.file}:${problems.join(":")}` : `adr:${row.file}`,
         });
       } catch (e) {
         dbg("решения: предложение не передано приёмке", e.message);
@@ -8819,25 +8872,22 @@
       GM_setValue("cfn-adr-text", texts);
       const answered = await decidedAdrNames();
       if (answered === null) {
-        // Список ответов не прочитан — показываем прежний счётчик и молчим:
-        // лучше не обновить цифру, чем позвать Мастера к решённому.
-        paintDecisions(cache.rows);
+        // История недоступна: не создаём дубликаты вслепую. Следующий опрос
+        // повторит попытку; счётчик остаётся снимком базы обратной связи.
         return cache.rows;
       }
       const settled = rows.filter((row) => answered.has(adrKeyOf(row.file)));
       const pending = rows.filter((row) => !settled.includes(row));
-      paintDecisions(pending, settled);
-      announceDecisions(pending);
-      // Предложение — не украшение счётчика: оно обязано дойти до приёмки так
-      // же, как вопрос агента. 28.10 файл лежал в репозитории, «⚖» показывал
-      // единицу, а решения не ждал никто: строки в «Вопросах» не было.
+      GM_setValue("cfn-adr-open", { at: Date.now(), rows: pending });
+      // ADR может появиться без маркера question. Он попадает в ту же очередь
+      // Notion и приёмки, без отдельного счётчика и второго уведомления.
       if (pending.length) await deliverProposals(pending);
       if (settled.length) {
         logThrottled(
           "adr-settled",
-          `Решение по предложению уже принято в «Вопросах», но в репозитории ADR ещё proposed: ` +
-            `${settled.map((row) => row.file).join(", ")}. Это работа агентов, а не Мастера — в счётчик «⚖» не входит, ` +
-            "но и не забывается: статус файла меняет исполнитель карточкой, иначе предложение выглядит нерешённым.",
+          `Решение по ADR уже записано в «Обратной связи», но в репозитории он ещё proposed: ` +
+            `${settled.map((row) => row.file).join(", ")}. Это работа агентов: ` +
+            "статус файла меняет исполнитель карточкой, иначе предложение выглядит нерешённым.",
           false,
           3_600_000,
         );
@@ -8845,7 +8895,6 @@
       return pending;
     } catch (e) {
       dbg("решения: список не обновлён", e.message);
-      paintDecisions(cache.rows);
       return cache.rows;
     }
   }
@@ -9042,8 +9091,8 @@
       parts.push(
         `Координатор спрашивает: «${ask}». ` +
           (asked
-            ? "Вопрос записан в базу «Вопросы» — он виден там и счётчиком на панели."
-            : "Вопрос в «Вопросы» не записался — он есть только в этом сообщении, запишите его сами."),
+            ? "Вопрос записан в базу «Обратная связь» — он виден там и счётчиком на панели."
+            : "Вопрос в «Обратную связь» не записался — он есть только в этом сообщении, запишите его сами."),
       );
     }
     const first = (open || [])[0];
@@ -9061,7 +9110,7 @@
       parts.push(
         `Вопрос об этом уже задан: «${rt(first.properties?.["Вопрос"])}» (по умолчанию: ${rt(
           first.properties?.["По умолчанию"],
-        )}${when}) — он ждёт ответа в базе «Вопросы».`,
+        )}${when}) — он ждёт ответа в базе «Обратная связь».`,
       );
     }
     parts.push(
@@ -9953,6 +10002,7 @@
       fullText: q.fullText || q.text,
       fallback: q.fallback,
       options: Array.isArray(q.options) ? q.options : [],
+      url: questionMaterial(q.url, `${q.text || ""} ${q.fullText || ""}`),
       role: ctx.roleName || "",
       card: ctx.card || "",
       mission: ctx.mission || "",
@@ -9960,7 +10010,7 @@
     };
     const list = answerQueue().filter((row0) => row0.id !== item.id);
     list.push(item);
-    GM_setValue(K.answers, list.slice(-10));
+    GM_setValue(K.answers, list);
     return item;
   }
 
@@ -9981,6 +10031,7 @@
       "",
       "ВОПРОС",
       item.fullText,
+      item.url && !String(item.fullText || "").includes(item.url) ? `Материал: ${item.url}` : "",
       "",
       item.options.length ? `Варианты, которые предложил агент: ${item.options.join(" · ")}` : "",
       `Вариант по умолчанию (по нему работа идёт прямо сейчас): ${item.fallback}`,
@@ -10052,7 +10103,7 @@
       const reason = firstLine(String(decision.reason || answer || "").trim()) || "приёмка не назвала причину";
       dropAnswer(expect.ref);
       pause(
-        `Приёмка не может ответить на вопрос без Мастера: ${reason}. Вопрос остался в базе «Вопросы» со статусом ` +
+        `Приёмка не может ответить на вопрос без Мастера: ${reason}. Вопрос остался в базе «Обратная связь» со статусом ` +
           "«Ждёт» — ответьте в поле «Ответ», поставьте «Решено» и нажмите «Продолжить».",
         { kind: "answer-needs-master", ref: expect.ref, notifyTitle: "Narthex: вопрос ждёт Мастера" },
       );
@@ -10075,31 +10126,49 @@
     }
     // Вопрос могли закрыть руками, пока приёмка думала: тогда её ответ уже
     // никому не нужен, и перезаписывать чужое решение нельзя.
-    const row = await notion("GET", `pages/${expect.ref}`).catch(() => null);
-    const state = row?.properties?.["Статус"]?.select?.name || "";
-    if (state && state !== Q.wait) {
-      dropAnswer(expect.ref);
+    let stage = "read";
+    let result;
+    try {
+      // Та же блокировка, что у закрытия по сроку: два действия одной вкладки
+      // не могут перезаписать решение друг друга между чтением и записью.
+      result = await withQuestionWriteLock(async () => {
+        const row = await notion("GET", `pages/${expect.ref}`);
+        const state = row?.properties?.["Статус"]?.select?.name || "";
+        if (!state) throw new Error("статус строки не прочитан");
+        if (state !== Q.wait) return { state, answerRecorded: false };
+        stage = "write";
+        await patch(expect.ref, {
+          "Статус": { select: { name: Q.done } },
+          "Ответ": { rich_text: richText(answer) },
+        });
+        return { state, answerRecorded: true };
+      });
+    } catch (e) {
+      // Ответ и ожидание остаются в чате/хранилище; попробуем тот же ход позже.
+      GM_setValue(K.expect, expect);
+      logThrottled(`answer-${stage}:${expect.ref}`, `Не удалось ${stage === "read" ? "проверить строку" : "записать ответ"} обратной связи (${e.message}): ожидание сохранено, повторю проверку.`, true);
+      return true;
+    }
+    const { state, answerRecorded } = result;
+    dropAnswer(expect.ref);
+    if (!answerRecorded) {
       log(
         `Вопрос закрыт раньше приёмки («${state}») — ответ не перезаписываю, ход возвращается Координатору.`,
         false,
         { tone: "warn", ntfy: "quiet" },
       );
-    } else {
-      await patch(expect.ref, {
-        "Статус": { select: { name: Q.done } },
-        "Ответ": { rich_text: richText(answer) },
-      });
-      dropAnswer(expect.ref);
     }
     // Панель знает про ответ сразу: вопрос больше не «Ждёт».
     try {
+      recordQuestionChange(expect.ref, null);
       const cache = openQuestions();
       GM_setValue("cfn-q-open", { at: cache.at, rows: cache.rows.filter((row) => row.id !== expect.ref) });
       paintQuestions(openQuestions().rows);
     } catch (e) {
       dbg("вопросы: панель не обновилась", e.message);
     }
-    log(`Вопрос закрыт приёмкой «${role.name}»: ${oneLine(answer, 160)}`, false, { tone: "ok", ntfy: "quiet" });
+    if (answerRecorded)
+      log(`Вопрос закрыт приёмкой «${role.name}»: ${oneLine(answer, 160)}`, false, { tone: "ok", ntfy: "quiet" });
     // Ход возвращается Координатору: ответ придёт ему строкой в промпте
     // («Ответы на вопросы»), а next из хода, где вопрос был задан, не
     // применялся — он посчитан без ответа.
@@ -10117,9 +10186,9 @@
       return true;
     }
     const queue = await queueOf(mission).catch(() => ({ summary: "очередь не прочитана" }));
-    await requestPlan(mission, coord, queue, "Ответ на вопрос записан — учти его и продолжи план.", {
-      force: true,
-    });
+    const note = answerRecorded ? "Ответ на вопрос записан — учти его и продолжи план." :
+      "Вопрос уже закрыт в Notion — учти сохранённое состояние и продолжи план.";
+    await requestPlan(mission, coord, queue, note, { force: true });
     return true;
   }
 
