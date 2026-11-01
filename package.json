@@ -13,6 +13,7 @@
     "campaign:release": "tsx scripts/campaign-visibility.mts release",
     "check:audit-bundle": "tsx scripts/check-audit-bundle.mts",
     "check:brand": "tsx scripts/brand-guard.mts",
+    "check:brand:probes": "tsx scripts/brand-guard-probes.mts",
     "check:browser-gate": "tsx scripts/check-browser-gate.mts",
     "check:campaign-formats": "tsx scripts/audit-campaign-formats.mts",
     "check:campaigns": "tsx scripts/campaign-copies.mts",
