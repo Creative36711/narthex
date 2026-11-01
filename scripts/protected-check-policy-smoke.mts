@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
@@ -9,7 +8,6 @@ import { classifyCampaignCopyDelta, isUnchangedProtectedCampaign } from './prote
 
 const repoRoot = path.resolve(import.meta.dirname, '..')
 const tempRoot = await mkdtemp(path.join(tmpdir(), 'narthex-protected-checks-'))
-const hash = (value: string | Buffer): string => createHash('sha256').update(value).digest('hex')
 
 async function copyCampaigns(name: string): Promise<string> {
   const root = path.join(tempRoot, name)
@@ -67,17 +65,16 @@ try {
     { ...identity, campaign: 'renamed-copy' }, source, target, [], [], ['campaign.json'],
   ), 'mismatch')
 
-  // Exact unchanged legacy content is exempt by path+hash only. A modified
-  // snapshot and any newly introduced path with the same brand marker fail.
+  // Brand exceptions are occurrence-addressed. An unchanged marker at an
+  // unapproved path is still reported; no content hash grants a bypass.
   const brandRoot = path.join(tempRoot, 'brand')
   await mkdir(path.join(brandRoot, 'docs'), { recursive: true })
-  const oldProductTitle = ['Chronicle', 'Forge'].join(' ')
+  const oldProductTitle = ['Chronicle', ' Forge'].join('')
   const legacyText = `# ${oldProductTitle} historical note\n`
   await writeFile(path.join(brandRoot, 'docs/legacy.md'), legacyText)
-  const pinned = { 'docs/legacy.md': hash(legacyText) }
-  const intactBrandScan = scanBrandRoot(brandRoot, pinned)
-  assert.deepEqual(intactBrandScan.hits, [])
-  assert.equal(intactBrandScan.unchangedBaselineFiles, 1)
+  const intactBrandScan = scanBrandRoot(brandRoot)
+  assert.ok(intactBrandScan.hits.some((hit) => hit.startsWith('docs/legacy.md:')))
+  assert.equal(intactBrandScan.allowedCompatibilityOccurrences, 0)
 
   await writeFile(path.join(brandRoot, 'docs/legacy.md'), `${legacyText}changed\n`)
   await writeFile(path.join(brandRoot, 'docs/unapproved.md'), `# ${oldProductTitle}\n`)
@@ -85,32 +82,39 @@ try {
   await writeFile(path.join(brandRoot, 'dist-ai/generated.md'), `# ${oldProductTitle}\n`)
   await mkdir(path.join(brandRoot, 'docs/dist-ai'), { recursive: true })
   await writeFile(path.join(brandRoot, 'docs/dist-ai/unapproved.md'), `# ${oldProductTitle}\n`)
-  const changedBrandScan = scanBrandRoot(brandRoot, pinned)
+  const changedBrandScan = scanBrandRoot(brandRoot)
   assert.ok(changedBrandScan.hits.some((hit) => hit.startsWith('docs/legacy.md:')))
   assert.ok(changedBrandScan.hits.some((hit) => hit.startsWith('docs/unapproved.md:')))
   assert.ok(changedBrandScan.hits.some((hit) => hit.startsWith('docs/dist-ai/unapproved.md:')))
   assert.ok(!changedBrandScan.hits.some((hit) => hit.startsWith('dist-ai/generated.md:')))
 
-  // The regenerated audit artifact is allowed only as this exact path+hash.
-  // A changed bundle or the same content at a new path reactivates brand scanning.
+  // The published audit artifact keeps only its individually-addressed points.
+  // An added marker in that same file must fail without disturbing those points.
   const auditBundle = await readFile(path.join(repoRoot, 'public/ai/campaign-audit.mjs'))
-  const auditRoot = path.join(tempRoot, 'pinned-audit-bundle')
+  const auditRoot = path.join(tempRoot, 'point-allow-audit-bundle')
   const auditPath = path.join(auditRoot, 'public/ai/campaign-audit.mjs')
   await mkdir(path.dirname(auditPath), { recursive: true })
   await writeFile(auditPath, auditBundle)
   const exactAuditScan = scanBrandRoot(auditRoot)
   assert.deepEqual(exactAuditScan.hits, [])
-  assert.equal(exactAuditScan.unchangedBaselineFiles, 1)
+  assert.equal(exactAuditScan.allowedCompatibilityOccurrences, 4)
 
-  await writeFile(auditPath, Buffer.concat([auditBundle, Buffer.from('\n')]))
+  const appendedTitle = ['Chronicle', ' Forge'].join('')
+  const appendedAudit = Buffer.concat([
+    auditBundle,
+    Buffer.from(`\nconst extraLabel = ${JSON.stringify(appendedTitle)};\n`),
+  ])
+  await writeFile(auditPath, appendedAudit)
   const changedAuditScan = scanBrandRoot(auditRoot)
-  assert.ok(changedAuditScan.hits.some((hit) => hit.startsWith('public/ai/campaign-audit.mjs:')))
+  assert.ok(changedAuditScan.hits.some((hit) => hit.startsWith('public/ai/campaign-audit.mjs:') && hit.includes('former product title')))
+  assert.equal(changedAuditScan.allowedCompatibilityOccurrences, 4)
 
   await writeFile(auditPath, auditBundle)
   await writeFile(path.join(auditRoot, 'public/ai/unapproved.mjs'), auditBundle)
   const unapprovedAuditScan = scanBrandRoot(auditRoot)
   assert.ok(unapprovedAuditScan.hits.some((hit) => hit.startsWith('public/ai/unapproved.mjs:')))
   assert.ok(!unapprovedAuditScan.hits.some((hit) => hit.startsWith('public/ai/campaign-audit.mjs:')))
+  assert.equal(unapprovedAuditScan.allowedCompatibilityOccurrences, 4)
 
   console.log('✓ protected-check-policy smoke — exact snapshots accepted; changed trees, metadata deltas, and unauthorized brand paths rejected')
 } finally {
