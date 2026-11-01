@@ -35,14 +35,14 @@ jobs:
         run: npx tsc -b
 
       # Пробы транспорта ScriptCat — обычные node-скрипты, без сети и без
-      # браузера: 66 проверок примерно за 11 с. Раньше они жили только в
-      # README, и 29.10 одна из них покраснела на зелёном коде (в ней «сейчас»
+      # браузера; запускаем базовые пробы и отдельные регрессии. Раньше они
+      # жили только в README, и 29.10 одна покраснела на зелёном коде (в ней «сейчас»
       # бралось из системных часов) — заметил это только Мастер.
       - name: Пробы транспорта ScriptCat
         run: |
           set -e
           passed=0
-          for probe in _tools/ScriptCat/tests/*.mjs; do
+          for probe in _tools/ScriptCat/tests/*.mjs _tools/ScriptCat/regression-tests/*.mjs; do
             if ! node "$probe" > /tmp/scriptcat-probe.log 2>&1; then
               echo "::group::Провал: $probe"
               cat /tmp/scriptcat-probe.log

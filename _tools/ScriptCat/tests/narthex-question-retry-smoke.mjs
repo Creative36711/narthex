@@ -28,7 +28,7 @@ function make({ failPost = false, rows = [] } = {}) {
   let posts = 0;
   const fn = new Function(
     'GM_getValue', 'GM_setValue', 'K', 'C', 'notion', 'questionProps', 'noteQuestionAsked', 'appendQuestionBody', 'log', 'dbg',
-    'norm', 'questionRows', 'Q', 'rt', 'queueAnswer', 'sel',
+    'norm', 'questionRows', 'Q', 'rt', 'queueAnswer', 'sel', 'withQuestionWriteLock', 'questionMaterial',
     `${block}\nreturn { queueQuestion, flushQuestionQueue };`,
   );
   const api = fn(
@@ -53,6 +53,8 @@ function make({ failPost = false, rows = [] } = {}) {
     (p) => (p?.rich_text || p?.title || []).map((x) => x.plain_text || x.text?.content || '').join(''),
     (row) => row,
     (p) => p?.select?.name || '',
+    (work) => work(),
+    (url) => url || '',
   );
   return { ...api, store, logs, posted, posts: () => posts };
 }
@@ -89,12 +91,13 @@ const question = {
   assert.ok(logs.some((l) => l.text && l.text.includes('Отложенный вопрос')), 'в журнал ушло объяснение');
 }
 
-// ── 3. Очередь ограничена и переживает несколько вопросов ─────────────────
+// ── 3. Больше десяти вопросов не теряются и затем все отправляются ──────────
 {
-  const { queueQuestion, flushQuestionQueue, store } = make();
+  const { queueQuestion, flushQuestionQueue, store, posted } = make();
   for (let i = 0; i < 12; i += 1) queueQuestion({ ...question, text: `Вопрос ${i}` }, { key: `k${i}` });
-  assert.ok(store.get('k-queue').length <= 10, 'очередь не растёт бесконечно');
-  await flushQuestionQueue();
+  assert.equal(store.get('k-queue').length, 12, 'ни один вопрос не выброшен при переполнении');
+  assert.equal(await flushQuestionQueue(), 12, 'все двенадцать записаны');
+  assert.equal(posted.length, 12, 'для каждого вопроса сделан POST');
   assert.equal(store.get('k-queue').length, 0, 'все отложенные вопросы записаны');
 }
 
@@ -138,7 +141,7 @@ const question = {
   let posts = 0;
   const fn = new Function(
     'GM_getValue', 'GM_setValue', 'K', 'C', 'notion', 'questionProps', 'noteQuestionAsked', 'appendQuestionBody', 'log', 'dbg',
-    'norm', 'questionRows', 'Q', 'rt', 'queueAnswer', 'sel',
+    'norm', 'questionRows', 'Q', 'rt', 'queueAnswer', 'sel', 'withQuestionWriteLock', 'questionMaterial',
     `${block}\nreturn { queueQuestion, flushQuestionQueue };`,
   );
   const run = fn(
@@ -161,6 +164,8 @@ const question = {
     (p) => (p?.rich_text || p?.title || []).map((x) => x.plain_text || x.text?.content || '').join(''),
     (row, q) => queued.push({ rowId: row.id, text: q.text }),
     (p) => p?.select?.name || '',
+    (work) => work(),
+    (url) => url || '',
   );
   run.queueQuestion(
     { ...question, text: 'Как решить открытый ADR docs/decisions/NAR-2.15.md?' },

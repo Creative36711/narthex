@@ -1,110 +1,99 @@
-// Проба 1.4.74: предложения агентов видны Мастеру, а не лежат файлом в репозитории.
-//
-// Случай Мастера (25.10, вечер). Вопрос: «предложено — это кто предложил?»
-// Разбор показал: механизм предложения (ADR со статусом `proposed`) описан в
-// трёх документах и им законно пользуются, но работает он наполовину:
-//   • никто не обязан ответить, списка «что висит на Мастере» не существует —
-//     из 21 журнала `docs/decisions/` поле `Статус:` было ровно у двух;
-//   • панель вопросов тут не спасает: вопрос — отдельная запись в Notion, а ADR
-//     мог появиться и без вопроса;
-//   • оракул умудрился заморозить саму нерешённость: `scripts/check-guide.mts`
-//     требовал `Статус: proposed`, то есть тест охранял открытый вопрос от ответа.
-//
-// Здесь проверяется транспортная половина: счётчик решений на панели, громкий
-// пуш о новом предложении и правила в промптах, которые заставляют агента
-// задать вопрос вместе с ADR и снять статус после ответа.
-
+// ADR proposed может появиться без question: сторож передаёт его в единую
+// обратную связь, не рисуя отдельную кнопку и не отправляя второй пуш.
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
+import { assertUserscriptVersionContract } from '../version-oracle.mjs';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-import { assertUserscriptVersionContract } from '../version-oracle.mjs';
-const versionMatch = assertUserscriptVersionContract(src);
-const V = versionMatch[1];
-
-assert.match(src, new RegExp(`@version\\s+${V.replace(/\./g, '\\.')}`), `версия ${V}`);
-
-// ── 1. Панель: отдельная кнопка решений ────────────────────────────────────
+const version = assertUserscriptVersionContract(src)[1];
+assert.match(src, new RegExp(`@version\\s+${version.replace(/\./g, '\\.')}`));
 const has = (needle) => assert.ok(src.includes(needle), `в скрипте нет: ${needle}`);
+const cut = (from, to) => {
+  const a = src.indexOf(from), b = src.indexOf(to, a);
+  assert.ok(a >= 0 && b > a, `не найден блок ${from}`);
+  return src.slice(a, b);
+};
 
-has('adr: "cfn-adr"');
-has('adrBadge: "cfn-adr-badge"');
-has('⚖<span id="${ui.adrBadge}"');
-has('/tree/main/docs/decisions');
+// Одна точка входа; сторож остаётся активным и при свёрнутой панели.
+has('💬 Обратная связь<span id="${ui.qBadge}"');
+has('document.getElementById(ui.questions).onclick = () => window.open(C.questionsUrl');
 has('adrCheckMs: 600000');
-has('paintDecisions(openDecisions().rows)');
 has('watchDecisions();');
 has('setInterval(() => refreshDecisions()');
+assert.doesNotMatch(src, /ui\.adrBadge|ui\.adr\b/, 'отдельной кнопки и счётчика ADR нет');
+assert.doesNotMatch(src, /function announceDecisions\(/, 'нет второго уведомления про тот же ADR');
 
-// ── 2. Песочница: разбор статуса и объявление нового ───────────────────────
-const from = src.indexOf('  const ADR_FOLDER = "docs/decisions";');
-const to = src.indexOf('  async function refreshDecisions(');
-assert.ok(from > 0 && to > from, 'блок решений на месте');
-
+// Разбор статуса и base64 сохранился и после удаления отдельной панели.
+const adrBlock = cut('  const ADR_FOLDER = "docs/decisions";', '  async function refreshDecisions(');
 const store = new Map();
-const logs = [];
-const api = new Function(
-  'C', 'GM_getValue', 'GM_setValue', 'log',
-  `${src.slice(from, to)}
-   return { adrStatusOf, openDecisions, b64Text, announceDecisions, paintDecisions, ADR_FOLDER };`,
+const { adrStatusOf, openDecisions, b64Text } = new Function(
+  'GM_getValue', `${adrBlock}\nreturn { adrStatusOf, openDecisions, b64Text };`,
+)((key, fallback) => store.has(key) ? store.get(key) : fallback);
+assert.equal(adrStatusOf('Статус: proposed\n# NAR-2.15'), 'proposed');
+assert.equal(adrStatusOf('Статус: accepted'), 'accepted');
+assert.equal(adrStatusOf('Статус: `proposed`'), 'proposed');
+assert.equal(adrStatusOf('**Статус:** proposed'), '');
+assert.equal(adrStatusOf('# нет статуса'), '');
+assert.equal(adrStatusOf(''), '');
+assert.match(b64Text(Buffer.from('Статус: proposed\n# NAR-2.16', 'utf8').toString('base64')), /Статус: proposed/);
+assert.equal(b64Text(''), '');
+assert.equal(b64Text('не base64!'), '');
+
+// Реальный refreshDecisions: pending идёт в общую очередь, принятое не
+// пересылается, сбой истории не выдаётся за пустую историю и не создаёт строк.
+const refresh = cut('  async function refreshDecisions(force = false) {', '  let decisionsWatch = 0;');
+const files = [
+  { name: 'A.md', sha: 'a', type: 'file', url: 'url-a', html_url: 'https://github.com/example/A.md' },
+  { name: 'B.md', sha: 'b', type: 'file', url: 'url-b' },
+  { name: 'C.md', sha: 'c', type: 'file', url: 'url-c' },
+  { name: 'ignored.txt', sha: 'x', type: 'file', url: 'url-x' },
+];
+const content = { 'url-a': 'Статус: proposed', 'url-b': 'Статус: proposed', 'url-c': 'Статус: accepted' };
+const deliveries = [], logs = [];
+let requests = 0, history = new Set(['b']), failed = false;
+const run = new Function(
+  'openDecisions', 'GM_getValue', 'GM_setValue', 'C', 'K', 'request', 'githubHeaders', 'ADR_FOLDER',
+  'adrStatusOf', 'b64Text', 'ADR_PROPOSED', 'decidedAdrNames', 'adrKeyOf', 'deliverProposals', 'logThrottled', 'dbg',
+  `${refresh}\nreturn refreshDecisions;`,
 )(
-  { adrCheckMs: 600000 },
-  (key, fallback) => (store.has(key) ? store.get(key) : fallback),
+  openDecisions,
+  (key, fallback) => store.has(key) ? store.get(key) : fallback,
   (key, value) => store.set(key, value),
-  (text, error, options) => logs.push({ text, error, options }),
+  { repo: 'example/repo', adrCheckMs: 600000 }, { ghToken: 'token' },
+  async (_method, url) => {
+    requests++;
+    if (failed) throw new Error('GitHub недоступен');
+    if (url.includes('/contents/docs/decisions?')) return files;
+    assert.ok(content[url], `неожиданный файл ${url}`);
+    return { content: Buffer.from(content[url]).toString('base64') };
+  },
+  () => ({}), 'docs/decisions', adrStatusOf, b64Text, 'proposed',
+  async () => history, (file) => file.replace(/\.md$/i, '').toLowerCase(),
+  async (rows) => deliveries.push(rows.map((row) => row.file)),
+  (...args) => logs.push(args), () => {},
 );
+const first = await run(true);
+assert.deepEqual(first.map((r) => r.file), ['A.md']);
+assert.deepEqual(deliveries, [['A.md']], 'только нерешённое уходит в общую очередь');
+assert.equal(logs.length, 1, 'принятый ответ ожидает изменения файла исполнителем');
+assert.equal(openDecisions().rows[0].file, 'A.md');
+const afterFirst = requests;
+await run();
+assert.equal(requests, afterFirst, 'кэш ограничивает запросы к GitHub');
+assert.equal(deliveries.length, 1, 'повтор из кэша не создаёт вторую доставку');
+history = null;
+assert.deepEqual((await run(true)).map((r) => r.file), ['A.md']);
+assert.equal(deliveries.length, 1, 'при сбое истории нет создания вслепую');
+history = new Set(['b']);
+failed = true;
+assert.deepEqual((await run(true)).map((r) => r.file), ['A.md']);
+assert.equal(deliveries.length, 1, 'при сбое GitHub сохранён прежний снимок');
 
-// 2.1. Статус из шапки ADR читается в любом оформлении, которого мы уже видели.
-assert.equal(api.adrStatusOf('Статус: proposed\n# NAR-2.15'), 'proposed', 'простой статус');
-assert.equal(api.adrStatusOf('Статус: accepted'), 'accepted', 'принятое решение');
-assert.equal(api.adrStatusOf('Статус: `proposed`'), 'proposed', 'статус в бэктиках');
-assert.equal(api.adrStatusOf('**Статус:** proposed'), '', 'жирный статус полем не считается');
-assert.equal(api.adrStatusOf('# NAR-2.13 — без статуса\nТекст'), '', 'журнал без статуса — пусто');
-assert.equal(api.adrStatusOf(''), '', 'пустой файл — пусто');
-
-// 2.2. base64 → UTF-8: кириллица в шапке не должна ломаться.
-const utf8 = Buffer.from('Статус: proposed\n# NAR-2.16', 'utf8').toString('base64');
-assert.match(api.b64Text(utf8), /Статус: proposed/, 'кириллица декодируется');
-assert.equal(api.b64Text(''), '', 'пустое содержимое — пустая строка');
-assert.equal(api.b64Text('не base64!'), '', 'мусор не роняет разбор');
-
-// 2.3. Первый запуск молчит: пачка старых решений не будит Мастера.
-const first = [{ file: 'NAR-2.14.md', sha: 'a' }, { file: 'NAR-2.15.md', sha: 'b' }];
-assert.equal(api.announceDecisions(first), 0, 'первый запуск молчит');
-assert.equal(
-  logs.filter((entry) => entry.options?.ntfy === 'loud').length,
-  0,
-  'громких пушей на старте нет',
-);
-assert.match(logs.at(-1).text, /Решений на Мастере: 2/, 'число всё равно названо в журнале');
-
-// 2.4. Новое предложение — строчка в журнале, без громкого пуша.
-logs.length = 0;
-const second = [...first, { file: 'NAR-2.18.md', sha: 'c' }];
-assert.equal(api.announceDecisions(second), 1, 'новое предложение найдено');
-const loud = logs.filter((entry) => entry.options?.ntfy === 'loud');
-assert.equal(loud.length, 0, 'громкого пуша нет: предложения закрывает приёмка');
-const quiet = logs.filter((entry) => entry.options?.ntfy === 'quiet');
-assert.equal(quiet.length, 1, 'строчка ровно одна');
-assert.match(quiet[0].text, /Новое предложение ждёт решения/, 'в журнале сказано, что это предложение');
-assert.match(quiet[0].text, /NAR-2\.18\.md/, 'в журнале имя файла');
-assert.match(quiet[0].options.title, /предложение/, 'заголовок говорит про предложение');
-
-// 2.5. Повтор и снятие статуса молчат: приняли решение — уведомлять не о чем.
-logs.length = 0;
-assert.equal(api.announceDecisions(second), 0, 'повтор не будит');
-assert.equal(api.announceDecisions(first), 0, 'снятие статуса не будит');
-assert.equal(logs.length, 0, 'лишних строк нет');
-
-// 2.6. Панель без DOM не падает (пробы гоняют этот код в Node).
-assert.doesNotThrow(() => api.paintDecisions(second), 'без DOM рисование молчит');
-
-// ── 3. Промпты: второй шаг и запрет замораживать решение ───────────────────
+// Инварианты промпта: структурированный вопрос и разрешение по существу.
 has('ADR `proposed` в docs/decisions) — это тоже вопрос, и оно не работает без второго шага');
 has('тремя вариантами и default = «оставить как есть»');
 has('Оставлять `proposed` после ответа нельзя');
 has('ADR proposed — это очередь решений Мастера');
 has('Нерешённое предложение — долг, а не состояние');
 has('оракул, который требует `Статус: proposed`, защищает открытый вопрос от ответа');
-
 console.log('narthex-decisions-smoke: ok');

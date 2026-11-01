@@ -161,4 +161,18 @@ const row = (name, url, fn = 'Executor', status = 'Активна') => ({
   assert.equal(h.store.get('cfn-roles-cache').rows.length, 1, 'пустой ответ кеш не обнуляет');
 }
 
+// ── 8. Проверка перед выдачей не может разрешать по устаревшему кешу ───────
+{
+  const h = makeRoles({ reply: (n) => n === 1
+    ? [row('Tools', 'https://arena.ai/agent/abc-123')]
+    : new Error('Notion offline') });
+  await h.roleRows();
+  await assert.rejects(() => h.roleRows({ fresh: true, requireFresh: true }), /Notion offline/,
+    'даже при наличии кеша новое назначение не выдаётся без актуальной роли');
+  assert.equal(h.store.get('cfn-roles-cache').rows[0].name, 'Tools', 'кеш не потерян');
+  assert.equal(h.logs.length, 0, 'отказ не называется успешной работой по кешу');
+  const cached = await h.roleRows();
+  assert.equal(cached[0].name, 'Tools', 'обычное чтение по-прежнему работает с кешем');
+}
+
 console.log('OK: narthex 1.4.86 — «Роли» кешируются на 10 минут, сбой чтения не останавливает цикл');

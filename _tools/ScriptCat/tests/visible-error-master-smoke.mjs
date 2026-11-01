@@ -154,6 +154,7 @@ const pauseFn = new Function(
     ref: 'message-5', runId: 'run-5', turnId: '', tries: null, wasAuto: true,
   });
   assert.equal(calls.notify[0][1].priority, '5', 'Master pause is urgent');
+  assert.equal(calls.notify[0][1].cycleStopped, true, 'a real pause marks the cycle stopped');
   assert.equal(calls.log[0][0], 'ПАУЗА: Arena rejected the live run');
   assert.equal(calls.alert, 1, 'Master pause plays the local alert');
   assert.equal(calls.status, 1, 'panel status is refreshed');
@@ -167,6 +168,7 @@ const pauseFn = new Function(
   const pause = pauseFn(keys, (key, value) => store.set(key, value), () => false, () => {}, (...args) => notifications.push(args), () => { alerts += 1; }, () => {});
   pause('Reviewer will decide this', { quiet: true, kind: 'reviewer', notifyTitle: 'Narthex: review' });
   assert.equal(notifications[0][1].priority, '2', 'quiet pause does not become a loud Master alert');
+  assert.equal(notifications[0][1].cycleStopped, true, 'quiet pause is still an essential stop');
   assert.equal(alerts, 0, 'quiet pause has no local alarm');
 }
 
@@ -189,9 +191,10 @@ const ntfyEnd = source.indexOf('\n\n  /**', source.indexOf('  function classifyN
 assert.ok(ntfyStart >= 0 && ntfyEnd > ntfyStart, 'ntfy classifier block is present');
 const classifyNtfy = new Function(`${source.slice(ntfyStart, ntfyEnd)}\nreturn classifyNtfy;`)();
 assert.equal(classifyNtfy('Проверяю роль и очередь…', false), null);
-assert.equal(classifyNtfy('Выдан ход Builder: STAB-1.17', false)?.priority, '2');
+assert.equal(classifyNtfy('Выдан ход Builder: STAB-1.17', false), null, 'ожидается подтверждённая доставка');
 assert.equal(classifyNtfy('Ответ записан → Submitted', false)?.priority, '2');
-assert.equal(classifyNtfy('ПАУЗА: видимая ошибка Arena', true)?.priority, '5');
+assert.equal(classifyNtfy('ПАУЗА: видимая ошибка Arena', true), null, 'строка журнала не подменяет событие остановки');
+assert.equal(classifyNtfy('Цикл остановлен', true, { ntfy: 'loud', cycleStopped: true })?.priority, '5');
 assert.equal(classifyNtfy('Скрыто', true, { skip: true }), null);
 assert.equal(classifyNtfy('Напоминание', true, { ntfy: 'quiet' })?.priority, '2');
 

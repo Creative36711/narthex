@@ -30,7 +30,7 @@ const rt = (p) =>
   (p?.rich_text || p?.title || []).map((x) => x.plain_text || x.text?.content || '').join('');
 
 // ── 1. Строка «Ждёт» без ответа уходит приёмке ────────────────────────────
-const rowBlock = cut('  /** Варианты из строки «Вопросов»', '  async function sameQuestionRow(text) {');
+const rowBlock = cut('  /** Варианты из строки «Вопросов»', '  async function sameQuestionRow(text, {');
 const {
   handWaitingRow,
   questionFromRow,
@@ -42,6 +42,7 @@ const {
   'rt',
   'sel',
   'queueAnswer',
+  'questionMaterial',
   `${rowBlock}\nreturn { handWaitingRow, questionFromRow, answerHandoffKey };`,
 )(
   () => 0,
@@ -50,6 +51,7 @@ const {
   rt,
   (p) => p?.select?.name || '',
   () => ({ queued: true }),
+  (url) => url || '',
 );
 
 const waiting = {
@@ -107,6 +109,7 @@ const { adrKeysOf, adrKeyOf, proposalQuestion, deliverProposals } = new Function
   'activeMission',
   'rt',
   'dbg',
+  'questionRows', 'Q', 'sel', 'C',
   `${adrBlock}\nreturn { adrKeysOf, adrKeyOf, proposalQuestion, deliverProposals };`,
 )(
   'docs/decisions',
@@ -115,6 +118,8 @@ const { adrKeysOf, adrKeyOf, proposalQuestion, deliverProposals } = new Function
   async () => ({ id: 'mission-1', properties: { 'Миссия': { title: [{ plain_text: 'NAR-5' }] } } }),
   rt,
   () => {},
+  async () => [], { done: 'Решено', byDefault: 'Принят дефолт' }, (p) => p?.select?.name || '',
+  { repo: 'Creative36711/narthex' },
 );
 
 const keys = adrKeysOf(
@@ -126,6 +131,8 @@ assert.equal(adrKeyOf('NAR-5.9.md'), 'nar-5.9', 'ключ файла без ра
 
 const asked = proposalQuestion({ file: '0016-capability-registry-boundary.md' }, 'NAR-5');
 assert.match(asked.text, /docs\/decisions\/0016-capability-registry-boundary\.md/, 'в вопросе есть ссылка на файл');
+assert.equal(asked.url, 'https://github.com/Creative36711/narthex/blob/main/docs/decisions/0016-capability-registry-boundary.md', 'ссылка на материал ведёт на файл в main');
+assert.ok(asked.fullText.includes(asked.url), 'ссылка доступна приёмке');
 assert.equal(asked.fallback, 'оставить как есть', 'по умолчанию — оставить как есть');
 assert.deepEqual(asked.options, ['принять', 'отклонить', 'оставить как есть'], 'три варианта решения');
 assert.match(asked.fullText, /Статус файла меняет исполнитель карточкой/, 'граница записана в вопросе');
@@ -139,6 +146,7 @@ const dedupe = new Function(
   'activeMission',
   'rt',
   'dbg',
+  'questionRows', 'Q', 'sel', 'C',
   `${adrBlock}\nreturn { deliverProposals };`,
 )(
   'docs/decisions',
@@ -150,6 +158,8 @@ const dedupe = new Function(
   async () => null,
   rt,
   () => {},
+  async () => [], { done: 'Решено', byDefault: 'Принят дефолт' }, (p) => p?.select?.name || '',
+  { repo: 'Creative36711/narthex' },
 );
 await dedupe.deliverProposals([
   { file: '0016-capability-registry-boundary.md' },

@@ -43,7 +43,9 @@ assert.match(src, /"pr":<номер PR>,"merged":true/, 'в шаблоне ма�
 // 5. Закрытие без мержа: причина в лог, Rework с ответом, ход Координатору.
 const closedPath = src.slice(src.indexOf('merged === "unconfirmed") && !hasMergedClaim(result)'));
 assert.ok(closedPath.length > 0, 'есть ветка «закрыт без мержа»');
-const block = closedPath.slice(0, 1400);
+const closedEnd = closedPath.indexOf('    if (merged === "timeout")');
+assert.ok(closedEnd > 0, 'конец ветки закрытого PR найден');
+const block = closedPath.slice(0, closedEnd);
 assert.match(block, /:closed -->/, 'в лог пишется отдельный маркер закрытия');
 assert.match(block, /name: "Rework"/, 'карточка уходит в Rework');
 assert.match(block, /Работа в main не попала/, 'причина сформулирована в «Ответ»');

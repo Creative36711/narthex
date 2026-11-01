@@ -138,9 +138,11 @@ function makeAsk({ rows = [], failQuery = false } = {}) {
   const logs = [];
   const created = [];
   const queued = [];
+  const deferred = [];
   const fn = new Function(
     'GM_getValue', 'GM_setValue', 'K', 'C', 'Q', 'norm', 'rt', 'sel', 'query', 'questionRows',
     'noteQuestionAsked', 'appendQuestionBody', 'queueQuestion', 'queueAnswer', 'log', 'dbg', 'notion', 'questionProps',
+    'withQuestionWriteLock', 'questionMaterial',
     `${dedupeSrc}\n${askSrc}\nreturn { askQuestion, sameQuestionRow };`,
   );
   const api = fn(
@@ -159,7 +161,7 @@ function makeAsk({ rows = [], failQuery = false } = {}) {
     },
     () => {},
     () => {},
-    () => {},
+    (q, ctx) => deferred.push({ q, ctx }),
     (row, q, ctx) => {
       queued.push({ row, q, ctx });
       return { id: row?.id };
@@ -171,8 +173,10 @@ function makeAsk({ rows = [], failQuery = false } = {}) {
       return { id: `new-${created.length}`, properties: body?.properties || {} };
     },
     (q) => ({ 'Вопрос': { title: [{ type: 'text', text: { content: q.text } }] } }),
+    (work) => work(),
+    (url) => url || '',
   );
-  return { ...api, store, logs, created, queued };
+  return { ...api, store, logs, created, queued, deferred };
 }
 
 const row = (text, status, answer = '') => ({
@@ -224,11 +228,20 @@ const same = async () => {
   assert.equal(res, null, 'обрезанный текст опознан как тот же вопрос');
 }
 
-// 3.4 Разные вопросы не склеиваются, а сбой чтения не мешает записи.
+// 3.4 Разные вопросы не склеиваются; при сбое чтения запись ждёт повтора.
 {
   const api = makeAsk({ rows: [row('Другой вопрос про паки', 'Решено', 'да')] });
   const res = await api.askQuestion(question, { key: 'm:4' });
   assert.ok(res && res.id, 'новый вопрос записывается');
+}
+
+// Ошибка чтения не считается доказательством отсутствия дубля.
+{
+  const api = makeAsk({ failQuery: true });
+  const res = await api.askQuestion(question, { key: 'offline' });
+  assert.equal(res, null, 'без проверки дубля строка не создаётся');
+  assert.equal(api.created.length, 0, 'POST при сбое чтения запрещён');
+  assert.equal(api.deferred.length, 1, 'вопрос отложен для повтора');
 }
 
 // 3.5 Тот же ADR другими словами — это повтор, а не новый вопрос (случай 25.10).
@@ -310,13 +323,13 @@ assert.ok(!(await decidedAdrNames()).has('nar-2.16'), 'решение без о�
 has('const settled = rows.filter((row) => answered.has(adrKeyOf(row.file)));', 'решения с ответом отделяются');
 has('await deliverProposals(pending);', 'нерешённое предложение доходит до приёмки, а не только до счётчика');
 has('if (answered === null) {', 'сбой чтения ответов не возвращает решённое в счётчик');
-has('paintDecisions(cache.rows);', 'при сбое показывается прежний счётчик');
-has('announceDecisions(pending);', 'пуш только про то, что правда ждёт Мастера');
-has('в счётчик «⚖» не входит', 'в журнале сказано, что это работа агентов');
-has('const same = await sameQuestionRow(item.q.text);', 'отложенный вопрос сверяется с базой перед записью');
+has('return cache.rows;', 'при сбое история ADR не считается прочитанной');
+assert.doesNotMatch(src, /announceDecisions\(/, 'нет отдельного уведомления предложений');
+assert.doesNotMatch(src, /ui\.adrBadge/, 'нет второго счётчика ADR');
+has('const same = await sameQuestionRow(item.q.text, {', 'отложенный вопрос сверяется с базой перед записью');
 has('if (sameText && list.some((item) => norm(item?.q?.text) === sameText)) return;', 'в очереди не копится один и тот же вопрос');
-has('const refs = adrRefsOf(text);', 'ссылки на ADR участвуют в поиске дубля');
+has('const refs = adrRefsOf(`${text} ${material}`);', 'ссылки на ADR участвуют в поиске дубля');
 has('const followUpOf = (text) =>', 'уточнение по тому же ADR не глушится');
-has('Решение уже принято, ждёт записи в репозиторий (это работа агентов)', 'подсказка кнопки «⚖»');
+has('статус файла меняет исполнитель карточкой', 'долг записи решения остаётся видимым в журнале');
 
 console.log('stale-plan-dedupe: ok');

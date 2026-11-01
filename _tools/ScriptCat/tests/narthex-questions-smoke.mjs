@@ -34,8 +34,9 @@ const created = [];
 const patched = [];
 const lines = [];
 
+const liveRows = new Map();
 const api = new Function(
-  'C', 'rt', 'sel', 'norm', 'GM_getValue', 'GM_setValue', 'notion', 'patch', 'log', 'K', 'noteQuestionAsked', 'dbg', 'queueAnswer', 'richText',
+  'C', 'rt', 'sel', 'norm', 'GM_getValue', 'GM_setValue', 'notion', 'patch', 'log', 'K', 'noteQuestionAsked', 'dbg', 'queueAnswer', 'richText', 'query',
   `${block}
    return { Q, parseQuestion, questionDeadline, expiredQuestions, openQuestionsLine, answersLine, questionProps, askQuestion, markDelivered, closeExpired };`,
 )(
@@ -46,6 +47,11 @@ const api = new Function(
   (key, fallback) => (store.has(key) ? store.get(key) : fallback),
   (key, value) => store.set(key, value),
   async (method, path, body) => {
+    if (method === 'GET') {
+      const row = liveRows.get(path.slice('pages/'.length));
+      if (!row) throw new Error(`нет строки ${path}`);
+      return row;
+    }
     created.push({ method, path, body });
     return { id: `row-${created.length}` };
   },
@@ -68,6 +74,7 @@ const api = new Function(
     }
     return parts;
   },
+  async () => [],
 );
 
 const props = (over = {}) => ({
@@ -143,7 +150,7 @@ const props = (over = {}) => ({
     { id: '2', properties: props({ text: 'Публиковать ли копию?', fallback: 'опубликовать' }) },
   ];
   const line = api.openQuestionsLine(open);
-  assert.match(line, /Вопросы к Мастеру без ответа:/, 'открытые названы');
+  assert.match(line, /Обратная связь без ответа \(вопросы и предложения\):/, 'открытые названы');
   assert.match(line, /«Менять ли оракул\?» \(по умолчанию: не менять\)/, 'виден вариант по умолчанию');
   assert.match(line, /не задавай их снова/, 'повторять вопрос запрещено');
   assert.equal(api.openQuestionsLine([]), '', 'нет открытых — нет строки');
@@ -153,7 +160,7 @@ const props = (over = {}) => ({
     { id: '4', properties: props({ status: 'Принят дефолт', fallback: 'оставить', answer: 'оставить', text: 'Копия?' }) },
   ];
   const answers = api.answersLine(answered);
-  assert.match(answers, /Ответы Мастера на вопросы/, 'ответы доставляются');
+  assert.match(answers, /Ответы на обратную связь/, 'ответы доставляются');
   assert.match(answers, /«Менять ли оракул\?» → менять/, 'вопрос и ответ рядом');
   assert.match(answers, /срок истёк, принят вариант по умолчанию/, 'видно, что ответил не Мастер, а срок');
   assert.equal(api.answersLine([]), '', 'нет ответов — нет строки');
@@ -179,7 +186,7 @@ const run = async () => {
 
   // Ошибка Notion не срывает ход.
   const failing = new Function(
-    'C', 'rt', 'sel', 'norm', 'GM_getValue', 'GM_setValue', 'notion', 'patch', 'log', 'K', 'noteQuestionAsked', 'dbg', 'queueAnswer', 'richText',
+    'C', 'rt', 'sel', 'norm', 'GM_getValue', 'GM_setValue', 'notion', 'patch', 'log', 'K', 'noteQuestionAsked', 'dbg', 'queueAnswer', 'richText', 'query',
     `${block}
      return { parseQuestion, askQuestion };`,
   )(
@@ -211,6 +218,7 @@ const run = async () => {
       }
       return parts;
     },
+    async () => [],
   );
   const none = await failing.askQuestion(failing.parseQuestion({ text: 'q', default: 'a' }), { key: 'turn-x' });
   assert.equal(none, null, 'ошибка записи не возвращает строку');
@@ -223,10 +231,12 @@ const run = async () => {
   assert.match(patched[0].properties['Доставлено'].date.start, /^\d{4}-/, 'дата доставки записана');
 
   patched.length = 0;
-  const closed = await api.closeExpired([
-    { id: 'r1', properties: props({ status: 'Ждёт', fallback: 'не менять', text: 'Оракул?' }) },
-    { id: 'r2', properties: props({ status: 'Ждёт', fallback: '' }) },
-  ]);
+  const expiredRows = [
+    { id: 'r1', properties: props({ status: 'Ждёт', fallback: 'не менять', text: 'Оракул?', due: '2000-01-01T00:00:00.000Z' }) },
+    { id: 'r2', properties: props({ status: 'Ждёт', fallback: '', due: '2000-01-01T00:00:00.000Z' }) },
+  ];
+  for (const row of expiredRows) liveRows.set(row.id, row);
+  const closed = await api.closeExpired(expiredRows);
   assert.equal(closed, 1, 'закрыт только тот, у кого есть вариант по умолчанию');
   assert.equal(patched[0].properties['Статус'].select.name, 'Принят дефолт', 'статус — принят дефолт');
   assert.equal(patched[0].properties['Ответ'].rich_text[0].text.content, 'не менять', 'ответ — вариант по умолчанию');

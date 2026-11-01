@@ -211,6 +211,10 @@ const uuid = () => '00000000-0000-4000-8000-000000000000';
   const invalid = call({ action: 'createLog', dispatchId: 'dispatch-1', runId: 'run-1' });
   assert.equal(invalid.ok, false, 'не-UUID Dispatch/Run IDs отклоняются');
   assert.equal(logs.files.length, 1, 'невалидная пара не создаёт файл');
+  const nextRun = call({ action: 'createLog', dispatchId, runId: '11111111-1111-4111-8111-111111111111' });
+  assert.equal(nextRun.ok, true, 'новый Run той же карточки создаёт журнал');
+  assert.notEqual(nextRun.fileId, res.fileId, 'новый Run не смешивает журнал с предыдущим');
+  assert.equal(logs.files.length, 2, 'прежний файл сохранён');
 }
 
 // ── 2. Ключ обязателен ──────────────────────────────────────────────────────

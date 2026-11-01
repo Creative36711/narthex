@@ -109,7 +109,7 @@ assert.match(src, /verdict === "master"/, 'приёмка может позва�
 assert.match(src, /kind: "answer-needs-master"/, 'вызов Мастера из ответа — отдельная пауза');
 
 // ── 3. Тихие пуши там, где человек больше не нужен ─────────────────────────
-assert.match(src, /queueAnswer\(row, q, ctx\);[\s\S]{0,400}?ntfy: "quiet",\n        title: "Narthex: вопрос приёмке",/);
+assert.match(src, /queueAnswer\(row, q, ctx\);[\s\S]{0,400}?ntfy: "quiet",\s*\n\s*title: "Narthex: вопрос приёмке",/);
 assert.match(
   src,
   /kind: "closed-unreviewed",\n\s+ref: closed\.id,\n\s+quiet: true,/,
@@ -118,8 +118,8 @@ assert.match(
 assert.match(src, /if \(context\.quiet\) \{/, 'пауза умеет молчать');
 assert.match(
   src,
-  /ntfy: failed \? "loud" : "quiet",/,
-  'конец миссии без приёмки больше не звонит: принятую объявляет сама приёмка',
+  /ntfy: failed && \(running \|\| waited\) \? "loud" : "quiet",/,
+  'без приёмки конец не звонит; провал громкий, только когда остановил работу',
 );
 
 // ── 4. Сам блок ответа ─────────────────────────────────────────────────────
@@ -161,6 +161,10 @@ const api = new Function(
   'requestPlan',
   'richText',
   'notion',
+  'questionMaterial',
+  'recordQuestionChange',
+  'logThrottled',
+  'withQuestionWriteLock',
   `${block}
    return { answerQueue, queueAnswer, dropAnswer, answerPending, answerPrompt, startAnswer, answerStep };`,
 )(
@@ -220,6 +224,10 @@ const api = new Function(
     calls.reads.push({ method, path });
     return { id: 'q-1', properties: { 'Статус': { select: { name: api.__rowStatus || 'Ждёт' } } } };
   },
+  (url) => url || '',
+  () => {},
+  () => {},
+  (work) => work(),
 );
 
 const reviewer = { id: 'rev-1', name: 'Warden', url: 'https://arena.ai/agent/warden', fn: 'Reviewer' };

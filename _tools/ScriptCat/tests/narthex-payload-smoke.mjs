@@ -27,6 +27,7 @@ function makeHarness({ payloadId = '', fileText = '', readFails = false } = {}) 
     properties: {
       'Запрос': { title: [{ plain_text: 'NAR-1.7 · Эффекты' }] },
       'Намерение': { rich_text: [{ plain_text: 'Вынести эффекты.' }] },
+      'Кому': { select: { name: 'Kernel' } },
       'Payload Drive File ID': { rich_text: payloadId ? [{ plain_text: payloadId }] : [] },
       'Dispatch State': { select: { name: 'Ready' } },
       'PR': { url: null },
@@ -35,14 +36,16 @@ function makeHarness({ payloadId = '', fileText = '', readFails = false } = {}) 
   };
 
   const dispatchTask = new Function(
-    'roles', 'rt', 'gateway', 'patch', 'taskLogEntry', 'executorPrompt',
+    'roles', 'roleRows', 'norm', 'rt', 'gateway', 'patch', 'taskLogEntry', 'executorPrompt',
     'log', 'taskTitle', 'uid', 'nowIso', 'sendToRole',
-    'notion', 'taskState', 'GM_getValue', 'GM_setValue', 'pause', 'K',
+    'notion', 'taskState', 'taskRole', 'GM_getValue', 'GM_setValue', 'pause', 'K',
     'redispatchClearProps', 'redispatchWhy', 'noteRedispatch', 'REDISPATCH_LIMIT',
     'answerStampKey', 'reworkKey',
     `${src.slice(from, to)}; return dispatchTask;`,
   )(
     async () => [{ id: 'agent-1', name: 'Kernel', fn: 'Executor' }],
+    async () => [{ id: 'agent-1', name: 'Kernel', fn: 'Executor', status: 'Активна', url: '/agent/agent-1' }],
+    (x) => String(x || '').replace(/-/g, '').toLowerCase(),
     (p) => (p?.rich_text || p?.title || []).map((x) => x.plain_text || x.text?.content || '').join(''),
     async (action, fileId, extra = {}) => {
       calls.push({ action, fileId, entry: extra.entry, marker: extra.marker });
@@ -68,6 +71,7 @@ function makeHarness({ payloadId = '', fileText = '', readFails = false } = {}) 
     // отдаёт ту же карточку, поэтому состояние остаётся Ready.
     async () => card,
     (page) => page?.properties?.['Dispatch State']?.select?.name || '',
+    (page) => page?.properties?.['Кому']?.select?.name || '',
     (key, fallback) => store[key] ?? fallback,
     (key, value) => {
       store[key] = value;
