@@ -1,8 +1,13 @@
 # STAB-1.31 — отчёт проверки Ash-оракула и карты ScriptCat
 
-Дата: **2026-11-01**
+Дата решения и проверки: **2026-11-01**
 
-SHA под проверкой: **`7fbb443099c7545e1098cf76a957ca6bbfbb4b4b`** (`HEAD` = `origin/main`, до добавления этого ADR и отчёта).
+Статус ADR: **accepted** — вариант B выбран Мастером: [прямая ссылка на ответ](https://app.notion.com/p/Ash-A-default-B-rc-0--40b6f0cf57058188a537efc8de14b826). ADR: [`docs/decisions/STAB-1.31.md`](../../docs/decisions/STAB-1.31.md).
+
+PR #196 (оба deliverable-файла): https://github.com/Creative36711/narthex/pull/196.
+
+SHA исходного кода и тестов: **`b33af3cd9d021a317da5d721f402da406c72cef9`**. Полный §4 прогон проведён 2026-11-01 на этом неизменённом коде/тестах, с окончательным текстом ADR и отчёта в рабочем дереве: Node `v22.22.3`, npm `10.9.8`, **21/21 команд `rc=0`** (включая 71 ScriptCat smoke и build; результаты — ниже). В финальном PR меняются только два разрешённых deliverable-файла, не код, тесты или кампании.
+
 Историческое сравнение тестов: **`3fea9ea5a504ab207ac01841d9c18b46fc86b18c` → `bce9a5460c51bce7e09164a2bd50124241b854ca`**. В diff ровно 43 пути `_tools/ScriptCat/tests/*.mjs`.
 
 ## Итог и метод
@@ -84,8 +89,55 @@ SHA под проверкой: **`7fbb443099c7545e1098cf76a957ca6bbfbb4b4b`** (`
 - `npm run check:strict-warning` в изолированной копии проверяемого SHA завершился `rc=0`: это код самой проверочной обвязки после прохождения всех assertions, а не `cf-play` Ash. Шесть Ash-проверок выше внутри неё вернули именно `rc=1`. Все шесть warning-free positive controls (narrative и adventure × source/bundle/unpacked kit) вернули `rc=0`; реальный adventure walk/take route также прошёл.
 - `npm run cf-play:negative` завершился `rc=0` как обвязка: предупреждение в отдельной фикстуре было отвергнуто в source, bundle и unpacked kit с внутренним `rc=1`, `verdict=failed`, errors `0`, ровно одним предупреждением.
 - `npm run check:guide` завершился `rc=0`; все 6 документированных команд прошли для исходника, bundle и распакованного кита. Для `example` проверены ожидаемый внутренний `rc=1`, те же три именных предупреждения и показатели `10/8/6/21`, 0 ошибок, 5 смертей и coverage 6/10.
-- Реальная браузерная совместимость проверена отдельно на той же базе: `npm run build` — `rc=0`; `npm run playthrough:exam -- http://localhost:4173 …` — `rc=0`, Chromium `131.0.6778.0`, 2 кампании, 28 шагов, 0 findings. Ash завершилась `ending_ashes` (12 шагов), Adventure — `ending_gate_unlocked` (16 шагов); в обоих маршрутах прошли сохранение до финала, сохранение после финала, reload и восстановление. Для Ash сохранение после reload совпало побайтно: 2479 B, расхождений 0. В экзамене обоих паков: page errors, error screens, blocking/settled broken images, empty `src` и raw NPC IDs — 0; зарегистрированные отсутствия/сообщения учтены реестром, unexplained findings — 0.
+- Реальная браузерная совместимость проверена на той же неизменённой кодовой базе: `npm run build` — `rc=0`; `npm run playthrough:exam -- http://localhost:4173 …` — `rc=0`, Chromium `131.0.6778.0`, две кампании, 28 шагов, 0 findings. Детали каждого прохода и save/load:
+
+  | Кампания | Реальный проход | Save/load | Итог |
+  |---|---|---|---|
+  | `ash-of-caerden` | `ending_ashes`, 12 шагов | Сохранение до финала и после него; reload и восстановление состояния прошли. После reload файл совпал побайтно: 2479 B, расхождений 0. | PASS; 0 unexplained findings. |
+  | `ash-of-caerden-adventure` | `ending_gate_unlocked`, 16 шагов | Сохранение до финала и после него; reload и восстановление состояния прошли. | PASS; 0 unexplained findings. |
+
+  В обоих экзаменах page errors, error screens, blocking/settled broken images, empty `src` и raw NPC IDs — 0; объявленные отсутствия/сообщения сверены с реестром наблюдений. Это отдельное доказательство играбельности, не подмена статического strict-check.
+
+## Corpus и шесть команд `example` из гайда
+
+`_tools/compat-corpus.json` сохраняет все семь исходных уникальных project ID: `ash-of-caerden`, `ash-of-caerden-adventure`, `fmv-crossing`, `realtime-wall-zone`, `river-of-ash`, `ash-arena`, `stone-tablet-siege`. Ни один проект не удалялся и не заменялся.
+
+`docs/guides/nar-2.15-playkit.md` сохраняет все шесть исполняемых строк; `npm run check:guide` прогнал их в исходнике, bundle и распакованном kit. Для `example` ожидаем ровно `rc=1` с историческими тремя Ash warnings и метриками 10/8/6/21, 0 ошибок, 5 смертей, coverage 6/10; для `explain` — `rc=0`.
+
+| Представление | Команда `example` | Команда `explain` |
+|---|---|---|
+| Исходный клон | `npm run play -- example` | `npm run play -- explain ink_missing_knot` |
+| Собранный bundle | `node public/ai/cf-play.mjs example` | `node public/ai/cf-play.mjs explain ink_missing_knot` |
+| Распакованный kit | `node __chronicle_ai__/cf-play.mjs example` | `node __chronicle_ai__/cf-play.mjs explain ink_missing_knot` |
+
+## Итог §4 — окончательный прогон
+
+Все команды §4 из `docs/agents/tz-stab-1.md` исполнены на коде/тестах SHA `b33af3cd9d021a317da5d721f402da406c72cef9`, после оформления accepted ADR. Среда: Node `v22.22.3`, npm `10.9.8`; команда №4 выполнила все 71 файл `_tools/ScriptCat/tests/*.mjs`. Полный набор завершился **21/21 `rc=0`**. Ожидаемые внутренние `rc=1` для двух Ash strict-check, `example` и отрицательной warning-фикстуры не изменялись и не засчитывались как произвольный успех: их точные критерии проверены выше.
+
+| № | Команда §4 | Результат |
+|---:|---|---|
+| 1 | `npm ci` | `rc=0` |
+| 2 | `npm run check:audit-bundle` | `rc=0` |
+| 3 | `npx tsc -b` | `rc=0` |
+| 4 | `for t in _tools/ScriptCat/tests/*.mjs; do node "$t" || exit 1; done` | `rc=0`; 71/71 файла прошли |
+| 5 | `npm run check:contracts` | `rc=0` |
+| 6 | `npm run check:core-graph` | `rc=0` |
+| 7 | `npm run check:module-size` | `rc=0` |
+| 8 | `npm run check:brand` | `rc=0` |
+| 9 | `npm run check:version` | `rc=0` |
+| 10 | `npm run check:guide` | `rc=0` |
+| 11 | `npm run check:playkit-bundle` | `rc=0` |
+| 12 | `npm run check:campaigns` | `rc=0` |
+| 13 | `npm run check:compat-corpus` | `rc=0`; семь IDs; контроль сломанной копии правильно вернул gate `rc=1` |
+| 14 | `npm run check:narrative-codes` | `rc=0` |
+| 15 | `npm run smoke:core` | `rc=0`; 55/55 probes |
+| 16 | `npm run smoke:mission` | `rc=0`; 55/55 smokes |
+| 17 | `npm run cf-play:negative` | `rc=0`; source/bundle/unpacked kit все отклонили warning-фикстуру |
+| 18 | `npm run lint` | `rc=0` |
+| 19 | `npm run build` | `rc=0` |
+| 20 | `npm run check:audit-bundle` | `rc=0` |
+| 21 | `npm run check:mission` | `rc=0`; строгий warning-gate и полный mission check прошли |
 
 ## Границы результата
 
-Оракул и тесты не менялись. В рабочем дереве созданы только `docs/decisions/STAB-1.31.md` и этот отчёт. ADR остаётся `proposed`; default в вопросе не считается фактическим ответом. До явного ответа действуют требования §3. Разрыв `narthex-log-answer-smoke.mjs` не закрыт в коде и должен остаться `FAIL` до отдельного разрешённого исправления теста.
+В этой карточке не менялись код, ScriptCat-тесты, защищённые кампании, corpus или правила обработки предупреждений; подавление warning/whitelist не применялись. Единственные изменяемые файлы — `docs/decisions/STAB-1.31.md` и этот отчёт. ADR теперь `accepted` на основании прямого ответа Мастера B от 2026-11-01; пустое исходное поле `Варианты` и выбор default исполнителем зафиксированы без переписывания истории. Ослабление `narthex-log-answer-smoke.mjs` не закрыто этой карточкой и остаётся отдельным **FAIL / open debt** до отдельного разрешённого исправления теста.
