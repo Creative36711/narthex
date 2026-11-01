@@ -15,8 +15,8 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.92)\s*$/m);
-assert.ok(versionMatch, 'narthex.user.js must declare a version in x.y.z format');
+import { assertUserscriptVersionContract } from '../version-oracle.mjs';
+const versionMatch = assertUserscriptVersionContract(src);
 const V = versionMatch[1];
 
 assert.match(src, new RegExp(`@version\\s+${V.replace(/\./g, '\\.')}`), `версия ${V}`);
@@ -124,6 +124,95 @@ assert.match(
   'запись идёт в журнал выдачи (1.4.63), а не в id из карточки',
 );
 assert.ok(!/## Ответ \$\{role\.name\}\\n\\n\$\{hit\.text\}/.test(src), 'запись одного `hit.text` больше не используется');
+
+// 2.1. Выполняем настоящий submitExecutor с заглушками до границы Drive.
+// Проверяем именно пятый аргумент реального вызова appendToJournal: шаблон,
+// оставленный только в неиспользуемой переменной, эту пробу не пройдёт.
+{
+  const submitFrom = src.indexOf('async function submitExecutor(role, expect, manual = false) {');
+  const submitTo = src.indexOf('// ───────────────────────────── ход Координатора', submitFrom);
+  assert.ok(submitFrom > 0 && submitTo > submitFrom, 'границы submitExecutor найдены');
+  const submitSource = src.slice(submitFrom, submitTo);
+  const makeSubmitExecutor = new Function(
+    'C',
+    'messagesAfter',
+    'parseMarker',
+    'norm',
+    'GM_getValue',
+    'currentDispatch',
+    'adoptIds',
+    'notion',
+    'dispatchGuard',
+    'rt',
+    'questionInMarker',
+    'appendToJournal',
+    'runAnswer',
+    `${submitSource}\nreturn submitExecutor;`,
+  );
+
+  const runtimeResult = {
+    dispatch_id: 'd1',
+    run_id: 'r1',
+    status: 'submitted',
+    check: 0,
+    pr: 32,
+    merged: true,
+  };
+  const runtimeMarker = marker('d1', 'r1');
+  const runtimeMessages = [
+    { id: 'report', text: report, raw: report },
+    { id: 'result', text: runtimeMarker, raw: runtimeMarker },
+  ];
+  const appendCalls = [];
+  const stopAfterAppend = new Error('captured appendToJournal arguments');
+  const runtimeRunAnswer = buildAnswer(() => runtimeMessages).runAnswer;
+  const submitExecutor = makeSubmitExecutor(
+    { minAnswerChars: 200, markerReminders: 2 },
+    () => runtimeMessages,
+    (raw, name) => (name === 'CF_AGENT_RESULT' && raw.includes('CF_AGENT_RESULT') ? runtimeResult : null),
+    (value) => String(value ?? '').toLowerCase(),
+    () => false,
+    () => true,
+    (result) => ({ result, stray: [] }),
+    async () => ({ properties: { 'Output Drive File ID': 'log-1' } }),
+    () => null,
+    (value) => String(value ?? ''),
+    () => ({ kind: 'none' }),
+    async (...args) => {
+      appendCalls.push(args);
+      throw stopAfterAppend;
+    },
+    runtimeRunAnswer,
+  );
+
+  let stoppedAtAppend = null;
+  try {
+    await submitExecutor(
+      { fn: 'Kernel', name: 'Kernel', id: 'role-kernel' },
+      { kind: 'dispatch', ref: 'd1', runId: 'r1', watermark: 'w' },
+      false,
+    );
+  } catch (error) {
+    stoppedAtAppend = error;
+  }
+
+  assert.equal(stoppedAtAppend, stopAfterAppend, 'submitExecutor reached the intercepted Drive append');
+  assert.equal(appendCalls.length, 1, 'submitExecutor called appendToJournal exactly once');
+  const [dispatchId, runId, logId, entryMarker, entry] = appendCalls[0];
+  assert.equal(dispatchId, 'd1', 'actual append uses this dispatch');
+  assert.equal(runId, 'r1', 'actual append uses this run');
+  assert.equal(logId, 'log-1', 'actual append uses the card journal');
+  assert.equal(entryMarker, '<!-- CF_DISPATCH d1:r1 -->', 'actual append receives the dispatch marker');
+  assert.ok(
+    entry.includes(report),
+    'appendToJournal actual entry argument must contain the assembled report body (not an unused template)',
+  );
+  assert.ok(entry.includes(runtimeMarker), 'actual journal entry includes the marker message');
+  assert.ok(
+    entry.includes('_Ответ собран из 2 сообщений хода._'),
+    'actual journal entry includes the multi-message partsNote',
+  );
+}
 
 // ── 3. Напоминание требует отчёт, а не строку ──────────────────────────────
 assert.ok(!/ответь ровно одной последней строкой/.test(src), 'формулировка «ровно одна последняя строка» убрана');

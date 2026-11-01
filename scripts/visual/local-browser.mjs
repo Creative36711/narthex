@@ -19,6 +19,7 @@
  */
 
 import { createRequire } from 'node:module';
+import { performance } from 'node:perf_hooks';
 import { spawnSync } from 'node:child_process';
 import { brotliDecompressSync } from 'node:zlib';
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -78,7 +79,10 @@ export function ensureChromium() {
  * @param {{ args?: string[], timezoneId?: string, locale?: string }} [opts]
  */
 export async function launchChromium(opts = {}) {
+  const preparationStartedAt = performance.now();
+  console.log('NAR browser binary/library preparation: start.');
   const { exe, lib } = ensureChromium();
+  console.log(`NAR browser binary/library preparation: ${(performance.now() - preparationStartedAt).toFixed(1)} ms.`);
 
   let chromium;
   try {
@@ -87,7 +91,9 @@ export async function launchChromium(opts = {}) {
     throw new Error('Нет playwright-core. Установите: npm i --no-save @sparticuz/chromium@131 playwright-core@1.49.1');
   }
 
-  return chromium.launch({
+  console.log('NAR Chromium process launch: start.');
+  const launchStartedAt = performance.now();
+  const browser = await chromium.launch({
     executablePath: exe,
     args: [
       '--no-sandbox',
@@ -100,6 +106,8 @@ export async function launchChromium(opts = {}) {
     timezoneId: opts.timezoneId,
     locale: opts.locale,
   });
+  console.log(`NAR Chromium process launch: ${(performance.now() - launchStartedAt).toFixed(1)} ms.`);
+  return browser;
 }
 
 /** Версия браузера — для отчёта («снято Chromium X»). */

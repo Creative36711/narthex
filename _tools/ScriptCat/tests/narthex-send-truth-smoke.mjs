@@ -21,9 +21,9 @@
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
+import { assertUserscriptVersionContract } from '../version-oracle.mjs';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.92)\s*$/m);
-assert.ok(versionMatch, 'narthex.user.js must declare a version in x.y.z format');
+const versionMatch = assertUserscriptVersionContract(src);
 
 const cut = (from, to) => {
   const a = src.indexOf(from);

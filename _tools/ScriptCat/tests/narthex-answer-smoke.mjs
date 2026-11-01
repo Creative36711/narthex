@@ -19,25 +19,43 @@
 import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
+import { assertIndependentVersionSources, assertUserscriptVersionContract, readUserscriptVersionFields } from '../version-oracle.mjs';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.92)\s*$/m);
-assert.ok(versionMatch, 'narthex.user.js must declare the independently expected release 1.4.92');
+const versionMatch = assertUserscriptVersionContract(src);
+const fields = readUserscriptVersionFields(src);
+assert.equal(versionMatch[1], fields.metadataVersion, 'versionMatch reports the metadata field read by the shared oracle');
+const [major, minor, patch] = fields.metadataVersion.split('.').map(Number);
+const mismatchVersion = `${major}.${minor}.${patch + 1}`;
 
-// Negative control: deriving both sides from the modified manifest is a false
-// positive; the independent pinned guard must reject the substituted value.
-const substitutedManifest = src.replace(/^\/\/ @version\s+1\.4\.92\s*$/m, '// @version      9.9.9');
-assert.notEqual(substitutedManifest, src, 'the version substitution fixture must actually change the manifest');
-const selfDerivedVersion = substitutedManifest.match(/^\/\/ @version\s+(\d+\.\d+\.\d+)\s*$/m)?.[1];
-assert.equal(selfDerivedVersion, '9.9.9');
-assert.match(
-  substitutedManifest,
-  new RegExp(`^\\/\\/ @version\\s+${selfDerivedVersion.replace(/\./g, '\\.')}$`, 'm'),
-  'a self-referential expected version would incorrectly accept the substitution',
+// Negative control: reading @version for both sides is self-reference and
+// accepts any substitution. The runtime fallback is a distinct source and
+// rejects a metadata-only divergence.
+const metadataOnlyMismatch = src.replace(
+  /^\/\/ @version\s+\S+\s*$/m,
+  (line) => line.replace(/\S+\s*$/, mismatchVersion),
 );
-assert.doesNotMatch(
-  substitutedManifest,
-  /^\/\/ @version\s+1\.4\.92\s*$/m,
-  'the independent release oracle rejects the substituted manifest',
+assert.notEqual(metadataOnlyMismatch, src, 'metadata mismatch fixture must modify only @version');
+const selfDerivedExpected = metadataOnlyMismatch.match(/^\/\/ @version\s+(\S+)\s*$/m)?.[1];
+assert.equal(selfDerivedExpected, mismatchVersion, 'self-reference fixture has a syntactically valid substituted value');
+assert.doesNotThrow(
+  () => assert.equal(selfDerivedExpected, selfDerivedExpected),
+  'self-reference negative control: reading the same field twice falsely accepts its substitution',
+);
+assert.throws(
+  () => assertUserscriptVersionContract(metadataOnlyMismatch),
+  /version mismatch: @version metadata at line \d+ .* differs from SCRIPT_VERSION runtime fallback at line \d+/,
+  'independent runtime fallback rejects the metadata-only substitution',
+);
+assert.throws(
+  () => assertIndependentVersionSources('@version', '@version'),
+  /version oracle must compare independent sources/,
+  'self-referential fields are not independent evidence',
+);
+const incompatibleMetadata = src.replace(/^\/\/ @version\s+\S+\s*$/m, '// @version incompatible');
+assert.throws(
+  () => assertUserscriptVersionContract(incompatibleMetadata),
+  /plain MAJOR\.MINOR\.PATCH/,
+  'incompatible metadata is rejected even when no release number is pinned',
 );
 
 const sliceBetween = (startMarker, endMarker) => {

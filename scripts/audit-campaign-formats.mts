@@ -13,6 +13,8 @@ import { importChronicle } from '../src/editor/chronicle'
 import { generateInk } from '../src/editor/dialogueDoc'
 import { buildAiCampaignPrompt } from '../src/editor/aiPrompt'
 import { AI_KIT_FILES } from '../src/editor/aiKit'
+import { auditCampaignFmv, withoutFmvExtension } from './campaign-fmv-audit.mts'
+import { isUnchangedProtectedCampaign } from './protected-check-policy.mts'
 
 const root = process.cwd()
 const campaignsDir = join(root, 'public/campaigns')
@@ -72,17 +74,32 @@ for (const id of registered) {
 }
 for (const id of dirs) {
   if (registered.includes(id)) continue
-  const marker = join(campaignsDir, id, 'smoke-fixture.json')
-  assert.ok(existsSync(marker), `Каталог campaigns/${id} не внесён в реестр и не помечен как полигон смоуков (smoke-fixture.json)`)
+  if (id === 'fmv-crossing' && isUnchangedProtectedCampaign(root, id)) {
+    console.log('✓ campaigns/fmv-crossing: accepted as the exact hash-pinned protected FMV snapshot')
+    continue
+  }
+  const markerName = ['dev-fixture.json', 'smoke-fixture.json'].find((name) => existsSync(join(campaignsDir, id, name)))
+  assert.ok(markerName, `Каталог campaigns/${id} не внесён в реестр и не помечен как полигон смоуков (dev-fixture.json / smoke-fixture.json)`)
+  const marker = join(campaignsDir, id, markerName)
   const fixture = json(marker) as { reason?: unknown }
-  assert.ok(typeof fixture.reason === 'string' && fixture.reason, `campaigns/${id}/smoke-fixture.json: нет описания, зачем лежит каталог`)
+  assert.ok(typeof fixture.reason === 'string' && fixture.reason, `campaigns/${id}/${markerName}: нет описания, зачем лежит каталог`)
 }
 let moduleCount = 0
 for (const campaignId of dirs) {
   const base = join(campaignsDir, campaignId)
   const meta = json(join(base, 'campaign.json'))
   const world = json(join(base, 'world.json'))
-  const manifest = json(join(base, 'manifest.json')) as CampaignManifest
+  const sourceManifest = json(join(base, 'manifest.json')) as unknown
+  const sourceJsonFiles = new Map<string, unknown>()
+  for (const rel of walkJsonFiles(base)) {
+    if (rel === 'campaign.json' || rel === 'world.json' || rel === 'manifest.json' || rel.startsWith('fmv/')) continue
+    sourceJsonFiles.set(rel, json(join(base, rel)))
+  }
+  const fmvAudit = auditCampaignFmv(base, sourceManifest, sourceJsonFiles)
+  assert.deepEqual(fmvAudit.errors, [], `${campaignId}: FMV extension is invalid:\n${fmvAudit.errors.join('\n')}`)
+  const projected = withoutFmvExtension({ manifest: sourceManifest, jsonFiles: sourceJsonFiles })
+  const manifest = projected.manifest as CampaignManifest
+
   validate('CampaignMeta', meta, `${campaignId}/campaign.json`)
   validate('WorldDef', world, `${campaignId}/world.json`)
   validate('CampaignManifest', manifest, `${campaignId}/manifest.json`)
@@ -98,6 +115,9 @@ for (const campaignId of dirs) {
     assert.ok(!referencedJson.has(rel), `${campaignId}/manifest.json перечисляет файл повторно: ${rel}`)
     referencedJson.add(rel)
   }
+  for (const auxiliary of ['project.json', 'adventure.json']) {
+    if (existsSync(join(base, auxiliary))) registerJson(auxiliary)
+  }
 
   const buckets: Array<[keyof CampaignManifest, string, string]> = [
     ['scenes', 'scenes', 'SceneDef'],
@@ -109,11 +129,16 @@ for (const campaignId of dirs) {
     ['recipes', 'recipes', 'RecipeDef'],
     ['codex', 'codex', 'CodexEntryDef'],
   ]
+  const sourceFmvFiles = (sourceManifest as Record<string, unknown>)?.fmv
+  if (Array.isArray(sourceFmvFiles)) {
+    for (const file of sourceFmvFiles) registerJson(`fmv/${file as string}`)
+  }
+
   for (const [key, directory, typeName] of buckets) {
     for (const file of moduleFiles(manifest, key)) {
       const rel = `${directory}/${file}`
       registerJson(rel)
-      const value = json(join(base, rel))
+      const value = projected.jsonFiles.has(rel) ? projected.jsonFiles.get(rel) : json(join(base, rel))
       validate(typeName, value, `${campaignId}/${rel}`)
       store.jsonFiles.set(rel, value)
       moduleCount++
@@ -142,7 +167,7 @@ for (const campaignId of dirs) {
   for (const file of moduleFiles(manifest, 'encounters')) {
     const rel = `rules/${file}`
     registerJson(rel)
-    const value = json(join(base, rel))
+    const value = projected.jsonFiles.has(rel) ? projected.jsonFiles.get(rel) : json(join(base, rel))
     validate('EncounterFileDef', value, `${campaignId}/${rel}`)
     store.jsonFiles.set(rel, value)
     moduleCount++
@@ -157,7 +182,7 @@ for (const campaignId of dirs) {
     const dlgPath = join(base, dlgRel)
     if (existsSync(dlgPath)) {
       registerJson(dlgRel)
-      const doc = json(dlgPath)
+      const doc = projected.jsonFiles.has(dlgRel) ? projected.jsonFiles.get(dlgRel) : json(dlgPath)
       validate('DlgDoc', doc, `${campaignId}/${dlgRel}`)
       assert.equal(generateInk(doc), ink, `${campaignId}/${dlgRel} и ${rel} рассинхронизированы: Ink должен генерироваться из DlgDoc`)
       store.jsonFiles.set(dlgRel, doc)
@@ -167,7 +192,7 @@ for (const campaignId of dirs) {
   }
   // smoke-fixture.json — служебная пометка каталога (полигон смоуков), не
   // модуль пакета: в manifest.json её не быть не может
-  const allJson = walkJsonFiles(base).filter((rel) => rel !== 'smoke-fixture.json').sort()
+  const allJson = walkJsonFiles(base).filter((rel) => rel !== 'smoke-fixture.json' && rel !== 'dev-fixture.json').sort()
   assert.deepEqual(allJson, [...referencedJson].sort(), `${campaignId}: JSON-файлы и manifest.json не синхронизированы (есть сироты/пропуски)` )
 
   const issues = store.validateContent()
@@ -213,9 +238,9 @@ assert.ok(copiedPrompt.includes('в этом же ответе'), 'Копиру�
 assert.ok(!/дождись «ок»|пока мастер не сказал «ок»|только после\s+«ок»/i.test(copiedPrompt), 'Копируемый prompt всё ещё требует подтверждения «ок»')
 
 console.log(`✓ Проверена JSON Schema Draft 2020-12: ${Object.keys(schema.$defs).length} типов`)
-// образы «чемодана для ИИ-агента» в public/ai: состав — ровно манифест
-// AI_KIT_FILES (файл в public/ai, но не в архиве — больше невозможно молча),
-// содержимое — копии первоисточников из docs/
+// Образы чемодана сверяются с AI_KIT_FILES; два standalone-инструмента
+// проверяются отдельно и не являются дополнительными справочными файлами.
+// Содержимое остальных образов — точные копии первоисточников из docs/.
 {
   const guide = readFileSync(join(root, 'docs/ai-campaign-guide.md'), 'utf8')
   const schemaText = readFileSync(join(root, 'docs/campaign.schema.json'), 'utf8')
@@ -231,10 +256,13 @@ console.log(`✓ Проверена JSON Schema Draft 2020-12: ${Object.keys(sch
   // состав каталога ↔ манифест: лишний файл или пропуск — падение (§R3)
   const actual = readdirSync(join(root, 'public/ai')).sort()
   const manifest = AI_KIT_FILES.map((f) => f.name).sort()
-  const extra = actual.filter((name) => !manifest.includes(name))
+  const standaloneTools = ['PLAYKIT.md', 'cf-play.mjs']
+  const extra = actual.filter((name) => !manifest.includes(name) && !standaloneTools.includes(name))
   const missing = manifest.filter((name) => !actual.includes(name))
+  const missingTools = standaloneTools.filter((name) => !actual.includes(name))
   assert.deepEqual(extra, [], `public/ai: файлы вне манифеста чемодана AI_KIT_FILES: ${extra.join(', ')}`)
   assert.deepEqual(missing, [], `public/ai: файлы манифеста AI_KIT_FILES отсутствуют: ${missing.join(', ')}`)
+  assert.deepEqual(missingTools, [], `public/ai: отсутствуют standalone-инструменты: ${missingTools.join(', ')}`)
 }
 console.log(`✓ Проверены отдельные JSON/Ink-модули и ссылки: ${moduleCount} файлов в ${dirs.length} кампаниях`)
 console.log('✓ Campaign Package ↔ MonolithDoc: round-trip без потерь и предупреждений')

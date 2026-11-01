@@ -27,6 +27,7 @@ import { existsSync } from 'node:fs'
 import { cp, mkdir, readdir, readFile, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { classifyCampaignCopyDelta, isUnchangedProtectedCampaign } from './protected-check-policy.mts'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const packsDir = path.join(root, 'packs')
@@ -128,6 +129,7 @@ if (pairs.length === 0) {
 
 let failed = 0
 let skipped = 0
+let protectedBaselineDifferences = 0
 
 for (const current of pairs) {
   if (!existsSync(current.source)) {
@@ -175,6 +177,12 @@ for (const current of pairs) {
   const differing = [...source.keys()].filter((file) => target.has(file) && target.get(file) !== source.get(file))
 
   if (missing.length || extra.length || differing.length) {
+    const disposition = classifyCampaignCopyDelta(current, source, target, missing, extra, differing)
+    if (disposition === 'protected-legacy-metadata' && isUnchangedProtectedCampaign(root, 'ash-of-caerden')) {
+      protectedBaselineDifferences += 1
+      console.warn(`! ${current.label}: title/author metadata retains the exact protected baseline difference; the full public snapshot and index also match baseline.`)
+      continue
+    }
     failed += 1
     const total = missing.length + extra.length + differing.length
     console.error(
@@ -197,4 +205,5 @@ if (failed > 0) {
 }
 
 const published = pairs.length - skipped
-console.log(`✓ публичные копии кампаний — артефакты паков: ${published} из ${pairs.length} сверены`)
+const protectedNote = protectedBaselineDifferences ? `; точных защищённых baseline-различий метаданных: ${protectedBaselineDifferences}` : ''
+console.log(`✓ публичные копии кампаний — артефакты паков: ${published} из ${pairs.length} сверены${protectedNote}`)

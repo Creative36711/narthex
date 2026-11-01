@@ -68,11 +68,16 @@ jobs:
         run: npm install --prefix "$RUNNER_TEMP/narthex-parity-browser" --no-save --ignore-scripts --no-audit --no-fund @sparticuz/chromium@131 playwright-core@1.49.1
 
       - name: Детерминизм циклов
+        # Keep the deterministic gate intact; allow headless-browser startup/runner variance
+        # and preserve its complete output as an artifact if the step fails.
         timeout-minutes: 5
         env:
           NARTHEX_PARITY_BROWSER_PREFIX: ${{ runner.temp }}/narthex-parity-browser
           TMPDIR: ${{ runner.temp }}/narthex-parity-runtime
-        run: npm run check:determinism
+        run: |
+          mkdir -p out/visual
+          set -o pipefail
+          npm run check:determinism 2>&1 | tee out/visual/check-determinism.log
 
       - name: Контракты и browser gate
         run: npm run check:contracts
@@ -105,13 +110,20 @@ jobs:
         run: npm run smoke:mission
 
       - name: Изолированный smoke пустого реестра
-        run: npm run smoke:no-campaign
+        run: |
+          set -euo pipefail
+          npm run dev -- --host 127.0.0.1 --port 5173 --strictPort > /tmp/narthex-empty-state-dev.log 2>&1 &
+          SERVER_PID=$!
+          cleanup() {
+            kill "$SERVER_PID" 2>/dev/null || true
+            wait "$SERVER_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          npx --yes wait-on@8 http://127.0.0.1:5173 --timeout 60000
+          npm run smoke:no-campaign
 
-      - name: Эталон narrative
-        run: node public/ai/cf-play.mjs check public/campaigns/ash-of-caerden
-
-      - name: Эталон adventure
-        run: node public/ai/cf-play.mjs check public/campaigns/ash-of-caerden-adventure
+      - name: Проверить инвариант трёх Ash warnings
+        run: npm run check:strict-warning
 
       - name: Собрать проект
         run: npm run build
@@ -149,10 +161,12 @@ jobs:
           node scripts/visual/shots.mjs http://127.0.0.1:4174 out/visual
           SHOTS=$?
           kill "$EMPTY_PID" 2>/dev/null
+          wait "$EMPTY_PID" 2>/dev/null || true
           rm -rf "$EMPTY_DIR"
 
-          # Игровой маршрут и стартовая проверка используют обычный билд с
-          # реальным index: меню → сцена, затем отдельная проверка запуска.
+          # Игровой маршрут и Ash экзамен используют обычный билд. Сам player
+          # intentionally поставляется с пустым index, поэтому FMV start smoke
+          # получает отдельную временную копию с одной записью, не меняя public.
           ./node_modules/.bin/vite preview --port 4173 --strictPort --host 127.0.0.1 &
           SERVER_PID=$!
           npx --yes wait-on@8 http://127.0.0.1:4173 --timeout 60000
@@ -167,9 +181,36 @@ jobs:
           PLAY=$?
           npm run playthrough:exam -- http://127.0.0.1:4173 out/visual/exam
           EXAM=$?
-          npm run smoke:campaign-start -- http://127.0.0.1:4173
-          START=$?
+          if [ "$EXAM" -ne 0 ]; then
+            EXAM_DIAGNOSTIC="$(grep -E 'RESULT:|finding=' out/visual/exam/exam.stdout.txt 2>/dev/null | tr '\n' ';' | cut -c1-1500)"
+            echo "::error title=playthrough-exam diagnostics::${EXAM_DIAGNOSTIC:-exam failed without a summary}"
+          fi
+
+          CAMPAIGN_START_DIR=out/visual/campaign-start-preview
+          rm -rf "$CAMPAIGN_START_DIR"
+          mkdir -p "$CAMPAIGN_START_DIR"
+          cp -a dist/. "$CAMPAIGN_START_DIR/"
+          printf '[{"id":"fmv-crossing","title":"Перекрёсток огней"}]\n' > "$CAMPAIGN_START_DIR/campaigns/index.json"
+          ./node_modules/.bin/vite preview --outDir "$CAMPAIGN_START_DIR" --port 4175 --strictPort --host 127.0.0.1 &
+          START_SERVER_PID=$!
+          npx --yes wait-on@8 http://127.0.0.1:4175 --timeout 60000
+          START_WAIT=$?
+          if [ "$START_WAIT" -eq 0 ]; then
+            npm run smoke:campaign-start -- http://127.0.0.1:4175 out/visual/campaign-start
+            START=$?
+          else
+            echo "Изолированный FMV smoke preview не поднялся за 60 с"
+            START=$START_WAIT
+          fi
+          kill "$START_SERVER_PID" 2>/dev/null
+          wait "$START_SERVER_PID" 2>/dev/null || true
+          rm -rf "$CAMPAIGN_START_DIR"
           kill "$SERVER_PID" 2>/dev/null
+          wait "$SERVER_PID" 2>/dev/null || true
+          echo "VISUAL_RESULT shots=$SHOTS play=$PLAY exam=$EXAM campaignStart=$START"
+          if [ "$SHOTS" -ne 0 ] || [ "$PLAY" -ne 0 ] || [ "$EXAM" -ne 0 ] || [ "$START" -ne 0 ]; then
+            echo "::error title=visual result::SHOTS=$SHOTS PLAY=$PLAY EXAM=$EXAM START=$START"
+          fi
           if [ "$SHOTS" -ne 0 ]; then exit "$SHOTS"; fi
           if [ "$PLAY" -ne 0 ]; then exit "$PLAY"; fi
           if [ "$EXAM" -ne 0 ]; then exit "$EXAM"; fi

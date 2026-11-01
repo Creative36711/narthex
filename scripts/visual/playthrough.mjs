@@ -23,6 +23,19 @@
 import { mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync, statSync } from 'node:fs'
 import { extname, join, relative, resolve, sep } from 'node:path'
 import { declaredAbsences } from './absence-policy.mjs'
+import {
+  auditConsoleErrors,
+  auditKnownAbsences,
+  isExactRegisteredKnownAbsenceResponse,
+  loadObservationRegistry,
+  OBSERVATION_REGISTRY_RELATIVE_PATH,
+  splitCampaignResponseFailures,
+} from './observation-policy.mjs'
+import {
+  captureImageMetrics,
+  IMAGE_CHECKPOINT_BUDGET_MS,
+  observeImageCheckpoint,
+} from './image-checkpoint.mjs'
 
 const positional = process.argv.slice(2).filter((arg) => !arg.startsWith('--'))
 const adventureOnly = process.argv.includes('--adventure')
@@ -36,6 +49,15 @@ if (fixtureRoot && !examMode) {
 const base = positional[0] || 'http://localhost:4173'
 const outDir = resolve(positional[1] || (examMode ? 'out/playthrough-exam' : 'out/play'))
 const campaignRoot = fixtureRoot ?? resolve('public/campaigns')
+let observationRegistry = null
+if (examMode) {
+  try {
+    observationRegistry = loadObservationRegistry()
+  } catch (error) {
+    console.error(String(error?.message || error))
+    process.exit(1)
+  }
+}
 mkdirSync(outDir, { recursive: true })
 
 let browser
@@ -89,7 +111,7 @@ function visualLog(line) {
 async function openPage(context) {
   const page = await context.newPage()
   page.on('pageerror', (e) => errors.push(String(e)))
-  page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text().slice(0, 300)) })
+  page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text()) })
   if (fixtureRoot) {
     // Только exam harness: временная fixture-копия кампаний может подменяться
     // для mutation-test. Производственные ресурсы/репозиторий не изменяются.
@@ -104,6 +126,14 @@ async function openPage(context) {
         return route.fulfill({ status: 403, contentType: 'text/plain', body: 'Forbidden' })
       }
       if (!existsSync(file) || !statSync(file).isFile()) {
+        const [campaignId, ...assetSegments] = relativePath.split('/')
+        const assetPath = assetSegments.join('/')
+        if (declaredAbsences(campaignRoot, campaignId).includes(assetPath)) {
+          // The production preview serves declared omissions through its SPA
+          // fallback. Keep that exact response in fixture-root exams too; an
+          // undeclared missing asset remains a real 404 for the §4 mutation gate.
+          return route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><html><body></body></html>' })
+        }
         return route.fulfill({ status: 404, contentType: 'text/plain', body: `Missing fixture: ${relativePath}` })
       }
       const mime = ({
@@ -123,30 +153,25 @@ async function openPage(context) {
 }
 
 async function step(page, name, label) {
+  let info
   if (examMode) {
-    await page.waitForFunction(() => [...document.images].every((image) => image.complete), undefined, { timeout: 3000 }).catch(() => {})
+    const imageObservation = await observeImageCheckpoint(page, {
+      inspectImages: true,
+      timeoutMs: IMAGE_CHECKPOINT_BUDGET_MS,
+    })
+    info = {
+      ...imageObservation.checkpoint,
+      settledBrokenImages: imageObservation.settled.brokenImages,
+      settledBrokenImageUrls: imageObservation.settled.brokenImageUrls || [],
+      settledBrokenPortraitImages: imageObservation.settled.brokenPortraitImages,
+      settledBrokenPortraitImageUrls: imageObservation.settled.brokenPortraitImageUrls || [],
+      settledEmptySrcImages: imageObservation.settled.emptySrcImages,
+      settledEmptySrcImageUrls: imageObservation.settled.emptySrcImageUrls || [],
+      imageCheckpointTiming: imageObservation.timing,
+    }
+  } else {
+    info = await captureImageMetrics(page, false)
   }
-  const info = await page.evaluate((inspectImages) => {
-    const fullText = document.body.innerText
-    const text = fullText.replace(/\n{2,}/g, '\n').slice(0, 1500)
-    const images = [...document.querySelectorAll('img')]
-    const broken = images.filter((i) => i.complete && i.naturalWidth === 0)
-    const emptySrc = images.filter((i) => !(i.getAttribute('src') || '').trim())
-    const result = {
-      text,
-      buttons: [...document.querySelectorAll('button')].map((b) => (b.innerText || '').trim()).filter(Boolean).slice(0, 40),
-      brokenImages: broken.length,
-      emptySrcImages: emptySrc.length,
-      brokenPortraitImages: [...document.querySelectorAll('.dialogue-portrait img, .message-portrait')].filter((i) => i.complete && i.naturalWidth === 0).length,
-      videos: document.querySelectorAll('video').length,
-    }
-    if (inspectImages) {
-      result.brokenImageSources = [...new Set(broken.map((image) => image.currentSrc || image.src))]
-      result.emptySrcImageSources = [...new Set(emptySrc.map((image) => image.currentSrc || image.src || '(empty src)'))]
-      result.rawNpcIds = (fullText.match(/\bnpc_[a-z0-9_-]+\b/gi) || []).length
-    }
-    return result
-  }, examMode)
   observations.push({ pack: activePackId, name, ...info })
   if (recordSteps) {
     const file = join(activeOutDir, `${name}.png`)
@@ -246,11 +271,98 @@ function campaignRelativePath(url, campaignId) {
   }
 }
 
-function isBlockingCampaignResponseFailure(failure) {
-  const pathname = new URL(failure.url).pathname
-  // project.json и encounters index могут отсутствовать у legacy-паков;
-  // изображения и игровые сцены, напротив, должны реально загружаться.
-  return !pathname.endsWith('/project.json') && !pathname.endsWith('/encounters/encounters.json')
+function hasExactRegisteredImageFailure({ campaignId, source, resourceFailures, knownAbsences }) {
+  if (!source) return false
+  return resourceFailures.some((failure) => failure.url === source
+    && isExactRegisteredKnownAbsenceResponse({ campaignId, failure, knownAbsences }))
+}
+
+function auditCheckpointImages({ campaignId, observations, resourceFailures, knownAbsences }) {
+  const broken = []
+  const brokenPortraits = []
+  let observedBroken = 0
+  let observedBrokenPortraits = 0
+  let observedEmptySrc = 0
+  let settledEmptySrc = 0
+  const emptySrcSources = []
+
+  for (const observation of observations) {
+    const earlyBrokenUrls = Array.isArray(observation.brokenImageUrls) ? observation.brokenImageUrls : []
+    const settledBrokenUrls = Array.isArray(observation.settledBrokenImageUrls) ? observation.settledBrokenImageUrls : []
+    observedBroken += observation.brokenImages || 0
+    const unknownBrokenCount = Math.max(0, (observation.brokenImages || 0) - earlyBrokenUrls.length)
+    for (let index = 0; index < unknownBrokenCount; index++) {
+      broken.push({ step: observation.name, source: null, disposition: 'unexplained' })
+    }
+    for (const source of earlyBrokenUrls) {
+      const exactRegisteredResponse = hasExactRegisteredImageFailure({
+        campaignId,
+        source,
+        resourceFailures,
+        knownAbsences,
+      })
+      const remainsBroken = settledBrokenUrls.includes(source)
+      broken.push({
+        step: observation.name,
+        source,
+        exactRegisteredResponse,
+        remainsBroken,
+        disposition: exactRegisteredResponse && !remainsBroken ? 'registered-transient' : 'blocking',
+      })
+    }
+    for (const source of settledBrokenUrls) {
+      if (!earlyBrokenUrls.includes(source)) {
+        broken.push({ step: observation.name, source, exactRegisteredResponse: false, remainsBroken: true, disposition: 'blocking-settled' })
+      }
+    }
+
+    const earlyPortraitUrls = Array.isArray(observation.brokenPortraitImageUrls) ? observation.brokenPortraitImageUrls : []
+    const settledPortraitUrls = Array.isArray(observation.settledBrokenPortraitImageUrls) ? observation.settledBrokenPortraitImageUrls : []
+    observedBrokenPortraits += observation.brokenPortraitImages || 0
+    const unknownPortraitCount = Math.max(0, (observation.brokenPortraitImages || 0) - earlyPortraitUrls.length)
+    for (let index = 0; index < unknownPortraitCount; index++) {
+      brokenPortraits.push({ step: observation.name, source: null, disposition: 'unexplained' })
+    }
+    for (const source of earlyPortraitUrls) {
+      const exactRegisteredResponse = hasExactRegisteredImageFailure({
+        campaignId,
+        source,
+        resourceFailures,
+        knownAbsences,
+      })
+      const remainsBroken = settledPortraitUrls.includes(source)
+      brokenPortraits.push({
+        step: observation.name,
+        source,
+        exactRegisteredResponse,
+        remainsBroken,
+        disposition: exactRegisteredResponse && !remainsBroken ? 'registered-transient' : 'blocking',
+      })
+    }
+    for (const source of settledPortraitUrls) {
+      if (!earlyPortraitUrls.includes(source)) {
+        brokenPortraits.push({ step: observation.name, source, exactRegisteredResponse: false, remainsBroken: true, disposition: 'blocking-settled' })
+      }
+    }
+
+    observedEmptySrc += observation.emptySrcImages || 0
+    settledEmptySrc += observation.settledEmptySrcImages || 0
+    emptySrcSources.push(...(observation.emptySrcImageSources || []), ...(observation.settledEmptySrcImageUrls || []))
+  }
+
+  return {
+    broken,
+    blockingBroken: broken.filter((entry) => entry.disposition !== 'registered-transient'),
+    registeredTransientBroken: broken.filter((entry) => entry.disposition === 'registered-transient'),
+    brokenPortraits,
+    blockingBrokenPortraits: brokenPortraits.filter((entry) => entry.disposition !== 'registered-transient'),
+    registeredTransientBrokenPortraits: brokenPortraits.filter((entry) => entry.disposition === 'registered-transient'),
+    observedBroken,
+    observedBrokenPortraits,
+    observedEmptySrc,
+    settledEmptySrc,
+    emptySrcSources: [...new Set(emptySrcSources)],
+  }
 }
 
 function visibleEndingId(campaignId, title) {
@@ -264,7 +376,17 @@ function visibleEndingId(campaignId, title) {
 
 async function chooseCampaign(page, definition) {
   await page.getByRole('button', { name: 'Кампании', exact: true }).click()
-  const row = page.locator('.campaign-row').filter({ hasText: definition.card }).first()
+  // Карточка narrative-кампании несёт поставленное название без dev-метки,
+  // поэтому выбираем по названию и отсекаем adventure-полигон того же пака.
+  let rows = page.locator('.campaign-row').filter({ hasText: definition.card })
+  if (definition.cardNot) rows = rows.filter({ hasNotText: definition.cardNot })
+  if ((await rows.count()) === 0) {
+    // Ожидание карточки без неё самой даёт «Timeout 8000ms exceeded» и прячет
+    // причину: в меню другие названия. Называем их сразу — это и есть диагноз.
+    const titles = await page.locator('.campaign-card-title').allInnerTexts()
+    throw new Error(`карточка кампании ${definition.id} не найдена по тексту ${definition.card}: в меню ${titles.length ? titles.map((title) => `«${title.trim()}»`).join(', ') : 'нет ни одной кампании'}`)
+  }
+  const row = rows.first()
   await row.waitFor({ state: 'visible', timeout: 8000 })
   await row.locator('.campaign-card').click()
   await page.waitForFunction((pattern) => {
@@ -275,7 +397,7 @@ async function chooseCampaign(page, definition) {
 }
 
 async function runAshExamRoute(page, addFinding, setFinal) {
-  const definition = { id: 'ash-of-caerden', card: /эталон narrative/i, title: /Пепел Каэрдена/i }
+  const definition = { id: 'ash-of-caerden', card: /Пепел Каэрдена/i, cardNot: /adventure/i, title: /Пепел Каэрдена/i, charChoices: [/Посланник/, /Торговец/] }
   await page.waitForTimeout(700)
   const home = await step(page, `${definition.id}-01-home`, 'Стартовое меню')
   if (/Кампаний пока нет/i.test(home.text)) addFinding('старт показывает «Кампаний пока нет»')
@@ -296,6 +418,10 @@ async function runAshExamRoute(page, addFinding, setFinal) {
     const value = Number((await row.locator('.char-stat-val').innerText()).trim())
     for (let point = value; point > 3; point--) await row.getByRole('button').first().click()
   }
+  // «Железный человек»: бой в лесу становится воспроизводимо смертельным для
+  // слабого (но валидного) героя выше. Сложность объявляет no_autosave, поэтому
+  // проверка сохранений идёт через ручной слот — он стиранием автосейва не
+  // затрагивается (SavesPanel: «ручные слоты сохраняются»).
   const ironDifficulty = page.getByRole('button', { name: /Железный человек/ })
   if (await ironDifficulty.count()) await ironDifficulty.click()
   await page.getByRole('button', { name: 'Начать забег', exact: true }).click()
@@ -320,6 +446,11 @@ async function runAshExamRoute(page, addFinding, setFinal) {
     await dismissMessages(page)
   }
   await step(page, `${definition.id}-05-gates-ready`, 'Стартовая сцена и диалог закрыты')
+
+  // Ручной слот до финала: финал стирает автосейв (roguelike gameOver) и запирает
+  // запись в слот, поэтому «сохранение после финала» проверяется на этом снимке.
+  await saveToSlot(page)
+  await step(page, `${definition.id}-05b-save-slot`, 'Забег записан в ручной слот до финала')
 
   await page.getByRole('button', { name: 'Карта', exact: true }).click()
   await page.locator('.map-screen').waitFor({ state: 'visible', timeout: 5000 })
@@ -369,10 +500,11 @@ async function runAshExamRoute(page, addFinding, setFinal) {
     addFinding(`после прибытия в лес не достигнут итоговый экран; последнее состояние: ${arrival.text.slice(-220).replace(/\n/g, ' ')}`)
   }
   setFinal(finalState, finalVisibleText)
+  await runSaveExam(page, definition, addFinding)
 }
 
 async function runAdventureExamRoute(page, addFinding, setFinal) {
-  const definition = { id: 'ash-of-caerden-adventure', card: /проект adventure/i, title: /проект adventure/i }
+  const definition = { id: 'ash-of-caerden-adventure', card: /проект adventure/i, title: /проект adventure/i, charChoices: [/Солдат/, /Наёмник/] }
   await page.waitForTimeout(700)
   const home = await step(page, `${definition.id}-01-home`, 'Стартовое меню')
   if (/Кампаний пока нет/i.test(home.text)) addFinding('старт показывает «Кампаний пока нет»')
@@ -434,6 +566,10 @@ async function runAdventureExamRoute(page, addFinding, setFinal) {
   await page.waitForTimeout(350)
   await dismissMessages(page)
 
+  // Ручной слот до финала — тот же шаг проверки сохранений, что и в narrative-маршруте.
+  await saveToSlot(page)
+  await step(page, `${definition.id}-09b-save-slot`, 'Забег записан в ручной слот до финала')
+
   await page.locator('[data-adventure-open-riddle]').first().click()
   await page.waitForSelector('[data-adventure-riddle]', { timeout: 5000 })
   await step(page, `${definition.id}-10-riddle`, 'Крупный план загадки ворот')
@@ -448,6 +584,197 @@ async function runAdventureExamRoute(page, addFinding, setFinal) {
   const ending = await page.locator('[data-adventure-ending="ending_gate_unlocked"]').innerText()
   await step(page, `${definition.id}-12-ending`, 'Финал: ending_gate_unlocked')
   setFinal('ending_gate_unlocked', ending.slice(0, 700))
+  await runSaveExam(page, definition, addFinding)
+}
+
+/**
+ * Сохранения в браузере: движок пишет их в localStorage (src/core/save/keys.ts) —
+ * автосейв под ключом `narthex:save:<id>`, ручной слот под `narthex:save:<id>@<n>`.
+ * Читаем тот же канал, которым пользуется игра, чтобы сравнивать данные, а не разметку.
+ */
+const saveKeyOf = (campaignId, slot = 'auto') => (slot === 'auto' ? `narthex:save:${campaignId}` : `narthex:save:${campaignId}@${slot}`)
+/** Ручной слот, в который маршрут пишет сохранение до финала. */
+const MANUAL_SLOT = 1
+
+/** Прочитать сохранение слота и снять краткую сводку состояния для сравнения. */
+async function readSave(page, campaignId, slot = 'auto') {
+  return page.evaluate((key) => {
+    const raw = localStorage.getItem(key)
+    const keys = Object.keys(localStorage).filter((item) => item.startsWith('narthex:save:'))
+    if (!raw) return { raw: null, key, keys, state: null }
+    try {
+      const envelope = JSON.parse(raw)
+      const state = envelope.state ?? envelope
+      return {
+        raw,
+        key,
+        keys,
+        bytes: raw.length,
+        envelope: {
+          envelope_version: envelope.envelope_version ?? null,
+          save_version: envelope.save_version ?? null,
+          campaign_id: envelope.campaign_id ?? null,
+          campaign_version: envelope.campaign_version ?? null,
+          engine_version: envelope.engine_version ?? null,
+          updated_at: envelope.updated_at ?? null,
+        },
+        state: {
+          seed: state.seed ?? null,
+          tick: state.tick ?? null,
+          scene: state.scene ?? null,
+          location: state.location ?? null,
+          region: state.region ?? null,
+          hp: state.player?.hp ?? null,
+          max_hp: state.player?.max_hp ?? null,
+          difficulty: state.player?.difficulty ?? null,
+          inventory: (state.inventory ?? []).map((item) => `${item.id}x${item.quantity ?? 1}`).sort(),
+          flags: Object.keys(state.flags ?? {}).sort(),
+          fired_rules: (state.fired_rules ?? []).length,
+          log: (state.log ?? []).length,
+          game_over: state.game_over ? String(state.game_over.type ?? state.game_over.kind ?? true) : null,
+        },
+      }
+    } catch (error) {
+      return { raw, key, keys, parseError: String(error?.message || error).slice(0, 200), state: null }
+    }
+  }, saveKeyOf(campaignId, slot))
+}
+
+/** Поля сводки, которые обязаны совпасть до и после reload. */
+const SAVE_COMPARE_FIELDS = ['seed', 'tick', 'scene', 'location', 'region', 'hp', 'max_hp', 'inventory', 'flags', 'fired_rules', 'log', 'game_over']
+
+/**
+ * Строка ручного слота в панели «Сохранения».
+ * Ищем по точному заголовку `<b>Слот N</b>`: у занятого слота описание
+ * начинается с цифры, и в textContent «Слот 1» склеивается с «31.10…»,
+ * поэтому граница слова в регексе не срабатывает.
+ */
+function slotRow(page, panel, slot) {
+  return panel.locator('.save-slot-row').filter({ has: page.getByText(`Слот ${slot}`, { exact: true }) }).first()
+}
+
+/** Записать текущий забег в ручной слот через панель «Сохранения» (путь игрока). */
+async function saveToSlot(page, slot = MANUAL_SLOT) {
+  await page.locator('button[aria-label="Сохранения"]').first().click()
+  const panel = page.locator('.side-panel').filter({ hasText: 'Сохранения' })
+  await panel.waitFor({ state: 'visible', timeout: 8000 })
+  const row = slotRow(page, panel, slot)
+  await row.waitFor({ state: 'visible', timeout: 5000 })
+  await row.getByRole('button', { name: 'Записать' }).click()
+  // первая запись в пустой слот проходит без подтверждения; если слот занят —
+  // панель спрашивает overwrite, и согласие тоже игрок даёт сам
+  const overwrite = page.locator('.modal-box').getByRole('button', { name: 'Да', exact: true })
+  if (await overwrite.waitFor({ state: 'visible', timeout: 2000 }).catch(() => null)) await overwrite.first().click()
+  await row.locator('.muted.small').filter({ hasNotText: 'пусто' }).first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => {})
+  await panel.locator('.panel-header button').first().click()
+  await panel.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {})
+}
+
+/**
+ * Проверка сохранений — отдельный шаг после финала.
+ *
+ * Финал в Narthex стирает автосейв (`packs/narrative/roguelike.ts`, gameOver) и
+ * запрещает запись в слот (`SavesPanel`: кнопка «Записать» заперта при game_over),
+ * поэтому «сохранение после финала» — это ручной слот, записанный маршрутом до
+ * финала: он обязан пережить финал и reload, а загрузка из него — вернуть те же
+ * данные. Проверяется путь игрока, а не внутренние функции движка.
+ */
+async function runSaveExam(page, definition, addFinding) {
+  const slot = await readSave(page, definition.id, MANUAL_SLOT)
+  if (!slot.raw) {
+    addFinding(`слот ${MANUAL_SLOT} не записан до финала: ключей narthex:save:* — ${slot.keys.length ? slot.keys.join(', ') : 'нет'}`)
+    return { ok: false }
+  }
+  const auto = await readSave(page, definition.id)
+  const finale = await step(page, `${definition.id}-13-save-after-final`, 'Сохранение слота пережило финал')
+  if (/Игра столкнулась с ошибкой/i.test(finale.text)) addFinding('экран ошибки на шаге сохранения после финала')
+
+  await page.reload({ waitUntil: 'networkidle', timeout: 45000 })
+  const reloaded = await readSave(page, definition.id, MANUAL_SLOT)
+  if (!reloaded.raw) {
+    addFinding(`после reload слот ${MANUAL_SLOT} пропал`)
+    return { ok: false }
+  }
+  if (reloaded.raw !== slot.raw) addFinding(`после reload сохранение слота изменилось: было ${slot.bytes} байт, стало ${reloaded.bytes}`)
+  await step(page, `${definition.id}-14-reload-save`, `После reload слот ${MANUAL_SLOT} на месте`)
+
+  // Возврат в ту же кампанию: App помнит выбор только в пределах страницы
+  // (cf_last_campaign пишется, но при загрузке не читается — дефект вне зоны),
+  // поэтому после reload кампанию открывает «Кампании», как это делает игрок.
+  await page.getByRole('button', { name: 'Кампании', exact: true }).click()
+  let rows = page.locator('.campaign-row').filter({ hasText: definition.card })
+  if (definition.cardNot) rows = rows.filter({ hasNotText: definition.cardNot })
+  await rows.first().locator('.campaign-card').click()
+  await page.getByRole('button', { name: 'Новый забег', exact: true }).click()
+  await page.waitForTimeout(350)
+  for (const choice of definition.charChoices ?? []) {
+    const button = page.getByRole('button', { name: choice })
+    if (await button.count()) await button.first().click()
+  }
+  await page.getByRole('button', { name: 'Начать забег', exact: true }).click()
+  await page.locator('.hud').first().waitFor({ state: 'visible', timeout: 20000 })
+  // Новый забег начинается со вступления и диалога: они перекрывают HUD, и
+  // «Сохранения» недоступны, пока игрок их не закроет. Это те же шаги, что в
+  // начале маршрута, а не обход интерфейса.
+  if (!(await dismissCutscene(page))) addFinding('не удалось закрыть вступление перед загрузкой слота')
+  await dismissIntro(page)
+  // Стартовый диалог нового забега закрывается ответом реплики и «Закончить
+  // разговор» — ровно как в начале маршрута; пока он открыт, HUD перекрыт.
+  const dialogueChoices = page.locator('.dialogue-overlay').getByRole('button', { name: /Ищу работу|Просто путник/ })
+  if (await dialogueChoices.count()) {
+    await dialogueChoices.first().click()
+    await dismissIntro(page)
+  }
+  const endTalk = page.locator('.dialogue-overlay').getByRole('button', { name: /Закончить разговор/ })
+  if (await endTalk.count()) await endTalk.last().click()
+  await dismissMessages(page)
+  await page.waitForTimeout(300)
+
+  await page.locator('button[aria-label="Сохранения"]').first().click()
+  const panel = page.locator('.side-panel').filter({ hasText: 'Сохранения' })
+  await panel.waitFor({ state: 'visible', timeout: 8000 })
+  const row = slotRow(page, panel, MANUAL_SLOT)
+  await row.getByRole('button', { name: 'Загрузить' }).click()
+  await panel.waitFor({ state: 'hidden', timeout: 8000 }).catch(() => {})
+  await page.locator('.hud').first().waitFor({ state: 'visible', timeout: 15000 })
+  await page.waitForTimeout(500)
+
+  const restored = await step(page, `${definition.id}-15-save-restored`, 'Забег восстановлен из сохранения')
+  if (/Игра столкнулась с ошибкой/i.test(restored.text)) addFinding('восстановленный забег показывает экран ошибки')
+
+  // Что именно вернулось из слота — проверяем данными, а не разметкой: игрок
+  // записывает восстановленный забег в соседний пустой слот, и его состояние
+  // обязано совпасть со слотом 1. Автосейв для сравнения не годится: при
+  // «Железном человеке» движок его не пишет (difficulty.no_autosave), а у
+  // обычного забега автосейв мог остаться от забега, открытого до загрузки.
+  await saveToSlot(page, MANUAL_SLOT + 1)
+  const after = await readSave(page, definition.id, MANUAL_SLOT + 1)
+  if (!after?.state) {
+    addFinding('восстановленный забег не записался в контрольный слот: сравнивать нечего')
+    return { ok: false }
+  }
+  const changed = SAVE_COMPARE_FIELDS.filter((field) => JSON.stringify(slot.state[field]) !== JSON.stringify(after.state[field]))
+  if (changed.length) {
+    const detail = changed.map((field) => `${field}: ${JSON.stringify(slot.state[field])} → ${JSON.stringify(after.state[field])}`).join('; ')
+    addFinding(`данные восстановленного забега не совпали со слотом 1: ${detail}`)
+  }
+  // Итог проверки — одной строкой в лог экзамена: ключ, байты, состояние
+  // до reload и после загрузки, чтобы отчёт цитировал факты, а не «ок».
+  visualLog(
+    `  [save] ${definition.id}: ${saveKeyOf(definition.id, MANUAL_SLOT)} ${slot.bytes} Б · tick ${slot.state.tick} · scene ${slot.state.scene} · hp ${slot.state.hp}/${slot.state.max_hp} · ` +
+      `после reload ${reloaded.bytes} Б (байт в байт) · контрольный слот ${after.bytes} Б · расхождений ${changed.length}`,
+  )
+  return {
+    ok: changed.length === 0,
+    slotKey: saveKeyOf(definition.id, MANUAL_SLOT),
+    slotBytes: slot.bytes,
+    savedAt: slot.envelope?.updated_at ?? null,
+    autosaveAfterFinale: auto.raw ? { key: auto.key, bytes: auto.bytes } : null,
+    slotStateBeforeReload: slot.state,
+    restoredState: after.state,
+    controlSlotKey: saveKeyOf(definition.id, MANUAL_SLOT + 1),
+    changedFields: changed,
+  }
 }
 
 async function runExamPack(definition) {
@@ -525,7 +852,9 @@ async function runExamPack(definition) {
     if (definition.id === 'ash-of-caerden') await runAshExamRoute(page, addFinding, setFinal)
     else await runAdventureExamRoute(page, addFinding, setFinal)
   } catch (error) {
-    routeError = String(error?.message || error).split('\n')[0]
+    // Первая строка сообщения Playwright («Timeout 30000ms exceeded») не называет
+    // селектор — берём и строки ожидания, иначе причина снова прячется.
+    routeError = String(error?.message || error).split('\n').map((line) => line.trim()).filter(Boolean).slice(0, 4).join(' | ').slice(0, 400)
     const relevantFailure = resourceFailures.find((failure) => /nar37-missing|scene_gates_front/i.test(failure.url)) || resourceFailures[0]
     addFinding(`ошибка маршрута: ${routeError}${relevantFailure ? `; URL ${relevantFailure.url} (${relevantFailure.reason})` : `; URL ${page?.url() || base}`}`)
   } finally {
@@ -536,24 +865,47 @@ async function runExamPack(definition) {
   const packSteps = report.steps.filter((entry) => entry.pack === definition.id)
   const packErrors = errors.slice(errorsBefore)
   const packConsoleErrors = consoleErrors.slice(consoleErrorsBefore)
-  const brokenImageCount = packObservations.reduce((sum, entry) => sum + (entry.brokenImages || 0), 0)
-  const brokenImageSources = [...new Set(packObservations.flatMap((entry) => entry.brokenImageSources || []))]
-  const emptySrcImageCount = packObservations.reduce((sum, entry) => sum + (entry.emptySrcImages || 0), 0)
-  const emptySrcImageSources = [...new Set(packObservations.flatMap((entry) => entry.emptySrcImageSources || []))]
+  const observedBrokenImageCount = packObservations.reduce((sum, entry) => sum + (entry.brokenImages || 0), 0)
+  const observedBrokenPortraitImageCount = packObservations.reduce((sum, entry) => sum + (entry.brokenPortraitImages || 0), 0)
+  const observedBrokenImageSources = [...new Set(packObservations.flatMap((entry) => entry.brokenImageSources || []))]
+  const settledBrokenImageSources = [...new Set(packObservations.flatMap((entry) => entry.settledBrokenImageUrls || []))]
+  const settledEmptySrcImageCount = packObservations.reduce((sum, entry) => sum + (entry.settledEmptySrcImages || 0), 0)
   const rawNpcIds = packObservations.reduce((sum, entry) => sum + (entry.rawNpcIds || 0), 0)
   const errorScreens = packObservations.filter((entry) => strictExamErrorScreen.test(entry.text)).length
   const startsWithEmptyCatalog = !packObservations.length || /Кампаний пока нет/i.test(packObservations[0].text)
   const knownAbsencePaths = new Set(declaredAbsencesFor(definition.id))
-  const knownAbsences = knownAbsenceChecks.map((check) => ({
-    ...check,
-    knownAbsence: check.status === 'fetch-error' || check.status >= 400 || !check.contentType.startsWith('image/'),
-    servedAsImage: String(check.contentType || '').toLowerCase().startsWith('image/'),
-  }))
-  const blockingResourceFailures = [...new Map(
-    resourceFailures
-      .filter((failure) => isBlockingCampaignResponseFailure(failure) && !knownAbsencePaths.has(failure.path))
-      .map((failure) => [failure.url, failure]),
-  ).values()]
+  const absenceAudit = auditKnownAbsences({
+    campaignId: definition.id,
+    declaredPaths: [...knownAbsencePaths],
+    observations: knownAbsenceChecks,
+    registry: observationRegistry,
+    responseMode: fixtureRoot ? 'fixtureRoot' : 'preview',
+  })
+  const knownAbsences = absenceAudit.observations
+  const consoleErrorAudit = auditConsoleErrors({
+    campaignId: definition.id,
+    messages: packConsoleErrors,
+    registry: observationRegistry,
+  })
+  for (const finding of absenceAudit.findings) addFinding(`STAB-1.25 absence registry: ${finding}`)
+  for (const finding of consoleErrorAudit.findings) addFinding(`STAB-1.25 console registry: ${finding}`)
+  const { blocking: blockingResourceFailures, nonBlocking: nonBlockingResourceFailures } = splitCampaignResponseFailures({
+    campaignId: definition.id,
+    failures: resourceFailures,
+    knownAbsences,
+  })
+  const checkpointImageAudit = auditCheckpointImages({
+    campaignId: definition.id,
+    observations: packObservations,
+    resourceFailures,
+    knownAbsences,
+  })
+  const brokenImageCount = checkpointImageAudit.blockingBroken.length
+  const brokenImageSources = [...new Set(checkpointImageAudit.blockingBroken.map((entry) => entry.source).filter(Boolean))]
+  const registeredTransientBrokenImageCount = checkpointImageAudit.registeredTransientBroken.length
+  const brokenPortraitImageCount = checkpointImageAudit.blockingBrokenPortraits.length
+  const emptySrcImageCount = checkpointImageAudit.observedEmptySrc
+  const emptySrcImageSources = checkpointImageAudit.emptySrcSources
 
   // Объявленный путь, который внезапно начал отдаваться картинкой, — устаревшая
   // декларация, а не успех: фикстура перестала соответствовать данным.
@@ -566,8 +918,9 @@ async function runExamPack(definition) {
   if (packSteps.length < 8) addFinding(`снято ${packSteps.length} шагов, требуется не менее 8`)
   if (packErrors.length) addFinding(`pageerror: ${packErrors.length} (${packErrors[0].slice(0, 180)})`)
   if (errorScreens) addFinding(`экранов ошибки: ${errorScreens}`)
-  if (brokenImageCount) addFinding(`битых <img>: ${brokenImageCount}; URL: ${brokenImageSources.slice(0, 5).join(', ') || 'источник не определён'}`)
-  if (emptySrcImageCount) addFinding(`пустых src у <img>: ${emptySrcImageCount}; URL: ${emptySrcImageSources.slice(0, 5).join(', ') || '(empty src)'}`)
+  if (brokenImageCount) addFinding(`битых <img>: ${brokenImageCount} необъяснённых или persistent; URL: ${brokenImageSources.slice(0, 5).join(', ') || 'источник не определён'}`)
+  if (brokenPortraitImageCount) addFinding(`битых портретов: ${brokenPortraitImageCount}; raw checkpoint=${observedBrokenPortraitImageCount}`)
+  if (emptySrcImageCount || settledEmptySrcImageCount) addFinding(`пустых src у <img>: checkpoint=${emptySrcImageCount}, after strict wait=${settledEmptySrcImageCount}; URL: ${emptySrcImageSources.slice(0, 5).join(', ') || '(empty src)'}`)
   if (rawNpcIds) addFinding(`сырых NPC id: ${rawNpcIds}`)
   if (startsWithEmptyCatalog) addFinding('стартовый экран показывает «Кампаний пока нет»')
   if (blockingResourceFailures.length) {
@@ -586,15 +939,37 @@ async function runExamPack(definition) {
     pageErrors: packErrors.length,
     errorScreens,
     brokenImgOccurrences: brokenImageCount,
+    observedBrokenImgOccurrences: observedBrokenImageCount,
+    registeredTransientBrokenImgOccurrences: registeredTransientBrokenImageCount,
     brokenImageSources,
+    observedBrokenImageSources,
+    settledBrokenImageSources,
+    brokenImageAudit: {
+      checkpointOccurrences: observedBrokenImageCount,
+      registeredTransientOccurrences: registeredTransientBrokenImageCount,
+      blockingOccurrences: brokenImageCount,
+      blockingObservations: checkpointImageAudit.blockingBroken,
+    },
+    brokenPortraitImgOccurrences: brokenPortraitImageCount,
+    observedBrokenPortraitImgOccurrences: observedBrokenPortraitImageCount,
     emptySrcImgOccurrences: emptySrcImageCount,
+    settledEmptySrcImgOccurrences: settledEmptySrcImageCount,
     emptySrcImageSources,
     rawNpcIds,
     startsWithEmptyCatalog,
     knownAbsences,
+    absenceAudit: {
+      observedCount: absenceAudit.observedCount,
+      expectedCount: absenceAudit.expectedCount,
+      registeredCount: absenceAudit.registeredCount,
+      unexplainedCount: absenceAudit.unexplainedCount,
+      registryEntryCount: absenceAudit.registryEntryCount,
+      driftCount: absenceAudit.driftCount,
+    },
     consoleErrors: packConsoleErrors,
+    consoleErrorAudit,
     failedCampaignResponses: blockingResourceFailures,
-    nonBlockingCampaignResponses: resourceFailures.filter((failure) => !knownAbsencePaths.has(failure.path) && !isBlockingCampaignResponseFailure(failure)),
+    nonBlockingCampaignResponses: nonBlockingResourceFailures,
     finalState: finalState || 'not-reached',
     finalVisibleText,
     finalFrame: packSteps.findLast((entry) => /ending/.test(entry.name))?.file || null,
@@ -618,7 +993,10 @@ async function runBrowserExam() {
     emptySrcImages: 0,
     rawNpcIds: 0,
     emptyCatalogAtStart: false,
-    declaredAbsences: 'dev-fixture.json → known_absent_images (D-076)',
+    declaredAbsences: 'D-076 known_absent_images plus exact campaign/path/status/content-type entries in the STAB-1.25 registry',
+    consoleErrors: 'exact campaign/path/template/occurrence matches only; no generic console-error suppression in --exam',
+    unexplainedObservations: 0,
+    observationRegistry: OBSERVATION_REGISTRY_RELATIVE_PATH,
     adventureFinal: 'ending_gate_unlocked',
     ashFinal: 'visible end screen with campaign ending id when identifiable',
   }
@@ -627,8 +1005,8 @@ async function runBrowserExam() {
   visualLog(`Browser: ${engine}`)
   visualLog(`Fixture root: ${report.fixtureRoot}`)
   const allDefinitions = [
-    { id: 'ash-of-caerden', card: /эталон narrative/i, title: /Пепел Каэрдена/i },
-    { id: 'ash-of-caerden-adventure', card: /проект adventure/i, title: /проект adventure/i },
+    { id: 'ash-of-caerden', card: /Пепел Каэрдена/i, cardNot: /adventure/i, title: /Пепел Каэрдена/i, charChoices: [/Посланник/, /Торговец/] },
+    { id: 'ash-of-caerden-adventure', card: /проект adventure/i, title: /проект adventure/i, charChoices: [/Солдат/, /Наёмник/] },
   ]
   const definitions = adventureOnly ? allDefinitions.filter((definition) => definition.id === 'ash-of-caerden-adventure') : allDefinitions
   report.packs = []
@@ -636,34 +1014,66 @@ async function runBrowserExam() {
     visualLog(`\n--- ${definition.id} ---`)
     const result = await runExamPack(definition)
     report.packs.push(result)
-    visualLog(`${result.ok ? 'PASS' : 'FAIL'} ${result.id}: steps=${result.steps}; pageerror=${result.pageErrors}; errorScreens=${result.errorScreens}; brokenImg=${result.brokenImgOccurrences}; emptySrcImg=${result.emptySrcImgOccurrences}; rawNpcIds=${result.rawNpcIds}; emptyStart=${result.startsWithEmptyCatalog}`)
+    visualLog(`${result.ok ? 'PASS' : 'FAIL'} ${result.id}: steps=${result.steps}; pageerror=${result.pageErrors}; errorScreens=${result.errorScreens}; brokenImgBlocking=${result.brokenImgOccurrences}; brokenImgCheckpoint=${result.observedBrokenImgOccurrences}; registeredTransient=${result.registeredTransientBrokenImgOccurrences}; emptySrc=${result.emptySrcImgOccurrences}/${result.settledEmptySrcImgOccurrences}; rawNpcIds=${result.rawNpcIds}; emptyStart=${result.startsWithEmptyCatalog}; registeredAbsences=${result.absenceAudit.registeredCount}/${result.absenceAudit.observedCount}; registeredConsoleErrors=${result.consoleErrorAudit.registeredCount}/${result.consoleErrorAudit.observedCount}; unexplained=${result.absenceAudit.unexplainedCount + result.consoleErrorAudit.unexplainedCount}`)
     visualLog(`  finalState=${result.finalState}`)
     visualLog(`  finalFrame=${result.finalFrame || 'not captured'}`)
     for (const absence of result.knownAbsences) {
-      visualLog(`  known-absence=${absence.path}; status=${absence.status}; content-type=${absence.contentType || 'none'}; ${absence.reason}`)
+      visualLog(`  known-absence=${absence.path}; status=${absence.status}; content-type=${absence.contentType || 'none'}; classification=${absence.classification}; source=${absence.registrySource || 'none'}; date=${absence.registryDate || 'none'}; reason=${absence.registryReason || absence.reason}`)
     }
     for (const finding of result.findings) visualLog(`  finding=${finding}`)
     for (const failure of result.failedCampaignResponses.slice(0, 5)) visualLog(`  resource=${failure.path} status=${failure.status} ${failure.url} (${failure.reason})`)
-    for (const consoleError of result.consoleErrors) visualLog(`  console-error=${consoleError}`)
+    for (const diagnostic of result.consoleErrorAudit.observations) {
+      visualLog(`  console-error=${diagnostic.message}; classification=${diagnostic.classification}; template=${diagnostic.template || 'unmatched'}; path=${diagnostic.path || 'unmatched'}; occurrence=${diagnostic.occurrence ?? 'n/a'}/${diagnostic.expectedOccurrences ?? 'n/a'}; source=${diagnostic.registrySource || 'none'}; date=${diagnostic.registryDate || 'none'}; reason=${diagnostic.registryReason || 'no registered reason'}`)
+    }
   }
-  report.ok = report.packs.length === definitions.length && report.packs.every((pack) => pack.ok)
+  const sumAudit = (field, metric) => report.packs.reduce((sum, pack) => sum + pack[field][metric], 0)
+  report.observationAudit = {
+    registry: OBSERVATION_REGISTRY_RELATIVE_PATH,
+    responseMode: fixtureRoot ? 'fixtureRoot' : 'preview',
+    knownAbsences: {
+      observed: sumAudit('absenceAudit', 'observedCount'),
+      expected: sumAudit('absenceAudit', 'expectedCount'),
+      registered: sumAudit('absenceAudit', 'registeredCount'),
+      unexplained: sumAudit('absenceAudit', 'unexplainedCount'),
+      registryEntries: sumAudit('absenceAudit', 'registryEntryCount'),
+      drift: sumAudit('absenceAudit', 'driftCount'),
+    },
+    consoleErrors: {
+      observed: sumAudit('consoleErrorAudit', 'observedCount'),
+      expected: sumAudit('consoleErrorAudit', 'expectedCount'),
+      registered: sumAudit('consoleErrorAudit', 'registeredCount'),
+      unexplained: sumAudit('consoleErrorAudit', 'unexplainedCount'),
+      registryEntries: sumAudit('consoleErrorAudit', 'registryEntryCount'),
+      drift: sumAudit('consoleErrorAudit', 'driftCount'),
+    },
+  }
+  report.observationAudit.unexplainedCount = report.observationAudit.knownAbsences.unexplained + report.observationAudit.consoleErrors.unexplained
+  report.observationAudit.registryDriftCount = report.observationAudit.knownAbsences.drift + report.observationAudit.consoleErrors.drift
+  report.ok = report.packs.length === definitions.length
+    && report.packs.every((pack) => pack.ok)
+    && report.observationAudit.unexplainedCount === 0
+    && report.observationAudit.registryDriftCount === 0
   report.pageErrors = report.packs.reduce((sum, pack) => sum + pack.pageErrors, 0)
   report.errorScreens = report.packs.reduce((sum, pack) => sum + pack.errorScreens, 0)
   report.brokenImgOccurrences = report.packs.reduce((sum, pack) => sum + pack.brokenImgOccurrences, 0)
+  report.observedBrokenImgOccurrences = report.packs.reduce((sum, pack) => sum + pack.observedBrokenImgOccurrences, 0)
+  report.registeredTransientBrokenImgOccurrences = report.packs.reduce((sum, pack) => sum + pack.registeredTransientBrokenImgOccurrences, 0)
   report.emptySrcImgOccurrences = report.packs.reduce((sum, pack) => sum + pack.emptySrcImgOccurrences, 0)
+  report.settledEmptySrcImgOccurrences = report.packs.reduce((sum, pack) => sum + pack.settledEmptySrcImgOccurrences, 0)
   report.rawNpcIds = report.packs.reduce((sum, pack) => sum + pack.rawNpcIds, 0)
   report.finishedAt = new Date().toISOString()
+  visualLog(`Observation registry ${OBSERVATION_REGISTRY_RELATIVE_PATH} (${report.observationAudit.responseMode}): absences=${report.observationAudit.knownAbsences.registered}/${report.observationAudit.knownAbsences.observed}, console-errors=${report.observationAudit.consoleErrors.registered}/${report.observationAudit.consoleErrors.observed}, unexplained=${report.observationAudit.unexplainedCount}, registry-drift=${report.observationAudit.registryDriftCount}`)
   visualLog(`\nRESULT: ${report.ok ? 'PASS' : 'FAIL'}; packs=${report.packs.length}; steps=${report.steps.length}; findings=${report.findings.length}`)
   report.findings.forEach((finding) => visualLog(`  finding=${finding}`))
   writeFileSync(join(outDir, 'report.json'), JSON.stringify(report, null, 2) + '\n')
   writeFileSync(join(outDir, 'exam.stdout.txt'), examOutputLines.join('\n') + '\n')
   const table = [
-    '| Pack | Steps | pageerror | Error screens | Broken img | Empty-src img | Raw NPC ids | Empty catalog | Final state | Known absences (path/status) | Findings | Result |',
+    '| Pack | Steps | pageerror | Error screens | Broken img (blocking / checkpoint) | Empty-src (checkpoint / settled) | Raw NPC ids | Empty catalog | Final state | Known absences (path/status) | Findings | Result |',
     '|---|---:|---:|---:|---:|---:|---:|---|---|---|---|---|',
     ...report.packs.map((pack) => {
       const known = pack.knownAbsences.map((absence) => `${absence.path} — ${absence.status} (${absence.contentType || 'no content-type'})`).join('<br>') || 'none'
       const findings = pack.findings.map((finding) => finding.replaceAll('|', '&#124;')).join('<br>') || 'none'
-      return `| ${pack.id} | ${pack.steps} | ${pack.pageErrors} | ${pack.errorScreens} | ${pack.brokenImgOccurrences} | ${pack.emptySrcImgOccurrences} | ${pack.rawNpcIds} | ${pack.startsWithEmptyCatalog ? 'yes' : 'no'} | ${pack.finalState} | ${known} | ${findings} | ${pack.ok ? 'PASS' : 'FAIL'} |`
+      return `| ${pack.id} | ${pack.steps} | ${pack.pageErrors} | ${pack.errorScreens} | ${pack.brokenImgOccurrences} / ${pack.observedBrokenImgOccurrences} | ${pack.emptySrcImgOccurrences} / ${pack.settledEmptySrcImgOccurrences} | ${pack.rawNpcIds} | ${pack.startsWithEmptyCatalog ? 'yes' : 'no'} | ${pack.finalState} | ${known} | ${findings} | ${pack.ok ? 'PASS' : 'FAIL'} |`
     }),
   ]
   const markdown = [
@@ -676,15 +1086,20 @@ async function runBrowserExam() {
     ...table, '',
     '## Финалы', '',
     ...report.packs.map((pack) => `- **${pack.id}:** \`${pack.finalState}\`; кадр: \`${pack.finalFrame || 'не снят'}\`. ${pack.finalVisibleText.replace(/\s+/g, ' ').slice(0, 500)}`), '',
+    '## Аудит наблюдений', '',
+    `- Реестр: ${report.observationAudit.registry}; responseMode=${report.observationAudit.responseMode}.`,
+    `- known-absence: observed=${report.observationAudit.knownAbsences.observed}; registered=${report.observationAudit.knownAbsences.registered}; unexplained=${report.observationAudit.knownAbsences.unexplained}; registry-drift=${report.observationAudit.knownAbsences.drift}.`,
+    `- console-error: observed=${report.observationAudit.consoleErrors.observed}; registered=${report.observationAudit.consoleErrors.registered}; unexplained=${report.observationAudit.consoleErrors.unexplained}; registry-drift=${report.observationAudit.consoleErrors.drift}.`,
+    `- Итого необъяснённых наблюдений: ${report.observationAudit.unexplainedCount}; дрейф реестра: ${report.observationAudit.registryDriftCount}.`, '',
     '## Известные намеренные отсутствия изображений', '',
-    ...report.packs.flatMap((pack) => pack.knownAbsences.map((absence) => `- ${pack.id}: \`${absence.path}\` — status=\`${absence.status}\`, content-type=\`${absence.contentType || 'none'}\`; ${absence.reason}`)), '',
+    ...report.packs.flatMap((pack) => pack.knownAbsences.map((absence) => `- ${pack.id}: \`${absence.path}\` — status=\`${absence.status}\`, content-type=\`${absence.contentType || 'none'}\`; classification=${absence.classification}; source=${absence.registrySource || 'none'}; date=${absence.registryDate || 'none'}; registry-reason=${absence.registryReason || 'none'}; observation=${absence.reason}`)), '',
     '## Неожиданные ошибки ресурсов кампаний', '',
     ...report.packs.flatMap((pack) => pack.failedCampaignResponses.length
       ? pack.failedCampaignResponses.map((failure) => `- ${pack.id}: \`${failure.path}\` — ${failure.status} ${failure.url} — ${failure.reason}`)
       : [`- ${pack.id}: нет`]), '',
-    '## console.error (не подавлялись)', '',
-    ...report.packs.flatMap((pack) => pack.consoleErrors.length
-      ? pack.consoleErrors.map((message) => `- ${pack.id}: ${message.replaceAll('|', '&#124;')}`)
+    '## console.error (не подавлялись; классификация не скрывает сообщения)', '',
+    ...report.packs.flatMap((pack) => pack.consoleErrorAudit.observations.length
+      ? pack.consoleErrorAudit.observations.map((diagnostic) => `- ${pack.id}: ${diagnostic.message.replaceAll('|', '&#124;')}; classification=${diagnostic.classification}; template=${diagnostic.template || 'unmatched'}; path=${diagnostic.path || 'unmatched'}; occurrence=${diagnostic.occurrence ?? 'n/a'}/${diagnostic.expectedOccurrences ?? 'n/a'}; source=${diagnostic.registrySource || 'none'}; date=${diagnostic.registryDate || 'none'}; reason=${diagnostic.registryReason || 'no registered reason'}`)
       : [`- ${pack.id}: нет`]), '',
     '## Находки', '',
     ...(report.findings.length ? report.findings.map((finding) => `- ${finding}`) : ['- нет']), '',
@@ -945,13 +1360,15 @@ for (const e of errors.slice(0, 10)) report.findings.push(`pageerror: ${e.slice(
 const pageErrors = errors.length
 const errorScreenPattern = /Фон сцены не загрузился|Игра столкнулась с ошибкой|Кампаний пока нет|Ошибка загрузки кампании/i
 const errorScreens = report.steps.filter((entry) => errorScreenPattern.test(entry.text)).length
-const brokenPortraitImages = observations.reduce((sum, entry) => sum + (entry.brokenPortraitImages || 0), 0)
+const observedBrokenPortraitImages = observations.reduce((sum, entry) => sum + (entry.brokenPortraitImages || 0), 0)
+const brokenPortraitImages = (report.packs || []).reduce((sum, pack) => sum + (pack.brokenPortraitImgOccurrences || 0), 0)
 const rawNpcIds = observations.reduce((sum, entry) => sum + (entry.text.match(/\bnpc_[a-z0-9_]+\b/gi) || []).length, 0)
 report.pageErrors = pageErrors
 report.errorScreens = errorScreens
 report.brokenPortraitImages = brokenPortraitImages
+report.observedBrokenPortraitImages = observedBrokenPortraitImages
 report.rawNpcIds = rawNpcIds
-if (brokenPortraitImages > 0) report.findings.push(`битых портретов: ${brokenPortraitImages}`)
+if (brokenPortraitImages > 0) report.findings.push(`необъяснённых/persistent битых портретов: ${brokenPortraitImages}`)
 if (rawNpcIds > 0) report.findings.push(`экранов с необработанными id персонажа: ${rawNpcIds}`)
 if (pageErrors > 0) report.findings.push(`pageerror: ${pageErrors}`)
 if (errorScreens > 0) report.findings.push(`экранов ошибки: ${errorScreens}`)

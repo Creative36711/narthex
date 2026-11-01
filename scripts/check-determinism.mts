@@ -5,6 +5,7 @@
  * shared project, seed, and fixed dt row in Chromium and the cf-play Node
  * executor path; `--mutate` remains the deliberate rc=1 mutation-only mode.
  */
+import { performance } from 'node:perf_hooks'
 import {
   FIXED_DT_MS,
   MUTATION_SEED,
@@ -105,10 +106,16 @@ async function main(): Promise<void> {
 
   console.log('NAR-4.4 determinism check: 5 seeds × 2 runtimes × 2 replays.')
   console.log(`Fixed dt sequence (ms): [${FIXED_DT_MS.join(', ')}]; realtime step=${STEP_MS} ms.`)
+  console.log('NAR-4.4 fixed-seed replay phase: start.')
+  const replayStartedAt = performance.now()
   const rows = runNormalReplays()
+  console.log(`NAR-4.4 fixed-seed replay phase: ${(performance.now() - replayStartedAt).toFixed(1)} ms.`)
   printReplayTable(rows)
 
+  console.log('NAR-4.4 mutation probe phase: start.')
+  const mutationStartedAt = performance.now()
   const mutationRows = runMutationProbe()
+  console.log(`NAR-4.4 mutation probe phase: ${(performance.now() - mutationStartedAt).toFixed(1)} ms.`)
   printMutationProbe(mutationRows)
 
   const replaysMatch = rows.length === SEEDS.length * RUNTIMES.length && rows.every((row) => row.matches)
@@ -120,7 +127,10 @@ async function main(): Promise<void> {
   }
 
   console.log('PASS: all 10 replay pairs match; the mutation probe detects divergence in both runtimes.')
+  console.log('NAR-4.6 browser/Node parity phase: start.')
+  const parityStartedAt = performance.now()
   await runParity()
+  console.log(`NAR-4.6 browser/Node parity phase: ${(performance.now() - parityStartedAt).toFixed(1)} ms.`)
 }
 
 main().catch((error) => {

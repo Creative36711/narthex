@@ -12,6 +12,7 @@
 import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
+import { assertUserscriptVersionContract } from '../version-oracle.mjs';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 const has = (needle, why) => assert.ok(src.includes(needle), `в скрипте нет: ${why}`);
 
@@ -187,8 +188,7 @@ has('queueQuestion(q, ctx);', 'неудачная запись попадает 
 has('Строка отложена и повторится сама', 'Мастер видит, что вопрос не потерян');
 has('await flushQuestionQueue();', 'повтор запускается при обновлении вопросов');
 has('qQueue: "cfn-q-queue",', 'ключ хранилища очереди');
-const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.92)\s*$/m);
-assert.ok(versionMatch, 'narthex.user.js must declare a version in x.y.z format');
+const versionMatch = assertUserscriptVersionContract(src);
 const V = versionMatch[1];
 has(`@version      ${V}`, `версия ${V}`);
 
