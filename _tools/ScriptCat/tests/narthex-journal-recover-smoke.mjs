@@ -1,4 +1,4 @@
-// Текущий контракт appendToJournal в narthex.user.js 1.4.90.
+// Текущий контракт appendToJournal в narthex.user.js.
 //
 // История (NAR-2.13, 25.10.2026, 15:59Z): Runtime Auditor создал папку
 // Arena/reports, положил туда отчёт и вписал его id в поле карточки
@@ -23,8 +23,8 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.90)\s*$/m);
-assert.ok(versionMatch, 'narthex.user.js must declare a version in x.y.z format');
+import { assertUserscriptVersionContract } from '../version-oracle.mjs';
+const versionMatch = assertUserscriptVersionContract(src);
 const version = versionMatch[1];
 assert.match(src, new RegExp(`@version\\s+${version.replace(/\./g, '\\.')}`), `версия ${version}`);
 
