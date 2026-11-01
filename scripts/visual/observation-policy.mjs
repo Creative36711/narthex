@@ -191,6 +191,71 @@ export function auditKnownAbsences({ campaignId, declaredPaths, observations, re
   }
 }
 
+/**
+ * A response on a declared-absence path is permitted only when it is the exact
+ * registered observation: canonical campaign/path, status, content type, and
+ * reason. A path-only allowlist would also hide an unrelated 4xx/5xx response.
+ */
+export function isBlockingCampaignResponseFailure(failure) {
+  let pathname
+  try {
+    pathname = new URL(failure?.url).pathname
+  } catch {
+    return true
+  }
+  // Preserve the pre-existing optional-metadata exceptions; all other failures
+  // remain blocking unless they match an exact registered known-absence result.
+  return !pathname.endsWith('/project.json') && !pathname.endsWith('/encounters/encounters.json')
+}
+
+export function isExactRegisteredKnownAbsenceResponse({ campaignId, failure, knownAbsences }) {
+  if (typeof campaignId !== 'string' || typeof failure?.path !== 'string' || !failure.path) return false
+  const path = normalizeAssetPath(failure.path)
+  if (path !== failure.path) return false
+
+  let url
+  try {
+    url = new URL(failure.url)
+  } catch {
+    return false
+  }
+  if (!['http:', 'https:'].includes(url.protocol) || url.search || url.hash) return false
+  const prefix = `/campaigns/${campaignId}/`
+  if (!url.pathname.startsWith(prefix)) return false
+
+  let urlAssetPath
+  try {
+    urlAssetPath = decodeURIComponent(url.pathname.slice(prefix.length))
+  } catch {
+    return false
+  }
+  if (urlAssetPath !== path || normalizeAssetPath(urlAssetPath) !== urlAssetPath) return false
+
+  const contentType = String(failure.contentType || '').trim().toLowerCase()
+  return knownAbsences.some((observation) => observation.classification === 'allowed'
+    && observation.path === path
+    && observation.status === failure.status
+    && observation.expectedStatus === failure.status
+    && String(observation.contentType || '').trim().toLowerCase() === contentType
+    && observation.expectedContentType === contentType
+    && observation.reason === failure.reason
+    && observation.occurrence === 1
+    && observation.expectedOccurrences === 1)
+}
+
+export function splitCampaignResponseFailures({ campaignId, failures, knownAbsences }) {
+  const unregistered = failures.filter((failure) => !isExactRegisteredKnownAbsenceResponse({
+    campaignId,
+    failure,
+    knownAbsences,
+  }))
+  const blocking = [...new Map(unregistered
+    .filter(isBlockingCampaignResponseFailure)
+    .map((failure) => [failure.url, failure])).values()]
+  const nonBlocking = unregistered.filter((failure) => !isBlockingCampaignResponseFailure(failure))
+  return { blocking, nonBlocking }
+}
+
 function parseConsoleError(message) {
   for (const [prefix, template] of CONSOLE_TEMPLATES) {
     if (!message.startsWith(prefix)) continue

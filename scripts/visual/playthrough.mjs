@@ -28,6 +28,7 @@ import {
   auditKnownAbsences,
   loadObservationRegistry,
   OBSERVATION_REGISTRY_RELATIVE_PATH,
+  splitCampaignResponseFailures,
 } from './observation-policy.mjs'
 
 const positional = process.argv.slice(2).filter((arg) => !arg.startsWith('--'))
@@ -147,13 +148,9 @@ async function openPage(context) {
 
 async function step(page, name, label) {
   if (examMode) {
-    // `complete` flips before an image's onError handler has necessarily committed its React fallback.
-    // Wait for every remaining DOM image to load; a failed image that remains mounted is still counted below.
-    await page.waitForFunction(
-      () => [...document.images].every((image) => image.complete && image.naturalWidth > 0),
-      undefined,
-      { timeout: 3000 },
-    ).catch(() => {})
+    await page.waitForFunction(() => [...document.images].every((image) => image.complete), undefined, { timeout: 3000 }).catch(() => {})
+    // Give image error events and their React fallback one frame to commit; do not wait for naturalWidth > 0.
+    await page.evaluate(() => new Promise((resolveFrame) => requestAnimationFrame(resolveFrame)))
   }
   const info = await page.evaluate((inspectImages) => {
     const fullText = document.body.innerText
@@ -273,13 +270,6 @@ function campaignRelativePath(url, campaignId) {
   } catch {
     return pathname.slice(start + prefix.length)
   }
-}
-
-function isBlockingCampaignResponseFailure(failure) {
-  const pathname = new URL(failure.url).pathname
-  // project.json и encounters index могут отсутствовать у legacy-паков;
-  // изображения и игровые сцены, напротив, должны реально загружаться.
-  return !pathname.endsWith('/project.json') && !pathname.endsWith('/encounters/encounters.json')
 }
 
 function visibleEndingId(campaignId, title) {
@@ -805,11 +795,11 @@ async function runExamPack(definition) {
   })
   for (const finding of absenceAudit.findings) addFinding(`STAB-1.25 absence registry: ${finding}`)
   for (const finding of consoleErrorAudit.findings) addFinding(`STAB-1.25 console registry: ${finding}`)
-  const blockingResourceFailures = [...new Map(
-    resourceFailures
-      .filter((failure) => isBlockingCampaignResponseFailure(failure) && !knownAbsencePaths.has(failure.path))
-      .map((failure) => [failure.url, failure]),
-  ).values()]
+  const { blocking: blockingResourceFailures, nonBlocking: nonBlockingResourceFailures } = splitCampaignResponseFailures({
+    campaignId: definition.id,
+    failures: resourceFailures,
+    knownAbsences,
+  })
 
   // Объявленный путь, который внезапно начал отдаваться картинкой, — устаревшая
   // декларация, а не успех: фикстура перестала соответствовать данным.
@@ -859,7 +849,7 @@ async function runExamPack(definition) {
     consoleErrors: packConsoleErrors,
     consoleErrorAudit,
     failedCampaignResponses: blockingResourceFailures,
-    nonBlockingCampaignResponses: resourceFailures.filter((failure) => !knownAbsencePaths.has(failure.path) && !isBlockingCampaignResponseFailure(failure)),
+    nonBlockingCampaignResponses: nonBlockingResourceFailures,
     finalState: finalState || 'not-reached',
     finalVisibleText,
     finalFrame: packSteps.findLast((entry) => /ending/.test(entry.name))?.file || null,
