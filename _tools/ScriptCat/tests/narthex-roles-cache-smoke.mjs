@@ -19,7 +19,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.91)\s*$/m);
+const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.92)\s*$/m);
 assert.ok(versionMatch, 'narthex.user.js must declare a version in x.y.z format');
 
 const sliceBetween = (startMarker, endMarker) => {
@@ -159,6 +159,20 @@ const row = (name, url, fn = 'Executor', status = 'Активна') => ({
   await new Promise((r) => setTimeout(r, 35));
   await h.roleRows();
   assert.equal(h.store.get('cfn-roles-cache').rows.length, 1, 'пустой ответ кеш не обнуляет');
+}
+
+// ── 8. Проверка перед выдачей не может разрешать по устаревшему кешу ───────
+{
+  const h = makeRoles({ reply: (n) => n === 1
+    ? [row('Tools', 'https://arena.ai/agent/abc-123')]
+    : new Error('Notion offline') });
+  await h.roleRows();
+  await assert.rejects(() => h.roleRows({ fresh: true, requireFresh: true }), /Notion offline/,
+    'даже при наличии кеша новое назначение не выдаётся без актуальной роли');
+  assert.equal(h.store.get('cfn-roles-cache').rows[0].name, 'Tools', 'кеш не потерян');
+  assert.equal(h.logs.length, 0, 'отказ не называется успешной работой по кешу');
+  const cached = await h.roleRows();
+  assert.equal(cached[0].name, 'Tools', 'обычное чтение по-прежнему работает с кешем');
 }
 
 console.log('OK: narthex 1.4.86 — «Роли» кешируются на 10 минут, сбой чтения не останавливает цикл');

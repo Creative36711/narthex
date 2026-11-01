@@ -14,7 +14,7 @@ const src = readFileSync(file, 'utf8');
 
 // 1. В @connect есть ntfy.sh, версия поднята.
 assert.match(src, /@connect\s+ntfy\.sh/, '@connect ntfy.sh');
-const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.91)\s*$/m);
+const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.92)\s*$/m);
 assert.ok(versionMatch, 'narthex.user.js must declare a version in x.y.z format');
 
 // 2. В коде нет кириллицы в заголовках: X-Title/X-Priority/X-Tags не используются.
@@ -325,4 +325,4 @@ assert.match(
   'тихое уведомление содержит задание, роль, результат и длительность',
 );
 
-console.log('OK: ntfy 1.4.91 — UTF-8 транспорт, тихие вехи с дедупликацией, громко только после остановки');
+console.log('OK: ntfy 1.4.92 — UTF-8 транспорт, тихие вехи с дедупликацией, громко только после остановки');

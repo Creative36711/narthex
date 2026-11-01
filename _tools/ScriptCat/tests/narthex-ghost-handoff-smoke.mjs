@@ -22,7 +22,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // ── 1. Версия ──────────────────────────────────────────────────────────────
-const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.91)\s*$/m);
+const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.92)\s*$/m);
 assert.ok(versionMatch, 'narthex.user.js must declare a version in x.y.z format');
 
 // ── 2. Помощник dropGhostHandoff ───────────────────────────────────────────

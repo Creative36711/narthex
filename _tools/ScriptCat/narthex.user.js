@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.91
+// @version      1.4.92
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -340,7 +340,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.91";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.92";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -613,6 +613,15 @@
     resend: () => {
       const waiting = GM_getValue(K.expect, null);
       if (!waiting?.text) return "в ожидании нет текста задания";
+      if (waiting.kind === "dispatch" && (waiting.roleFn === "Reviewer" || !waiting.roleFn ||
+          String(waiting.roleName || "").toLowerCase() === "warden"))
+        return "Старую или нераспознанную карточку Reviewer не переотправляю: ожидание сохранено, проверьте чат и Run ID.";
+      if (["review", "answer"].includes(waiting.kind)) {
+        // Приёмка и ответы сохраняют связь с исходной миссией/вопросом.
+        GM_setValue(K.expect, { ...waiting, sentAt: null, verified: false });
+        GM_setValue(K.pending, { roleId: waiting.roleId, text: waiting.text, at: Date.now() });
+        return "задание возвращено в очередь";
+      }
       GM_setValue(K.expect, null);
       GM_setValue(K.pending, { roleId: waiting.roleId, text: waiting.text, at: Date.now() });
       return "задание возвращено в очередь";
@@ -1025,6 +1034,12 @@
     if (paused && paused.kind === "arena-error") {
       GM_setValue(K.errSeen, "");
       const waiting = GM_getValue(K.expect, null);
+      if (waiting && waiting.kind === "dispatch" && (waiting.roleFn === "Reviewer" || !waiting.roleFn ||
+          String(waiting.roleName || "").toLowerCase() === "warden")) {
+        pause("Ошибка Arena на старой или нераспознанной карточке Reviewer: не повторяю выдачу и сохраняю ожидание. Проверьте чат и Run ID.",
+          { kind: "reviewer-task-pending", ref: waiting.ref || "", runId: waiting.runId || "" });
+        return;
+      }
       if (waiting) {
         GM_setValue(K.expect, {
           ...waiting,
@@ -1903,12 +1918,30 @@
   }
 
   // ───────────────────────────── Notion ─────────────────────────────
-  const query = (ds, filter, sorts) =>
-    notion("POST", `data_sources/${ds}/query`, {
-      page_size: 100,
-      ...(filter ? { filter } : {}),
-      ...(sorts ? { sorts } : {}),
-    }).then((r) => r.results || []);
+  // Notion возвращает не больше 100 строк за раз. Неполная очередь опаснее
+  // ошибки: она могла скрыть открытые карточки или часть принятых от приёмки.
+  // Не возвращаем частичный результат при ошибке или сломанном курсоре.
+  const query = async (ds, filter, sorts) => {
+    const rows = [];
+    const cursors = new Set();
+    let cursor = "";
+    while (true) {
+      const page = await notion("POST", `data_sources/${ds}/query`, {
+        page_size: 100,
+        ...(filter ? { filter } : {}),
+        ...(sorts ? { sorts } : {}),
+        ...(cursor ? { start_cursor: cursor } : {}),
+      });
+      if (!page || !Array.isArray(page.results) || typeof page.has_more !== "boolean")
+        throw new Error("Notion вернул неполную страницу запроса.");
+      rows.push(...page.results);
+      if (!page.has_more) return rows;
+      const next = String(page.next_cursor || "");
+      if (!next || cursors.has(next)) throw new Error("Notion не вернул новый курсор запроса.");
+      cursors.add(next);
+      cursor = next;
+    }
+  };
 
   const patch = (pageId, properties) => notion("PATCH", `pages/${pageId}`, { properties });
 
@@ -1944,17 +1977,17 @@
    * `fresh: true` — мимо кеша: смена токена в ⚙ и случаи, где список только
    * что правили руками.
    */
-  async function roleRows({ fresh = false } = {}) {
+  async function roleRows({ fresh = false, requireFresh = false } = {}) {
     const cached = GM_getValue(K.rolesCache, null);
     const usable = cached && Array.isArray(cached.rows) && cached.rows.length ? cached : null;
     const age = usable ? Date.now() - Number(usable.at || 0) : Number.POSITIVE_INFINITY;
-    if (!fresh && usable && age < C.rolesCacheMs) return usable.rows;
+    if (!fresh && !requireFresh && usable && age < C.rolesCacheMs) return usable.rows;
     try {
       const rows = (await query(C.roles)).map(mapRoleRow);
       if (rows.length) GM_setValue(K.rolesCache, { at: Date.now(), rows });
       return rows;
     } catch (e) {
-      if (!usable) throw e;
+      if (!usable || requireFresh) throw e;
       log(
         `База «Роли» не ответила (${firstLine(String((e && e.message) || e))}) — работаю по кешу ` +
           `${Math.max(1, Math.round(age / 60000))} мин назад: список агентов с тех пор не менялся.`,
@@ -3214,6 +3247,8 @@
    */
   function retryRejectedHandoff(expect, alert, why) {
     if (!expect || !expect.roleId) return false;
+    if (expect.kind === "dispatch" && (expect.roleFn === "Reviewer" ||
+        String(expect.roleName || "").toLowerCase() === "warden")) return false;
     if (!expect.sentAt) return false;
     if (Date.now() - Number(expect.sentAt || 0) > C.arenaRetryMs) return false;
     const done = Number(expect.arenaResend) || 0;
@@ -3284,6 +3319,8 @@
    */
   function retryStaleBranchHandoff(expect) {
     if (!expect || !expect.roleId || !expect.sentAt) return false;
+    if (expect.kind === "dispatch" && (expect.roleFn === "Reviewer" ||
+        String(expect.roleName || "").toLowerCase() === "warden")) return false;
     const done = Number(expect.branchResend) || 0;
     if (done >= 1) return false;
     // Наша реплика с заданием — последняя в чате. Без этой отметки `deliver`
@@ -5232,6 +5269,18 @@
   }
 
   async function sendToRole(role, text, kind, ref, extra = {}) {
+    // Ранее выданную Reviewer карточку можно завершить и напомнить о маркере,
+    // но новой рабочей выдачи через общий транспорт быть не должно.
+    if (kind === "dispatch" && (role.fn === "Reviewer" || norm(role.name) === norm("Warden"))) {
+      const previous = GM_getValue(K.expect, null);
+      const reminder = extra.isDispatchReminder === true && previous?.kind === "dispatch" &&
+        Number(previous.sentAt) > 0 && previous.verified === true && norm(previous.roleId) === norm(role.id) &&
+        norm(previous.ref) === norm(ref) && previous.runId && norm(previous.runId) === norm(extra.runId);
+      if (!reminder) {
+        log(`«${role.name}» — Reviewer: обычные карточки ему не выдаются; приёмка и вопросы идут отдельно.`, true, { ntfy: "quiet" });
+        return false;
+      }
+    }
     const force = extra.force === true;
     const payload = { ...extra };
     delete payload.force;
@@ -5379,6 +5428,52 @@
     const pending = GM_getValue(K.pending, null);
     if (!pending) return false;
     const me = roleFromPath();
+    const waitingForPolicy = GM_getValue(K.expect, null);
+    // Очередь могла остаться от старого скрипта. Нельзя угадывать, не дошла ли
+    // она до чата: не отправляем и не откатываем карточку/Run ID вслепую.
+    // Напоминание к уже доставленной карточке — не новая выдача.
+    const oldReminder = waitingForPolicy?.kind === "dispatch" && (
+      waitingForPolicy.isDispatchReminder || (Number(waitingForPolicy.tries) > 0 &&
+        Number(waitingForPolicy.dispatchSentAt) > 0 && waitingForPolicy.text === pending.text));
+    const workPending = waitingForPolicy?.kind === "dispatch" && !oldReminder;
+    const orphanPending = !waitingForPolicy;
+    const orphanWork = orphanPending && /CF_AGENT_RESULT/.test(String(pending.text || "")) &&
+      /dispatch_id/.test(String(pending.text || ""));
+    if (workPending && (waitingForPolicy.roleFn === "Reviewer" ||
+        norm(waitingForPolicy.roleName) === norm("Warden"))) {
+      pause("В очереди осталась рабочая карточка Reviewer от прежней версии. Не отправляю её и не меняю карточку, очередь или ожидание: проверьте чат и Run ID.",
+        { kind: "reviewer-task-pending", ref: waitingForPolicy.ref || "", runId: waitingForPolicy.runId || "" });
+      return true;
+    }
+    if (workPending || orphanPending) {
+      // Старые очереди без roleFn, псевдонимы с тем же URL и роли, изменившиеся
+      // после постановки в очередь. На границе отправки нельзя верить кешу.
+      if (workPending && norm(waitingForPolicy.roleId) !== norm(pending.roleId)) {
+        pause("Ожидание и очередь адресованы разным агентам. Оба сохранены; проверьте чат и Run ID.",
+          { kind: "reviewer-task-check", ref: waitingForPolicy.ref || "" });
+        return true;
+      }
+      let owners;
+      try {
+        owners = (await roleRows({ fresh: true, requireFresh: true })).filter((r) => r.id && norm(r.id) === norm(pending.roleId));
+      } catch (e) {
+        pause(`Не удалось определить функцию адресата старой карточки (${e.message}). Отправка, очередь и карточка сохранены.`,
+          { kind: "reviewer-task-check", ref: pending.roleId || "" });
+        return true;
+      }
+      if (owners.some((r) => r.fn === "Reviewer" || norm(r.name) === norm("Warden"))) {
+        pause("Очередь адресована Reviewer. Проверьте чат и карточку: отправку не повторяю, очередь сохранена.",
+          { kind: "reviewer-task-pending", ref: waitingForPolicy?.ref || "", runId: waitingForPolicy?.runId || "" });
+        return true;
+      }
+      const valid = owners.some((r) => r.status === "Активна" && ["Executor", "Auditor"].includes(r.fn) &&
+        (!waitingForPolicy?.roleFn || waitingForPolicy.roleFn === r.fn));
+      if (!owners.length || ((workPending || orphanWork) && !valid)) {
+        pause("Адресат рабочей очереди не найден среди активных Executor/Auditor или его функция изменилась. Очередь сохранена.",
+          { kind: "reviewer-task-check", ref: waitingForPolicy?.ref || "" });
+        return true;
+      }
+    }
 
     // Просроченная отправка — остаток прошлой попытки (в том числе от старой
     // версии скрипта). Задание до адресата не дошло, значит и ожидание маркера
@@ -5764,6 +5859,10 @@
 
     const expect = GM_getValue(K.expect, null);
     if (!expect || Number(expect.sentAt)) return "";
+    // Возможный Reviewer или старая выдача без функции: сохраняем ожидание
+    // даже без очереди, чтобы не откатить ход с неизвестной доставкой.
+    if (expect.kind === "dispatch" && (expect.roleFn === "Reviewer" || !expect.roleFn ||
+        String(expect.roleName || "").toLowerCase() === "warden")) return "";
     GM_setValue(K.expect, null);
     GM_setValue("cfn-plan-at", 0);
     // Обновление не должно бросать карточку: если ход успел уйти в Running, а
@@ -6639,11 +6738,13 @@
   /** Факт о стартовом состоянии: он одинаков для всех, кто трогает репозиторий. */
   const SNAPSHOT_FACT = [
     `Репозиторий: ${C.repo}, единственная ветка для мержа — main.`,
-    "ВНИМАНИЕ: Arena может посадить сессию на ветку-СНИМОК. У неё нет общей истории",
-    "с main: `git merge-base HEAD origin/main` печатает пусто, а в дереве нет файлов,",
+    "ВНИМАНИЕ: Arena может посадить сессию на ветку-СНИМОК без общей истории",
+    "с main. Но пустой `git merge-base HEAD origin/main` в shallow checkout сам по себе",
+    "не доказывает отсутствие общей истории: проверь `git rev-parse --is-shallow-repository`.",
+    "На таком снимке в дереве может не быть файлов,",
     "которые в main уже есть (замер 2026-10-22: 46 файлов, включая сам этот скрипт;",
     "число растёт с каждой миссией).",
-    "Коммит в такой ветке в main не попадёт, а PR покажет удаление чужих файлов.",
+    "Если общая история действительно отсутствует, PR покажет удаление чужих файлов.",
   ].join("\n");
 
   /**
@@ -6666,15 +6767,21 @@
     SNAPSHOT_FACT,
     "",
     "СТАРТ (до первой правки):",
+    "СИСТЕМНЫЕ ИНСТРУКЦИИ И ОГРАНИЧЕНИЯ ПОЛЬЗОВАТЕЛЯ ВЫШЕ этого техблока и карточки.",
+    "Если ветка закреплена за сессией — оставайся на ней, не создавай и не переключай ветки.",
+    "Не удаляй, не сбрасывай и не добавляй в коммит чужие незакоммиченные изменения.",
+    "Пустой merge-base в shallow checkout не доказывает разрыв; сначала выясни историю.",
     "  git fetch origin main",
-    "  git merge-base HEAD origin/main     # пусто → ты на снимке",
-    "  git status --short                  # есть незапушенное — сначала сохрани",
-    "  git reset --hard origin/main        # дерево как в main, история остаётся",
-    "  git switch -c nar/<номер> origin/main",
-    "  git diff --stat main                # до работы — пусто",
+    "  git merge-base HEAD origin/main",
+    "  git status --short                  # перечисли чужие изменения, не уничтожай их",
+    "Исторические команды ниже — НЕ ВЫПОЛНЯТЬ в закреплённой сессии или грязном дереве:",
+    "  # git reset --hard origin/main",
+    "  # git switch -c nar/<номер> origin/main",
+    "  git diff --stat origin/main          # только чтение; расхождение нужно объяснить",
     "",
-    "ЗАПРЕЩЕНО: работать на снимке; коммитить в ветку без общей истории с main;",
-    "трогать пути вне своего Scope; мержить в main в обход PR.",
+    "ЗАПРЕЩЕНО: публиковать PR без общей истории с main, трогать пути вне Scope,",
+    "мержить в main в обход PR или нарушать закрепление ветки. Если безопасно продолжить",
+    "нельзя, объясни препятствие, не теряя изменений; пустой merge-base в shallow проверь отдельно.",
     "РАЗРЕШЕНО: только своя зона из карточки, PR в main через `gh`, squash-мерж.",
     "",
     CARD_FIELDS_RULE,
@@ -6702,7 +6809,7 @@
     "В «Ролях» ты только читаешь: Статус и Agent URL ставит Мастер.",
     "Ветки, коммиты и PR — не твоя зона: за них отвечают Executor и Auditor.",
     "Очередь — твоя: нарезка, Кому, Sequence, число Ready и выдача работы — новой карточкой или Draft → Ready. Оракул фазы — не твоя:",
-    "команду проверки и инварианты менять нельзя, только ADR proposed с паузой.",
+    "команду проверки и инварианты менять нельзя; для изменения нужен ADR proposed, вопрос и фактическое решение приёмки или Мастера.",
     "",
     "ФАЙЛ ЗАДАНИЯ (Payload Drive File ID) обычно не нужен:",
     "карточка и есть задание — её Намерение, Инварианты, Оракул и Scope уходят исполнителю.",
@@ -6722,7 +6829,7 @@
     "Репозиторий и «Запросы» тебе не подчиняются: ты не правишь ни код, ни карточки.",
     "Читать можно всё: карточку миссии («Итог», «Замечания», «Круг»), принятые карточки, документы репозитория.",
     "В отдельной приёмке миссии твой выход — CF_REVIEW_RESULT: verdict accept, rework или master.",
-    "Если тебе выдали карточку, это отдельный ход: её отчёт заканчивается CF_AGENT_RESULT с dispatch_id и run_id.",
+    "Новые рабочие карточки Reviewer не выдаются. Если карточка была отправлена до обновления, заверши её как отдельный ход: отчёт заканчивается CF_AGENT_RESULT с dispatch_id и run_id.",
     "Если оракул карточки требует CF_REVIEW_RESULT, добавь его в отчёт с теми же dispatch_id и run_id; сам по себе он миссию не закрывает.",
     "Нет нужного маркера — хода не было: цикл ждёт ответ, потом напомнит и встанет.",
   ].join("\n");
@@ -6803,7 +6910,7 @@
       'Вопрос задаётся только полем question в маркере: {"text":"…","options":["A","B"],"default":"A","hours":24}. Вариант по умолчанию обязателен — по нему ты работаешь сразу, не дожидаясь ответа. Вопрос уходит приёмке сразу, как только записан: ответ придёт строкой в следующем промпте, обычно в том же ходе цикла. Больше одного вопроса за ход не задавай.',
       "Вопрос уместен, только если ответ меняет то, что будет построено, и ни ТЗ, ни карточка его не дают. Порядок, формулировки, оформление — решай сам.",
       "Предложение (ADR `proposed` в docs/decisions) — это тоже вопрос, и оно не работает без второго шага: в том же ходе задай question со ссылкой на файл, тремя вариантами и default = «оставить как есть». Иначе решение лежит в репозитории, где Мастер его не увидит. Ответ придёт строкой в следующем промпте — тогда и меняй статус: `accepted` или `rejected`, с датой. Оставлять `proposed` после ответа нельзя: это выглядит как нерешённый вопрос.",
-      "Статус решения не проверяет ни один тест и не должен проверять: оракул, который требует `Статус: proposed`, защищает открытый вопрос от ответа. Проверка вправе требовать только допустимый статус, а не конкретный.",
+      "Статус решения не должен замораживаться тестом: оракул, который требует `Статус: proposed`, защищает открытый вопрос от ответа. Проверка вправе требовать только допустимый статус, а не конкретный.",
       "Опрос в чате, «May I…», просьба разрешения — не вопрос, а остановка хода: работа не сдаётся, карточка висит в Running. Не делай так.",
       "Файлы для показа не открывай: путь к файлу назови текстом в отчёте — Мастер откроет сам, если нужно.",
     ].join("\n");
@@ -6812,13 +6919,15 @@
   /** Порядок работы для того, кто пишет код: коммит, пуш, PR, мерж. */
   function executorOrder(task, runId) {
     return [
-      "ПОРЯДОК (каждый ход, обязательно)",
-      "1. Ветка: git switch -c nar/<номер задачи> от свежего main (ритуал старта — в блоке выше).",
-      "2. Коммит: git add -A && git commit -m \"<номер>: <суть>\".",
-      "3. Пуш: git push -u origin HEAD.",
-      "4. PR и мерж — сам, командами:",
+      "ПОРЯДОК (с учётом системных ограничений и прямого запроса пользователя)",
+      "Порядок ниже не разрешает сброс дерева, смену закреплённой ветки или публикацию чужих изменений.",
+      "1. Ветка: git switch -c nar/<номер задачи> — только если создание ветки явно разрешено; иначе оставайся на закреплённой.",
+      "2. Коммит, если разрешён: git add -A && git commit -m \"<номер>: <суть>\" — ТОЛЬКО когда в дереве нет чужих изменений; иначе укажи свои пути явно.",
+      "3. Пуш — только в разрешённую ветку и если он действительно запрошен.",
+      "4. PR и мерж — только если разрешены; проверяй, что PR содержит лишь твою работу:",
       "   gh pr create --fill --base main   # если PR уже есть — пропусти",
-      "   gh pr merge --squash --delete-branch",
+      "   # Исторический пример НЕ выполнять: gh pr merge --squash --delete-branch",
+      "   Вместо него — gh pr merge <номер> --squash без удаления закреплённой ветки; номер указывай явно.",
       "   Своих изменений в репозитории нет (отчёт, аудит-справка, запись решения): PR не открывай,",
       "   пустой PR ради галочки не нужен — в маркере поставь \"pr\": null.",
       "5. Проверка: команда, код возврата, путь к отчёту. Если задание молчит в чём-то,",
@@ -7006,8 +7115,11 @@
       "Ready-карточку с меньшим Sequence не обходи молча. Выдаёшь не её — назови в ответе причину (ждёт решения Мастера, зависит от другой карточки, сформулирована неверно) и поправь ей Sequence или убери в Draft. Молчаливый обход выглядит как потерянная работа: карточка остаётся Ready и ждёт следующего круга.",
       "Scope карточки обязан покрывать артефакты её Оракула: пробу, npm-скрипт и запись решения перечисляй в Scope прямо — иначе исполнитель встанет на границе зоны.",
       "Если роль не может получить работу («Ждёт», пустой Agent URL, нет в «Ролях») — назначь в «Кому» активную роль или оставь Draft и назови, кого он ждёт. Статус роли и Agent URL — зона Мастера, не меняй их.",
-      "Оракул миссии (ТЗ §2/§3) и инварианты миссии менять нельзя: если проверка требует другого смысла — только ADR proposed и решение Мастера. Acceptance карточки — не оракул миссии: ошибочную формулировку ты исправляешь сам, но так, чтобы смысл проверки миссии не изменился.",
-      "ADR proposed — это очередь решений Мастера, и она видна ему счётчиком «⚖» на панели. Каждое своё предложение сопровождай вопросом в том же маркере: текст — суть решения плюс имя файла, три варианта, default = «оставить как есть». Ответ Мастера придёт строкой «Ответы Мастера» — по нему ты либо принимаешь решение (переведи ADR в `accepted`/`rejected` с датой в том же ходе, через исполнителя), либо продолжаешь по варианту по умолчанию. Нерешённое предложение — долг, а не состояние: если оно висит, назови его в Итоге миссии.",
+      "Роли Reviewer (Warden) обычные рабочие карточки не выдавай: аудит поручай независимому Auditor или подходящему Executor. Reviewer отдельно принимает миссию по next: done и отвечает на вопросы и предложения; оба канала сохраняются.",
+      "Проверки промежуточной карточки выбирай по её рискам и Scope, но выполни все проверки, прямо требуемые её Acceptance и ТЗ: не запускай повторно полный миссионный набор без требования или риска. Accepted означает обработку карточки, а не pass её проверки и не выполнение всей миссии; явно учитывай Check=fail и остатки.",
+      "Если ТЗ требует финальные проверки на одном SHA: после последней обязательной правки зафиксируй финальный main SHA, выполни все требуемые команды и CI именно на нём, а отчёт/ссылки сохрани в Notion или Drive, когда это разрешено ТЗ. Отчётный коммит после проверок меняет SHA; если код или обязательный файл изменился, зафиксируй новый SHA и повтори требуемые проверки. Требование отчёта конкретной карточки не отменяется.",
+      "Оракул миссии (ТЗ §2/§3) и инварианты миссии менять нельзя: другой смысл требует процесса ТЗ — ADR proposed, вопроса и фактического решения приёмки или Мастера в пределах его полномочий. Acceptance карточки — не оракул миссии: ошибочную формулировку ты исправляешь сам, но так, чтобы смысл проверки миссии не изменился.",
+      "ADR proposed — это очередь решений Мастера по старому названию; по существу на предложения отвечает Reviewer, Мастер нужен только при физической необходимости. Предложение видно счётчиком «⚖». Каждое сопровождай вопросом в том же маркере: суть и имя файла, три варианта, default = «оставить как есть». Только фактический ответ приёмки или Мастера разрешает исполнителю оформить `accepted`/`rejected` с датой. Сам default или истёкший срок не являются ответом и не разрешают менять оракул. Нерешённое предложение — долг, а не состояние: если оно висит, назови его в Итоге миссии.",
       "",
       "ХОД — один ответ:",
       "1) Submitted → проверь по Acceptance, поставь Accepted или Rework (причина в «Ответ»).",
@@ -7016,7 +7128,7 @@
       "",
       "next — имя роли той карточки, которую выдаёшь. Своё имя значит «ход снова мне»: это не ошибка, но работу надо выдать в этом же ответе.",
       'Остановить цикл можно только одним способом: next = "blocked" и need = "<роль>" — когда работы для активных ролей нет вовсе. Rework, черновики и спорный Scope — твоя работа, а не повод. Остановка без need не принимается: транспорт вернёт ход тебе же. Вопрос — не остановка: он уходит приёмке сразу, она отвечает вместо Мастера, и ответ придёт тебе строкой в следующем плане. Иначе — работай дальше.',
-      "Вопрос Мастеру задаётся полем question в маркере (формат — в «КАК РЕШАТЬ»): цикл при этом не останавливается.",
+      "Вопрос или предложение приёмке задаётся полем question в маркере (формат — в «КАК РЕШАТЬ»): цикл при этом не останавливается.",
       "",
       "Последней строкой ответа:",
       `CF_COORDINATOR_RESULT {"mission_id":"${mission.id}","turn_id":"${turnId}","status":"completed","next":"<роль|done>"}`,
@@ -7625,6 +7737,16 @@
     if (!name) return { kind: "ask", note: "В маркере не указано, кому передаётся ход: назови роль или done." };
     if (norm(name) === norm("done")) return { kind: "done" };
     const target = list.find((r) => norm(r.name) === norm(name)) || null;
+    const rows = [...list, ...(directory || [])];
+    const reviewer = rows.some((r) => r.fn === "Reviewer" &&
+      (norm(r.name) === norm(name) || (target?.id && r.id && norm(r.id) === norm(target.id))));
+    if (reviewer || norm(name) === norm("Warden")) {
+      const why = `«${name}» — приёмка (Reviewer): обычную рабочую карточку ей не выдают. ` +
+        "Переназначь её подходящему Auditor или Executor; вопросы и предложения по-прежнему направляются приёмке, " +
+        "а завершённая очередь передаётся ей через next: done.";
+      if (misses >= 2) return { kind: "pause", reason: `${why} Координатор повторил запретную выдачу три раза; очередь сохранена.` };
+      return { kind: "ask", note: why };
+    }
     if (!target) {
       // Карточка этой роли может уже лежать в Ready — тогда дело не в
       // опечатке, а в статусе роли. Молчать об этом значит гонять
@@ -7680,6 +7802,12 @@
           "Ход вернулся Координатору. Очередь пуста — в этом ходе выдай работу сам: создай карточку " +
           "Ready или переведи в Ready подходящий Draft и назови в next исполнителя (или done, если миссия закончена).",
       };
+    }
+    if (!["Executor", "Auditor"].includes(target.fn)) {
+      const why = `«${target.name}»: функция «${target.fn || "не указана"}» не разрешает рабочую карточку. ` +
+        "Назначь активного Executor или Auditor; функцию роли устанавливает Мастер.";
+      if (misses >= 2) return { kind: "pause", reason: `${why} Координатор повторил выбор три раза.` };
+      return { kind: "ask", note: why };
     }
     if (readyRoles.some((r) => norm(r) === norm(target.name))) return { kind: "dispatch", roleName: target.name };
     if (misses >= 1) {
@@ -7849,7 +7977,7 @@
     }
     try {
       const rows = await questionRows([Q.wait]);
-      let closed = new Set();
+      const closed = new Set();
       const active = await activeMission().catch(() => null);
       if (active) {
         const wanted = rt(active.properties["Миссия"]).trim();
@@ -7858,8 +7986,9 @@
           return !value || missionSame(value, wanted);
         });
         const due = expiredQuestions(mine).filter((row) => rt(row.properties["По умолчанию"]));
-        await closeExpired(due);
-        closed = new Set(due.map((row) => row.id));
+        // Скрываем только реально записанные закрытия: ошибка Notion и ADR,
+        // который ждёт фактического решения, остаются видимыми и в очереди.
+        await closeExpired(due, closed);
         // Строка «Ждёт» без ответа — вопрос, который ещё не передавали
         // приёмке. Проверка идёт при каждой загрузке страницы, поэтому вопрос,
         // созданный прошлой версией (или агентом без очереди), тоже доходит:
@@ -8051,11 +8180,17 @@
     if (!all.length) return "";
     const shown = all.slice(0, C.questionLineMax).map((row) => {
       const byDefault = sel(row.properties["Статус"]) === Q.byDefault;
+      const title = rt(row.properties["Вопрос"]);
       const answer = rt(row.properties["Ответ"]);
-      return `«${rt(row.properties["Вопрос"])}» → ${answer}${byDefault ? " (срок истёк, принят вариант по умолчанию)" : ""}`;
+      const hint = byDefault
+        ? /\bADR\b|docs\/decisions\//i.test(title)
+          ? " (срок истёк: это только default, фактического решения приёмки по ADR нет)"
+          : " (срок истёк, принят вариант по умолчанию)"
+        : "";
+      return `«${title}» → ${answer}${hint}`;
     });
     const more = all.length > shown.length ? `; и ещё ${all.length - shown.length}` : "";
-    return `Ответы Мастера на вопросы — учти их в этом ходе: ${shown.join("; ")}${more}.`;
+    return `Ответы Мастера на вопросы и ответы приёмки — учти их в этом ходе: ${shown.join("; ")}${more}.`;
   }
 
   /** Свойства строки базы «Вопросы». */
@@ -8353,17 +8488,22 @@
   }
 
   /** Срок вышел — закрываем вопрос вариантом по умолчанию, но не молча. */
-  async function closeExpired(rows) {
+  async function closeExpired(rows, closedIds = null) {
     let closed = 0;
     for (const row of rows || []) {
       const fallback = rt(row.properties["По умолчанию"]);
       if (!fallback) continue;
+      // Предложение ADR требует фактического ответа: срок и default не
+      // превращают его в решение и не разрешают менять защищённый оракул.
+      const title = rt(row.properties["Вопрос"]);
+      if (/\bADR\b|docs\/decisions\//i.test(title)) continue;
       try {
         await patch(row.id, {
           "Статус": { select: { name: Q.byDefault } },
           "Ответ": { rich_text: richText(fallback) },
         });
         closed += 1;
+        if (closedIds) closedIds.add(row.id);
         log(
           `Вопрос «${rt(row.properties["Вопрос"])}» ждал дольше срока — принят вариант по умолчанию: ${fallback}.`,
           false,
@@ -8446,6 +8586,16 @@
     return out;
   }
 
+  /** Тема вопроса, не упоминания в ответе. Не угадываем при нескольких ADR. */
+  function adrSubjectKeysOf(text) {
+    const src = String(text || "");
+    const files = new Set([...src.matchAll(/([\w.-]+)\.md/gi)].map((hit) => hit[1].toLowerCase()));
+    if (files.size) return files.size === 1 ? files : new Set();
+    const numbers = new Set([...src.matchAll(/\b(?:NAR|STAB|GOLD)-\d+\.\d+(?:-[\wа-яё]+)?/gi)]
+      .map((hit) => hit[0].toLowerCase()));
+    return numbers.size === 1 ? numbers : new Set();
+  }
+
   /**
    * Имена решений, по которым приёмка уже ответила в «Вопросах».
    *
@@ -8457,11 +8607,12 @@
   async function decidedAdrNames() {
     const names = new Set();
     try {
-      const rows = await questionRows([Q.done, Q.byDefault]);
+      // «Принят дефолт» по сроку — не ответ на предложение и не решение ADR.
+      const rows = await questionRows([Q.done]);
       for (const row of rows) {
         const answer = rt(row.properties?.["Ответ"]).trim();
         if (!answer) continue;
-        for (const key of adrKeysOf(`${rt(row.properties?.["Вопрос"])} ${answer}`)) names.add(key);
+        for (const key of adrSubjectKeysOf(rt(row.properties?.["Вопрос"]))) names.add(key);
       }
     } catch (e) {
       // `null` — «не знаю», а не «решений нет»: иначе сбой чтения вернул бы в
@@ -8567,6 +8718,7 @@
         "ЧТО РЕШИТЬ",
         "Принять как есть, отклонить или оставить как есть (вариант по умолчанию). Если принимаешь с поправкой — назови её: что поменять в предложении и по какому признаку считать решение исполненным.",
         "Статус файла меняет исполнитель карточкой: приёмка решает по существу, агенты переводят предложение в accepted или rejected с датой.",
+        "Вариант по умолчанию и истечение срока не являются фактическим решением по ADR и не разрешают менять оракул.",
         "Файл не пересказан здесь намеренно: решение принимается по его тексту, а не по моему пересказу.",
       ]
         .filter(Boolean)
@@ -8598,13 +8750,40 @@
     } catch (e) {
       missionName = "";
     }
+    // Старые версии могли закрыть вопрос по сроку и принять дефолт за ответ.
+    // Исходную строку не переписываем: для такого ADR создаём однократное
+    // уточнение, если позднее фактического ответа не нашлось.
+    let history;
+    try {
+      history = await questionRows([Q.done, Q.byDefault]);
+    } catch (e) {
+      dbg("решения: историю ответов не прочитать", e.message);
+      return;
+    }
+    const answered = new Set();
+    const expired = new Set();
+    for (const question of history) {
+      const keys = adrSubjectKeysOf(rt(question.properties?.["Вопрос"]));
+      const status = sel(question.properties?.["Статус"]);
+      if (status === Q.done && rt(question.properties?.["Ответ"]).trim())
+        for (const key of keys) answered.add(key);
+      if (status === Q.byDefault) for (const key of keys) expired.add(key);
+    }
     for (const row of rows || []) {
       try {
-        await askQuestion(proposalQuestion(row, missionName), {
+        const fileKey = adrKeyOf(row.file);
+        if (answered.has(fileKey)) continue;
+        const needsReview = expired.has(fileKey);
+        const question = proposalQuestion(row, missionName);
+        if (needsReview) {
+          question.text = `Уточнение: ${question.text}`;
+          question.fullText = "Предыдущий вопрос закрыт по сроку, а не ответом: default не является решением. Нужен ответ по существу.\n\n" + question.fullText;
+        }
+        await askQuestion(question, {
           roleName: "Narthex (транспорт)",
           card: "",
           mission: missionName,
-          key: `adr:${row.file}`,
+          key: `${needsReview ? "adr-confirm" : "adr"}:${row.file}`,
         });
       } catch (e) {
         dbg("решения: предложение не передано приёмке", e.message);
@@ -9472,13 +9651,14 @@
     const rows = Array.isArray(cards) ? cards : [];
     if (!rows.length) return "Принятых карточек нет — миссия закрывается без работы?";
     return rows
-      .slice(0, 20)
       .map((card) => {
         const id = taskTitle(card).split("·")[0].trim() || taskTitle(card);
         const who = taskRole(card) || "—";
         const pr = card.properties?.["PR"]?.url || "";
+        const check = card.properties?.["Check"]?.select?.name || "";
         const answer = rt(card.properties["Ответ"]).replace(/\s+/g, " ").slice(0, 160);
-        return `- ${id} · ${who}${pr ? ` · ${pr}` : ""}${answer ? ` · ответ: ${answer}` : ""}`;
+        return `- ${id} · ${who}${pr ? ` · ${pr}` : ""}${answer ? ` · ответ: ${answer}` : ""}` +
+          `${check ? ` · Check=${check}` : ""}${card.url ? ` · ${card.url}` : card.id ? ` · id: ${card.id}` : ""}`;
       })
       .join("\n");
   }
@@ -9495,8 +9675,9 @@
       `Круг: ${round} (доработок было ${round}, предел ${C.reworkLimit})`,
       `Очередь: ${queue.summary}`,
       "",
-      "ПРИНЯТЫЕ КАРТОЧКИ (ответ и PR каждой):",
+      `ПРИНЯТЫЕ КАРТОЧКИ (${accepted.length}; краткий список, ответ и PR могут быть сокращены):`,
       reviewCards(accepted),
+      "Открой карточки и полные ответы/журналы для проверки: Accepted — состояние карточки, не доказательство pass; Check=fail и остатки не скрывай.",
       "",
       result
         ? `ИТОГ МИССИИ (как его записал Координатор):\n${result}`
@@ -9544,7 +9725,14 @@
       return true;
     }
     const round = missionRound(mission);
-    const accepted = await tasks("Accepted", mission).catch(() => []);
+    let accepted;
+    try {
+      accepted = await tasks("Accepted", mission);
+    } catch (e) {
+      pause(`Не удалось полностью прочитать принятые карточки (${e.message}): приёмку не передаю с неполной очередью. Повторите после восстановления Notion.`,
+        { kind: "review-cards-read", ref: mission.id });
+      return true;
+    }
     const turnId = uid();
     log(`Миссия готова к приёмке: круг ${round}, принято карточек ${accepted.length}. Передаю «${reviewer.name}».`);
     await sendToRole(reviewer, reviewPrompt(mission, reviewer, turnId, round, queue, accepted), "review", mission.id, {
@@ -9748,8 +9936,8 @@
    *   master — без Мастера физически нельзя (нужен новый агент, доступ, смена
    *            ТЗ или оракула): только тогда цикл встаёт и зовёт его.
    *
-   * Предел срока (`Срок`, «Принят дефолт») остаётся страховкой: если приёмка
-   * недоступна, вопрос не висит вечно, а закрывается вариантом по умолчанию.
+   * Предел срока (`Срок`, «Принят дефолт») остаётся страховкой обычных
+   * вопросов. Для ADR default не заменяет фактического решения приёмки.
    */
   const answerQueue = () => {
     const stored = GM_getValue(K.answers, []);
@@ -9801,9 +9989,9 @@
       "Ты — приёмка миссии и на вопросы агентов отвечаешь вместо Мастера. Решай по существу: что правильнее для миссии и её оракула, а не что проще согласовать.",
       "Ответ увидят исполнитель и Координатор на следующем ходе — пиши решение, а не рассуждение: что делать, где граница, по какому признаку считать сделанным.",
       "Твой ответ записывается в «Ответ» этой строки, статус становится «Решено», и на следующем ходе он уезжает агентам строкой «Ответы на вопросы». Поэтому ответ должен быть самодостаточным: агент увидит его без твоего чата.",
-      "Если вопрос про предложение (`docs/decisions/*.md`, статус `proposed`) — отвечай решением по существу: принять, отклонить или отложить, и что именно поменять. Статус файла меняет исполнитель карточкой, не ты.",
+      "Если вопрос про предложение (`docs/decisions/*.md`, статус `proposed`) — отвечай решением по существу: принять, отклонить или явно оставить как есть (отклонить изменение), и что именно сделать. Статус файла меняет исполнитель карточкой, не ты.",
       "Ничего не правь: ни карточки, ни код, ни документы. Твой выход — ответ или вызов Мастера.",
-      "Мастера зовёшь только тогда, когда без него физически нельзя: нужен новый агент в Arena, доступ или ключ, смена ТЗ или оракула. «Так спокойнее» и «пусть подтвердит» — не повод.",
+      "Мастера зовёшь только тогда, когда без него физически нельзя: нужен новый агент в Arena, доступ или решение, для которого по ТЗ необходимы полномочия Мастера. По ADR решай в пределах делегированных полномочий; сам оракул или файлы не меняй. «Так спокойнее» и «пусть подтвердит» — не повод.",
       "",
       "ОТВЕТ — одной строкой в конце, ровно один маркер:",
       `CF_ANSWER_RESULT {"question_id":"${item.id}","turn_id":"${turnId}","verdict":"answer","answer":"<решение: что делать и по какому признаку считать сделанным>"}`,
@@ -9818,7 +10006,7 @@
 
   /**
    * Передать вопрос приёмке. `true` — ход ушёл ей; `false` — отвечать некому
-   * (вопрос остаётся «Ждёт» и закрывается сроком или Мастером).
+   * (вопрос остаётся «Ждёт»; обычный может закрыться сроком, ADR ждёт ответа).
    */
   async function startAnswer(mission, item) {
     const role = await reviewerRole();
@@ -9938,12 +10126,30 @@
   async function dispatchTask(card, roleName, mission = null) {
     const role = (await roles()).find((r) => r.name === roleName);
     if (!role) throw new Error(`Роль «${roleName}» не найдена среди активных.`);
+    // Защита перед любыми чтениями/записями карточки и журнала: повторная
+    // выдача не должна даже очистить следы прежнего ответа Reviewer.
+    if (role.fn === "Reviewer" || String(role.name || "").toLowerCase() === "warden")
+      return "Reviewer принимает миссии и отвечает на вопросы; рабочую карточку переназначь Auditor или Executor";
+    if (!["Executor", "Auditor"].includes(role.fn))
+      return `функция роли «${role.fn || "не указана"}» не разрешает выдачу; выбери Executor или Auditor`;
+    // На границе выдачи кеш недостаточен: функция или Agent URL могли только
+    // что измениться. Ошибка чтения не разрешает выдачу по устаревшим данным.
+    const directory = await roleRows({ fresh: true, requireFresh: true });
+    if (role.id && directory.some((r) => r.fn === "Reviewer" && r.id && norm(r.id) === norm(role.id)))
+      return "этот Agent URL принадлежит Reviewer; рабочую карточку переназначь другому агенту";
+    const confirmed = directory.filter((r) => norm(r.name) === norm(role.name) && r.id && role.id &&
+      norm(r.id) === norm(role.id) && r.url && r.status === "Активна");
+    if (confirmed.length !== 1 || confirmed[0].fn !== role.fn || !["Executor", "Auditor"].includes(confirmed[0].fn))
+      return "роль или её функция изменились перед выдачей; перечитай базу «Роли» и выбери активного исполнителя или аудитора";
 
     // Карточка перечитывается прямо перед выдачей: между выбором из списка и
     // отправкой её мог тронуть Координатор, прошлый тик или человек. 23.10
     // NAR-1.7 выдали второй раз с новым run — она была в списке Ready уже
     // отвеченной, и агент честно повторил ту же работу.
     const fresh = await notion("GET", `pages/${card.id}`);
+    const recipient = taskRole(fresh);
+    if (!recipient || norm(recipient) !== norm(role.name))
+      return `адресат карточки изменился на «${recipient || "не указан"}»; перечитай её и назови верную роль`;
     const state = taskState(fresh);
     let prLink = fresh.properties["PR"]?.url || "";
     let submittedAt = fresh.properties["Submitted At"]?.date?.start || "";
@@ -10015,7 +10221,7 @@
     }
 
     const runId = uid();
-    const payloadId = rt(card.properties["Payload Drive File ID"]);
+    const payloadId = rt(fresh.properties["Payload Drive File ID"]);
     let payload = "";
     if (payloadId) {
       try {
@@ -10024,11 +10230,12 @@
         throw new Error(`Payload не прочитан: ${e.message}`);
       }
     }
-    let logId = rt(card.properties["Output Drive File ID"]);
-    if (!logId) {
-      const created = await gateway("createLog", "", { dispatchId: card.id, runId });
-      logId = created.fileId;
-    }
+    // Каждому новому Run — свой журнал. Поле карточки может указывать на
+    // прошлую попытку или даже чужую миссию; его нельзя использовать повторно.
+    const previousLogId = rt(fresh.properties["Output Drive File ID"]);
+    const created = await gateway("createLog", "", { dispatchId: card.id, runId });
+    const logId = String(created?.fileId || "").trim();
+    if (!logId) throw new Error("Шлюз не вернул ID журнала новой выдачи.");
     await patch(card.id, {
       "Dispatch State": { select: { name: "Running" } },
       "Run ID": { rich_text: [{ type: "text", text: { content: runId } }] },
@@ -10041,26 +10248,29 @@
     try {
       await gateway("append", logId, {
         marker: `<!-- CF_DISPATCH ${card.id}:${runId}:task -->`,
-        entry: taskLogEntry(card, role, payload, runId),
+        entry: taskLogEntry(fresh, role, payload, runId) +
+          (previousLogId && previousLogId !== logId
+            ? `\nРанее указанная ссылка на журнал (принадлежность не проверена): https://drive.google.com/file/d/${encodeURIComponent(previousLogId)}/view\n`
+            : ""),
       });
     } catch (e) {
       log(`Задание не записалось в журнал попытки: ${e.message}`, true);
     }
     log(
-      `Выдан ход ${roleName}: «${taskTitle(card)}»` +
+      `Выдан ход ${roleName}: «${taskTitle(fresh)}»` +
         (payload.trim() ? "." : " (отдельного файла с заданием нет — текст собран из карточки)."),
     );
     // Карточка уже в Running, задание в очереди: отсюда выдача состоялась, даже
     // если `sendToRole` не отправил текст (тот же текст уходил минуту назад —
     // это защита от дубля, а не отказ). Отказ отправки разбирает сторож
     // неотправленной очереди, а не вызывающий.
-    const queued = await sendToRole(role, executorPrompt(card, role, payload, logId, runId, mission?.id || ""), "dispatch", card.id, {
+    const queued = await sendToRole(role, executorPrompt(fresh, role, payload, logId, runId, mission?.id || ""), "dispatch", card.id, {
       runId,
       missionId: mission?.id || "",
       logId,
-      title: taskTitle(card),
+      title: taskTitle(fresh),
       // Ссылка нужна минимальному повтору: «прочитай карточку сам».
-      url: card.url || "",
+      url: fresh.url || "",
     });
     if (!queued) {
       // Очередь не создалась (сработала защита от повтора — тот же текст уже
@@ -10138,6 +10348,16 @@
     const waiting = GM_getValue(K.expect, null);
     if (!waiting || !Number(waiting.sentAt) || waiting.verified === true) return "";
 
+    // Водяной знак относится к чату адресата. На чужой странице чужой ответ
+    // нельзя принять за подтверждение доставки старой карточки Reviewer.
+    if (waiting.kind === "dispatch" && (waiting.roleFn === "Reviewer" || !waiting.roleFn ||
+        norm(waiting.roleName) === norm("Warden")) && !waiting.isDispatchReminder &&
+        (!waiting.roleId || norm(roleFromPath()) !== norm(waiting.roleId))) {
+      pause("Доставка старой карточки Reviewer не подтверждена, а открыт другой чат. Ожидание сохранено: проверьте чат адресата и Run ID.",
+        { kind: "reviewer-task-pending", ref: waiting.ref || "", runId: waiting.runId || "" });
+      return "reviewer-held";
+    }
+
     // Если после водяного знака в чате уже что-то появилось, отправка всё-таки
     // дошла (или агент успел ответить): повторять нельзя, иначе будет дубль.
     if (messagesAfter(waiting.watermark || "", waiting.seen).length) {
@@ -10146,6 +10366,14 @@
       return "";
     }
 
+    // Это может быть старый уже отправленный ход Reviewer с потерянным
+    // подтверждением. Не переотправляем рабочую карточку и не стираем ход.
+    if (waiting.kind === "dispatch" && (waiting.roleFn === "Reviewer" || !waiting.roleFn ||
+        norm(waiting.roleName) === norm("Warden")) && !waiting.isDispatchReminder) {
+      pause("Отправка старой или нераспознанной карточки Reviewer не подтверждена. Не повторяю её и сохраняю ожидание и карточку: проверьте чат и Run ID.",
+        { kind: "reviewer-task-pending", ref: waiting.ref || "", runId: waiting.runId || "" });
+      return "reviewer-held";
+    }
     const text = String(waiting.text || "");
     GM_setValue(K.expect, null);
     GM_setValue("cfn-plan-at", 0);
@@ -10171,6 +10399,27 @@
       true,
     );
     return "revived";
+  }
+
+  /** Не снимаем потенциально живую старую выдачу Reviewer без очереди. */
+  async function holdLegacyUnsentDispatch() {
+    const waiting = GM_getValue(K.expect, null);
+    if (!waiting || waiting.kind !== "dispatch" || Number(waiting.sentAt) || GM_getValue(K.pending, null)) return false;
+    let hold = waiting.roleFn === "Reviewer" || norm(waiting.roleName) === norm("Warden");
+    if (!hold) {
+      try {
+        const owners = (await roleRows({ fresh: true, requireFresh: true }))
+          .filter((r) => r.id && norm(r.id) === norm(waiting.roleId));
+        hold = !owners.length || owners.some((r) => r.fn === "Reviewer" || norm(r.name) === norm("Warden")) ||
+          !owners.some((r) => r.status === "Активна" && ["Executor", "Auditor"].includes(r.fn));
+      } catch {
+        hold = true;
+      }
+    }
+    if (!hold) return false;
+    pause("Старая выдача Reviewer или её адресат не подтверждены. Карточку не откатываю, ожидание сохранено: проверьте чат и Run ID.",
+      { kind: "reviewer-task-pending", ref: waiting.ref || "", runId: waiting.runId || "" });
+    return true;
   }
 
   /**
@@ -10295,6 +10544,7 @@
         },
       });
       const revived = reviveUnverifiedHandoff();
+      if (revived === "reviewer-held") return;
       if (droppedHandoff) {
         const gone = droppedHandoff;
         droppedHandoff = null;
@@ -10312,6 +10562,7 @@
       // сообщения в чате нет, карточке в Running делать нечего. Убираем это
       // на любой странице, иначе Координатор видит живой ход там, где работы
       // не начиналось (24.10, NAR-1.12).
+      if (await holdLegacyUnsentDispatch()) return;
       const ghost = await dropGhostHandoff("задание не дошло: отметки отправки нет");
       if (ghost) {
         log(

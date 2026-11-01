@@ -16,7 +16,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.91)\s*$/m);
+const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.92)\s*$/m);
 assert.ok(versionMatch, 'narthex.user.js must declare a version in x.y.z format');
 
 const tickStart = src.indexOf('async function tick(');
@@ -312,7 +312,7 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     "setStatus", "log", "pause", "releaseUndelivered", "sleep", "tick", "location", "document", "window",
     "getComputedStyle", "Date", "setTimeout", "HTMLTextAreaElement", "HTMLInputElement", "InputEvent",
     "busySettled", "busyLabel", "messages", "nodeId", "idTime", "C", "dbg", "debugSendButton", "describe", "autoOn", "flat", "ui",
-    "appReady",
+    "appReady", "roleRows",
     // 1.4.78: проверка Continue перед отправкой.
     "waitFor", "patience", "mergedFlag",
     `${sendBlock}\n${contBlock}\nreturn { consumePending, closeCompletionPlaque, ensureComposer };`,
@@ -360,6 +360,8 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     { panel: "cfn-panel" },
     // 1.4.63: шаг начинается с проверки, что страница отрисована.
     () => ({ ok: true, why: "" }),
+    // 1.4.92: доставка рабочей или старой очереди проверяет актуальную роль.
+    async () => [{ id: pending?.roleId, name: expect?.roleName || "Coordinator", fn: expect?.kind === "dispatch" ? "Executor" : "Coordinator", status: "Активна" }],
     // 1.4.78: на фейковой странице Continue нет — проверка проходит вхолостую.
     async (check) => (check() || null),
     (ms) => ms,

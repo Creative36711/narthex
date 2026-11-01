@@ -15,7 +15,7 @@ const src = readFileSync(path, 'utf8');
 
 // 1. Версия: Closed появился в 1.2.0, проверка шлюза — в 1.2.1,
 //    технический блок — в 1.3.2, пауза и ntfy — в 1.4.0.
-const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.91)\s*$/m);
+const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.92)\s*$/m);
 assert.ok(versionMatch, 'narthex.user.js must declare a version in x.y.z format');
 assert.match(src, /gatewayIsOld/, 'есть проверка версии шлюза: старый пишет мимо Arena');
 assert.match(src, /major === 1 && minor < 5/, 'порог — шлюз 1.5');

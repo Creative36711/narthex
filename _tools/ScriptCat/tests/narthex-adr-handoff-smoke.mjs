@@ -16,7 +16,7 @@ import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.91)\s*$/m);
+const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.92)\s*$/m);
 assert.ok(versionMatch, 'narthex.user.js must declare a version in x.y.z format');
 
 const cut = (from, to) => {
@@ -107,6 +107,7 @@ const { adrKeysOf, adrKeyOf, proposalQuestion, deliverProposals } = new Function
   'activeMission',
   'rt',
   'dbg',
+  'questionRows', 'Q', 'sel',
   `${adrBlock}\nreturn { adrKeysOf, adrKeyOf, proposalQuestion, deliverProposals };`,
 )(
   'docs/decisions',
@@ -115,6 +116,7 @@ const { adrKeysOf, adrKeyOf, proposalQuestion, deliverProposals } = new Function
   async () => ({ id: 'mission-1', properties: { 'Миссия': { title: [{ plain_text: 'NAR-5' }] } } }),
   rt,
   () => {},
+  async () => [], { done: 'Решено', byDefault: 'Принят дефолт' }, (p) => p?.select?.name || '',
 );
 
 const keys = adrKeysOf(
@@ -139,6 +141,7 @@ const dedupe = new Function(
   'activeMission',
   'rt',
   'dbg',
+  'questionRows', 'Q', 'sel',
   `${adrBlock}\nreturn { deliverProposals };`,
 )(
   'docs/decisions',
@@ -150,6 +153,7 @@ const dedupe = new Function(
   async () => null,
   rt,
   () => {},
+  async () => [], { done: 'Решено', byDefault: 'Принят дефолт' }, (p) => p?.select?.name || '',
 );
 await dedupe.deliverProposals([
   { file: '0016-capability-registry-boundary.md' },
