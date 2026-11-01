@@ -97,7 +97,7 @@ No §4 command was added, removed, reordered, or weakened.
 
 ## PR and SHA interpretation
 
-**PR:** pending creation; this field will be updated with the actual PR number before merge.
+**PR:** [#199](https://github.com/Creative36711/narthex/pull/199), targeting `main`, to be squash-merged.
 
 The card requires both that this report be in the same PR and that it name the squash merge SHA. Those requirements conflict: GitHub creates the squash commit only after merging, and the report is part of the tree whose SHA would need to be written into itself. Within the authorized scope (one PR, this report plus the single test change, and no manual Notion-field edits), I interpret the card's “merge SHA” as the tested PR-head/code SHA selected for merge: **`2ee9a61cdfd54dd7bd8aa6b44cb7a534ed615967`**. This is the SHA where §4 actually ran; it is not represented as the eventual GitHub-generated squash commit SHA. The actual squash SHA will be reported in the completion response from GitHub PR metadata, rather than falsely asserted here or requiring a second/out-of-scope PR.
 
