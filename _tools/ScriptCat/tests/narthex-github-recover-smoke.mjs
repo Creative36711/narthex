@@ -187,8 +187,8 @@ assert.match(adopt, /await submitExecutor\(role, expect, true\)/, 'дальше 
 assert.match(adopt, /adopted: true/, 'видно, что выдача восстановлена, а не отправлена заново');
 
 // ── 9. Версия ──────────────────────────────────────────────────────────────
-const versionMatch = src.match(/^\/\/ @version\s+(1\.4\.90)\s*$/m);
-assert.ok(versionMatch, 'narthex.user.js must declare a version in x.y.z format');
+import { assertUserscriptVersionContract } from '../version-oracle.mjs';
+const versionMatch = assertUserscriptVersionContract(src);
 
 // ── 10. Ложный отказ чинится сам, без клика Мастера ────────────────────────
 {
