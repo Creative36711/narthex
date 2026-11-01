@@ -6,6 +6,7 @@
 - Replaced the hash-based exception path in `scripts/brand-guard.mts` with exact occurrence rules keyed by repository-relative file, 1-based line, 1-based column, exact matched marker, and a reason.
 - Removed the hash/baseline skip, all whole-file exceptions, and both generic line exemptions. The 33-entry `scripts/protected-legacy-baselines.json` remains untouched but is no longer imported or used by the guard.
 - Added `scripts/brand-guard-probes.mts` and the single invocation `npm run check:brand:probes`.
+- Updated the brand section of `scripts/protected-check-policy-smoke.mts` for point rules: an unapproved marker still fails, exact audit points remain allowed, and an added marker in that same file fails; campaign-policy checks are unchanged.
 - No §5 semantics or unrelated oracle thresholds/results were changed. Existing protected runtime/campaign sources were not edited; the current compatibility occurrences are documented individually below.
 - Preserved the pre-existing untracked STAB-1.35 and STAB-1.38 reports; neither is part of this change.
 
@@ -17,6 +18,7 @@
 | Built `dist/index.html` | Title is `Narthex`; former-title count is 0. |
 | `npm run check:brand` | rc=0; 1337 text files scanned; 76 exact compatibility occurrences; 0 unaddressed hits. |
 | `npm run check:brand:probes` | Positive full scan and negative probes A, B, and C all passed. |
+| `npm run check:contracts` | rc=0, including the updated protected-check-policy smoke and browser gate; unrelated contract thresholds are unchanged. |
 | Positive inventory coverage | 33/33 former SHA-list paths are in the scanner's checked-path set; all 76 live point rules matched once. |
 | Rule integrity | Each rule has a non-empty rationale, a unique address, and an exact live token at that address. |
 
