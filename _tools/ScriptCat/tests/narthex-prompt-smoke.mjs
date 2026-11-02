@@ -85,7 +85,12 @@ const fallback = api.assignmentBody(card, '');
 assert.doesNotMatch(fallback, /не найден/i, 'слова «текст задания не найден» больше нет');
 assert.match(fallback, /карточка и есть задание/, 'сказано прямо: карточка и есть задание');
 assert.match(fallback, /Намерение|Инварианты|Оракул|Scope/, 'перечислено, что читать в карточке');
-assert.match(fallback, /docs\/decisions\//, 'напомнено, куда писать решения');
+assert.match(fallback, /docs\/decisions\//, 'напомнено, куда писать решения при разрешённом Scope');
+assert.match(fallback, /docs\/decisions\/[^\n]*если Scope разрешает этот путь; иначе — в отчёте/, 'журнал решения не нарушает Scope');
+assert.match(fallback, /через question в Notion; до ответа контракт не меняется/, 'предложения не подменяют фактическое решение');
+const execOrder = api.executorOrder({ id: 'd1' }, 'r1').join('\n');
+assert.match(execOrder, /docs\/decisions\/[^\n]*если Scope разрешает этот путь; иначе — в отчёте/, 'порядок исполнителя тоже сохраняет Scope');
+assert.match(execOrder, /через question в Notion; до фактического решения контракт остаётся прежним/);
 assert.equal(api.assignmentBody(card, '  Текст из файла\n'), 'Текст из файла', 'файл задания важнее карточки');
 assert.equal(api.assignmentBody(card, '   '), fallback, 'пустой файл не считается заданием');
 
