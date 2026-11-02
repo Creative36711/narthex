@@ -1,12 +1,12 @@
   // ───────────────────────────── конфиг ─────────────────────────────
   const C = {
     notionV: "2025-09-03",
-    roles: "ed076bfe-99dd-447d-9cac-55ca14661e99",
-    missions: "c84a3f11-2dcf-414d-b4bf-35beaa7b2c0c",
-    requests: "11b41fcc-7c84-406d-bc3b-5bf76ace79bb",
-    // Единая база «Обратная связь»: вопросы и предложения в прежнем источнике Notion.
-    questions: "54ac1a79-fef2-4384-ac2c-c0f53379d3ab",
-    questionsUrl: "https://app.notion.com/p/e00d99c8b526461ea7e900b9e988e149",
+    // Никаких проектных ресурсов по умолчанию: их вводит владелец профиля.
+    roles: "",
+    missions: "",
+    requests: "",
+    questions: "",
+    questionsUrl: "",
     questionHours: 24, // срок молчания по умолчанию: дальше действует вариант агента
     questionLineMax: 3, // сколько вопросов и ответов видно в одном промпте
     questionTextMax: 180, // столько влезает в заголовок «Вопрос» читаемо
@@ -14,8 +14,8 @@
     questionDefaultMax: 200,
     questionCheckMs: 600000, // как часто проверять сроки вопросов (10 минут)
     adrCheckMs: 600000, // как часто смотреть docs/decisions на proposed (10 минут)
-    pageUrl: "https://app.notion.com/p/Narthex-4016f0cf570581f7a1f7c3661c608ffd",
-    repo: "Creative36711/narthex", // для ссылки на PR из номера
+    pageUrl: "",
+    repo: "", // для ссылки на PR из номера
     tickMs: 15000,
     mergeGraceMs: 90000, // сколько ждём мерж, прежде чем нажать кнопки за агента
     arenaResendMax: 1, // один минимальный повтор после ошибки Arena; второй отказ — пауза

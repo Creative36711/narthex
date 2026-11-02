@@ -45,38 +45,20 @@
     return { ...state, text: describeTransient(state) };
   }
 
-  /**
-   * Один раз после обновления.
-   *
-   * Снимаем только то, что заведомо не доходило до чата: ожидание без отметки
-   * отправки. Настоящая отправка (`sentAt` стоит после появления сообщения)
-   * и очередь с текстом остаются — иначе обновление посреди хода потеряло бы
-   * задание или заставило Координатора выдать второй план.
-   */
+  /** После обновления ни очередь, ни ожидание не считаются доказанным фантомом. */
   function migrateState() {
     const seen = String(GM_getValue(K.stateV, "") || "");
     if (seen === SCRIPT_VERSION) return "";
     GM_setValue(K.stateV, SCRIPT_VERSION);
-
     const expect = GM_getValue(K.expect, null);
-    if (!expect || Number(expect.sentAt)) return "";
-    // Возможный Reviewer или старая выдача без функции: сохраняем ожидание
-    // даже без очереди, чтобы не откатить ход с неизвестной доставкой.
-    if (expect.kind === "dispatch" && (expect.roleFn === "Reviewer" || !expect.roleFn ||
-        String(expect.roleName || "").toLowerCase() === "warden")) return "";
-    GM_setValue(K.expect, null);
-    GM_setValue("cfn-plan-at", 0);
-    // Обновление не должно бросать карточку: если ход успел уйти в Running, а
-    // сообщение — нет, вернуть её в Ready обязан первый шаг (24.10, NAR-1.12).
-    ghostAfterUpdate = expect;
-    const who = `«${expect.roleName || expect.roleId}», ${expect.kind || "?"}`;
-    log(
-      `Обновился до ${SCRIPT_VERSION}${seen ? ` с ${seen}` : ""}: снял ожидание без отметки отправки (${who}) — ` +
-        "в чат оно не уходило, это след прошлой попытки. Его карточку, если она в Running, верну в Ready первым шагом. " +
-        "Очередь и журнал на месте.",
-      false,
-      { skip: true },
-    );
+    const pending = GM_getValue(K.pending, null);
+    if (!expect && !pending) return "";
+    const who = expect ? `«${expect.roleName || expect.roleId || "?"}», ${expect.kind || "?"}` : "очередь отправки";
+    const message = `Обновление ${seen || "неизвестной версии"} → ${SCRIPT_VERSION}: сохранены ${who} и очередь. ` +
+      "Проверьте доставку в чате, карточку и журнал до ручного продолжения; отсутствие sentAt не доказывает, что отправки не было.";
+    GM_setValue(K.paused, message);
+    GM_setValue(K.pause, { kind: "update-recovery", ref: expect?.ref || "", runId: expect?.runId || "", turnId: expect?.turnId || "" });
+    log(message, false, { skip: true });
     return who;
   }
 

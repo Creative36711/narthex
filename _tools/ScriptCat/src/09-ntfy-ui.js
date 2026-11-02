@@ -79,7 +79,7 @@
       try {
         const name = persist();
         const result = await ntfyPublish(name, token.value.trim(), {
-          message: `Narthex: ${label} (priority ${priority}).`,
+          message: `Relay: ${label} (priority ${priority}).`,
           title,
           priority,
           tags,
@@ -107,9 +107,9 @@
       }
     };
     box.querySelector("#cfn-ntfy-quiet").onclick = () =>
-      test(2, "memo", "Narthex: тихий тест", "тихий тест");
+      test(2, "memo", "Relay: тихий тест", "тихий тест");
     box.querySelector("#cfn-ntfy-loud").onclick = () =>
-      test(5, "warning,rotating_light", "Narthex: громкий тест", "громкий тест");
+      test(5, "warning,rotating_light", "Relay: громкий тест", "громкий тест");
     box.querySelector("#cfn-ntfy-health").onclick = async () => {
       say("Проверяю связь с ntfy.sh…");
       const lines = await ntfyHealth();

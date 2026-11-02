@@ -65,7 +65,7 @@
    * нельзя. Агент это видит как `pr_merged` и отказывается: «нажмите Continue
    * рядом со статусом PR». Пока Continue не нажата, любое задание в этот чат
    * уходит в мёртвую ветку — работа не начинается, маркера нет, цикл встаёт
-   * (27.10, NAR-4.9, ветка `arena/73b6f5a4-narthex` после PR #97).
+   * (27.10, NAR-4.9, ветка `arena/73b6f5a4-relay` после PR #97).
    *
    * Клик по Continue — это не реплика агенту и не команда в репозиторий: Arena
    * просто выдаёт новую ветку от последней базовой версии. Поэтому проверка
@@ -174,7 +174,7 @@
    * Бейджи PR живут на странице PR, а ответ агента читается на его странице:
    * ни Merge, ни Continue там нет. Поэтому, если никакого PR-интерфейса на
    * экране нет, ждать пять минут бессмысленно — решает маркер (`pr` +
-   * `merged: true`). Для legacy Narthex при недоступном GitHub остаётся
+   * `merged: true`). Для legacy Relay при недоступном GitHub остаётся
    * прежняя заявка без подтверждения; новый проект требует проверяемый PR и
    * базовую ветку, а DOM-состояние повторно сверяется с GitHub.
    */
@@ -198,7 +198,7 @@
     // один на карточку, поэтому после второго мержа `ensureMerged` сразу
     // отвечал «already»: ни бейджа, ни Continue скрипт не искал, Continue не
     // нажималась, и сессия Архитектора осталась на ветке
-    // `arena/73b6f5a4-narthex` со статусом `pr_merged`. Следующая выдача ушла
+    // `arena/73b6f5a4-relay` со статусом `pr_merged`. Следующая выдача ушла
     // в мёртвую ветку, агент отказался работать, маркера не было, и цикл встал.
     // Повторная работа по той же карточке — это новая выдача, у неё свой run.
     const runId = String(result.run_id || rt(task.properties?.["Run ID"]) || "").trim();
@@ -367,7 +367,7 @@
         `GitHub не проверил ${prLabelOf(result)}: ${check.why}. Заявка принимается по маркеру; ` +
           "чтобы проверять по GitHub, откройте «⚙ Подключения» и сохраните токен.",
         false,
-        { tone: "warn", ntfy: "quiet", title: "Narthex: GitHub без токена" },
+        { tone: "warn", ntfy: "quiet", title: "Relay: GitHub без токена" },
       );
     }
     if (check.notFound) {
@@ -377,7 +377,7 @@
         `GitHub не читает ${prLabelOf(result)}: ${check.why}. ` +
           "Заявка принимается по маркеру, карточку в Rework за 404 не отправляю.",
         true,
-        { tone: "warn", ntfy: "quiet", title: "Narthex: PR не виден по API" },
+        { tone: "warn", ntfy: "quiet", title: "Relay: PR не виден по API" },
       );
     }
     if (check.status === "open" || check.status === "closed") {
@@ -437,7 +437,7 @@
   /**
    * Токен GitHub.
    *
-   * 24.10 репозиторий `Creative36711/narthex` оказался приватным: анонимный
+   * 24.10 репозиторий `example/relay-fixture` оказался приватным: анонимный
    * запрос к API отвечает на него «404 Not Found» — так же, как на PR, которого
    * нет. 1.4.48 приняла этот ответ за правду и отправила готовую работу
    * (PR #37) в Rework. Токен читает состояние PR; хранится в ScriptCat и в
@@ -502,7 +502,7 @@
   function githubHeaders(token) {
     const headers = {
       Accept: "application/vnd.github+json",
-      "User-Agent": "narthex-scriptcat",
+      "User-Agent": "relay-scriptcat",
       "X-GitHub-Api-Version": "2022-11-28",
     };
     if (token) headers.Authorization = `Bearer ${token}`;
@@ -681,7 +681,7 @@
       log(`«${name}» возвращена в Running: GitHub подтвердил мерж ${link || ""}`.trim() + logFix, false, {
         tone: "ok",
         ntfy: "quiet",
-        title: "Narthex: карточка возвращена в работу",
+        title: "Relay: карточка возвращена в работу",
       });
       return { ok: true, text: `Готово: «${name}» снова Running, ${link || `PR #${last.pr}`}.${logFix}${taken}` };
     }
@@ -698,7 +698,7 @@
     log(`«${name}» возвращена в Submitted: GitHub подтвердил мерж ${link || ""}`.trim() + logFix, false, {
       tone: "ok",
       ntfy: "quiet",
-      title: "Narthex: карточка восстановлена",
+      title: "Relay: карточка восстановлена",
     });
     return { ok: true, text: `Готово: «${name}» снова Submitted, ${link || `PR #${last.pr}`}.${logFix}` };
   }
@@ -725,7 +725,7 @@
       `Проверка ошиблась: GitHub подтвердил мерж ${prLabelOf(last.result || last)} — ` +
         "возвращаю карточку и исправляю журнал.",
       false,
-      { tone: "ok", ntfy: "quiet", title: "Narthex: ложный отказ исправлен" },
+      { tone: "ok", ntfy: "quiet", title: "Relay: ложный отказ исправлен" },
     );
     await recoverLastClaim(false);
   }
@@ -770,12 +770,16 @@
     const owner = norm(rt(page.properties["Recipient Agent ID"]));
     if (owner && owner !== norm(role.id))
       return { ok: false, text: "Ответ принадлежит другому агенту — не беру." };
+    const mission = await activeMission();
+    if (!mission || !cardInMission(page, mission))
+      return { ok: false, text: "Mission ID карточки не совпадает с единственной активной миссией — ответ не беру." };
     // Граница — сообщение перед ответом: в журнал попадёт только он.
     const at = all.indexOf(last);
     const watermark = at > 0 ? nodeId(all[at - 1]) : "";
     const expect = {
       ref,
       runId: run,
+      missionId: mission.id,
       roleId: role.id,
       roleName: role.name,
       kind: "dispatch",

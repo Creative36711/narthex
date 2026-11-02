@@ -58,7 +58,7 @@
     "КАРТОЧКА: твой выход — ответ в чате и последняя строка-маркер. Поля `Dispatch State`,",
     "`Run ID`, `Output Drive File ID`, `Recipient Agent ID`, `Started At`, `Submitted At`,",
     "`PR`, `Check` ставит скрипт; вписанное руками значение ломает запись ответа в журнал",
-    "(NAR-2.13: в `Output Drive File ID` попал отчёт, шлюз отказал). Ссылку на отчёт даёт",
+    "(например, если в `Output Drive File ID` вписан ID отчёта, шлюз откажет). Ссылку на отчёт даёт",
     "поле `report` в маркере, а не поле карточки.",
   ].join("\n");
 
@@ -151,7 +151,7 @@
     if (C.branch && C.branch !== "main") text = text.replace(/\bmain\b/g, C.branch);
     if (C.driveFolder) text = text.replace(/Arena\/payloads/g, `Arena/${C.driveFolder}/payloads`)
       .replace("Раскладка и правила — docs/agents/drive.md.", `Папка текущего проекта — Arena/${C.driveFolder}.`);
-    if (C.projectName && C.projectName !== "Narthex")
+    if (C.projectName && C.projectName !== "Relay")
       text = text.replace("которые в " + (C.branch || "main") + " уже есть (замер 2026-10-22: 46 файлов, включая сам этот скрипт;\nчисло растёт с каждой миссией).", "которые в базовой ветке уже есть.");
     return text;
   }

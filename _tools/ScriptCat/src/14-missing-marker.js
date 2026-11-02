@@ -98,10 +98,10 @@
     const pr = Number((text.match(/\bPR\s*#?\s*(\d+)/i) || text.match(/\/pull\/(\d+)/) || [])[1]) || null;
     if (!pr) return null;
     const merged = /\bmerged\b|слит|слито|слита|слиты|\bв main\b/i.test(text);
-    const run =
-      (text.match(/run[`\s]*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i) || [])[1] ||
-      String((expect && expect.runId) || "");
-    if (!run) return null;
+    const run = (text.match(/run[`\s]*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i) || [])[1] || "";
+    // Не достраиваем отсутствующий Run из ожидания: старый ответ по той же
+    // карточке нельзя привязать к её новой попытке только по тексту.
+    if (!run || !expect?.runId || norm(run) !== norm(expect.runId)) return null;
     return { dispatch_id: ref, run_id: run, status: "submitted", pr, merged };
   }
 
@@ -211,7 +211,7 @@
         `«прочитай карточку сам» (${text.length} символов вместо ${String(expect.text || "").length}). ` +
         "Второй отказ подряд — пауза. Новый ход Координатора не нужен.",
       true,
-      { ntfy: "quiet", title: "Narthex: повторяю задание" },
+      { ntfy: "quiet", title: "Relay: повторяю задание" },
     );
     return true;
   }
@@ -280,7 +280,7 @@
         "Это не ответ на задание — работы не было. Нажимаю Continue и отправляю задание заново, " +
         "в чистую ветку.",
       true,
-      { ntfy: "quiet", title: "Narthex: ветка слита, повторяю выдачу" },
+      { ntfy: "quiet", title: "Relay: ветка слита, повторяю выдачу" },
     );
     return true;
   }
@@ -409,7 +409,7 @@
           : `${role.name} ответил без маркера ${markerName} — напоминание ${sent + 1} из ${C.markerReminders}. ` +
               `Прочитан хвост: «${tail(last.text, 110)}»${reject}`,
         true,
-        { ntfy: "quiet", title: why === "thin" ? "Narthex: маркер без отчёта" : "Narthex: нет маркера" },
+        { ntfy: "quiet", title: why === "thin" ? "Relay: маркер без отчёта" : "Relay: нет маркера" },
       );
       await sendToRole(role, markerReminder(role, expect, sent + 1, markerName, why), expect.kind, expect.ref, {
         missionId: expect.missionId,

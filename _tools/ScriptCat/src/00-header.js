@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Narthex — передача хода между агентами
+// @name         Relay — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.5.0
+// @version      1.6.0
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -9,6 +9,7 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_listValues
 // @connect      api.notion.com
 // @connect      script.google.com
 // @connect      script.googleusercontent.com
@@ -17,7 +18,7 @@
 // ==/UserScript==
 
 /**
- * Narthex dispatch — тонкий транспорт.
+ * Relay dispatch — тонкий транспорт.
  *
  * Разделение труда (важно, иначе всё ломается):
  *  - АГЕНТ сам делает `git commit`, `git push`, `gh pr create`, `gh pr merge`

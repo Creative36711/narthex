@@ -194,7 +194,7 @@
               `Вопрос агента не записался в журнал попытки: ${(e && e.message) || e}. ` +
                 "Снимок сохранён в ScriptCat, запись повторится без повторного ответа агенту.",
               true,
-              { ntfy: "quiet", title: "Narthex: запись опроса отложена" },
+              { ntfy: "quiet", title: "Relay: запись опроса отложена" },
             );
           }
         }
@@ -271,7 +271,7 @@
           `${who} спросил вместо работы: «${firstLine(q.question, 200)}»` +
             `${q.options.length ? ` — вариантов ${q.options.length}` : ""}.`,
           false,
-          { tone: "warn", ntfy: "quiet", title: "Narthex: агент спросил" },
+          { tone: "warn", ntfy: "quiet", title: "Relay: агент спросил" },
         );
       }
       let answered = 0;
@@ -349,14 +349,14 @@
               ? `${who}: ответ на вопрос не отправился — Skip закрыл опрос.`
               : `${who}: Skip нажат, но опрос не исчез. Закрытие не подтверждено; проверьте чат.`,
             true,
-            { tone: "warn", ntfy: closed ? "quiet" : "loud", title: closed ? "Narthex: опрос закрыт кнопкой Skip" : "Narthex: опрос держит ход" },
+            { tone: "warn", ntfy: closed ? "quiet" : "loud", title: closed ? "Relay: опрос закрыт кнопкой Skip" : "Relay: опрос держит ход" },
           );
         } else {
           log(
             `${who}: ответ на вопрос не отправился, и Skip не нашёлся — опрос держит ход. ` +
               "Нажмите кнопку ответа в чате вручную.",
             true,
-            { tone: "warn", ntfy: "loud", title: "Narthex: опрос держит ход" },
+            { tone: "warn", ntfy: "loud", title: "Relay: опрос держит ход" },
           );
         }
       }
@@ -982,7 +982,7 @@
     ].join(", ");
     const report = domReport();
     GM_setValue("cfn-send-debug", { at: Date.now(), detail, key, text: String(text).slice(0, 300), report });
-    console.warn("[Narthex] снимок разметки при отказе отправки:", report);
+    console.warn("[Relay] снимок разметки при отказе отправки:", report);
     return {
       ok: false,
       // Ни одного клика и поля ввода нет — это не отказ доставки, а
@@ -1152,7 +1152,7 @@
     if (!isDispatchAssignment(expect, pending, me)) return { ntfy: false };
     return {
       ntfy: "quiet",
-      title: "Narthex: задание отправлено",
+      title: "Relay: задание отправлено",
       ntfyText: `«${expect.title || expect.ref}» — задание отправлено в чат «${expect.roleName || "исполнителя"}».`,
       ntfyKey: `dispatch-sent:${expect.ref}:${expect.runId}`,
     };
@@ -1361,7 +1361,7 @@
     // 27.10 в 21:15 Архитектор слил PR #97 и записал ответ; Continue после
     // этого не нажалась (память о мерже была на карточку, а не на выдачу).
     // В 21:18 Координатор вернул ту же карточку в работу, задание ушло в чат со
-    // старой веткой `arena/73b6f5a4-narthex` — статус `pr_merged`. Агент
+    // старой веткой `arena/73b6f5a4-relay` — статус `pr_merged`. Агент
     // отказался работать («нажмите Continue»), маркера не прислал, и цикл встал
     // на маркер-паузу. Проверяем страницу сами: пока Continue видна, задание
     // отправлять некуда.
@@ -1408,7 +1408,7 @@
       const dialog = openDialog();
       const report = domReport();
       GM_setValue("cfn-send-debug", { at: Date.now(), detail: "вставка не удалась", text: String(pending.text).slice(0, 300), report });
-      console.warn("[Narthex] снимок разметки при отказе вставки:", report);
+      console.warn("[Relay] снимок разметки при отказе вставки:", report);
       if (insertFail.at !== pending.at) insertFail = { at: pending.at, count: 0 };
       insertFail.count += 1;
       const attempt = insertFail.count;

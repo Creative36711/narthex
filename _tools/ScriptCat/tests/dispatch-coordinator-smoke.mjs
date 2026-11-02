@@ -1,7 +1,7 @@
 // Migration of the old dispatch-coordinator contract to the active
-// _tools/ScriptCat/narthex.user.js + Gateway 1.5. Do not resurrect
+// _tools/ScriptCat/relay.user.js + Gateway 1.5. Do not resurrect
 // dispatch.user.js: these assertions exercise the current implementation.
-// Companion tests in this same 71-file suite retain the current equivalents
+// Companion tests in this same 72-file suite retain the current equivalents
 // of the old send-control, message-freshness, Coordinator, role, and handoff
 // cases. Notion, Arena, and Drive are local models in these tests, not live checks.
 
@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 
 const testDir = new URL('.', import.meta.url);
-const userScriptUrl = new URL('../narthex.user.js', import.meta.url);
+const userScriptUrl = new URL('../relay.user.js', import.meta.url);
 const legacyDispatchUrl = new URL('../dispatch.user.js', import.meta.url);
 assert.equal(existsSync(legacyDispatchUrl), false, 'legacy dispatch.user.js stays absent');
 const source = readFileSync(userScriptUrl, 'utf8');
@@ -19,24 +19,25 @@ assert.ok(version, 'the active userscript declares an x.y.z version');
 assert.match(source, /^\/\/ @match\s+https:\/\/arena\.ai\/\*/m, 'the active script is bound to Arena');
 
 const tests = readdirSync(testDir).filter((name) => name.endsWith('.mjs'));
-assert.equal(tests.length, 71, 'all 71 existing ScriptCat tests remain in the suite');
+assert.equal(tests.length, 72, 'the 71 existing ScriptCat tests and portability probe remain in the suite');
 const currentContractCompanions = [
-  'narthex-auto-run-smoke.mjs',
-  'narthex-send-safety-smoke.mjs',
-  'narthex-send-truth-smoke.mjs',
-  'narthex-send-repeat-smoke.mjs',
-  'narthex-send-confirm-smoke.mjs',
-  'narthex-answer-parse-smoke.mjs',
-  'narthex-reply-boundary-smoke.mjs',
-  'narthex-coordinator-turn-smoke.mjs',
-  'narthex-coordinator-marker-smoke.mjs',
-  'narthex-coordinator-authority-smoke.mjs',
-  'narthex-marker-id-smoke.mjs',
-  'narthex-roles-cache-smoke.mjs',
-  'narthex-review-dispatch-integration.mjs',
-  'narthex-poll-gateway-integration.mjs',
+  'relay-auto-run-smoke.mjs',
+  'relay-send-safety-smoke.mjs',
+  'relay-send-truth-smoke.mjs',
+  'relay-send-repeat-smoke.mjs',
+  'relay-send-confirm-smoke.mjs',
+  'relay-answer-parse-smoke.mjs',
+  'relay-reply-boundary-smoke.mjs',
+  'relay-coordinator-turn-smoke.mjs',
+  'relay-coordinator-marker-smoke.mjs',
+  'relay-coordinator-authority-smoke.mjs',
+  'relay-marker-id-smoke.mjs',
+  'relay-roles-cache-smoke.mjs',
+  'relay-review-dispatch-integration.mjs',
+  'relay-poll-gateway-integration.mjs',
   'drive-gateway-arena-smoke.mjs',
   'scriptcat-gateway-smoke.mjs',
+  'relay-portability-guard-smoke.mjs',
 ];
 for (const name of currentContractCompanions) {
   assert.ok(tests.includes(name), `${name} preserves a current-contract companion scenario`);
@@ -62,7 +63,7 @@ const dispatchStart = source.indexOf('  function dispatchGuard(page, expect, rol
 const dispatchEnd = source.indexOf('\n  async function submitExecutor(', dispatchStart);
 assert.ok(dispatchStart > 0 && dispatchEnd > dispatchStart, 'dispatchGuard is present');
 const dispatchGuard = new Function(
-  `${runtimeHelpers}\n${source.slice(dispatchStart, dispatchEnd)}\nreturn dispatchGuard;`,
+  `${runtimeHelpers}\n${source.slice(source.indexOf("  const isUuid ="), source.indexOf("  /**", source.indexOf("  const isUuid =")))}\n${source.slice(dispatchStart, dispatchEnd)}\nreturn dispatchGuard;`,
 )();
 const CARD_ID = '4096f0cf-5705-8159-bd88-c725d5ea075d';
 const MISSION_ID = '4086f0cf-5705-81ea-94c6-e47bd6c3ba78';
@@ -83,6 +84,7 @@ const dispatchPage = ({ state = 'Running', runId = RUN_ID, owner = AGENT_ID } = 
   properties: {
     'Dispatch State': { select: { name: state } },
     'Run ID': text(runId),
+    'Mission ID': text(MISSION_ID),
     'Recipient Agent ID': text(owner),
   },
 });
@@ -167,4 +169,4 @@ assert.match(coordinator, /CF_COORDINATOR_RESULT.*mission_id.*mission\.id.*turn_
 assert.match(coordinator, /mission_id and turn_id — из этого промпта|mission_id и turn_id — из этого промпта/);
 assert.doesNotMatch(coordinator, /campaign_id/, 'obsolete campaign-based identity is not used');
 
-console.log(`OK: narthex ${version} — current dispatch/run guard, one bounded retry, URL identity, no legacy userscript`);
+console.log(`OK: relay ${version} — current dispatch/run guard, one bounded retry, URL identity, no legacy userscript`);

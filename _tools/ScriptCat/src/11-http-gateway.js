@@ -160,14 +160,14 @@
     };
     const dispatch = given("dispatch_id", "dispatch", "dispatchId");
     const run = given("run_id", "run", "runId");
-    if (!isUuid(dispatch) || norm(dispatch) !== norm(expect.ref)) {
+    if (!isUuid(dispatch) || !isUuid(expect.ref) || norm(dispatch) !== norm(expect.ref)) {
       stray.push(`dispatch_id «${dispatch || "нет"}»`);
     }
-    fixed.dispatch_id = expect.ref;
-    if (expect.runId) {
-      if (norm(run) !== norm(expect.runId)) stray.push(`run_id «${run || "нет"}»`);
-      fixed.run_id = expect.runId;
+    if (!isUuid(run) || !isUuid(expect.runId) || norm(run) !== norm(expect.runId)) {
+      stray.push(`run_id «${run || "нет"}»`);
     }
+    // Приводим только имена полей, не значения: чужие/пустые ID не подменяем.
+    if (!stray.length) { fixed.dispatch_id = dispatch; fixed.run_id = run; }
     return { result: fixed, stray };
   }
 
@@ -219,7 +219,7 @@
         last.probed = true;
       }
     }
-    last.narthex = "notion";
+    last.relay = "notion";
     // «Не ответил», «ответил отказом» и «связь пропала» — разные поломки. 4xx
     // значит, что Notion всё получил и объяснил, что не так с данными: чинить
     // надо запрос, а не сеть. 28.10 HTTP 400 «content.length should be ≤ 2000»
@@ -251,12 +251,12 @@
     if (typeof ACTIVE_PROFILE !== "undefined" && !ACTIVE_PROFILE.legacy) {
       if (ACTIVE_PROFILE.invalid) throw new Error("Профиль недоступен: запрос в Drive запрещён.");
       // Шлюз 1.5 игнорирует неизвестное поле projectId. Не посылаем через него
-      // ни read, ни запись, даже если адрес и ключ ошибочно принадлежат Narthex.
+      // ни read, ни запись, даже если адрес и ключ ошибочно принадлежат Relay.
       const ping = await gatewayWithCredentials("ping", "", { projectId: ACTIVE_PROFILE.id }, credentials);
       if (!ping || ping.projectScoped !== true || ping.projectId !== ACTIVE_PROFILE.id ||
           ping.project?.name !== ACTIVE_PROFILE.driveFolder) {
         const error = new Error("Шлюз не подтвердил этот проект и папку: нужен проектный шлюз 1.6.");
-        error.narthex = "gateway"; error.refused = true; error.reason = error.message; throw error;
+        error.relay = "gateway"; error.refused = true; error.reason = error.message; throw error;
       }
       return gatewayWithCredentials(action, fileId, { ...extra, projectId: ACTIVE_PROFILE.id }, credentials);
     }
@@ -313,7 +313,7 @@
         ? `шлюз Drive отказал: ${refused}`
         : `шлюз Drive не ответил: GM: ${gmError}; fetch: ${fetchError}`,
     );
-    err.narthex = "gateway";
+    err.relay = "gateway";
     err.refused = Boolean(refused);
     err.reason = refused;
     throw err;

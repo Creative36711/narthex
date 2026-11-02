@@ -185,7 +185,7 @@ function loadGateway(drive) {
   const key = api.setupGatewayKey();
   console.log = quiet;
   const call = (body) => JSON.parse(api.doPost({ postData: { contents: JSON.stringify({ key, ...body }) } }).getContent());
-  return { call, api };
+  return { call, api, properties };
 }
 
 const uuid = () => '00000000-0000-4000-8000-000000000000';
@@ -241,13 +241,12 @@ const uuid = () => '00000000-0000-4000-8000-000000000000';
 // ── 4. legacy dispatch: id старой папки принимается, файл всё равно в Arena ─
 {
   const drive = makeDrive();
-  const { call } = loadGateway(drive);
-  const res = call({
-    action: 'createLog',
-    dispatchId: uuid(),
-    runId: uuid(),
-    folderId: '19ljf2TgeDg6j-jIamGira8K8_2NjC1BT',
-  });
+  const { call, properties } = loadGateway(drive);
+  const oldId = 'legacy-fixture-folder-id';
+  const payload = { action:'createLog', dispatchId:uuid(), runId:uuid(), folderId:oldId };
+  assert.equal(call(payload).ok, false, 'по умолчанию старый folderId не предполагается');
+  properties.set('CF_LEGACY_RUN_LOG_FOLDER_ID', oldId);
+  const res = call(payload);
   assert.equal(res.ok, true, 'legacy-вызов не ломается');
   const logs = drive.root.folders[0].folders.find((f) => f.name === 'logs');
   assert.ok(logs && logs.files.some((f) => f.id === res.fileId), 'legacy-лог создан в Arena/logs');
@@ -257,18 +256,31 @@ const uuid = () => '00000000-0000-4000-8000-000000000000';
 // ── 5. Папка версии 1.4 из корня переносится в Arena и переименовывается ────
 {
   const drive = makeDrive();
-  const legacy = drive.root.createFolder('Narthex — логи');
+  const legacy = drive.root.createFolder('old-project-logs');
   legacy.createFile('старый.md', '# старый лог', 'text/plain');
-  const { call } = loadGateway(drive);
+  const { call, properties } = loadGateway(drive);
+  properties.set('CF_LEGACY_LOG_FOLDER_NAME', 'old-project-logs');
   const res = call({ action: 'createLog', dispatchId: uuid(), runId: uuid() });
   assert.equal(res.ok, true);
   const arena = drive.root.folders[0];
-  assert.equal(drive.root.folders.length, 1, 'старая папка больше не висит в корне');
+  assert.equal(drive.root.folders.length, 1, 'явно указанная старая папка больше не висит в корне');
   assert.equal(arena.name, 'Arena');
   const logs = arena.folders.find((f) => f.name === 'logs');
   assert.ok(logs, 'папка стала Arena/logs');
   assert.ok(logs.files.some((f) => f.name === 'старый.md'), 'старые логи не потеряны');
   assert.equal(logs.files.length, 2, 'новый лог добавлен рядом со старым');
+}
+
+// Без явной настройки шлюз не перемещает прежнюю папку.
+{
+  const drive = makeDrive();
+  const legacy = drive.root.createFolder('old-project-logs');
+  const old = legacy.createFile('старый.md', 'история', 'text/plain');
+  const { call } = loadGateway(drive);
+  assert.equal(call({ action:'createLog', dispatchId:uuid(), runId:uuid() }).ok,true);
+  assert.equal(legacy.parent,drive.root);
+  assert.equal(old.parent,legacy);
+  assert(drive.root.folders.some(f=>f.name==='Arena'));
 }
 
 // ── 6. savePayload: только Arena/payloads, имя без путей ────────────────────
