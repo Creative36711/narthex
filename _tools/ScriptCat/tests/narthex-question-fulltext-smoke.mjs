@@ -48,13 +48,13 @@ const noSpaces = 'x'.repeat(400);
 assert.equal(questionTitle(noSpaces, MAX).length, MAX, 'без пробелов — режем по символу');
 
 // ── 2. Полный текст остаётся в объекте вопроса ──────────────────────────────
-assert.match(src, /const fullText = oneLine\(raw\.text, C\.questionTextFull\);/, 'parseQuestion хранит fullText');
+assert.match(src, /const fullText = questionWithOptions\(raw\.text, allOptions\);/, 'parseQuestion хранит fullText');
 assert.match(src, /return \{\s*\n\s*text,\s*\n\s*fullText,/, 'fullText уходит в объект вопроса');
-assert.match(src, /fullText: oneLine\(rawText, C\.questionTextFull\)/, 'вопрос без default тоже с fullText');
+assert.match(src, /fullText: questionWithOptions\(rawText, allOptions\)/, 'вопрос без default тоже с fullText');
 assert.match(src, /questionTextFull: 12000/, 'предел полного текста задан в конфиге');
 
 // ── 3. Тело страницы: куски ≤ 1900 знаков, свой запрос к Notion ─────────────
-const bodyFrom = src.indexOf('  async function appendQuestionBody(row, q) {');
+const bodyFrom = src.indexOf('  async function appendQuestionBody(row, q, ctx = {}) {');
 const bodyTo = src.indexOf('  /**\n   * Записать вопрос в базу', bodyFrom);
 assert.ok(bodyFrom > 0 && bodyTo > bodyFrom, 'appendQuestionBody на месте');
 const body = src.slice(bodyFrom, bodyTo);
@@ -64,19 +64,22 @@ assert.match(body, /const chunks = richText\(full\);/, 'куски режет о
 assert.match(src, /function richText\(value, step = 1900\)/, 'шаг 1900 — меньше предела 2000');
 assert.match(src, /parts\.length < 100/, 'не больше 100 частей — предел массива Notion');
 assert.match(body, /heading_3/, 'тело подписано заголовком');
-assert.match(body, /catch \(e\) \{\s*\n\s*dbg\(/, 'ошибка тела вопрос не срывает');
+assert.match(body, /catch \(e\) \{\s*\n\s*dbg\([\s\S]*?return false/, 'ошибка сохраняет тело в очереди');
+assert.match(body, /rememberQuestionBody\(row, q, ctx\)/, 'очередь сохраняется до записи');
+assert.match(body, /notion\("PATCH", `blocks\//, 'используется append blocks API');
+assert.match(body, /await questionBlocks\(row.id\)/, 'перед повтором проверяются уже записанные блоки');
 
 // ── 4. Обе точки создания строки пишут полный текст ─────────────────────────
 const ask = src.slice(src.indexOf('  async function askQuestion(q, ctx = {}) {'));
 assert.match(
   ask.slice(0, ask.indexOf('  /** Отметить ответы доставленными')),
-  /noteQuestionAsked\(row, q\);\s*\n\s*await appendQuestionBody\(row, q\);/,
+  /noteQuestionAsked\(row, q\);\s*\n\s*const bodySaved = await appendQuestionBody\(row, q, ctx\);\s*\n\s*if \(bodySaved === false\)/,
   'сразу после создания строки',
 );
 const flush = src.slice(src.indexOf('  async function flushQuestionQueue() {'));
 assert.match(
   flush.slice(0, flush.indexOf('  /**\n   * Ссылки на решения')),
-  /noteQuestionAsked\(row, item\.q\);\s*\n\s*await appendQuestionBody\(row, item\.q\);/,
+  /noteQuestionAsked\(row, item\.q\);\s*\n\s*const bodySaved = await appendQuestionBody\(row, item\.q, item\.ctx \|\| \{\}\);\s*\n\s*if \(bodySaved === false\)/,
   'и при записи из очереди',
 );
 

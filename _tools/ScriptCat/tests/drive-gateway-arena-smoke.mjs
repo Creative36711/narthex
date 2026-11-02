@@ -322,7 +322,7 @@ const uuid = () => '00000000-0000-4000-8000-000000000000';
   const { call } = loadGateway(drive);
   const ping = call({ action: 'ping' });
   assert.equal(ping.ok, true);
-  assert.equal(ping.version, '1.5');
+  assert.equal(ping.version, '1.6');
   assert.equal(ping.arena.name, 'Arena');
   assert.equal(ping.logs.name, 'logs');
   assert.equal(ping.payloads.name, 'payloads');

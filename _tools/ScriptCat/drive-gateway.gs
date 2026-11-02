@@ -1,5 +1,8 @@
-/** Narthex ScriptCat Drive gateway 1.5. Deploy as a web app executing as the owner. */
+/** Narthex ScriptCat Drive gateway 1.6. Deploy as a web app executing as the owner. */
 const CF_KEY_PROPERTY = "CF_GATEWAY_KEY";
+const CF_PROJECTS_PROPERTY = "CF_GATEWAY_PROJECTS_V1";
+const CF_SETUP_PROJECT_ID = "CF_SETUP_PROJECT_ID";
+const CF_SETUP_PROJECT_FOLDER = "CF_SETUP_PROJECT_FOLDER";
 const CF_ARENA_FOLDER_NAME = "Arena";
 const CF_LOGS_FOLDER_NAME = "logs";
 const CF_PAYLOADS_FOLDER_NAME = "payloads";
@@ -21,30 +24,96 @@ function setupGatewayKey() {
   return key;
 }
 
+/**
+ * Explicitly register ONE new project from the Apps Script editor.
+ * Set Script Properties CF_SETUP_PROJECT_ID (profile UUID from ScriptCat) and
+ * CF_SETUP_PROJECT_FOLDER (e.g. synapse), then run this function once. Copy the
+ * returned *project* key privately into that profile. Never copy the master key.
+ * Existing folders are not adopted and existing project registrations are not
+ * overwritten; a setup failure may leave newly-created folders for inspection.
+ */
+function setupProjectGateway() {
+  return withScriptLock_(function () {
+    const props = PropertiesService.getScriptProperties();
+    const id = String(props.getProperty(CF_SETUP_PROJECT_ID) || "").trim().toLowerCase();
+    const name = String(props.getProperty(CF_SETUP_PROJECT_FOLDER) || "").trim().toLowerCase();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id))
+      throw new Error("CF_SETUP_PROJECT_ID должен быть UUID профиля ScriptCat.");
+    if (!/^[a-z0-9][a-z0-9._-]{0,50}$/.test(name) || name.includes("..") || ["logs", "payloads"].includes(name))
+      throw new Error("CF_SETUP_PROJECT_FOLDER должен быть безопасным отдельным именем папки.");
+    const registry = projectRegistry_();
+    if (Object.prototype.hasOwnProperty.call(registry, id)) throw new Error("Проект уже зарегистрирован; ключ и папки не меняются.");
+    if (Object.values(registry).some(function (p) { return p.name === name; }))
+      throw new Error("Это имя папки уже занято проектом.");
+    const root = DriveApp.getRootFolder();
+    const arenas = root.getFoldersByName(CF_ARENA_FOLDER_NAME);
+    const arena = arenas.hasNext() ? arenas.next() : root.createFolder(CF_ARENA_FOLDER_NAME);
+    if (arenas.hasNext()) throw new Error("В корне несколько папок Arena: сначала разберите их вручную.");
+    if (arena.getFoldersByName(name).hasNext())
+      throw new Error("Папка проекта уже существует: шлюз не присоединяет существующие папки автоматически.");
+    const folder = arena.createFolder(name);
+    const logs = folder.createFolder(CF_LOGS_FOLDER_NAME);
+    const payloads = folder.createFolder(CF_PAYLOADS_FOLDER_NAME);
+    const key = Utilities.getUuid().replace(/-/g, "") + Utilities.getUuid().replace(/-/g, "");
+    registry[id] = { id: id, name: name, key: key, arenaId: arena.getId(),
+      folderId: folder.getId(), logsId: logs.getId(), payloadsId: payloads.getId() };
+    props.setProperty(CF_PROJECTS_PROPERTY, JSON.stringify(registry));
+    console.log("Project " + id + " · Arena/" + name + " · key (keep private): " + key);
+    return { projectId: id, folder: name, key: key };
+  });
+}
+
+function projectRegistry_() {
+  const raw = PropertiesService.getScriptProperties().getProperty(CF_PROJECTS_PROPERTY);
+  if (!raw) return {};
+  const value = JSON.parse(raw);
+  if (!value || Array.isArray(value) || typeof value !== "object") throw new Error("Реестр проектов шлюза повреждён.");
+  return value;
+}
+
+function projectLayout_(project) {
+  const arena = DriveApp.getFolderById(project.arenaId);
+  const folder = DriveApp.getFolderById(project.folderId);
+  const logs = DriveApp.getFolderById(project.logsId);
+  const payloads = DriveApp.getFolderById(project.payloadsId);
+  const root = DriveApp.getRootFolder();
+  if (arena.getName() !== CF_ARENA_FOLDER_NAME || !isDirectChildOf_(arena, root.getId()) ||
+      folder.getName() !== project.name || !isDirectChildOf_(folder, arena.getId()) ||
+      logs.getName() !== CF_LOGS_FOLDER_NAME || !isDirectChildOf_(logs, folder.getId()) ||
+      payloads.getName() !== CF_PAYLOADS_FOLDER_NAME || !isDirectChildOf_(payloads, folder.getId()))
+    throw new Error("Папки проекта перемещены или переименованы: проверьте расположение и настройки шлюза.");
+  return { arena: arena, project: folder, logs: logs, payloads: payloads };
+}
+
 function doGet() {
   return json_({
     ok: true,
     service: "Narthex Drive gateway",
-    version: "1.5",
+    version: "1.6",
   });
 }
 
 function doPost(e) {
   try {
     const request = JSON.parse(e?.postData?.contents || "{}");
-    const expected =
+    const projectId = String(request.projectId || "").trim().toLowerCase();
+    const registry = projectId ? projectRegistry_() : null;
+    const project = projectId && Object.prototype.hasOwnProperty.call(registry, projectId) ? registry[projectId] : null;
+    const expected = projectId ? (project && project.key) :
       PropertiesService.getScriptProperties().getProperty(CF_KEY_PROPERTY);
-    if (!expected || !constantTimeEqual_(String(request.key || ""), expected)) {
-      return json_({ ok: false, error: "Неверный ключ шлюза." });
+    if (!expected || !constantTimeEqual_(String(request.key || ""), String(expected))) {
+      return json_({ ok: false, error: "Неверный ключ или неизвестный проект шлюза." });
     }
+    const layoutForRequest = function () { return project ? projectLayout_(project) : ensureLayout_(); };
 
     if (request.action === "ping") {
       return withScriptLock_(function () {
-        const layout = ensureLayout_();
+        const layout = layoutForRequest();
         return json_({
           ok: true,
           service: "Narthex Drive gateway",
-          version: "1.5",
+          version: "1.6",
+          ...(project ? { projectScoped: true, projectId: project.id, project: folderInfo_(layout.project) } : {}),
           arena: folderInfo_(layout.arena),
           logs: folderInfo_(layout.logs),
           payloads: folderInfo_(layout.payloads),
@@ -54,7 +123,7 @@ function doPost(e) {
 
     if (request.action === "createLog") {
       const folderId = String(request.folderId || "");
-      if (folderId && folderId !== CF_LEGACY_RUN_LOG_FOLDER_ID) {
+      if (folderId && (project || folderId !== CF_LEGACY_RUN_LOG_FOLDER_ID)) {
         throw new Error("Прямой folderId запрещён: createLog сам выбирает Arena/logs.");
       }
       const dispatchId = String(request.dispatchId || "");
@@ -64,7 +133,7 @@ function doPost(e) {
       }
       const name = dispatchId + "_" + runId + ".md";
       return withScriptLock_(function () {
-        const logs = ensureLayout_().logs;
+        const logs = layoutForRequest().logs;
         const matches = logs.getFilesByName(name);
         if (matches.hasNext()) {
           const existing = matches.next();
@@ -84,7 +153,7 @@ function doPost(e) {
       const content = String(request.content || "");
       if (content.length > 1500000) throw new Error("Payload превышает допустимый размер.");
       return withScriptLock_(function () {
-        const payloads = ensureLayout_().payloads;
+        const payloads = layoutForRequest().payloads;
         const matches = payloads.getFilesByName(name);
         if (matches.hasNext()) {
           const existing = matches.next();
@@ -103,6 +172,11 @@ function doPost(e) {
     if (request.action === "read") {
       // Reads are needed for the task payload selected from the Notion record.
       const file = DriveApp.getFileById(id);
+      if (project) {
+        const layout = layoutForRequest();
+        if (!isDirectChildOf_(file, layout.logs.getId()) && !isDirectChildOf_(file, layout.payloads.getId()))
+          throw new Error("Чтение разрешено только из logs или payloads этого проекта.");
+      }
       const mime = String(file.getMimeType() || "");
       if (!mime.startsWith("text/")) {
         throw new Error("Шлюз читает только текстовые файлы.");
@@ -122,9 +196,9 @@ function doPost(e) {
       }
       if (entry.length > 1500000) throw new Error("Запись превышает допустимый размер.");
       return withScriptLock_(function () {
-        const logs = ensureLayout_().logs;
+        const logs = layoutForRequest().logs;
         if (!isDirectChildOf_(file, logs.getId()) || !String(file.getMimeType() || "").startsWith("text/")) {
-          throw new Error("Запись разрешена только в текстовые файлы Arena/logs.");
+          throw new Error(project ? "Запись разрешена только в текстовые файлы logs этого проекта." : "Запись разрешена только в текстовые файлы Arena/logs.");
         }
         const old = file.getBlob().getDataAsString("UTF-8");
         if (old.includes(marker)) return json_({ ok: true, result: "duplicate" });

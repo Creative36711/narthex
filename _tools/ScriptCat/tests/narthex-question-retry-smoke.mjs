@@ -16,7 +16,7 @@ import { assertUserscriptVersionContract } from '../version-oracle.mjs';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 const has = (needle, why) => assert.ok(src.includes(needle), `в скрипте нет: ${why}`);
 
-const from = src.indexOf('  function queueQuestion(q, ctx = {}) {');
+const from = src.indexOf('  function supplementalQuestion(q, row) {');
 const to = src.indexOf('  async function askQuestion(q, ctx = {}) {');
 assert.ok(from > 0 && to > from, 'блок очереди вопросов на месте');
 const block = src.slice(from, to);
@@ -28,7 +28,7 @@ function make({ failPost = false, rows = [] } = {}) {
   let posts = 0;
   const fn = new Function(
     'GM_getValue', 'GM_setValue', 'K', 'C', 'notion', 'questionProps', 'noteQuestionAsked', 'appendQuestionBody', 'log', 'dbg',
-    'norm', 'questionRows', 'Q', 'rt', 'queueAnswer', 'sel', 'withQuestionWriteLock', 'questionMaterial',
+    'norm', 'questionRows', 'Q', 'rt', 'queueAnswer', 'sel', 'withQuestionWriteLock', 'questionMaterial', 'fullQuestionText', 'questionBlocks', 'blockText',
     `${block}\nreturn { queueQuestion, flushQuestionQueue };`,
   );
   const api = fn(
@@ -55,6 +55,7 @@ function make({ failPost = false, rows = [] } = {}) {
     (p) => p?.select?.name || '',
     (work) => work(),
     (url) => url || '',
+    (text) => text, async () => [], () => '',
   );
   return { ...api, store, logs, posted, posts: () => posts };
 }
@@ -141,7 +142,7 @@ const question = {
   let posts = 0;
   const fn = new Function(
     'GM_getValue', 'GM_setValue', 'K', 'C', 'notion', 'questionProps', 'noteQuestionAsked', 'appendQuestionBody', 'log', 'dbg',
-    'norm', 'questionRows', 'Q', 'rt', 'queueAnswer', 'sel', 'withQuestionWriteLock', 'questionMaterial',
+    'norm', 'questionRows', 'Q', 'rt', 'queueAnswer', 'sel', 'withQuestionWriteLock', 'questionMaterial', 'fullQuestionText', 'questionBlocks', 'blockText',
     `${block}\nreturn { queueQuestion, flushQuestionQueue };`,
   );
   const run = fn(
@@ -166,6 +167,7 @@ const question = {
     (p) => p?.select?.name || '',
     (work) => work(),
     (url) => url || '',
+    (text) => text, async () => [], () => '',
   );
   run.queueQuestion(
     { ...question, text: 'Как решить открытый ADR docs/decisions/NAR-2.15.md?' },

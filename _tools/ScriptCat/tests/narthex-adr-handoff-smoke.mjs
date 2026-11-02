@@ -91,12 +91,12 @@ assert.equal(answerHandoffKey('row-wait'), 'cfn-q-handoff:row-wait', 'отмет
 // ── 2. askQuestion не глушит висящую строку ───────────────────────────────
 const askSrc = cut('  async function askQuestion(q, ctx = {}) {', '  /** Отметить ответы доставленными');
 assert.match(askSrc, /if \(status === Q\.wait && !answer\) \{/, 'различаются «Ждёт без ответа» и «решено»');
-assert.match(askSrc, /handWaitingRow\(same\.row, q, ctx\);/, 'висящая строка ставится в очередь приёмки');
+assert.match(askSrc, /const complete = await questionFromRowComplete\(same\.row\);[\s\S]*?handWaitingRow\(same\.row, complete, ctx\);/, 'висящая строка ставится в очередь приёмки');
 assert.match(askSrc, /return same\.row;/, 'строка возвращается вызывающему, а не теряется');
 assert.match(askSrc, /приёмка уже ответила/, 'в журнале сказано, кто отвечает');
 
 const flushSrc = cut('  async function flushQuestionQueue() {', '  /**\n   * Ссылки на решения в тексте вопроса');
-assert.match(flushSrc, /const handled = handWaitingRow\(same\.row, item\.q, item\.ctx \|\| \{\}\);/, 'очередь тоже передаёт висящую строку');
+assert.match(flushSrc, /complete = await questionFromRowComplete\(same\.row\);[\s\S]*?const handled = handWaitingRow\(same\.row, complete, item\.ctx \|\| \{\}\);/, 'очередь тоже передаёт висящую строку');
 assert.match(src, /const adopted = mine\.filter\(/, 'загрузка страницы подбирает строки, созданные прошлыми версиями');
 assert.match(src, /!GM_getValue\(answerHandoffKey\(row\.id\), 0\)/, 'повторно вопрос не гоняется');
 

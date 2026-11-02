@@ -38,6 +38,9 @@ jobs:
       # браузера; запускаем базовые пробы и отдельные регрессии. Раньше они
       # жили только в README, и 29.10 одна покраснела на зелёном коде (в ней «сейчас»
       # бралось из системных часов) — заметил это только Мастер.
+      - name: Проверить сборку ScriptCat из исходных файлов
+        run: npm run scriptcat:check
+
       - name: Пробы транспорта ScriptCat
         run: |
           set -e
@@ -66,6 +69,15 @@ jobs:
         if: steps.parity-browser-cache.outputs.cache-hit != 'true'
         timeout-minutes: 5
         run: npm install --prefix "$RUNNER_TEMP/narthex-parity-browser" --no-save --ignore-scripts --no-audit --no-fund @sparticuz/chromium@131 playwright-core@1.49.1
+
+      - name: ScriptCat — браузерные сценарии на моках без сети
+        env:
+          NARTHEX_PARITY_BROWSER_PREFIX: ${{ runner.temp }}/narthex-parity-browser
+          TMPDIR: ${{ runner.temp }}/narthex-parity-runtime
+        run: |
+          mkdir -p "$TMPDIR"
+          node _tools/ScriptCat/browser-tests/connections.mjs
+          node _tools/ScriptCat/browser-tests/profiles.mjs
 
       - name: Детерминизм циклов
         # Keep the deterministic gate intact; allow headless-browser startup/runner variance

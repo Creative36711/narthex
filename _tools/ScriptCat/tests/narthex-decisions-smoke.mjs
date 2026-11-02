@@ -19,7 +19,7 @@ has('💬 Обратная связь<span id="${ui.qBadge}"');
 has('document.getElementById(ui.questions).onclick = () => window.open(C.questionsUrl');
 has('adrCheckMs: 600000');
 has('watchDecisions();');
-has('setInterval(() => refreshDecisions()');
+assert.match(src, /setInterval\(\(\) => \{[\s\S]*?refreshDecisions\(\)/, 'фоновый сторож по-прежнему обновляет ADR');
 assert.doesNotMatch(src, /ui\.adrBadge|ui\.adr\b/, 'отдельной кнопки и счётчика ADR нет');
 assert.doesNotMatch(src, /function announceDecisions\(/, 'нет второго уведомления про тот же ADR');
 
@@ -64,8 +64,10 @@ const run = new Function(
     requests++;
     if (failed) throw new Error('GitHub недоступен');
     if (url.includes('/contents/docs/decisions?')) return files;
-    assert.ok(content[url], `неожиданный файл ${url}`);
-    return { content: Buffer.from(content[url]).toString('base64') };
+    const name = decodeURIComponent(url.match(/\/([^/?]+)\?ref=/)?.[1] || '');
+    const fixture = { 'A.md': content['url-a'], 'B.md': content['url-b'], 'C.md': content['url-c'] }[name];
+    assert.ok(fixture, `неожиданный файл ${url}`);
+    return { content: Buffer.from(fixture).toString('base64') };
   },
   () => ({}), 'docs/decisions', adrStatusOf, b64Text, 'proposed',
   async () => history, (file) => file.replace(/\.md$/i, '').toLowerCase(),
@@ -93,7 +95,10 @@ assert.equal(deliveries.length, 1, 'при сбое GitHub сохранён пр
 has('ADR `proposed` в docs/decisions) — это тоже вопрос, и оно не работает без второго шага');
 has('тремя вариантами и default = «оставить как есть»');
 has('Оставлять `proposed` после ответа нельзя');
-has('ADR proposed — это очередь решений Мастера');
+has('Новые предложения ADR передавай через question в том же маркере');
+has('Старые файлы ADR proposed и их историю сохраняй');
+has('не удаляй их до безопасного переноса и фактического рассмотрения');
+has('Только фактический ответ приёмки или Мастера разрешает исполнителю');
 has('Нерешённое предложение — долг, а не состояние');
 has('оракул, который требует `Статус: proposed`, защищает открытый вопрос от ответа');
 console.log('narthex-decisions-smoke: ok');

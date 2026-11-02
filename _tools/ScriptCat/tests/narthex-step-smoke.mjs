@@ -47,7 +47,7 @@ assert.match(rootBlock, /const target = pendingRole \|\| waitingRole \|\| coord;
 assert.match(rootBlock, /if \(!pendingNow && fromToggle\) GM_setValue\(K\.step, true\);/, 'шаг запоминается на один переход');
 assert.match(rootBlock, /return navigateTo\(target, why\);/, 'открываем нужную страницу сами');
 assert.ok(!/в адресе нет \/agent\/<id>/.test(src), 'требования открыть страницу вручную больше нет');
-assert.match(src, /if \(GM_getValue\(K\.step, false\)\) \{/, 'загрузка страницы выполняет отложенный шаг');
+assert.match(src, /if \(GM_getValue\(K\.step, false\) && !projectHeld\(\)\) \{/, 'загрузка страницы выполняет отложенный шаг');
 assert.match(src, /GM_setValue\(K\.step, false\);/, 'шаг одноразовый, петли нет');
 
 // 2. Поле ввода и кнопка отправки — шире, чем в dispatch.user.js.

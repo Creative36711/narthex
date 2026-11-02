@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.93
+// @version      1.5.0
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -42,7 +42,7 @@
  * к источникам и GitHub-токена на чтение PR: приватный репозиторий отвечает 404.
  */
 
-(() => {
+((GM_getValue, GM_setValue) => {
   "use strict";
 
   // ───────────────────────────── конфиг ─────────────────────────────
@@ -57,7 +57,7 @@
     questionHours: 24, // срок молчания по умолчанию: дальше действует вариант агента
     questionLineMax: 3, // сколько вопросов и ответов видно в одном промпте
     questionTextMax: 180, // столько влезает в заголовок «Вопрос» читаемо
-    questionTextFull: 12000, // полный текст — в тело страницы вопроса, его не режем
+    questionTextFull: 12000, // выше предела — явная пауза, не молчаливое усечение
     questionDefaultMax: 200,
     questionCheckMs: 600000, // как часто проверять сроки вопросов (10 минут)
     adrCheckMs: 600000, // как часто смотреть docs/decisions на proposed (10 минут)
@@ -101,6 +101,84 @@
     rolesCacheMs: 600000, // база «Роли» — настройка: кеш на 10 минут
   };
 
+  // ───────────────────────────── профили проекта ─────────────────────────────
+  // Метаданные не содержат секретов. Прежние ключи остаются эксклюзивным
+  // пространством Narthex; ВСЕ обращения GM других проектов (включая ключи,
+  // сформированные во время работы) получают неизменяемый префикс UUID.
+  const rawGet = GM_getValue;
+  const rawSet = GM_setValue;
+  const PROFILE_REGISTRY_KEY = "cfn-project-profiles-v1";
+  const PROFILE_SESSION_KEY = "cfn-active-project-v1";
+  const LEGACY_PROFILE_ID = "narthex";
+  const PROJECT_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const LEGACY_PROFILE = Object.freeze({
+    id: LEGACY_PROFILE_ID, name: "Narthex", legacy: true,
+    roles: C.roles, missions: C.missions, requests: C.requests, questions: C.questions,
+    pageUrl: C.pageUrl, questionsUrl: C.questionsUrl, repo: C.repo,
+    branch: "main", driveFolder: "",
+  });
+
+  function profileRegistry() {
+    const value = rawGet(PROFILE_REGISTRY_KEY, []);
+    return Array.isArray(value) ? value : [];
+  }
+  function validProfile(profile) {
+    if (!profile || !PROJECT_UUID.test(String(profile.id || "")) ||
+        !String(profile.name || "").trim() || String(profile.name).length > 80) return false;
+    const ids = [profile.roles, profile.missions, profile.requests, profile.questions];
+    if (ids.some((id) => !PROJECT_UUID.test(String(id || ""))) ||
+        new Set(ids.map((id) => id.toLowerCase())).size !== 4) return false;
+    try {
+      for (const value of [profile.pageUrl, profile.questionsUrl]) {
+        const url = new URL(value);
+        if (url.protocol !== "https:" || url.username || url.password ||
+            !["app.notion.com", "notion.so", "www.notion.so"].includes(url.hostname)) return false;
+      }
+    } catch { return false; }
+    const repo = String(profile.repo || "");
+    const branch = String(profile.branch || "");
+    const folder = String(profile.driveFolder || "");
+    return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo) && !repo.includes("..") &&
+      /^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$/.test(branch) && !branch.includes("..") &&
+      !branch.includes("//") && !branch.includes("/.") && !branch.endsWith("/") &&
+      !branch.endsWith(".") && !branch.endsWith(".lock") &&
+      /^[a-z0-9][a-z0-9._-]{0,50}$/.test(folder) && !folder.includes("..") &&
+      !["logs", "payloads"].includes(folder);
+  }
+  function selectedProfileId() {
+    try { return sessionStorage.getItem(PROFILE_SESSION_KEY) || LEGACY_PROFILE_ID; }
+    catch {
+      // Профиль вкладки неизвестен: не подменяем его рабочим Narthex.
+      return "session-storage-unavailable";
+    }
+  }
+  function resolveProfile(id) {
+    if (id === LEGACY_PROFILE_ID) return LEGACY_PROFILE;
+    const matches = profileRegistry().filter((p) => p && p.id === id);
+    if (matches.length !== 1 || !validProfile(matches[0])) {
+      // Никогда не подменяем повреждённый/удалённый профиль на Narthex.
+      return Object.freeze({ id: String(id || "invalid"), name: "Профиль недоступен", invalid: true,
+        roles: "", missions: "", requests: "", questions: "", pageUrl: "", questionsUrl: "",
+        repo: "", branch: "main", driveFolder: "" });
+    }
+    // Копия и closure неизменяемы до полной перезагрузки вкладки.
+    return Object.freeze({ ...matches[0], legacy: false, invalid: false });
+  }
+  const ACTIVE_PROFILE = resolveProfile(selectedProfileId());
+  const projectStorageKey = (id, key) => id === LEGACY_PROFILE_ID ? String(key) :
+    `project:${id}:${String(key)}`;
+  GM_getValue = (key, fallback) => rawGet(projectStorageKey(ACTIVE_PROFILE.id, key), fallback);
+  GM_setValue = (key, value) => rawSet(projectStorageKey(ACTIVE_PROFILE.id, key), value);
+  Object.assign(C, {
+    roles: ACTIVE_PROFILE.roles, missions: ACTIVE_PROFILE.missions, requests: ACTIVE_PROFILE.requests,
+    questions: ACTIVE_PROFILE.questions, pageUrl: ACTIVE_PROFILE.pageUrl, questionsUrl: ACTIVE_PROFILE.questionsUrl,
+    repo: ACTIVE_PROFILE.repo, branch: ACTIVE_PROFILE.branch, projectName: ACTIVE_PROFILE.name,
+    driveFolder: ACTIVE_PROFILE.driveFolder,
+  });
+  Object.freeze(C);
+  const projectApproved = () => !ACTIVE_PROFILE.invalid &&
+    (ACTIVE_PROFILE.legacy || GM_getValue("cfn-project-approved", false) === true);
+
   const K = {
     notion: "cfn-notion-token",
     gwUrl: "cfn-gw-url",
@@ -131,6 +209,9 @@
     rolesCache: "cfn-roles-cache",
   };
 
+  // sessionStorage также разделён; выбранный ID хранится отдельно на вкладку.
+  if (!ACTIVE_PROFILE.legacy) K.auto = projectStorageKey(ACTIVE_PROFILE.id, K.auto);
+
   const ui = {
     panel: "cfn-panel",
     log: "cfn-log",
@@ -141,8 +222,6 @@
     stop: "cfn-stop",
     clear: "cfn-clear",
     reset: "cfn-reset",
-    ntfy: "cfn-ntfy",
-    gh: "cfn-gh",
     questions: "cfn-questions",
     qBadge: "cfn-q-badge",
     collapse: "cfn-collapse",
@@ -338,7 +417,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.93";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.5.0";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -656,6 +735,8 @@
 
   function notifyNtfy(text, { title = "Narthex", priority = "2", tags = "memo", cycleStopped = false, key = "" } = {}) {
     try {
+      if (typeof C !== "undefined" && C.projectName && C.projectName !== "Narthex")
+        title = String(title).replace(/^Narthex(?=[:\s]|$)/, C.projectName);
       const topic = normalizeNtfyTopic(GM_getValue(K.ntfyTopic, ""));
       if (!topic) return;
       // Последняя защита: даже ошибочно помеченная «громкой» запись не звонит,
@@ -1170,7 +1251,7 @@
     panel.style.width = collapsed ? "208px" : "360px";
     const log = document.getElementById(ui.log);
     if (log) log.style.display = collapsed ? "none" : "";
-    for (const id of [ui.step, ui.ntfy, ui.questions, ui.gh, ui.debug, ui.reset, ui.clear, ui.setup]) {
+    for (const id of [ui.step, ui.questions, ui.debug, ui.reset, ui.clear, ui.setup]) {
       const el = document.getElementById(id);
       if (el) el.style.display = collapsed ? "none" : "";
     }
@@ -1205,20 +1286,18 @@
     ].join(";");
     panel.innerHTML = `
       <div style="display:flex;align-items:center;gap:6px;padding:8px 10px;background:#1b1e25;border-bottom:1px solid #2b2f38;flex-wrap:wrap">
-        <strong style="font-size:12px">Narthex</strong>
+        <strong id="cfn-panel-project" style="font-size:12px">Narthex</strong>
         <span style="opacity:.45;font-size:10px" title="версия скрипта">v${SCRIPT_VERSION}</span>
         <span id="${ui.status}" style="opacity:.75;font-size:11px;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">…</span>
         <span id="${ui.count}" style="opacity:.45;font-size:10px">0/${C.maxLog}</span>
         <span style="flex:1"></span>
         <button id="${ui.step}" title="Один шаг цикла" style="${btnStyle()}">Шаг</button>
         <button id="${ui.toggle}" style="${btnStyle()}">▶ Включить</button>
-        <button id="${ui.ntfy}" title="Уведомления ntfy: тихие вехи и громкие тревоги" style="${btnStyle()}">🔔</button>
         <button id="${ui.questions}" aria-label="Открыть обратную связь в Notion" title="Обратная связь — вопросы и предложения в Notion" style="${btnStyle()}">💬 Обратная связь<span id="${ui.qBadge}" style="display:none;margin-left:3px;padding:0 4px;border-radius:7px;background:#b23b3b;color:#fff;font-size:10px;line-height:14px;vertical-align:middle">0</span></button>
-        <button id="${ui.gh}" title="GitHub: токен для приватного репозитория и возврат карточки после ложного отказа" style="${btnStyle()}">🐙</button>
         <button id="${ui.debug}" title="Отладка в консоли браузера (F12)" style="${btnStyle()}">🐞</button>
         <button id="${ui.reset}" title="Снять ход: очередь, ожидание и карточки в Running без хода (журнал и настройки останутся)" style="${btnStyle()}">↺</button>
         <button id="${ui.clear}" title="Очистить журнал; очередь снимается кнопкой ↺" style="${btnStyle()}">🧹</button>
-        <button id="${ui.setup}" title="Настройка" style="${btnStyle()}">⚙</button>
+        <button id="${ui.setup}" title="Notion, Google Drive, GitHub и уведомления" style="${btnStyle()}">⚙ Подключения</button>
         <button id="${ui.stop}" title="Остановить цикл и снять паузу" style="${btnStyle()}">✕</button>
         <button id="${ui.collapse}" title="Свернуть панель" style="${btnStyle()}">▾</button>
       </div>
@@ -1231,7 +1310,9 @@
     document.getElementById(ui.reset).onclick = () => {
       // Сброс теперь ходит в Notion: без перехвата отказ сети остался бы
       // необработанным обещанием и молчаливой кнопкой.
-      resetStateDialog().catch((e) => log(`Сброс не удался: ${e.message}`, true));
+      const work = resetStateDialog();
+      (typeof trackProjectTask === "function" ? trackProjectTask(work) : work)
+        .catch((e) => log(`Сброс не удался: ${e.message}`, true));
     };
     document.getElementById(ui.clear).onclick = () => clearLog();
     document.getElementById(ui.debug).onclick = () => {
@@ -1247,8 +1328,6 @@
       paintDebugButton();
     };
     document.getElementById(ui.questions).onclick = () => window.open(C.questionsUrl, "_blank", "noopener");
-    document.getElementById(ui.ntfy).onclick = () => ntfyDialog();
-    document.getElementById(ui.gh).onclick = () => githubDialog();
     document.getElementById(ui.stop).onclick = () => {
       GM_setValue(K.paused, "");
       GM_setValue(K.pause, null);
@@ -1256,13 +1335,24 @@
       log("Автоцикл остановлен вручную.");
     };
     document.getElementById(ui.step).onclick = () => {
+      if (typeof projectApproved === "function" && !projectApproved()) {
+        log("Проект ещё не разрешён к работе: проверьте его в управлении проектами.", true); return;
+      }
       const reason = GM_getValue(K.paused, "");
       if (reason && !confirm(`Снять паузу и выполнить один шаг?\n\n${reason}`)) return;
       if (reason) resume("ручной шаг");
+      if (typeof releaseProjectHold === "function" && !releaseProjectHold()) {
+        log("Вкладка не может сохранить выбор проекта; ручной шаг не запущен.", true); return;
+      }
       log("Шаг нажат: смотрю страницу, очередь и задание.");
       tick(true);
     };
-    document.getElementById(ui.toggle).onclick = () => toggleAuto();
+    document.getElementById(ui.toggle).onclick = () => {
+      const work = toggleAuto();
+      return typeof trackProjectTask === "function" ? trackProjectTask(work) : work;
+    };
+    const projectLabel = document.getElementById("cfn-panel-project");
+    if (projectLabel) projectLabel.textContent = C.projectName || "Narthex";
     renderLog();
     setStatus();
     paintDebugButton();
@@ -1275,12 +1365,16 @@
   }
 
   async function toggleAuto() {
+    if (typeof projectApproved === "function" && !projectApproved()) {
+      log("Проект не разрешён к работе: откройте «Подключения → Управление проектами» и проверьте его.", true); return;
+    }
     const auto = autoOn();
     const reason = GM_getValue(K.paused, "");
 
     // Пауза. Снять её может только человек: подтверждение показывает причину.
     if (reason) {
       if (!confirm(`Цикл стоит на паузе.\n\nПричина: ${reason}\n\nСнять паузу и продолжить?`)) return;
+      if (typeof releaseProjectHold === "function" && !releaseProjectHold()) return;
       const ctx = GM_getValue(K.pause, null) || {};
       // Возвращаем тот режим, в котором цикл стоял: пауза не должна
       // превращать ручной шаг в постоянный автоцикл.
@@ -1299,6 +1393,7 @@
       return;
     }
 
+    if (typeof releaseProjectHold === "function" && !releaseProjectHold()) return;
     autoSet(true);
     log("Автоцикл включён.");
     // Обычный тик, а не «Шаг»: в автоцикле нет нажатия, и следующая страница
@@ -1310,45 +1405,822 @@
     return "background:#242833;color:#e7eaee;border:1px solid #343a46;border-radius:6px;padding:2px 6px;cursor:pointer;font:11px/1.2 inherit";
   }
 
-  // ───────────────────────────── настройка ─────────────────────────────
-  async function setup(force = false) {
-    const fromParam = new URL(location.href).searchParams.has("cf-auth-setup");
-    if (!force && !fromParam) return;
-    const token = prompt("Notion integration token (secret_…):", GM_getValue(K.notion, ""));
-    if (token === null) return;
-    const gwUrl = prompt("URL веб-приложения Apps Script (/exec):", GM_getValue(K.gwUrl, ""));
-    if (gwUrl === null) return;
-    const gwKey = prompt("Ключ шлюза:", GM_getValue(K.gwKey, ""));
-    if (gwKey === null) return;
-    GM_setValue(K.notion, token.trim());
-    GM_setValue(K.gwUrl, gwUrl.trim());
-    GM_setValue(K.gwKey, gwKey.trim());
-    // Новый токен — новый доступ: список ролей перечитываем, а не берём из кеша.
-    GM_setValue(K.rolesCache, null);
-    const clean = new URL(location.href);
-    if (clean.searchParams.has("cf-auth-setup")) {
-      clean.searchParams.delete("cf-auth-setup");
-      history.replaceState(null, "", clean.toString());
-    }
+  // ───────────────────────────── подключения ─────────────────────────────
+  /** Старые ключи остаются источником истины: обновление не сбрасывает доступ. */
+  function connectionSettings() {
+    return {
+      notion: String(GM_getValue(K.notion, "") || "").trim(),
+      gwUrl: String(GM_getValue(K.gwUrl, "") || "").trim(),
+      gwKey: String(GM_getValue(K.gwKey, "") || "").trim(),
+      github: String(GM_getValue(K.ghToken, "") || "").trim(),
+    };
+  }
+
+  const sameConnections = (a, b) =>
+    a.notion === b.notion && a.gwUrl === b.gwUrl && a.gwKey === b.gwKey && a.github === b.github;
+
+  /** Не отправлять ключ по HTTP или на похожий на Google чужой адрес без согласия. */
+  function connectionEndpoint(value) {
+    if (!value) return { ok: true, standard: true, host: "" };
     try {
-      const me = await notion("GET", "users/me");
-      const ping = await gateway("ping", "");
-      const gatewayVersion = String(ping.version || "1.0");
-      log(
-        `Настройка сохранена: ${me.name || "Notion OK"}, шлюз ${ping.result || "OK"} v${gatewayVersion}` +
-          (ping.logs?.name ? `, логи в ${ping.arena?.name || "Arena"}/${ping.logs.name}` : "."),
-      );
-      if (gatewayIsOld(gatewayVersion)) {
-        log("Шлюз старше 1.5: логи уедут в корень Диска. Обновите drive-gateway.gs.", true);
-      }
-      if (!ghToken()) {
-        log("Токен GitHub не задан: приватный репозиторий анонимно не виден, PR не проверить. Кнопка 🐙.", false, {
-          tone: "warn",
-        });
-      }
-    } catch (e) {
-      log(`Настройка сохранена, но проверка не прошла: ${e.message}`, true);
+      const url = new URL(value);
+      if (url.protocol !== "https:" || url.username || url.password)
+        return { ok: false, message: "Укажите HTTPS-адрес шлюза без имени пользователя и пароля в URL." };
+      return {
+        ok: true,
+        standard: url.origin === "https://script.google.com" && /^\/macros\/s\/[^/]+\/exec\/?$/.test(url.pathname),
+        host: url.host,
+      };
+    } catch {
+      return { ok: false, message: "Некорректный URL шлюза: нужен полный HTTPS-адрес веб-приложения /exec." };
     }
+  }
+
+  /** Чужой ответ об ошибке не должен показать введённый или сохранённый секрет. */
+  function connectionProblem(error, settings) {
+    let text = String((error && error.message) || error || "неизвестная ошибка");
+    for (const secret of [settings.notion, settings.gwKey, settings.github]) {
+      if (secret) text = text.split(secret).join("[скрыто]");
+    }
+    return text.replace(/\s+/g, " ").slice(0, 280);
+  }
+
+  /** Проверка токена и доступа к источникам — только чтение, не проверка записи или всей схемы. */
+  async function probeNotionConnection(settings) {
+    if (!settings.notion) return { ok: false, text: "Не задан токен Notion." };
+    const headers = {
+      Authorization: `Bearer ${settings.notion}`,
+      "Notion-Version": C.notionV,
+      "Content-Type": "application/json",
+    };
+    try {
+      const me = await request("GET", "https://api.notion.com/v1/users/me", headers);
+      if (!me || me.object !== "user") throw new Error("Неожиданный ответ users/me.");
+    } catch (e) {
+      return { ok: false, text: `Токен Notion не проверен: ${connectionProblem(e, settings)}` };
+    }
+    for (const [name, id] of [["Роли", C.roles], ["Миссии", C.missions], ["Запросы", C.requests], ["Обратная связь", C.questions]]) {
+      // Средняя частота Notion — около трёх запросов/с; это проверка по кнопке,
+      // а не часть тика, поэтому не трогаем сторож busyAt через sleep().
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      try {
+        const source = await request("GET", `https://api.notion.com/v1/data_sources/${id}`, headers);
+        if (!source || source.object !== "data_source") throw new Error("Неожиданный ответ источника.");
+      } catch (e) {
+        return {
+          ok: false,
+          text: `Токен принят, но источник «${name}» не прочитан: ${connectionProblem(e, settings)}. Проверьте доступ интеграции.`,
+        };
+      }
+    }
+    return { ok: true, text: "Токен и четыре источника читаются. Права записи, варианты и полная схема не проверялись." };
+  }
+
+  /** Проверяет тот же транспорт, что и цикл, но с введёнными, ещё не сохранёнными данными. */
+  async function probeDriveConnection(settings) {
+    if (!settings.gwUrl) return { ok: false, text: "Не задан URL шлюза Drive." };
+    if (!settings.gwKey) return { ok: false, text: "Не задан ключ шлюза Drive." };
+    try {
+      const scoped = typeof ACTIVE_PROFILE !== "undefined" && !ACTIVE_PROFILE.legacy;
+      const data = await gatewayWithCredentials("ping", "", scoped ? { projectId: ACTIVE_PROFILE.id } : {}, { url: settings.gwUrl, key: settings.gwKey });
+      if (scoped && (!data || data.projectScoped !== true || data.projectId !== ACTIVE_PROFILE.id ||
+          data.project?.name !== ACTIVE_PROFILE.driveFolder))
+        throw new Error("Шлюз не подтвердил ID и папку этого проекта. Нужен зарегистрированный проектный шлюз 1.6.");
+      const version = String((data && data.version) || "");
+      const warning = !version
+        ? " Версия не указана — совместимость не подтверждена."
+        : gatewayIsOld(version)
+          ? " Версия старше 1.5: обновите шлюз, старый может писать мимо Arena."
+          : "";
+      return { ok: true, warning: Boolean(warning), text: `Шлюз ответил${version ? `, версия ${version}` : ""}.${warning} Чтение и запись файлов не проверялись.` };
+    } catch (e) {
+      return { ok: false, text: `Шлюз Drive не проверен: ${connectionProblem(e, settings)}` };
+    }
+  }
+
+  /** Репозиторий виден — не значит, что токену доступны содержимое и Pull requests. */
+  async function probeGithubConnection(settings) {
+    try {
+      const repo = await request("GET", `https://api.github.com/repos/${C.repo}`, githubHeaders(settings.github));
+      if (!repo || String(repo.full_name || "").toLowerCase() !== C.repo.toLowerCase())
+        throw new Error("GitHub вернул неожиданный репозиторий.");
+      return {
+        ok: true,
+        text: `Репозиторий ${C.repo} виден ${settings.github ? "с токеном" : "анонимно"}. Права на PR и файлы не проверялись.`,
+      };
+    } catch (e) {
+      return { ok: false, text: `Репозиторий не проверен: ${connectionProblem(e, settings)}. Для приватного репозитория нужен токен с доступом к нему.` };
+    }
+  }
+
+  /** Единая точка входа, в том числе старый адрес ?cf-auth-setup=1. */
+  async function setup(force = false) {
+    const url = new URL(location.href);
+    const fromParam = url.searchParams.has("cf-auth-setup");
+    if (!force && !fromParam) return;
+    if (fromParam) {
+      url.searchParams.delete("cf-auth-setup");
+      history.replaceState(null, "", url.toString());
+    }
+    connectionDialog();
+  }
+
+  /**
+   * Секреты не вставляем из хранилища в DOM. Пустое поле означает «не менять»;
+   * удаление — только явным флажком. Проверка использует черновик и не сохраняет его.
+   */
+  function connectionDialog({ focusGithub = false } = {}) {
+    const opened = document.getElementById("cfn-connections");
+    if (opened) {
+      if (focusGithub) {
+        const note = opened.querySelector("#cfn-connections-note");
+        note.textContent = "GitHub запросил доступ: проверьте токен и доступ к репозиторию.";
+        opened.querySelector("#cfn-connection-github")?.focus();
+      }
+      return;
+    }
+    let saved = connectionSettings();
+    let checking = false;
+    let performing = false;
+    const box = document.createElement("div");
+    box.id = "cfn-connections";
+    box.style.cssText = [
+      "position:fixed", "inset:0", "z-index:2147483200", "background:rgba(5,7,12,.72)",
+      "display:flex", "align-items:center", "justify-content:center", "padding:14px", "box-sizing:border-box",
+      "color:#e7eaee", "font:13px/1.5 system-ui,-apple-system,sans-serif", "color-scheme:dark",
+    ].join(";");
+    const field = `${inputStyle()};padding:9px 10px;margin-top:5px;font:13px/1.35 ui-monospace,Menlo,Consolas,monospace`;
+    const card = "border:1px solid #343b48;border-radius:10px;padding:14px;background:#1c2029";
+    const action = `${btnStyle()};font:12px/1.35 system-ui,sans-serif;padding:7px 10px`;
+    const quiet = "font-size:12px;color:#aab4c3;line-height:1.5";
+    box.innerHTML = `
+      <div role="dialog" aria-modal="true" aria-labelledby="cfn-connections-title" tabindex="-1"
+        style="width:min(680px,100%);max-height:calc(100vh - 28px);overflow:auto;background:#151922;border:1px solid #434c5c;border-radius:14px;box-shadow:0 18px 65px rgba(0,0,0,.55)">
+        <header style="position:sticky;top:0;z-index:2;display:flex;align-items:flex-start;gap:14px;padding:16px 20px 12px;background:#151922;border-bottom:1px solid #343b48">
+          <div style="flex:1"><div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#93a5bf">ScriptCat · Narthex</div>
+            <h2 id="cfn-connections-title" style="font-size:20px;line-height:1.2;margin:5px 0 6px;color:#f6f8fb">Подключения</h2>
+            <div style="${quiet}">Notion, Google Drive и GitHub — в одном месте. Сохранённые секреты не показываются.</div></div>
+          <button id="cfn-connections-close" type="button" aria-label="Закрыть" style="${action}">✕</button>
+        </header>
+        <div style="display:grid;gap:10px;padding:0 20px 18px">
+          <div style="${quiet}">Текущий проект: <b id="cfn-connection-project-name"></b>. У каждого проекта свои источники, состояние и доступы. Пока окно открыто, новые шаги в этой вкладке не начинаются; начатый шаг и фоновые сторожа могут продолжаться. Используйте одну вкладку.</div>
+          <div style="${quiet}">Маскировка скрывает секреты на экране, но введённые значения доступны коду страницы и расширениям. Пользуйтесь только доверенной страницей Arena.</div>
+          <button id="cfn-connection-projects" type="button" style="${action};justify-self:start">Управление проектами</button>
+          <button id="cfn-connection-stop-auto" type="button" style="${action};justify-self:start">Остановить автоцикл этой вкладки</button>
+          <section style="${card}" aria-labelledby="cfn-connection-notion-title">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><strong id="cfn-connection-notion-title" style="font-size:15px;color:#fff">Notion</strong><span style="${quiet}">базы и очередь</span></div>
+            <div id="cfn-connection-notion-status" role="status" style="${quiet};margin:4px 0 8px"></div>
+            <label for="cfn-connection-notion" style="font-weight:600">Токен интеграции</label>
+            <input id="cfn-connection-notion" type="password" autocomplete="off" spellcheck="false" style="${field}">
+            <label style="display:block;margin-top:7px;${quiet}"><input id="cfn-connection-notion-remove" type="checkbox"> Удалить сохранённый токен при сохранении</label>
+          </section>
+          <section style="${card}" aria-labelledby="cfn-connection-drive-title">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><strong id="cfn-connection-drive-title" style="font-size:15px;color:#fff">Google Drive</strong><span style="${quiet}">шлюз Apps Script для файлов</span></div>
+            <div id="cfn-connection-drive-status" role="status" style="${quiet};margin:4px 0 8px"></div>
+            <label for="cfn-connection-url" style="font-weight:600">URL веб-приложения /exec</label>
+            <input id="cfn-connection-url" type="url" autocomplete="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec" style="${field}">
+            <label for="cfn-connection-key" style="display:block;margin-top:9px;font-weight:600">Ключ шлюза</label>
+            <input id="cfn-connection-key" type="password" autocomplete="off" spellcheck="false" style="${field}">
+            <label style="display:block;margin-top:7px;${quiet}"><input id="cfn-connection-drive-remove" type="checkbox"> Удалить URL и ключ при сохранении</label>
+            <label id="cfn-connection-trust-wrap" style="display:none;margin-top:7px;color:#ffd479;font-size:12px"><input id="cfn-connection-trust" type="checkbox"> Я доверяю указанному шлюзу: ему будет отправлен ключ, в том числе ранее сохранённый.</label>
+            <div style="${quiet};margin-top:8px">Ключ получает владелец указанного веб-приложения, даже на script.google.com. В старом Narthex проверка ping может создать Arena/logs и Arena/payloads или перенести старую папку логов; новому проекту нужен заранее зарегистрированный шлюз.</div>
+          </section>
+          <section style="${card}" aria-labelledby="cfn-connection-github-title">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><strong id="cfn-connection-github-title" style="font-size:15px;color:#fff">GitHub</strong><span style="${quiet}">проверка PR и ADR</span></div>
+            <div id="cfn-connection-github-status" role="status" style="${quiet};margin:4px 0 8px"></div>
+            <div style="${quiet};margin-bottom:8px">Репозиторий: <strong id="cfn-connection-repo" style="color:#e7eaee"></strong>. Для приватного репозитория — токен с чтением Pull requests и Contents.</div>
+            <label for="cfn-connection-github" style="font-weight:600">Токен GitHub <span style="font-weight:400;${quiet}">(для публичного репозитория необязателен)</span></label>
+            <input id="cfn-connection-github" type="password" autocomplete="off" spellcheck="false" style="${field}">
+            <label style="display:block;margin-top:7px;${quiet}"><input id="cfn-connection-github-remove" type="checkbox"> Удалить сохранённый токен при сохранении</label>
+            <button id="cfn-connection-github-open" type="button" style="${action};margin-top:7px">Открыть настройки токенов GitHub ↗</button>
+          </section>
+          <details style="${card}"><summary style="cursor:pointer;font-weight:600">Восстановление и уведомления</summary>
+            <div style="${quiet};margin:8px 0">Восстановление использует сохранённые настройки и может изменить карточку Notion и журнал Drive. Применяйте на остановленном цикле.</div>
+            <div style="display:flex;gap:7px;flex-wrap:wrap">
+              <button id="cfn-connection-recover" type="button" style="${action}">Вернуть карточку</button>
+              <button id="cfn-connection-adopt" type="button" style="${action}">Взять ответ из чата</button>
+              <button id="cfn-connection-ntfy" type="button" style="${action}">🔔 Настроить уведомления</button>
+            </div>
+          </details>
+          <div style="${quiet}">Пустые поля секретов сохраняют прежние значения. «Проверить всё» проверяет введённое, но не сохраняет; «Сохранить» работает отдельно и не запускает цикл.</div>
+        </div>
+        <footer style="position:sticky;bottom:0;background:#151922;border-top:1px solid #343b48;padding:10px 20px 14px;z-index:1">
+          <div id="cfn-connections-note" role="status" aria-live="polite" style="min-height:20px;font-size:12px;color:#bfe6c4;white-space:pre-wrap"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button id="cfn-connections-check" type="button" style="${action};background:#2b4b6f;border-color:#4c77a6;font-weight:600">Проверить всё</button>
+            <button id="cfn-connections-save" type="button" style="${action};background:#285638;border-color:#438a5b;font-weight:600">Сохранить</button>
+          </div>
+        </footer>
+      </div>`;
+    document.body.appendChild(box);
+    const find = (id) => box.querySelector(`#cfn-connection-${id}`);
+    const notionInput = find("notion"), urlInput = find("url"), keyInput = find("key"), githubInput = find("github");
+    const notionRemove = find("notion-remove"), driveRemove = find("drive-remove"), githubRemove = find("github-remove");
+    const trust = find("trust"), trustWrap = find("trust-wrap");
+    const checkButton = box.querySelector("#cfn-connections-check"), saveButton = box.querySelector("#cfn-connections-save");
+    const note = box.querySelector("#cfn-connections-note");
+    find("repo").textContent = C.repo;
+    find("project-name").textContent = C.projectName || "Narthex";
+    urlInput.value = saved.gwUrl;
+
+    const say = (text, error = false) => {
+      note.textContent = text;
+      note.style.color = error ? "#ffb4ad" : "#bfe6c4";
+    };
+    const status = (name, text, kind = "idle") => {
+      const el = find(`${name}-status`);
+      el.textContent = text;
+      el.style.color = kind === "ok" ? "#a6e3b5" : kind === "warn" ? "#ffd479" : kind === "error" ? "#ffb4ad" : "#aab4c3";
+    };
+    const placeholders = () => {
+      notionInput.placeholder = saved.notion ? "Сохранён · введите новый, чтобы заменить" : "Введите токен интеграции";
+      keyInput.placeholder = saved.gwKey ? "Сохранён · введите новый, чтобы заменить" : "Введите ключ шлюза";
+      githubInput.placeholder = saved.github ? "Сохранён · введите новый, чтобы заменить" : "Токен или пусто для публичного репозитория";
+    };
+    const read = () => ({
+      notion: notionRemove.checked ? "" : notionInput.value.trim() || saved.notion,
+      gwUrl: driveRemove.checked ? "" : urlInput.value.trim(),
+      gwKey: driveRemove.checked ? "" : keyInput.value.trim() || saved.gwKey,
+      github: githubRemove.checked ? "" : githubInput.value.trim() || saved.github,
+    });
+    const needsTrust = (settings, endpoint = connectionEndpoint(settings.gwUrl)) =>
+      endpoint.ok && Boolean(settings.gwUrl) && (!endpoint.standard ||
+        (settings.gwUrl !== saved.gwUrl && Boolean(settings.gwKey) && settings.gwKey === saved.gwKey));
+    const refreshForm = () => {
+      const settings = read();
+      const endpoint = connectionEndpoint(settings.gwUrl);
+      const locked = checking || performing;
+      trustWrap.style.display = needsTrust(settings, endpoint) ? "block" : "none";
+      notionInput.disabled = locked || notionRemove.checked;
+      urlInput.disabled = locked || driveRemove.checked;
+      keyInput.disabled = locked || driveRemove.checked;
+      githubInput.disabled = locked || githubRemove.checked;
+      for (const element of [notionRemove, driveRemove, githubRemove, trust, checkButton, saveButton,
+        find("recover"), find("adopt"), find("ntfy")]) element.disabled = locked;
+      const stopAuto = find("stop-auto");
+      const auto = autoOn();
+      stopAuto.disabled = locked || !auto;
+      stopAuto.textContent = auto ? "Остановить автоцикл этой вкладки" : "Автоцикл этой вкладки выключен";
+      stopAuto.style.opacity = stopAuto.disabled ? ".6" : "1";
+      stopAuto.style.cursor = stopAuto.disabled ? "default" : "pointer";
+    };
+    const resetStatuses = () => {
+      status("notion", saved.notion ? "Сохранён · ещё не проверен" : "Не настроен");
+      const endpoint = connectionEndpoint(saved.gwUrl);
+      status("drive", !endpoint.ok ? "Сохранён небезопасный или неверный URL. Замените его на HTTPS." :
+        saved.gwUrl && saved.gwKey ? "Сохранён · ещё не проверен" : "Не настроен полностью", endpoint.ok ? "idle" : "error");
+      status("github", saved.github ? "Сохранён · ещё не проверен" : "Без токена · доступ не проверен");
+    };
+    const changed = () => !sameConnections(read(), saved);
+    const close = () => {
+      if (performing) { say("Восстановление ещё выполняется: дождитесь результата.", true); return false; }
+      const messages = [];
+      if (checking) messages.push("Проверка не отменится и может завершиться после закрытия.");
+      if (changed()) messages.push("Несохранённые изменения будут потеряны.");
+      if (messages.length && !confirm(`${messages.join("\n")}\n\nЗакрыть окно?`)) return false;
+      box.remove();
+      document.getElementById(ui.setup)?.focus();
+      return true;
+    };
+    box.querySelector("#cfn-connections-close").onclick = close;
+    box.onkeydown = (event) => {
+      if (event.key === "Escape") { event.preventDefault(); close(); return; }
+      if (event.key !== "Tab") return;
+      const focusable = [...box.querySelectorAll('button, input, select, textarea, a[href], summary, [tabindex]:not([tabindex="-1"])')]
+        .filter((element) => !element.disabled && element.getClientRects().length);
+      const first = focusable[0], last = focusable[focusable.length - 1];
+      if (!first) { event.preventDefault(); box.querySelector('[role="dialog"]')?.focus(); return; }
+      const active = document.activeElement;
+      if (event.shiftKey && (active === first || !focusable.includes(active))) {
+        event.preventDefault(); last.focus();
+      } else if (!event.shiftKey && (active === last || !focusable.includes(active))) {
+        event.preventDefault(); first.focus();
+      }
+    };
+    for (const element of [notionInput, urlInput, keyInput, githubInput, notionRemove, driveRemove, githubRemove, trust]) {
+      const invalidate = (event) => {
+        // Подтверждение привязано к адресу и ключу, а не к следующему вводу.
+        if (event.target === urlInput || event.target === keyInput || event.target === driveRemove) trust.checked = false;
+        resetStatuses();
+        refreshForm();
+        say("Настройки изменены в окне; проверка и сохранение выполняются отдельно.");
+      };
+      element.addEventListener("input", invalidate);
+      element.addEventListener("change", invalidate);
+    }
+
+    checkButton.onclick = async () => {
+      if (checking || performing) return;
+      const settings = read();
+      const endpoint = connectionEndpoint(settings.gwUrl);
+      const driveAllowed = endpoint.ok && (!needsTrust(settings, endpoint) || trust.checked);
+      checking = true;
+      refreshForm();
+      status("notion", "Проверяю токен и источники…");
+      status("github", "Проверяю доступ к репозиторию…");
+      status("drive", driveAllowed ? "Проверяю шлюз…" : endpoint.ok ? "Подтвердите доверие к указанному шлюзу." : endpoint.message, driveAllowed ? "idle" : "error");
+      say("Проверяю введённые данные. Они ещё не сохранены; Drive ping может создать или перенести папки.");
+      const watchdog = setTimeout(() => {
+        say("Один из сервисов не ответил за 25 секунд. Можно закрыть окно; начатая проверка может ещё завершиться, настройки не сохраняются.", true);
+      }, 25000);
+      const show = async (name, probe) => {
+        try {
+          const result = await probe(settings);
+          status(name, connectionProblem(result.text, settings), result.ok ? result.warning ? "warn" : "ok" : "error");
+        } catch (e) {
+          status(name, `Не удалось проверить: ${connectionProblem(e, settings)}`, "error");
+        }
+      };
+      try {
+        await Promise.all([
+          show("notion", probeNotionConnection),
+          ...(driveAllowed ? [show("drive", probeDriveConnection)] : []),
+          show("github", probeGithubConnection),
+        ]);
+        say("Проверка завершена. Результаты выше относятся к текущим полям и ещё не сохраняют их.");
+      } finally {
+        clearTimeout(watchdog);
+        checking = false;
+        refreshForm();
+      }
+    };
+
+    saveButton.onclick = () => {
+      if (checking || performing) return;
+      if (busy || (typeof projectAsyncWork === "number" && projectAsyncWork > 0) || (autoOn() && !isPaused())) {
+        say("Остановите цикл или поставьте его на паузу и дождитесь завершения текущих шагов и фоновых операций перед сохранением.", true);
+        return;
+      }
+      if (!sameConnections(connectionSettings(), saved)) {
+        say("Настройки изменились в другой вкладке. Закройте это окно и откройте заново, чтобы не затереть их.", true);
+        return;
+      }
+      const next = read();
+      const endpoint = connectionEndpoint(next.gwUrl);
+      const driveChanged = next.gwUrl !== saved.gwUrl || next.gwKey !== saved.gwKey;
+      // Старый HTTP-адрес не отправляем на проверку и не разрешаем менять ключ
+      // к нему. Но не блокируем правку другого подключения: ранее сохранённый
+      // адрес остаётся неизменным и показан как небезопасный до его замены.
+      if (!endpoint.ok && driveChanged) { say(endpoint.message, true); return; }
+      if (driveChanged && needsTrust(next, endpoint) && !trust.checked) {
+        say("Подтвердите доверие к указанному шлюзу: при работе ему будет отправлен ключ.", true);
+        return;
+      }
+      const liveHandoff = GM_getValue(K.pending, null) || GM_getValue(K.expect, null);
+      if (liveHandoff && (driveChanged || next.notion !== saved.notion) &&
+          !confirm("Есть сохранённая очередь или ожидание. Новые доступы и шлюз должны видеть прежние карточки и файлы, иначе восстановление хода может не получиться. Сохранить изменения?")) {
+        say("Подключения не изменены; очередь и ожидание сохранены.");
+        return;
+      }
+      const updates = [
+        [K.notion, saved.notion, next.notion], [K.gwUrl, saved.gwUrl, next.gwUrl],
+        [K.gwKey, saved.gwKey, next.gwKey], [K.ghToken, saved.github, next.github],
+      ].filter(([, before, after]) => before !== after);
+      if (!updates.length) { say("Изменений для сохранения нет."); return; }
+      // Допуск привязан к проверенным данным. Меняем доступ — сначала снимаем
+      // допуск нового проекта, включая фоновые сторожа, и проверяем его заново.
+      if (typeof ACTIVE_PROFILE !== "undefined" && !ACTIVE_PROFILE.legacy)
+        updates.unshift(["cfn-project-approved", GM_getValue("cfn-project-approved", false), false]);
+      if (next.notion !== saved.notion) updates.push([K.rolesCache, GM_getValue(K.rolesCache, null), null]);
+      if (next.github !== saved.github) updates.push([K.ghAsk, GM_getValue(K.ghAsk, 0), 0]);
+      const attempted = [];
+      try {
+        for (const [key, before, after] of updates) {
+          attempted.push([key, before]);
+          GM_setValue(key, after);
+        }
+      } catch {
+        let restored = true;
+        for (const [key, before] of attempted.reverse()) {
+          try { GM_setValue(key, before); } catch { restored = false; }
+        }
+        if (!restored && typeof ACTIVE_PROFILE !== "undefined" && !ACTIVE_PROFILE.legacy) {
+          try { GM_setValue("cfn-project-approved", false); } catch { /* проверить вручную */ }
+        }
+        say(restored ? "Не удалось сохранить; прежние значения восстановлены." : "Не удалось полностью сохранить или восстановить настройки. Проверьте их перед запуском.", true);
+        return;
+      }
+      saved = next;
+      notionInput.value = ""; keyInput.value = ""; githubInput.value = ""; urlInput.value = saved.gwUrl;
+      notionRemove.checked = false; driveRemove.checked = false; githubRemove.checked = false; trust.checked = false;
+      placeholders(); resetStatuses(); refreshForm();
+      const needsApproval = typeof ACTIVE_PROFILE !== "undefined" && !ACTIVE_PROFILE.legacy;
+      say(endpoint.ok ? (needsApproval
+        ? "Сохранено. Допуск проекта снят: откройте «Управление проектами» и проверьте подключения и схему заново."
+        : "Сохранено. Для подтверждения доступа запустите проверку; цикл не запускался.") :
+        "Сохранено. Старый URL шлюза остался небезопасным: замените его перед запуском цикла.", !endpoint.ok);
+      log("Подключения сохранены; секреты в журнал не записываются.", false, { skip: true });
+    };
+
+    find("projects").onclick = () => {
+      if (checking || performing) { say("Дождитесь окончания проверки или восстановления.", true); return; }
+      if (changed()) { say("Сначала сохраните или отмените изменения подключений.", true); return; }
+      if (close()) projectsDialog();
+    };
+    find("github-open").onclick = () => window.open("https://github.com/settings/tokens", "_blank", "noopener");
+    find("stop-auto").onclick = () => {
+      if (!autoOn()) return;
+      autoSet(false);
+      setStatus();
+      log("Автоцикл этой вкладки выключен из окна подключений; очередь и ожидание не сняты.", false, { skip: true });
+      say("Автоцикл этой вкладки выключен. Дождитесь окончания начатого шага; очередь и ожидание сохранены.");
+      refreshForm();
+    };
+    const recover = async (operation, label) => {
+      if (checking || performing) return;
+      if (changed()) { say("Сначала сохраните или отмените изменения: восстановление использует сохранённые настройки.", true); return; }
+      if (busy || (autoOn() && !isPaused())) { say("Остановите цикл и дождитесь окончания шага перед восстановлением.", true); return; }
+      performing = true;
+      refreshForm();
+      say(`${label}…`);
+      const watchdog = setTimeout(() => {
+        say("Восстановление долго не завершается. Не запускайте его повторно: проверьте карточку и журнал; при необходимости перезагрузите вкладку.", true);
+      }, 25000);
+      try {
+        const result = await operation();
+        say(connectionProblem(result.text, saved), !result.ok);
+      } catch (e) {
+        say(`${label}: ${connectionProblem(e, saved)}`, true);
+      } finally { clearTimeout(watchdog); performing = false; refreshForm(); }
+    };
+    find("recover").onclick = () => recover(recoverLastClaim, "Проверяю последнюю карточку");
+    find("adopt").onclick = () => recover(adoptPageAnswer, "Читаю ответ из чата");
+    find("ntfy").onclick = () => {
+      if (changed()) { say("Сначала сохраните или отмените изменения подключений.", true); return; }
+      if (close()) ntfyDialog();
+    };
+    placeholders(); resetStatuses(); refreshForm();
+    if (focusGithub) {
+      say("GitHub запросил доступ: проверьте токен и доступ к репозиторию.", true);
+      githubInput.focus();
+    } else {
+      box.querySelector('[role="dialog"]')?.focus();
+    }
+  }
+
+  // ───────────────────────────── управление проектами ─────────────────────────────
+  // Смена адресов источников у уже работающего профиля не переносит очередь:
+  // изменённая копия получает новый UUID и новое пространство состояния.
+  let projectAsyncWork = 0;
+  const PROJECT_HOLD_PREFIX = "cfn-project-switch-hold:";
+  function projectHeld() {
+    try { return sessionStorage.getItem(PROJECT_HOLD_PREFIX + ACTIVE_PROFILE.id) === "1"; }
+    catch { return true; }
+  }
+  function releaseProjectHold() {
+    try {
+      const held = projectHeld();
+      sessionStorage.removeItem(PROJECT_HOLD_PREFIX + ACTIVE_PROFILE.id);
+      // Отложенный шаг старой сессии не должен запуститься второй раз при
+      // следующей навигации: пользователь сейчас запускает этот шаг вручную.
+      if (held) GM_setValue(K.step, false);
+      return true;
+    } catch { return false; }
+  }
+  function projectRoleAllowed(role) {
+    if (ACTIVE_PROFILE.legacy) return true;
+    try {
+      const target = new URL(role.url, location.href);
+      if (target.origin === location.origin && /^\/agent\/[\w-]+\/?$/.test(target.pathname)) return true;
+    } catch { /* остановка ниже */ }
+    pause("Адрес роли должен быть страницей агента Arena на том же домене, что и эта вкладка. " +
+      "Иначе браузер потеряет выбранный профиль: поправьте Agent URL в базе «Роли».",
+      { kind: "project-role-origin", ref: role.id || "" });
+    return false;
+  }
+  function trackProjectTask(promise) {
+    projectAsyncWork += 1;
+    return Promise.resolve(promise).finally(() => { projectAsyncWork -= 1; });
+  }
+
+  /** Проверка схемы и ролей только чтением, до включения фоновых сторожей. */
+  async function validateProjectSchema(settings) {
+    const headers = { Authorization: `Bearer ${settings.notion}`, "Notion-Version": C.notionV, "Content-Type": "application/json" };
+    const contracts = [
+      ["Роли", C.roles, { "Роль": "title", "Функция": "select", "Статус": "select", "Agent URL": "url", "Зона записи": "rich_text", "Гейт": "rich_text" },
+        { "Функция": ["Coordinator", "Executor", "Auditor", "Reviewer"], "Статус": ["Активна"] }],
+      ["Миссии", C.missions, { "Миссия": "title", "Состояние": "select", "Создана": "date", "Завершена": "date", "Возвращена": "date", "Круг": "number", "Замечания": "rich_text", "Итог": "rich_text", "ТЗ URL": "url" },
+        { "Состояние": ["Активна", "Возвращена", "Завершена", "Провалена"] }],
+      ["Запросы", C.requests, { "Запрос": "title", "Миссия": "rich_text", "Кому": "select", "Sequence": "number", "Dispatch State": "select", "Run ID": "rich_text", "Recipient Agent ID": "rich_text", "Started At": "date", "Submitted At": "date", "PR": "url", "Check": "select", "Output Drive File ID": "rich_text", "Payload Drive File ID": "rich_text", "Намерение": "rich_text", "Инварианты": "rich_text", "Acceptance": "rich_text", "Свободно": "rich_text", "Scope": "rich_text", "Ответ": "rich_text", "Branch": "rich_text", "Report SHA": "rich_text" },
+        { "Dispatch State": ["Draft", "Ready", "Running", "Submitted", "Accepted", "Rework", "Blocked"], "Check": ["pass", "fail"] }],
+      ["Обратная связь", C.questions, { "Вопрос": "title", "Статус": "select", "По умолчанию": "rich_text", "Ответ": "rich_text", "Варианты": "rich_text", "Срок": "date", "Доставлено": "date", "Материал": "url", "Роль": "rich_text", "Карточка": "rich_text", "Миссия": "rich_text", "Что блокирует": "rich_text" },
+        { "Статус": ["Ждёт", "Решено", "Принят дефолт", "Отменён"] }],
+    ];
+    const schemas = {};
+    try {
+      for (const [label, id, fields, options] of contracts) {
+        const source = await request("GET", `https://api.notion.com/v1/data_sources/${id}`, headers);
+        if (!source || source.object !== "data_source" || !source.properties) throw new Error(`«${label}»: источник не вернул схему.`);
+        const errors = [];
+        for (const [name, type] of Object.entries(fields)) {
+          if (source.properties[name]?.type !== type) errors.push(`${name}: нужен ${type}`);
+        }
+        for (const [name, required] of Object.entries(options)) {
+          const actual = source.properties[name]?.select?.options;
+          if (!Array.isArray(actual)) errors.push(`${name}: нет списка select`);
+          else for (const value of required) if (!actual.some((option) => option.name === value)) errors.push(`${name}: нет «${value}»`);
+        }
+        if (errors.length) throw new Error(`«${label}»: ${errors.join(", ")}.`);
+        schemas[label] = source.properties;
+        await new Promise((resolve) => setTimeout(resolve, 350));
+      }
+      const rows = [], cursors = new Set();
+      let cursor = "";
+      while (true) {
+        const page = await request("POST", `https://api.notion.com/v1/data_sources/${C.roles}/query`, headers,
+          { page_size: 100, ...(cursor ? { start_cursor: cursor } : {}) }, { retry: false });
+        if (!page || !Array.isArray(page.results) || typeof page.has_more !== "boolean") throw new Error("База «Роли» вернула неполный список.");
+        rows.push(...page.results);
+        if (rows.length > 1000) throw new Error("База «Роли» слишком велика для проверки.");
+        if (!page.has_more) break;
+        cursor = String(page.next_cursor || "");
+        if (!cursor || cursors.has(cursor)) throw new Error("База «Роли» вернула неверный курсор.");
+        cursors.add(cursor);
+      }
+      const active = rows.map(mapRoleRow).filter((role) => role.status === "Активна");
+      if (active.filter((role) => role.fn === "Coordinator").length !== 1) throw new Error("Нужен ровно один активный Coordinator.");
+      if (!active.some((role) => role.fn === "Reviewer")) throw new Error("Нужна активная роль Reviewer для приёмки и вопросов.");
+      if (!active.some((role) => ["Executor", "Auditor"].includes(role.fn))) throw new Error("Нужен активный исполнитель или аудитор.");
+      const roleIds = new Set();
+      const recipientOptions = schemas["Запросы"]["Кому"].select.options || [];
+      for (const role of active) {
+        let url;
+        try { url = new URL(role.url); } catch { throw new Error(`У роли «${role.name}» некорректный Agent URL.`); }
+        if (url.origin !== location.origin || !/^\/agent\/[\w-]+\/?$/.test(url.pathname) || !role.id)
+          throw new Error(`У роли «${role.name}» Agent URL должен быть страницей агента на домене этой вкладки.`);
+        if (roleIds.has(role.id.toLowerCase())) throw new Error("Несколько активных ролей используют один Agent URL.");
+        roleIds.add(role.id.toLowerCase());
+        if (["Executor", "Auditor"].includes(role.fn) && !recipientOptions.some((option) => option.name === role.name))
+          throw new Error(`В «Запросы → Кому» отсутствует вариант «${role.name}».`);
+      }
+      const branch = await request("GET", `https://api.github.com/repos/${C.repo}/branches/${encodeURIComponent(C.branch)}`, githubHeaders(settings.github));
+      if (!branch || branch.name !== C.branch) throw new Error(`GitHub не подтвердил ветку ${C.branch}.`);
+      return { ok: true, text: "Основные поля, варианты select, роли и базовая ветка читаются. Права записи и содержимое старых карточек не проверялись." };
+    } catch (e) {
+      return { ok: false, text: `Схема или роли не прошли проверку: ${connectionProblem(e, settings)}` };
+    }
+  }
+
+  /** UUID базы из HTTPS-ссылки Notion; ID представления в query не используется. */
+  function notionDatabaseId(value) {
+    try {
+      const url = new URL(String(value || "").trim());
+      if (url.protocol !== "https:" || url.username || url.password ||
+          !["app.notion.com", "notion.so", "www.notion.so"].includes(url.hostname)) return "";
+      const path = decodeURIComponent(url.pathname);
+      const matches = path.match(/[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}/ig) || [];
+      const id = (matches.at(-1) || "").replace(/-/g, "").toLowerCase();
+      return id.length === 32 ? `${id.slice(0,8)}-${id.slice(8,12)}-${id.slice(12,16)}-${id.slice(16,20)}-${id.slice(20)}` : "";
+    } catch { return ""; }
+  }
+
+  function projectsDialog() {
+    if (document.getElementById("cfn-projects")) return;
+    const box = document.createElement("div");
+    box.id = "cfn-projects";
+    box.style.cssText = "position:fixed;inset:0;z-index:2147483201;background:rgba(5,7,12,.76);display:flex;align-items:center;justify-content:center;padding:14px;box-sizing:border-box;color:#e7eaee;font:13px/1.5 system-ui;color-scheme:dark";
+    const field = `${inputStyle()};padding:8px;margin-top:4px;font:13px/1.35 ui-monospace,monospace`;
+    const action = `${btnStyle()};font:12px/1.3 system-ui;padding:8px 10px`;
+    box.innerHTML = `
+      <div role="dialog" aria-modal="true" aria-labelledby="cfn-projects-title" tabindex="-1" style="width:min(700px,100%);max-height:calc(100vh - 28px);overflow:auto;background:#151922;border:1px solid #434c5c;border-radius:14px;padding:18px">
+        <div style="display:flex;gap:12px;align-items:start"><div style="flex:1"><h2 id="cfn-projects-title" style="margin:0 0 4px">Проекты</h2>
+          <div style="color:#aab4c3">Текущий проект: <b id="cfn-project-current"></b>. Выбор закрепляется за этой вкладкой. Для одного проекта используйте только одну активную вкладку.</div></div>
+          <button id="cfn-project-close" style="${action}" aria-label="Закрыть">✕</button></div>
+        <label style="display:block;margin-top:14px">Сохранённые профили<select id="cfn-project-list" style="${field}"></select></label>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;margin:10px 0">
+          <button id="cfn-project-switch" style="${action}">Открыть выбранный проект</button>
+          <button id="cfn-project-new" style="${action}">Новый профиль</button>
+          <button id="cfn-project-copy" style="${action}">Создать на основе выбранного</button>
+          <button id="cfn-project-edit" style="${action}">Исправить текущий до первого допуска</button>
+        </div>
+        <div id="cfn-project-info" style="color:#aab4c3;white-space:pre-wrap"></div>
+        <button id="cfn-project-enable" style="${action};margin-top:8px;background:#285638">Проверить подключения и разрешить работу</button>
+        <div style="margin:8px 0;color:#ffd479;font-size:12px">Для нового проекта необходим шлюз 1.6 с отдельным ключом. После разрешения фоновые сторожа вопросов и старых ADR могут создавать записи; сам автоцикл не запускается.</div>
+        <div id="cfn-project-form" style="display:none;border-top:1px solid #343b48;margin-top:14px;padding-top:12px">
+          <h3 id="cfn-project-form-title" style="margin:0 0 6px">Новый профиль</h3>
+          <div style="color:#aab4c3;font-size:12px">Нужны ID именно источников данных Notion, а не ID представлений или баз. Используйте отдельную копию четырёх баз с той же схемой и ролями Coordinator и Reviewer. Доступы сохраняются отдельно в «Подключениях» после переключения.</div>
+          <div style="display:grid;gap:9px;margin-top:10px">
+            <label>Имя проекта<input id="cfn-project-name" style="${field}" maxlength="80"></label>
+            <label>Notion: источник «Роли»<input id="cfn-project-roles" style="${field}" placeholder="UUID источника или ссылка на базу"></label>
+            <label>Notion: источник «Миссии»<input id="cfn-project-missions" style="${field}" placeholder="UUID источника или ссылка на базу"></label>
+            <label>Notion: источник «Запросы»<input id="cfn-project-requests" style="${field}" placeholder="UUID источника или ссылка на базу"></label>
+            <label>Notion: источник «Обратная связь»<input id="cfn-project-questions" style="${field}" placeholder="UUID источника или ссылка на базу"></label>
+            <div style="border:1px solid #343b48;border-radius:8px;padding:10px;color:#aab4c3;font-size:12px">
+              Если у вас ссылки на четыре отдельные базы, вставьте их выше и временно введите токен интеграции: кнопка прочитает ID источников. Токен не сохраняется и после поиска очищается; вводите его только на доверенной странице.
+              <label style="display:block;margin-top:6px">Токен для поиска ID<input id="cfn-project-lookup-notion" type="password" autocomplete="off" style="${field}" placeholder="Токен Notion (не сохраняется)"></label>
+              <button id="cfn-project-resolve" type="button" style="${action};margin-top:7px">Найти ID источников по ссылкам</button>
+            </div>
+            <label>URL регламента проекта в Notion<input id="cfn-project-pageUrl" style="${field}" placeholder="https://…"></label>
+            <label>URL базы «Обратная связь» в Notion<input id="cfn-project-questionsUrl" style="${field}" placeholder="https://…"></label>
+            <label>GitHub репозиторий<input id="cfn-project-repo" style="${field}" placeholder="owner/repository"></label>
+            <label>Базовая ветка<input id="cfn-project-branch" style="${field}" value="main"></label>
+            <label>Папка проекта внутри Arena (латиница)<input id="cfn-project-driveFolder" style="${field}" placeholder="synapse"></label>
+          </div>
+          <button id="cfn-project-save" style="${action};margin-top:12px;background:#285638">Создать профиль</button>
+        </div>
+        <div id="cfn-project-note" role="status" style="white-space:pre-wrap;color:#bfe6c4;margin-top:12px"></div>
+      </div>`;
+    document.body.appendChild(box);
+    const find = (key) => box.querySelector(`#cfn-project-${key}`);
+    const list = find("list"), note = find("note"), form = find("form");
+    const fields = ["name", "roles", "missions", "requests", "questions", "pageUrl", "questionsUrl", "repo", "branch", "driveFolder"];
+    const say = (message, error = false) => { note.textContent = message; note.style.color = error ? "#ffb4ad" : "#bfe6c4"; };
+    let checking = false;
+    let editingId = "";
+    let openingRevision = JSON.stringify(profileRegistry());
+    const profiles = () => [LEGACY_PROFILE, ...profileRegistry().filter(validProfile)];
+    const chosen = () => profiles().find((p) => p.id === list.value);
+    const render = (selected = ACTIVE_PROFILE.id) => {
+      list.textContent = "";
+      for (const profile of profiles()) {
+        const option = document.createElement("option");
+        option.value = profile.id;
+        option.textContent = profile.name;
+        list.appendChild(option);
+      }
+      list.value = profiles().some((p) => p.id === selected) ? selected : LEGACY_PROFILE_ID;
+      find("current").textContent = ACTIVE_PROFILE.name;
+      const p = chosen();
+      find("info").textContent = p ? `ID: ${p.id}\nGitHub: ${p.repo} · ветка ${p.branch}\nDrive: ${p.legacy ? "Arena/logs и Arena/payloads (совместимость)" : `Arena/${p.driveFolder}/{logs,payloads}`}` : "Профиль не найден.";
+      find("enable").style.display = !ACTIVE_PROFILE.legacy && !ACTIVE_PROFILE.invalid && !projectApproved() ? "inline-block" : "none";
+      const everApproved = !ACTIVE_PROFILE.legacy && (GM_getValue("cfn-project-ever-approved", false) || projectApproved());
+      find("edit").style.display = !ACTIVE_PROFILE.legacy && !ACTIVE_PROFILE.invalid && !everApproved ? "inline-block" : "none";
+    };
+    const close = () => {
+      if (checking) { say("Дождитесь завершения проверки проекта.", true); return; }
+      find("lookup-notion").value = "";
+      box.remove();
+      document.getElementById(ui.setup)?.focus();
+    };
+    find("close").onclick = close;
+    box.onkeydown = (event) => {
+      if (event.key === "Escape") { event.preventDefault(); close(); return; }
+      if (event.key !== "Tab") return;
+      const all = [...box.querySelectorAll('button, input, select, [tabindex]:not([tabindex="-1"])')]
+        .filter((el) => !el.disabled && el.getClientRects().length);
+      if (!all.length) return;
+      if (event.shiftKey && (document.activeElement === all[0] || !all.includes(document.activeElement))) { event.preventDefault(); all.at(-1).focus(); }
+      else if (!event.shiftKey && (document.activeElement === all.at(-1) || !all.includes(document.activeElement))) { event.preventDefault(); all[0].focus(); }
+    };
+    list.onchange = () => render(list.value);
+    find("new").onclick = () => {
+      editingId = "";
+      find("save").textContent = "Создать профиль";
+      find("form-title").textContent = "Новый профиль";
+      for (const field of fields) find(field).value = field === "branch" ? "main" : "";
+      form.style.display = "block"; say("Заполните настройки. Ничего в сервисах не создаётся автоматически.");
+      find("name").focus();
+    };
+    find("copy").onclick = () => {
+      editingId = "";
+      find("save").textContent = "Создать профиль";
+      find("form-title").textContent = "Новый профиль";
+      const p = chosen(); if (!p) return;
+      for (const field of fields) find(field).value = p[field] || (field === "branch" ? "main" : "");
+      find("name").value = `${p.name} — новая настройка`;
+      form.style.display = "block";
+      say("Будет создан новый профиль с пустым состоянием и отдельными доступами; старый профиль не изменится.");
+      find("name").focus();
+    };
+    find("edit").onclick = () => {
+      if (ACTIVE_PROFILE.legacy || ACTIVE_PROFILE.invalid || projectApproved() || GM_getValue("cfn-project-ever-approved", false)) {
+        say("Этот профиль уже использовался. Для других источников создайте новый профиль, не перенося очередь автоматически.", true); return;
+      }
+      if (checking || autoOn() || busy || projectAsyncWork > 0) {
+        say("Дождитесь окончания всех начатых операций.", true); return;
+      }
+      editingId = ACTIVE_PROFILE.id;
+      for (const field of fields) find(field).value = ACTIVE_PROFILE[field] || (field === "branch" ? "main" : "");
+      find("save").textContent = "Сохранить исправления и перезагрузить вкладку";
+      find("form-title").textContent = "Исправить текущий профиль";
+      form.style.display = "block";
+      say("Исправляется текущий профиль до первого допуска. Выбранный ID и сохранённые доступы остаются; схема и подключения будут проверены заново.");
+      find("name").focus();
+    };
+    find("resolve").onclick = async () => {
+      if (checking) return;
+      const names = ["roles", "missions", "requests", "questions"];
+      const values = names.map((name) => find(name).value.trim());
+      const ids = values.map(notionDatabaseId);
+      const token = find("lookup-notion").value.trim();
+      if (!token || ids.some((id) => !id) || new Set(ids).size !== 4) {
+        find("lookup-notion").value = "";
+        say("Для поиска введите токен и четыре разные HTTPS-ссылки на базы Notion (не ссылки на представления).", true); return;
+      }
+      checking = true;
+      say("Читаю источники четырёх баз в Notion; ничего не меняю и токен не сохраняю…");
+      try {
+        const headers = { Authorization: `Bearer ${token}`, "Notion-Version": C.notionV, "Content-Type": "application/json" };
+        const sources = [];
+        for (const id of ids) {
+          const database = await request("GET", `https://api.notion.com/v1/databases/${id}`, headers);
+          const list = database?.data_sources;
+          if (!Array.isArray(list) || list.length !== 1 || !PROJECT_UUID.test(String(list[0]?.id || "")))
+            throw new Error("У базы не ровно один доступный источник: укажите ID нужного data source вручную.");
+          sources.push(list[0].id);
+          await new Promise((resolve) => setTimeout(resolve, 350));
+        }
+        if (names.some((name, i) => find(name).value.trim() !== values[i]) || find("lookup-notion").value.trim() !== token) {
+          say("Поля изменились во время поиска: результаты не подставлены, повторите проверку.", true); return;
+        }
+        if (new Set(sources.map((id) => id.toLowerCase())).size !== 4)
+          throw new Error("У четырёх баз должны быть разные источники.");
+        names.forEach((name, i) => { find(name).value = sources[i]; });
+        say("ID четырёх источников найдены и подставлены. Это чтение не проверяет права записи или схему.");
+      } catch (e) {
+        say(`Поиск ID не завершён: ${connectionProblem(e, { notion: token, gwKey: "", github: "" })}`, true);
+      } finally {
+        find("lookup-notion").value = "";
+        checking = false;
+      }
+    };
+    find("save").onclick = () => {
+      if (checking) { say("Дождитесь окончания поиска или проверки.", true); return; }
+      if (JSON.stringify(profileRegistry()) !== openingRevision) {
+        say("Список проектов изменился в другой вкладке. Закройте окно и откройте его заново.", true); return;
+      }
+      if (editingId && (editingId !== ACTIVE_PROFILE.id || profileRegistry().filter((item) => item.id === editingId).length !== 1 ||
+          projectApproved() || GM_getValue("cfn-project-ever-approved", false) || checking || autoOn() || busy || projectAsyncWork > 0)) {
+        say("Исправление доступно только текущему неиспользованному профилю и после окончания операций.", true); return;
+      }
+      const p = { id: editingId || crypto.randomUUID() };
+      for (const field of fields) p[field] = find(field).value.trim();
+      p.driveFolder = p.driveFolder.toLowerCase();
+      if (!validProfile(p)) {
+        say("Проверьте четыре разных UUID источников, HTTPS-ссылки Notion, owner/repository, допустимую ветку и имя папки из латинских букв, цифр, . _ -.", true); return;
+      }
+      const known = [LEGACY_PROFILE, ...profileRegistry().filter((item) => validProfile(item) && item.id !== editingId)];
+      const sourceIds = new Set(known.flatMap((item) => [item.roles, item.missions, item.requests, item.questions]).map((id) => id.toLowerCase()));
+      if ([p.roles, p.missions, p.requests, p.questions].some((id) => sourceIds.has(id.toLowerCase()))) {
+        say("Один из источников уже используется другим профилем. Создайте отдельные копии всех четырёх баз, чтобы не смешать очереди и роли.", true); return;
+      }
+      if (known.some((item) => !item.legacy && item.driveFolder === p.driveFolder)) {
+        say("Имя папки Drive уже занято другим профилем. Выберите отдельное имя.", true); return;
+      }
+      if (known.some((item) => item.repo.toLowerCase() === p.repo.toLowerCase()) &&
+          !confirm("Этот GitHub-репозиторий уже используется другим профилем. Проекты смогут видеть и изменять один репозиторий. Продолжить?")) return;
+      // Пока было открыто подтверждение, другая вкладка могла допустить
+      // профиль или изменить реестр. Не записываем старый снимок поверх него.
+      if (JSON.stringify(profileRegistry()) !== openingRevision ||
+          (editingId && (projectApproved() || GM_getValue("cfn-project-ever-approved", false)))) {
+        say("Профиль или его допуск изменился во время подтверждения. Откройте окно заново.", true); return;
+      }
+      try {
+        if (editingId) {
+          // Сначала ставим удержание, затем меняем реестр и перезагружаем closure.
+          sessionStorage.setItem(PROJECT_HOLD_PREFIX + p.id, "1");
+          rawSet(PROFILE_REGISTRY_KEY, profileRegistry().map((item) => item.id === editingId ? p : item));
+          location.reload();
+          return;
+        }
+        rawSet(PROFILE_REGISTRY_KEY, [...profileRegistry(), p]);
+        openingRevision = JSON.stringify(profileRegistry());
+      } catch { say("Не удалось сохранить профиль или перезагрузить вкладку. Проверьте настройки и обновите страницу вручную.", true); return; }
+      form.style.display = "none"; render(p.id);
+      say(`Профиль создан. ID: ${p.id}\nТеперь зарегистрируйте его в шлюзе Drive, откройте этот профиль и сохраните отдельные подключения.`);
+    };
+    find("switch").onclick = () => {
+      const target = chosen();
+      if (!target || target.id === ACTIVE_PROFILE.id) { say("Этот проект уже выбран."); return; }
+      if (checking || autoOn() || busy || projectAsyncWork > 0) {
+        say("Остановите автоцикл и дождитесь окончания всех начатых шагов и фоновых запросов. Затем повторите.", true); return;
+      }
+      const handoff = GM_getValue(K.pending, null) || GM_getValue(K.expect, null);
+      if (!confirm(`Открыть «${target.name}»? Вкладка перезагрузится, автоцикл останется выключенным.${handoff ? "\nУ текущего проекта есть очередь или ожидание: они останутся в его профиле." : ""}\nПри возвращении к проекту ожидающий ход не продолжится без ручного шага.`)) return;
+      try {
+        sessionStorage.removeItem(projectStorageKey(target.id, "cfn-auto-enabled"));
+        sessionStorage.setItem(PROJECT_HOLD_PREFIX + target.id, "1");
+        sessionStorage.setItem(PROFILE_SESSION_KEY, target.id);
+        location.reload();
+      } catch { say("Не удалось сохранить выбор во вкладке; проект не переключён.", true); }
+    };
+    find("enable").onclick = async () => {
+      if (checking || ACTIVE_PROFILE.invalid || ACTIVE_PROFILE.legacy) return;
+      if (autoOn() || busy || projectAsyncWork > 0) { say("Сначала остановите цикл и дождитесь завершения операций.", true); return; }
+      const settings = connectionSettings();
+      const profileUnchanged = () => JSON.stringify(resolveProfile(ACTIVE_PROFILE.id)) === JSON.stringify(ACTIVE_PROFILE);
+      if (!profileUnchanged()) { say("Профиль изменён в другой вкладке: обновите страницу и проверьте его заново.", true); return; }
+      if (!settings.notion || !settings.gwUrl || !settings.gwKey) { say("Сначала сохраните Notion и Drive в «Подключениях»; затем вернитесь сюда.", true); return; }
+      checking = true; say("Проверяю сохранённые подключения, проектный шлюз, основные поля Notion и роли…");
+      try {
+        const results = await Promise.all([probeNotionConnection(settings), probeDriveConnection(settings), probeGithubConnection(settings)]);
+        if (results.some((result) => !result.ok)) { say(results.map((result) => result.text).join("\n"), true); return; }
+        const schema = await validateProjectSchema(settings);
+        if (!schema.ok) { say(schema.text, true); return; }
+        if (!profileUnchanged()) { say("Профиль изменён в другой вкладке: обновите страницу и проверьте его заново.", true); return; }
+        if (!sameConnections(settings, connectionSettings())) { say("Подключения изменились в другой вкладке; проверьте проект заново.", true); return; }
+        if (!confirm("Источники, основные поля, роли, ветка и проектный шлюз проверены. Права записи и содержимое старых карточек не проверены.\n\nРазрешить работу? Фоновые сторожа вопросов и предложений могут создавать записи в Notion; автоцикл не запустится.")) return;
+        if (!profileUnchanged()) { say("Профиль изменён во время подтверждения: обновите страницу и проверьте его заново.", true); return; }
+        if (!sameConnections(settings, connectionSettings())) { say("Подключения изменились во время подтверждения; проверьте проект заново.", true); return; }
+        GM_setValue("cfn-project-ever-approved", true);
+        GM_setValue("cfn-project-approved", true);
+        watchQuestions(); watchDecisions(); render();
+        say("Работа проекта разрешена. Автоцикл выключен; запустите его вручную только после проверки схемы и ролей.");
+      } catch (e) { say(`Проверка не завершена: ${connectionProblem(e, settings)}`, true); }
+      finally { checking = false; }
+    };
+    render();
+    find("close").focus();
   }
 
   // ───────────────────────────── ntfy-настройка ─────────────────────────────
@@ -1491,113 +2363,8 @@
   }
 
   // ───────────────────────────── GitHub ─────────────────────────────
-  /**
-   * Токен GitHub и возврат карточки после ложного отказа.
-   *
-   * 24.10 Мастер нажал «Шаг» и не увидел, что скрипту не хватает доступа:
-   * проверка молча получила 404 от приватного репозитория и отправила готовую
-   * работу в Rework. Теперь скрипт говорит об этом сам — в журнале и этим
-   * диалогом, — а кнопка «Вернуть карточку» исправляет уже случившееся.
-   */
   function githubDialog() {
-    document.getElementById("cfn-gh-dialog")?.remove();
-    const box = document.createElement("div");
-    box.id = "cfn-gh-dialog";
-    box.style.cssText = [
-      "position:fixed", "right:14px", "bottom:150px", "z-index:2147483001", "width:400px",
-      "max-height:70vh", "overflow:auto",
-      "background:#15171c", "color:#e7eaee", "border:1px solid #2b2f38", "border-radius:10px",
-      "padding:10px", "font:12px/1.5 ui-monospace,Menlo,Consolas,monospace",
-      "box-shadow:0 10px 30px rgba(0,0,0,.45)",
-    ].join(";");
-    box.innerHTML = `
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-        <strong>🐙 GitHub</strong>
-        <span style="opacity:.5;font-size:10px">v${SCRIPT_VERSION}</span>
-        <span style="flex:1"></span>
-        <button id="cfn-gh-close" title="Закрыть" style="${btnStyle()}">✕</button>
-      </div>
-      <div style="opacity:.7;margin-bottom:8px">
-        <code>${C.repo}</code> приватный, поэтому без токена GitHub отвечает «404 —
-        такого PR нет». Токен нужен только на чтение: fine-grained с правом
-        <b>Pull requests: read</b> (и доступом к репозиторию) либо classic с <code>repo</code>.
-        Хранится в ScriptCat, в журнал не попадает.
-      </div>
-      <label style="display:block;margin-bottom:6px">Токен GitHub<br>
-        <input id="cfn-gh-token" type="password" placeholder="github_pat_…" style="${inputStyle()}"></label>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button id="cfn-gh-save" style="${btnStyle()}">Сохранить</button>
-        <button id="cfn-gh-check" style="${btnStyle()}">Проверить доступ</button>
-        <button id="cfn-gh-recover" style="${btnStyle()}">Вернуть карточку</button>
-        <button id="cfn-gh-adopt" title="Ответ уже в чате, а ожидание потеряно" style="${btnStyle()}">Взять ответ</button>
-        <button id="cfn-gh-open" style="${btnStyle()}">Открыть токены</button>
-        <button id="cfn-gh-off" style="${btnStyle()}">Забыть токен</button>
-      </div>
-      <div id="cfn-gh-note" style="margin-top:8px;min-height:32px;white-space:pre-wrap;opacity:.9;font-size:11px;line-height:1.45"></div>`;
-    document.body.appendChild(box);
-
-    const input = box.querySelector("#cfn-gh-token");
-    const note = box.querySelector("#cfn-gh-note");
-    const say = (text, error = false) => {
-      note.textContent = text;
-      note.style.color = error ? "#ff9a9a" : "#bfe6c4";
-    };
-    input.value = ghToken();
-    say(ghToken() ? `Токен сохранён: ${ghMask(ghToken())}.` : "Токена нет: проверка PR по GitHub пока не работает.");
-
-    box.querySelector("#cfn-gh-close").onclick = () => box.remove();
-    box.querySelector("#cfn-gh-save").onclick = () => {
-      GM_setValue(K.ghToken, input.value.trim());
-      say(ghToken() ? `Сохранено: ${ghMask(ghToken())}. Проверьте доступ кнопкой ниже.` : "Токен удалён.");
-    };
-    box.querySelector("#cfn-gh-off").onclick = () => {
-      GM_setValue(K.ghToken, "");
-      input.value = "";
-      say("Токен удалён: PR будет проверяться анонимно, для приватного репозитория — никак.", true);
-    };
-    box.querySelector("#cfn-gh-open").onclick = () =>
-      window.open("https://github.com/settings/personal-access-tokens/new", "_blank", "noopener");
-    box.querySelector("#cfn-gh-check").onclick = async () => {
-      const token = input.value.trim();
-      say(token ? "Проверяю доступ к репозиторию…" : "Токена в поле нет — проверяю анонимный доступ…");
-      try {
-        const repo = await request("GET", `https://api.github.com/repos/${C.repo}`, githubHeaders(token));
-        const rights = repo && repo.permissions ? Object.keys(repo.permissions).filter((k) => repo.permissions[k]) : [];
-        say(
-          `Доступ есть: ${repo.full_name}, ${repo.private ? "приватный" : "публичный"}` +
-            (rights.length ? `, права: ${rights.join(", ")}` : "") +
-            ". Если токен новый — нажмите «Сохранить».",
-        );
-      } catch (e) {
-        const code = Number((e && e.status) || 0);
-        say(
-          code === 404
-            ? `Репозиторий не виден (HTTP 404): токен не выдан на ${C.repo} или просрочен.`
-            : code === 401
-              ? "Токен не принят (HTTP 401): проверьте, что скопирован целиком и не истёк."
-              : `Проверка не прошла: ${(e && e.message) || e}`,
-          true,
-        );
-      }
-    };
-    box.querySelector("#cfn-gh-recover").onclick = async () => {
-      say("Перепроверяю последнюю заявку о мерже…");
-      try {
-        const res = await recoverLastClaim();
-        say(res.text, !res.ok);
-      } catch (e) {
-        say(`Вернуть не удалось: ${e.message}`, true);
-      }
-    };
-    box.querySelector("#cfn-gh-adopt").onclick = async () => {
-      say("Ищу ответ на этой странице…");
-      try {
-        const res = await adoptPageAnswer();
-        say(res.text, !res.ok);
-      } catch (e) {
-        say(`Ответ не взят: ${e.message}`, true);
-      }
-    };
+    connectionDialog({ focusGithub: true });
   }
 
   /** Один раз после ложного отказа сами показываем, где взять токен. */
@@ -1794,7 +2561,8 @@
     // запрос очереди. Создание страниц (`POST pages`) не повторяем никогда —
     // на 502 или на обрыве запрос мог уже пройти, и повтор сделал бы вторую
     // карточку.
-    const safeToRepeat = method !== "POST" || /\/query$/.test(String(path));
+    const safeToRepeat = (method !== "POST" || /\/query$/.test(String(path))) &&
+      !(method === "PATCH" && /\/children$/.test(String(path)));
     const url = `https://api.notion.com/v1/${path}`;
     const headers = {
       Authorization: `Bearer ${token}`,
@@ -1855,9 +2623,25 @@
    * как у пушей.
    */
   async function gateway(action, fileId, extra = {}) {
-    const url = GM_getValue(K.gwUrl, "");
+    const credentials = { url: GM_getValue(K.gwUrl, ""), key: GM_getValue(K.gwKey, "") };
+    if (typeof ACTIVE_PROFILE !== "undefined" && !ACTIVE_PROFILE.legacy) {
+      if (ACTIVE_PROFILE.invalid) throw new Error("Профиль недоступен: запрос в Drive запрещён.");
+      // Шлюз 1.5 игнорирует неизвестное поле projectId. Не посылаем через него
+      // ни read, ни запись, даже если адрес и ключ ошибочно принадлежат Narthex.
+      const ping = await gatewayWithCredentials("ping", "", { projectId: ACTIVE_PROFILE.id }, credentials);
+      if (!ping || ping.projectScoped !== true || ping.projectId !== ACTIVE_PROFILE.id ||
+          ping.project?.name !== ACTIVE_PROFILE.driveFolder) {
+        const error = new Error("Шлюз не подтвердил этот проект и папку: нужен проектный шлюз 1.6.");
+        error.narthex = "gateway"; error.refused = true; error.reason = error.message; throw error;
+      }
+      return gatewayWithCredentials(action, fileId, { ...extra, projectId: ACTIVE_PROFILE.id }, credentials);
+    }
+    return gatewayWithCredentials(action, fileId, extra, credentials);
+  }
+
+  async function gatewayWithCredentials(action, fileId, extra, { url, key }) {
     if (!url) throw new Error("Не задан URL шлюза Drive: откройте ⚙ и вставьте ссылку /exec.");
-    const payload = JSON.stringify({ action, fileId, key: GM_getValue(K.gwKey, ""), ...extra });
+    const payload = JSON.stringify({ action, fileId, key, ...extra });
     const headers = { "Content-Type": "text/plain;charset=utf-8" };
 
     let gmError = "";
@@ -5263,6 +6047,7 @@
   }
 
   async function sendToRole(role, text, kind, ref, extra = {}) {
+    if (typeof projectRoleAllowed === "function" && !projectRoleAllowed(role)) return false;
     // Ранее выданную Reviewer карточку можно завершить и напомнить о маркере,
     // но новой рабочей выдачи через общий транспорт быть не должно.
     if (kind === "dispatch" && (role.fn === "Reviewer" || norm(role.name) === norm("Warden"))) {
@@ -6118,10 +6903,24 @@
    * Бейджи PR живут на странице PR, а ответ агента читается на его странице:
    * ни Merge, ни Continue там нет. Поэтому, если никакого PR-интерфейса на
    * экране нет, ждать пять минут бессмысленно — решает маркер (`pr` +
-   * `merged: true`). Если кода в main не окажется, это увидит Координатор и
-   * вернёт карточку в Rework.
+   * `merged: true`). Для legacy Narthex при недоступном GitHub остаётся
+   * прежняя заявка без подтверждения; новый проект требует проверяемый PR и
+   * базовую ветку, а DOM-состояние повторно сверяется с GitHub.
    */
   async function ensureMerged(task, result) {
+    const foreign = typeof projectPrBoundary === "function" ? projectPrBoundary(result) : "";
+    if (foreign) { lastMergeCheck = { status: "boundary", why: foreign }; return "boundary"; }
+    const scopedProject = typeof ACTIVE_PROFILE !== "undefined" && !ACTIVE_PROFILE.legacy;
+    let projectCheck = null;
+    if (scopedProject) {
+      // И до запасных кнопок нужен конкретный PR, его репозиторий и base.
+      // Бейдж Arena сам по себе не доказывает, что PR относится к проекту.
+      projectCheck = await verifyMergeClaim(result, ghToken());
+      if (projectCheck.status === "boundary" || projectCheck.status === "unknown") {
+        lastMergeCheck = projectCheck;
+        return "boundary";
+      }
+    }
     // Память о мерже — на выдачу, а не на карточку.
     //
     // 27.10 NAR-4.9 ответили дважды: PR #95 в 16:41 и PR #97 в 21:15. Ключ был
@@ -6132,15 +6931,29 @@
     // в мёртвую ветку, агент отказался работать, маркера не было, и цикл встал.
     // Повторная работа по той же карточке — это новая выдача, у неё свой run.
     const runId = String(result.run_id || rt(task.properties?.["Run ID"]) || "").trim();
-    const key = `${K.merged}${task.id}:${runId || "run"}`;
-    if (GM_getValue(key, false)) return "already";
+    // Для новых проектов память привязана ещё и к PR: другая ссылка в том же
+    // Run не может воспользоваться подтверждением предыдущего PR. Legacy-ключ
+    // остаётся прежним. Даже сохранённый успех сверяется с текущим GitHub.
+    const projectRef = scopedProject ? prRef(result) : null;
+    if (scopedProject && !projectRef) {
+      lastMergeCheck = { status: "boundary", why: "Не удалось определить PR для этого проекта." };
+      return "boundary";
+    }
+    const key = `${K.merged}${task.id}:${runId || "run"}${projectRef ? `:pr-${projectRef.number}` : ""}`;
+    if (GM_getValue(key, false)) {
+      if (scopedProject && projectCheck.status !== "merged") {
+        lastMergeCheck = projectCheck;
+        return "boundary";
+      }
+      return "already";
+    }
 
     // Карточка PR может отрисоваться на пару секунд позже ответа. Без неё мы не
     // нажмём Continue, и агент останется на уже слитой ветке — поэтому ждём.
     const prUi = hasPrUi() ? true : Boolean(await waitFor(hasPrUi, patience(C.prCardWaitMs), 500));
     if (!prUi) {
       if (!hasMergedClaim(result)) {
-        log("PR на странице нет и в ответе нет заявки о мерже — считаю, что работа в main не попала.", true);
+        log(`PR на странице нет и в ответе нет заявки о мерже — считаю, что работа в ${(typeof C !== "undefined" && C.branch) || "main"} не попала.`, true);
         return "unconfirmed";
       }
       return claimMerge(task, result, key, " (PR-интерфейс живёт на странице PR, а не в чате)");
@@ -6152,9 +6965,27 @@
     let clickedMerge = false;
 
     while (Date.now() - started < C.prWaitMs) {
-      if (mergedFlag()) return finishMerge(task, key);
-      if (closedFlag()) return finishClosed(task, key);
-      if (continueButton()) return finishMerge(task, key);
+      if (mergedFlag()) {
+        if (scopedProject) {
+          const check = await verifyMergeClaim(result, ghToken());
+          if (check.status !== "merged") { lastMergeCheck = check; return "boundary"; }
+        }
+        return finishMerge(task, key);
+      }
+      if (closedFlag()) {
+        if (scopedProject) {
+          const check = await verifyMergeClaim(result, ghToken());
+          if (check.status !== "closed") { lastMergeCheck = check; return "boundary"; }
+        }
+        return finishClosed(task, key);
+      }
+      if (continueButton()) {
+        if (scopedProject) {
+          const check = await verifyMergeClaim(result, ghToken());
+          if (check.status !== "merged") { lastMergeCheck = check; return "boundary"; }
+        }
+        return finishMerge(task, key);
+      }
 
       // Агент уже заявил о мерже — кнопки PR не трогаем вовсе, даже если
       // «Create pull request» видна. 24.10 (14:48) именно этот клик отправил в
@@ -6255,13 +7086,15 @@
     // выдуманной было нечем. Теперь состояние спрашиваем у GitHub.
     const check = await verifyMergeClaim(result, ghToken());
     lastMergeCheck = check;
+    if (check.status === "boundary" || (typeof ACTIVE_PROFILE !== "undefined" && !ACTIVE_PROFILE.legacy && check.status === "unknown"))
+      return "boundary";
     // Проверка не дошла до GitHub (нет токена, отказ прав, сеть). Заявку это не
     // отменяет: без проверки действует прежнее правило, но мастер должен знать,
     // что «слит» принято на слово, и что делать.
     if (check.status === "unknown" && check.needsToken) {
       log(
         `GitHub не проверил ${prLabelOf(result)}: ${check.why}. Заявка принимается по маркеру; ` +
-          "чтобы проверять по GitHub, вставьте токен в 🐙.",
+          "чтобы проверять по GitHub, откройте «⚙ Подключения» и сохраните токен.",
         false,
         { tone: "warn", ntfy: "quiet", title: "Narthex: GitHub без токена" },
       );
@@ -6279,7 +7112,7 @@
     if (check.status === "open" || check.status === "closed") {
       log(
         `Заявка «${prLabelOf(result)} слит» не подтвердилась: ${check.why}. ` +
-          "Карточка вернётся в Rework — работа в main не попала.",
+          `Карточка вернётся в Rework — работа в ${(typeof C !== "undefined" && C.branch) || "main"} не попала.`,
         true,
         // Итоговый тихий пуш с названием карточки отправляется после Rework.
         { tone: "warn", ntfy: false },
@@ -6341,9 +7174,6 @@
    */
   const ghToken = () => String(GM_getValue(K.ghToken, "") || "").trim();
 
-  /** Подпись токена для журнала и диалога: сам токен не показываем. */
-  const ghMask = (token) => (token ? `${token.slice(0, 4)}…${token.slice(-4)}` : "не задан");
-
   /** Ссылка на PR: принимаем и номер, и готовый URL. */
   function prUrl(pr) {
     const value = String(pr ?? "").trim().replace(/^#/, "");
@@ -6372,6 +7202,29 @@
     if (url) return { repo: `${url[1]}/${url[2]}`, number: Number(url[3]) };
     const num = raw.replace(/^#/, "").match(/^(\d+)$/);
     return num ? { repo: C.repo, number: Number(num[1]) } : null;
+  }
+
+  /** Явная чужая или некорректная ссылка не доказывает мерж нашего проекта. */
+  function projectPrBoundary(result) {
+    const raw = String((result && result.pr) ?? "").trim();
+    if (!raw || /^(none|null|no|нет|—|-)$/i.test(raw)) {
+      return typeof ACTIVE_PROFILE !== "undefined" && !ACTIVE_PROFILE.legacy && hasMergedClaim(result)
+        ? "В маркере нет номера PR для проверки репозитория и базовой ветки." : "";
+    }
+    if (typeof ACTIVE_PROFILE !== "undefined" && !ACTIVE_PROFILE.legacy &&
+        !/^https?:/i.test(raw) && !/^#?\d+$/.test(raw)) return "Укажите номер PR или полную HTTPS-ссылку GitHub.";
+    if (/^https?:/i.test(raw)) {
+      try {
+        const url = new URL(raw);
+        if (url.protocol !== "https:" || url.hostname !== "github.com" || url.username || url.password ||
+            !/^\/[\w.-]+\/[\w.-]+\/pull\/\d+\/?$/.test(url.pathname))
+          return "Ссылка PR не является адресом GitHub pull request.";
+      } catch { return "Некорректная ссылка PR."; }
+    }
+    const ref = prRef(result);
+    if (ref && ref.repo.toLowerCase() !== String(C.repo || "").toLowerCase())
+      return `PR относится к ${ref.repo}, а этот профиль работает с ${C.repo}.`;
+    return "";
   }
 
   /** Заголовки GitHub API. Без токена запрос остаётся анонимным (60 в час). */
@@ -6408,11 +7261,20 @@
    * репозиторий без токена отвечает 404, и это нельзя читать как «PR нет».
    */
   async function verifyMergeClaim(result, token = "") {
+    const foreign = typeof projectPrBoundary === "function" ? projectPrBoundary(result) : "";
+    if (foreign) return { status: "boundary", why: foreign };
     const ref = prRef(result);
     if (!ref) return { status: "unknown", why: "в маркере нет номера PR" };
     try {
       const pr = await githubPr(ref.repo, ref.number, token);
       if (!pr || typeof pr !== "object") return { status: "unknown", why: "GitHub ответил пустым ответом" };
+      if (typeof ACTIVE_PROFILE !== "undefined" && !ACTIVE_PROFILE.legacy &&
+          String(pr.base?.repo?.full_name || "").toLowerCase() !== String(C.repo || "").toLowerCase())
+        return { status: "boundary", why: "GitHub не подтвердил репозиторий базовой ветки PR этого проекта." };
+      if (pr.base?.ref && C.branch && pr.base.ref !== C.branch)
+        return { status: "boundary", why: `PR направлен в ${pr.base.ref}, а базовая ветка проекта — ${C.branch}.` };
+      if (typeof ACTIVE_PROFILE !== "undefined" && !ACTIVE_PROFILE.legacy && !pr.base?.ref)
+        return { status: "boundary", why: "GitHub не подтвердил базовую ветку PR этого проекта." };
       const merged = pr.merged === true || Boolean(pr.merged_at);
       if (merged) return { status: "merged", why: `PR #${ref.number} слит ${pr.merged_at || ""}`.trim(), pr };
       if (String(pr.state || "").toLowerCase() === "closed")
@@ -6427,7 +7289,7 @@
         return {
           status: "unknown",
           needsToken: true,
-          why: `PR #${ref.number} анонимно не виден: ${ref.repo} приватный — нужен токен GitHub (🐙)`,
+          why: `PR #${ref.number} анонимно не виден: ${ref.repo} приватный — нужен токен GitHub в «⚙ Подключения»`,
         };
       if (code === 404) {
         // Прежде чем сказать «PR нет», убеждаемся, что токен вообще видит
@@ -6465,7 +7327,7 @@
    * Вернуть карточку, которую проверка ошибочно отправила в Rework.
    *
    * 24.10 NAR-1.13 лежала в Rework при слитом PR #37: работа в main, а
-   * Координатор уже готовил повторную выдачу. Кнопка 🐙 → «Вернуть карточку»
+   * Координатор уже готовил повторную выдачу. Кнопка «Подключения» → «Вернуть карточку»
    * спрашивает GitHub ещё раз и, если мерж подтверждён, ставит ровно то, что
    * поставила бы удачная проверка: Submitted, Submitted At, PR и отметку в
    * «Ответ». Ready не трогаем: если карточку уже выдали заново, решает Мастер.
@@ -6516,7 +7378,7 @@
     // Rework — это отказ, при котором ответ агента так и не был прочитан
     // (24.10: работа в main, а карточка ушла в Rework). Такую карточку
     // возвращаем не в Submitted, а в Running: иначе ответ останется в чате
-    // невычитанным, и следующая выдача станет дублем (🐙 → «Взять ответ»).
+    // невычитанным, и следующая выдача станет дублем («Подключения» → «Взять ответ из чата»).
     if (state === "Rework" || state === "Running") {
       if (state === "Rework") {
         const props = {
@@ -6687,6 +7549,9 @@
    * в `submitExecutor` по `role.fn`, а не здесь.
    */
   const prDeclined = (result) => {
+    // Новый проект не может одновременно заявлять «PR нет» и «слит»: такую
+    // заявку должен остановить projectPrBoundary, не обходить проверку PR.
+    if (typeof ACTIVE_PROFILE !== "undefined" && !ACTIVE_PROFILE.legacy && hasMergedClaim(result)) return false;
     if (!result || !("pr" in result)) return false;
     const pr = result.pr;
     if (pr === null || pr === undefined) return true;
@@ -6803,7 +7668,7 @@
     "В «Ролях» ты только читаешь: Статус и Agent URL ставит Мастер.",
     "Ветки, коммиты и PR — не твоя зона: за них отвечают Executor и Auditor.",
     "Очередь — твоя: нарезка, Кому, Sequence, число Ready и выдача работы — новой карточкой или Draft → Ready. Оракул фазы — не твоя:",
-    "команду проверки и инварианты менять нельзя; для изменения нужен ADR proposed, вопрос и фактическое решение приёмки или Мастера.",
+    "команду проверки и инварианты менять нельзя; для изменения нужны вопрос ADR в Notion и фактическое решение приёмки или Мастера. Существующие proposed-файлы сохраняются.",
     "",
     "ФАЙЛ ЗАДАНИЯ (Payload Drive File ID) обычно не нужен:",
     "карточка и есть задание — её Намерение, Инварианты, Оракул и Scope уходят исполнителю.",
@@ -6842,7 +7707,13 @@
    */
   function technicalInfo(role) {
     const body = TECH_BY_FN[role.fn] || EXECUTOR_TECH;
-    return [techHeader(role), "", body, "", TECH_CLOSE].join("\n");
+    let text = [techHeader(role), "", body, "", TECH_CLOSE].join("\n");
+    if (C.branch && C.branch !== "main") text = text.replace(/\bmain\b/g, C.branch);
+    if (C.driveFolder) text = text.replace(/Arena\/payloads/g, `Arena/${C.driveFolder}/payloads`)
+      .replace("Раскладка и правила — docs/agents/drive.md.", `Папка текущего проекта — Arena/${C.driveFolder}.`);
+    if (C.projectName && C.projectName !== "Narthex")
+      text = text.replace("которые в " + (C.branch || "main") + " уже есть (замер 2026-10-22: 46 файлов, включая сам этот скрипт;\nчисло растёт с каждой миссией).", "которые в базовой ветке уже есть.");
+    return text;
   }
 
   // ───────────────────────────── промпты ─────────────────────────────
@@ -6900,11 +7771,12 @@
     return [
       "КАК РЕШАТЬ",
       `Зона записи${role && role.zone ? ` (${role.zone})` : ""} — рамка по умолчанию; Scope карточки расширяет её на этот ход. На этот ход карточка главнее общей рамки.`,
-      "Неоднозначность решаешь сам: минимальное изменение, «Допущение: …» строкой в отчёт; меняет контракт — запись в docs/decisions.",
+      "Неоднозначность решаешь сам: минимальное изменение, «Допущение: …» строкой в отчёт. Изменение контракта предложи через question (ADR) и до фактического решения приёмки оставь контракт как есть; новый ADR-файл в репозитории нужен, только если его требует ТЗ.",
       'Вопрос задаётся только полем question в маркере: {"text":"…","options":["A","B"],"default":"A","hours":24}. Вариант по умолчанию обязателен — по нему ты работаешь сразу, не дожидаясь ответа. Вопрос уходит приёмке сразу, как только записан: ответ придёт строкой в следующем промпте, обычно в том же ходе цикла. Больше одного вопроса за ход не задавай.',
       "Вопросы и предложения попадают в одну базу «Обратная связь» в Notion. Если есть материал, добавь в question необязательное поле url с полной HTTP(S)-ссылкой: она сохранится в поле «Материал».",
       "Вопрос уместен, только если ответ меняет то, что будет построено, и ни ТЗ, ни карточка его не дают. Порядок, формулировки, оформление — решай сам.",
-      "Предложение (ADR `proposed` в docs/decisions) — это тоже вопрос, и оно не работает без второго шага: в том же ходе задай question со ссылкой на файл, тремя вариантами и default = «оставить как есть». Иначе решение лежит в репозитории, где Мастер его не увидит. Ответ придёт строкой в следующем промпте — тогда и меняй статус: `accepted` или `rejected`, с датой. Оставлять `proposed` после ответа нельзя: это выглядит как нерешённый вопрос.",
+      "Новые предложения веди в Notion через question: начинай text с «ADR:», изложи суть, контекст, доказательства, три варианта и последствия целиком (до 12000 знаков); default — «оставить как есть». Запись попадёт в «Обратную связь», полный текст сохраняется в теле. Сам default или срок не заменяет решения приёмки. Новый файл ADR в GitHub не обязателен, если ТЗ не требует его отдельно.",
+      "Для уже существующих файлов: предложение (ADR `proposed` в docs/decisions) — это тоже вопрос, и оно не работает без второго шага: в том же ходе задай question со ссылкой на файл, тремя вариантами и default = «оставить как есть». Иначе решение лежит в репозитории, где Мастер его не увидит. Ответ придёт строкой в следующем промпте — тогда и меняй статус: `accepted` или `rejected`, с датой. Оставлять `proposed` после ответа нельзя: это выглядит как нерешённый вопрос.",
       "Статус решения не должен замораживаться тестом: оракул, который требует `Статус: proposed`, защищает открытый вопрос от ответа. Проверка вправе требовать только допустимый статус, а не конкретный.",
       "Опрос в чате, «May I…», просьба разрешения — не вопрос, а остановка хода: работа не сдаётся, карточка висит в Running. Не делай так.",
       "Файлы для показа не открывай: путь к файлу назови текстом в отчёте — Мастер откроет сам, если нужно.",
@@ -6920,14 +7792,14 @@
       "2. Коммит, если разрешён: git add -A && git commit -m \"<номер>: <суть>\" — ТОЛЬКО когда в дереве нет чужих изменений; иначе укажи свои пути явно.",
       "3. Пуш — только в разрешённую ветку и если он действительно запрошен.",
       "4. PR и мерж — только если разрешены; проверяй, что PR содержит лишь твою работу:",
-      "   gh pr create --fill --base main   # если PR уже есть — пропусти",
+      `   gh pr create --fill --base ${(typeof C !== "undefined" && C.branch) || "main"}   # если PR уже есть — пропусти`,
       "   # Исторический пример НЕ выполнять: gh pr merge --squash --delete-branch",
       "   Вместо него — gh pr merge <номер> --squash без удаления закреплённой ветки; номер указывай явно.",
       "   Своих изменений в репозитории нет (отчёт, аудит-справка, запись решения): PR не открывай,",
       "   пустой PR ради галочки не нужен — в маркере поставь \"pr\": null.",
       "5. Проверка: команда, код возврата, путь к отчёту. Если задание молчит в чём-то,",
-      "   реши сам и запиши решение в docs/decisions/<миссия>.md — останавливаться не нужно.",
-      "   Вопрос Мастеру — полем question в маркере (формат в «КАК РЕШАТЬ»); работа от него не встаёт.",
+      "   реши сам обратимо и запиши неясно / решил / откат в docs/decisions/<миссия>.md, если Scope разрешает этот путь; иначе — в отчёте.",
+      "   Изменение контракта предложи через question в Notion; до фактического решения контракт остаётся прежним.",
       "6. Последней строкой ответа — ровно один маркер:",
       `CF_AGENT_RESULT {"dispatch_id":"${task.id}","run_id":"${runId}","status":"submitted","check":0,"report":"<путь>","pr":<номер PR>,"merged":true}`,
       "`pr` и `merged: true` обязательны, если PR слит: без них «слит» не отличить от",
@@ -6941,7 +7813,7 @@
     return [
       "ПОРЯДОК (каждый ход, обязательно)",
       "1. В репозитории ничего не менять: ни ветки, ни коммита, ни пуша, ни PR.",
-      "2. Собрать факты из origin/main и из слитого PR (команды — в блоке выше).",
+      `2. Собрать факты из origin/${(typeof C !== "undefined" && C.branch) || "main"} и из слитого PR (команды — в блоке выше).`,
       "3. Вердикт: pass или fail, каждое утверждение — с командой, которой его проверить.",
       "4. Находки — в отчёт; чинить их будет исполнитель, а не ты.",
       "5. Последней строкой ответа — ровно один маркер:",
@@ -6985,7 +7857,8 @@
       "  • Оракул — команда, которой проверяют результат;",
       "  • Scope — единственное место записи.",
       "Если чего-то не хватает — реши сам, выбери обратимый вариант и запиши",
-      "три строки (неясно / решил / откат) в docs/decisions/<миссия>.md.",
+      "три строки (неясно / решил / откат) в docs/decisions/<миссия>.md, если Scope разрешает этот путь; иначе — в отчёте.",
+      "Предложение изменить контракт отправь через question в Notion; до ответа контракт не меняется.",
     ].join("\n");
   }
 
@@ -7112,9 +7985,9 @@
       "Если роль не может получить работу («Ждёт», пустой Agent URL, нет в «Ролях») — назначь в «Кому» активную роль или оставь Draft и назови, кого он ждёт. Статус роли и Agent URL — зона Мастера, не меняй их.",
       "Роли Reviewer (Warden) обычные рабочие карточки не выдавай: аудит поручай независимому Auditor или подходящему Executor. Reviewer отдельно принимает миссию по next: done и отвечает на вопросы и предложения; оба канала сохраняются.",
       "Проверки промежуточной карточки выбирай по её рискам и Scope, но выполни все проверки, прямо требуемые её Acceptance и ТЗ: не запускай повторно полный миссионный набор без требования или риска. Accepted означает обработку карточки, а не pass её проверки и не выполнение всей миссии; явно учитывай Check=fail и остатки.",
-      "Если ТЗ требует финальные проверки на одном SHA: после последней обязательной правки зафиксируй финальный main SHA, выполни все требуемые команды и CI именно на нём, а отчёт/ссылки сохрани в Notion или Drive, когда это разрешено ТЗ. Отчётный коммит после проверок меняет SHA; если код или обязательный файл изменился, зафиксируй новый SHA и повтори требуемые проверки. Требование отчёта конкретной карточки не отменяется.",
-      "Оракул миссии (ТЗ §2/§3) и инварианты миссии менять нельзя: другой смысл требует процесса ТЗ — ADR proposed, вопроса и фактического решения приёмки или Мастера в пределах его полномочий. Acceptance карточки — не оракул миссии: ошибочную формулировку ты исправляешь сам, но так, чтобы смысл проверки миссии не изменился.",
-      "ADR proposed — это очередь решений Мастера по старому названию; по существу на предложения отвечает Reviewer, Мастер нужен только при физической необходимости. Предложение видно счётчиком «⚖». Каждое сопровождай вопросом в том же маркере: суть и имя файла, три варианта, default = «оставить как есть». Только фактический ответ приёмки или Мастера разрешает исполнителю оформить `accepted`/`rejected` с датой. Сам default или истёкший срок не являются ответом и не разрешают менять оракул. Нерешённое предложение — долг, а не состояние: если оно висит, назови его в Итоге миссии.",
+      `Если ТЗ требует финальные проверки на одном SHA: после последней обязательной правки зафиксируй финальный ${(typeof C !== "undefined" && C.branch) || "main"} SHA, выполни все требуемые команды и CI именно на нём, а отчёт/ссылки сохрани в Notion или Drive, когда это разрешено ТЗ. Отчётный коммит после проверок меняет SHA; если код или обязательный файл изменился, зафиксируй новый SHA и повтори требуемые проверки. Требование отчёта конкретной карточки не отменяется.`,
+      "Оракул миссии (ТЗ §2/§3) и инварианты миссии менять нельзя: другой смысл требует процесса ТЗ — предложения ADR через вопрос в Notion и фактического решения приёмки или Мастера в пределах его полномочий. Acceptance карточки — не оракул миссии: ошибочную формулировку ты исправляешь сам, но так, чтобы смысл проверки миссии не изменился.",
+      "Новые предложения ADR передавай через question в том же маркере: полная суть, ссылка на материал при наличии, три варианта, default = «оставить как есть». Они попадают в «Обратную связь»; по существу отвечает Reviewer, Мастер нужен только при физической необходимости. Старые файлы ADR proposed и их историю сохраняй, включая ссылку на файл в вопросе; не удаляй их до безопасного переноса и фактического рассмотрения. Только фактический ответ приёмки или Мастера разрешает исполнителю оформить существующий файл как `accepted`/`rejected` с датой. Сам default или истёкший срок не являются ответом и не разрешают менять оракул. Нерешённое предложение — долг, а не состояние: если оно висит, назови его в Итоге миссии.",
       "",
       "ХОД — один ответ:",
       "1) Submitted → проверь по Acceptance, поставь Accepted или Rework (причина в «Ответ»).",
@@ -7133,7 +8006,6 @@
       roleContext(role),
     ].filter(Boolean).join("\n");
   }
-
 
   // ───────────────────────────── ход исполнителя ─────────────────────────────
   /**
@@ -7163,7 +8035,7 @@
       if (!refusedBecauseOfFolder(e)) throw e;
       log(
         `Поле «Output Drive File ID» указывает не на журнал (${declaredLogId}): ` +
-          "шлюз пишет только в Arena/logs. Беру журнал этой выдачи и возвращаю ссылку в карточку.",
+          `шлюз пишет только в ${(typeof C !== "undefined" && C.driveFolder) ? `Arena/${C.driveFolder}/logs` : "Arena/logs"}. Беру журнал этой выдачи и возвращаю ссылку в карточку.`,
         true,
         { ntfy: false },
       );
@@ -7466,7 +8338,7 @@
       return true;
     }
     // Что решила проверка — запоминаем до записи в Notion. Если она ошиблась,
-    // 🐙 → «Вернуть карточку» перепроверит GitHub и вернёт Submitted, не гоняя
+    // «Подключения» → «Вернуть карточку» перепроверит GitHub и вернёт Submitted, не гоняя
     // исполнителя по второму кругу.
     GM_setValue(K.lastResult, {
       at: Date.now(),
@@ -7495,6 +8367,13 @@
       );
     }
 
+    if (merged === "boundary") {
+      pause(`Не удалось подтвердить PR этого проекта и базовой ветки: ${(lastMergeCheck && lastMergeCheck.why) || "сверьте репозиторий"}. ` +
+        "Карточка не изменена, ожидание сохранено; проверьте ссылку и нажмите «Продолжить».",
+        { kind: "project-pr-boundary", ref: result.dispatch_id, runId: result.run_id });
+      return true;
+    }
+
     // Заявка о мерже не подтвердилась по GitHub: агент написал «слит», а PR
     // открыт, закрыт без мержа или его нет вовсе. Это не «PR закрыт» — это
     // работа, которой в main нет, поэтому карточка идёт в Rework с причиной.
@@ -7502,7 +8381,7 @@
       const why = (lastMergeCheck && lastMergeCheck.why) || "состояние PR не подтвердилось";
       const reason =
         `Исполнитель заявил, что PR слит, но GitHub говорит другое: ${why}. ` +
-        "Работа в main не попала — нужна повторная выдача.";
+        `Работа в ${(typeof C !== "undefined" && C.branch) || "main"} не попала — нужна повторная выдача.`;
       try {
         await gateway("append", logId, {
           marker: `<!-- CF_DISPATCH ${result.dispatch_id}:${result.run_id}:claim-rejected -->`,
@@ -7536,8 +8415,8 @@
     if ((merged === "closed" || merged === "unconfirmed") && !hasMergedClaim(result)) {
       const reason =
         merged === "closed"
-          ? "PR закрыт без мержа (Closed). Работа в main не попала — нужна повторная выдача."
-          : "Исполнитель не заявил о мерже (нет merged: true) и PR не открыт. Работа в main не попала — нужна повторная выдача.";
+          ? `PR закрыт без мержа (Closed). Работа в ${(typeof C !== "undefined" && C.branch) || "main"} не попала — нужна повторная выдача.`
+          : `Исполнитель не заявил о мерже (нет merged: true) и PR не открыт. Работа в ${(typeof C !== "undefined" && C.branch) || "main"} не попала — нужна повторная выдача.`;
       try {
         await gateway("append", logId, {
           marker: `<!-- CF_DISPATCH ${result.dispatch_id}:${result.run_id}:closed -->`,
@@ -7991,6 +8870,7 @@
     // Отложенные вопросы повторяются здесь же: проверка идёт и на паузе, а
     // вопрос, который ждёт Мастера, не должен зависеть от хода цикла.
     try {
+      if (typeof flushQuestionBodies === "function") await flushQuestionBodies();
       await flushQuestionQueue();
     } catch (e) {
       dbg("вопросы: очередь не обработана", e.message);
@@ -8011,7 +8891,9 @@
           const value = rt(row.properties["Миссия"]).trim();
           return !questionClosedAfter(row.id, revision) && (!value || missionSame(value, wanted));
         });
-        const due = expiredQuestions(mine).filter((row) => rt(row.properties["По умолчанию"]));
+        const due = expiredQuestions(mine).filter((row) => rt(row.properties["По умолчанию"]) &&
+          !(typeof questionBodyPending === "function" && questionBodyPending(row.id)) &&
+          !(typeof questionQueuedForRow === "function" && questionQueuedForRow(row)));
         // Скрываем только реально записанные закрытия: ошибка Notion и ADR,
         // который ждёт фактического решения, остаются видимыми и в очереди.
         await closeExpired(due, closed);
@@ -8024,17 +8906,23 @@
             !closed.has(row.id) &&
             !questionClosedAfter(row.id, revision) &&
             !rt(row.properties["Ответ"]).trim() &&
+            !(typeof questionBodyPending === "function" && questionBodyPending(row.id)) &&
+            !(typeof questionQueuedForRow === "function" && questionQueuedForRow(row)) &&
             !GM_getValue(answerHandoffKey(row.id), 0),
         );
+        let handed = 0;
         for (const row of adopted) {
-          handWaitingRow(row, questionFromRow(row), {
-            roleName: "Narthex (транспорт)",
-            mission: wanted,
-          });
+          try {
+            const q = typeof questionFromRowComplete === "function" ? await questionFromRowComplete(row) : questionFromRow(row);
+            if (handWaitingRow(row, q, { roleName: "Narthex (транспорт)", mission: wanted })) handed += 1;
+          } catch (e) {
+            dbg("вопросы: полный материал не прочитан — приёмку не вызываю", e.message);
+            logThrottled(`question-body:${row.id}`, `Не удалось полностью прочитать материал вопроса «${rt(row.properties["Вопрос"])}» в Notion: приёмке его пока не передаю. Проверьте страницу.`, true);
+          }
         }
-        if (adopted.length) {
+        if (handed) {
           log(
-            `Вопросов «Ждёт» без ответа, которые не передавались приёмке: ${adopted.length} — поставил в очередь, ` +
+            `Вопросов «Ждёт» без ответа, которые не передавались приёмке: ${handed} — поставил в очередь, ` +
               "она ответит на ближайшем шаге.",
             false,
             { ntfy: "quiet", title: "Narthex: вопрос передан приёмке" },
@@ -8063,8 +8951,11 @@
 
   let questionsWatch = 0;
   function watchQuestions() {
+    if (typeof projectApproved === "function" && !projectApproved()) return;
     if (questionsWatch) return;
-    questionsWatch = window.setInterval(() => refreshQuestions().catch(() => {}), C.questionCheckMs);
+    questionsWatch = window.setInterval(() => {
+      if (!document.getElementById("cfn-projects")) refreshQuestions().catch(() => {});
+    }, C.questionCheckMs);
     refreshQuestions().catch(() => {});
   }
 
@@ -8091,7 +8982,7 @@
       .map((hit) => hit[1]));
     if (files.size !== 1 || !C.repo) return "";
     const file = [...files][0];
-    return `https://github.com/${C.repo}/blob/main/docs/decisions/${encodeURIComponent(file)}`;
+    return `https://github.com/${C.repo}/blob/${(C.branch || "main").split("/").map(encodeURIComponent).join("/")}/docs/decisions/${encodeURIComponent(file)}`;
   };
 
   /**
@@ -8130,6 +9021,38 @@
     return `${head}…`;
   };
 
+  /** Полный материал не режем: избыточный маркер требует ручной проверки. */
+  function fullQuestionText(value) {
+    const text = String(value == null ? "" : value).trim();
+    const limit = Number(C.questionTextFull) || 12000;
+    if (text.length > limit) {
+      const error = new Error(`Полный вопрос превышает ${limit} знаков: не записан и не передан приёмке. Сохраните материал в Notion и разберите ход вручную.`);
+      error.narthex = "question-too-long";
+      throw error;
+    }
+    return text;
+  }
+  function questionFallback(value) {
+    const text = String(optionLabel(value) || "").replace(/\s+/g, " ").trim();
+    if (text.length > C.questionDefaultMax) {
+      const error = new Error(`Вариант по умолчанию длиннее ${C.questionDefaultMax} знаков: он не может быть применён без полного текста. Разберите ход вручную.`);
+      error.narthex = "question-too-long";
+      throw error;
+    }
+    return text;
+  }
+  function questionOptions(raw) {
+    const all = Array.isArray(raw) ? raw.map((option) => String(optionLabel(option) || "").replace(/\s+/g, " ").trim()).filter(Boolean) : [];
+    fullQuestionText(all.join("\n")); // ни один длинный вариант не усекать молча
+    return all;
+  }
+  function questionWithOptions(text, all) {
+    const full = fullQuestionText(text);
+    // Для совместимости поле «Варианты» содержит не больше четырёх. Остальные
+    // не теряются: вместе с полным набором они идут в тело страницы.
+    return all.length > 4 ? fullQuestionText(`${full}\n\nВсе варианты из маркера:\n${all.map((item, i) => `${i + 1}. ${item}`).join("\n")}`) : full;
+  }
+
   /**
    * Разбор поля `question` из маркера. `null` — вопроса нет.
    *
@@ -8139,12 +9062,11 @@
   function parseQuestion(raw) {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
     const text = questionTitle(raw.text, C.questionTextMax);
-    const fullText = oneLine(raw.text, C.questionTextFull);
-    const fallback = oneLine(optionLabel(raw.default), C.questionDefaultMax);
+    const fallback = questionFallback(raw.default);
     if (!text || !fallback) return null;
-    const options = Array.isArray(raw.options)
-      ? raw.options.map((option) => oneLine(optionLabel(option), 80)).filter(Boolean).slice(0, 4)
-      : [];
+    const allOptions = questionOptions(raw.options);
+    const fullText = questionWithOptions(raw.text, allOptions);
+    const options = allOptions.slice(0, 4);
     const hours = Number(raw.hours);
     return {
       text,
@@ -8181,20 +9103,19 @@
     if (!text) return { kind: "none" };
     const asked = parseQuestion(raw);
     if (asked) return { kind: "asked", question: asked };
-    const options = Array.isArray(obj.options)
-      ? obj.options.map((option) => oneLine(optionLabel(option), 80)).filter(Boolean).slice(0, 4)
-      : [];
+    const allOptions = questionOptions(obj.options);
+    const options = allOptions.slice(0, 4);
     const hours = Number(obj.hours);
     return {
       kind: "text",
       question: {
         text,
-        fullText: oneLine(rawText, C.questionTextFull),
+        fullText: questionWithOptions(rawText, allOptions),
         options,
         url: questionMaterial(obj.url, rawText),
         blocks: oneLine(obj.blocks, 200),
         hours: Number.isFinite(hours) && hours >= 1 ? Math.min(hours, 168) : C.questionHours,
-        fallback: oneLine(optionLabel(fallback), C.questionDefaultMax) || "Работа идёт по решению агента",
+        fallback: questionFallback(fallback) || "Работа идёт по решению агента",
       },
     };
   }
@@ -8271,26 +9192,172 @@
    * длинный вопрос сохраняется целиком. Ошибка этой записи вопрос не отменяет:
    * строка в базе уже создана, агент уже идёт по варианту по умолчанию.
    */
-  async function appendQuestionBody(row, q) {
+  // Незавершённое тело хранится отдельно от очереди строк. Перед повторной
+  // записью читаем блоки: таймаут мог случиться ПОСЛЕ успешного PATCH.
+  const questionBodies = () => {
+    const items = GM_getValue("cfn-question-bodies", []);
+    return Array.isArray(items) ? items : [];
+  };
+  const questionBodyPending = (id) => questionBodies().some((item) => item.rowId === id);
+  function rememberQuestionBody(row, q, ctx, heading = "") {
+    const previous = questionBodies().find((item) => item.rowId === row.id);
+    if (previous && JSON.stringify(previous.q) !== JSON.stringify(q))
+      throw new Error("Предыдущее дополнение вопроса ещё не записано; новое ждёт своей очереди.");
+    const list = questionBodies().filter((item) => item.rowId !== row.id);
+    list.push({ rowId: row.id, q, ctx: ctx || {}, heading: heading || previous?.heading || "" });
+    GM_setValue("cfn-question-bodies", list);
+  }
+  function forgetQuestionBody(id) {
+    GM_setValue("cfn-question-bodies", questionBodies().filter((item) => item.rowId !== id));
+  }
+  async function questionBlocks(id) {
+    const rows = [], cursors = new Set();
+    let cursor = "";
+    while (true) {
+      const page = await notion("GET", `blocks/${id}/children?page_size=100${cursor ? `&start_cursor=${encodeURIComponent(cursor)}` : ""}`);
+      if (!page || !Array.isArray(page.results) || typeof page.has_more !== "boolean")
+        throw new Error("Notion вернул неполный список блоков вопроса.");
+      rows.push(...page.results);
+      if (rows.length > 300) throw new Error("В вопросе больше 300 блоков; нужна ручная проверка полного текста.");
+      if (!page.has_more) return rows;
+      cursor = String(page.next_cursor || "");
+      if (!cursor || cursors.has(cursor)) throw new Error("Notion не вернул новый курсор блоков вопроса.");
+      cursors.add(cursor);
+    }
+  }
+  const blockText = (block) => (block?.[block?.type]?.rich_text || [])
+    .map((part) => part.plain_text || part.text?.content || "").join("");
+
+  async function appendQuestionBody(row, q, ctx = {}) {
     const full = String(q?.fullText || "").trim();
-    if (!row?.id || !full || full.length <= String(q?.text || "").length) return;
-    // Режется тем же `richText`, что и «Ответ»: одно правило на весь файл, и
-    // эмодзи на границе части остаётся целым (1.4.85).
+    const title = row?.properties ? rt(row.properties["Вопрос"]) : String(q?.text || "");
+    if (!row?.id || !full || full === title) return true;
+    // Запись в GM выполняется ДО внешнего PATCH и переживает закрытие вкладки.
+    rememberQuestionBody(row, q, ctx);
     const chunks = richText(full);
     try {
-      await notion("POST", `blocks/${row.id}/children`, {
-        children: [
-          {
-            object: "block",
-            type: "heading_3",
-            heading_3: { rich_text: [{ type: "text", text: { content: "Полный текст вопроса" } }] },
-          },
-          { object: "block", type: "paragraph", paragraph: { rich_text: chunks } },
-        ],
-      });
+      const blocks = await questionBlocks(row.id);
+      let heading = questionBodies().find((item) => item.rowId === row.id)?.heading || "";
+      if (!heading) {
+        const main = blocks.findIndex((block) => block.type === "heading_3" && blockText(block) === "Полный текст вопроса");
+        if (main >= 0 && blockText(blocks[main + 1]) === full) {
+          forgetQuestionBody(row.id);
+          return true;
+        }
+        if (main >= 0 && !ctx.allowSupplement)
+          throw new Error("Тело вопроса уже изменено; автоматическую запись не повторяю.");
+        let hash = 2166136261;
+        for (let i = 0; i < full.length; i += 1) hash = Math.imul(hash ^ full.charCodeAt(i), 16777619);
+        heading = main >= 0 ? `Дополнение к вопросу · ${(hash >>> 0).toString(16)}-${full.length}` : "Полный текст вопроса";
+        // Заголовок фиксируется до PATCH: на повторе изменённый человеком блок
+        // не восстанавливается поверх его правки и не дублируется.
+        rememberQuestionBody(row, q, ctx, heading);
+      }
+      const indexes = blocks.map((block, i) => block.type === "heading_3" && blockText(block) === heading ? i : -1).filter((i) => i >= 0);
+      if (indexes.length > 1) throw new Error("У материала два одинаковых заголовка; нужна ручная проверка.");
+      if (indexes.length) {
+        if (blockText(blocks[indexes[0] + 1]) !== full) throw new Error("Тело вопроса уже изменено; автоматическую запись не повторяю.");
+      } else {
+        await notion("PATCH", `blocks/${row.id}/children`, {
+          children: [
+            { object: "block", type: "heading_3", heading_3: { rich_text: [{ type: "text", text: { content: heading } }] } },
+            { object: "block", type: "paragraph", paragraph: { rich_text: chunks } },
+          ],
+        });
+      }
+      forgetQuestionBody(row.id);
+      return true;
     } catch (e) {
       dbg("вопросы: полный текст не записался", e.message);
+      return false;
     }
+  }
+
+  function supplementalQuestion(q, row) {
+    const props = row?.properties || {};
+    const parts = [String(q?.fullText || q?.text || "")];
+    const options = Array.isArray(q?.options) ? q.options.join(" · ") : "";
+    if (options && options !== rt(props["Варианты"])) parts.push(`Варианты из маркера: ${options}`);
+    if (q?.fallback && q.fallback !== rt(props["По умолчанию"])) parts.push(`По умолчанию из маркера: ${q.fallback}`);
+    if (q?.url && q.url !== props["Материал"]?.url) parts.push(`Материал из маркера: ${q.url}`);
+    return { ...q, fullText: fullQuestionText(parts.filter(Boolean).join("\n\n")) };
+  }
+
+  async function flushQuestionBodies() {
+    for (const item of questionBodies()) {
+      await withQuestionWriteLock(async () => {
+        if (!questionBodyPending(item.rowId)) return;
+        const saved = await appendQuestionBody({ id: item.rowId }, item.q, item.ctx);
+        if (!saved) return;
+        // Перед повторной передачей убеждаемся, что вопрос ещё ждёт ответа.
+        try {
+          const row = await notion("GET", `pages/${item.rowId}`);
+          if (!questionQueuedForRow(row)) {
+            const complete = await questionFromRowComplete(row);
+            handWaitingRow(row, complete, item.ctx);
+          }
+        } catch (e) {
+          // Блок уже мог записаться, но полную страницу мы ещё не прочитали.
+          // Очередь блокирует старый неполный промпт до следующей попытки.
+          queueQuestion(item.q, item.ctx || {});
+          throw e;
+        }
+      });
+    }
+  }
+
+  // Если вопрос создали вручную в Notion или очередь потерялась после
+  // перезапуска, приёмка получает тело страницы, а не только короткий заголовок.
+  async function questionFromRowComplete(row) {
+    const base = questionFromRow(row);
+    const output = [], seen = new Set();
+    let count = 0;
+    async function visit(id, depth) {
+      if (depth > 4 || seen.has(id)) throw new Error("Слишком глубокая или циклическая структура вопроса Notion.");
+      seen.add(id);
+      for (const block of await questionBlocks(id)) {
+        count += 1;
+        if (count > 300) throw new Error("В вопросе больше 300 блоков; нужна ручная проверка.");
+        const type = block.type;
+        const text = blockText(block).trim();
+        const textual = ["paragraph", "heading_1", "heading_2", "heading_3", "bulleted_list_item", "numbered_list_item", "quote", "code", "callout", "to_do", "toggle"];
+        const containers = ["table", "column_list", "column", "synced_block", "divider", "table_of_contents"];
+        const attachments = ["image", "file", "pdf", "video", "audio", "embed", "bookmark", "child_page", "link_to_page"];
+        if (textual.includes(type)) {
+          if (text && text !== "Полный текст вопроса" && !text.startsWith("Дополнение к вопросу · ")) {
+            const check = type === "to_do" ? (block.to_do?.checked ? "[x] " : "[ ] ") : "";
+            const label = type === "code" ? `[Код ${block.code?.language || "plain text"}]\n` : "";
+            output.push(check + label + text);
+          }
+        } else if (type === "table_row") {
+          const cells = block.table_row?.cells;
+          if (!Array.isArray(cells) || cells.some((cell) => !Array.isArray(cell))) throw new Error("Не удалось прочитать строку таблицы вопроса.");
+          output.push(cells.map((cell) => cell.map((part) => part.plain_text || part.text?.content || "").join("")).join(" | "));
+        } else if (type === "equation") {
+          const expression = block.equation?.expression;
+          if (typeof expression !== "string") throw new Error("Формула в вопросе не читается.");
+          output.push(`[Формула] ${expression}`);
+        } else if (attachments.includes(type)) {
+          // Подпись сохраняем, а подписанный URL файла не пересылаем.
+          const caption = (block[type]?.caption || []).map((part) => part.plain_text || part.text?.content || "").join("").trim();
+          if (caption) output.push(caption);
+          output.push(`[Материал Notion: ${type}, блок ${block.id}; открой страницу вопроса]`);
+        } else if (!containers.includes(type)) {
+          throw new Error(`Неподдерживаемый блок ${type || "без типа"}: проверьте материал вручную.`);
+        }
+        if (block.has_children) await visit(block.id, depth + 1);
+      }
+    }
+    await visit(row.id, 0);
+    const material = output.join("\n");
+    if (material.length > C.questionTextFull)
+      throw new Error("Текст вопроса больше предела; передайте материал ссылкой и проверьте вручную.");
+    if (material) {
+      if (base.url && material.includes(base.url))
+        base.fullText = base.fullText.split("\n").filter((line) => line !== `Материал: ${base.url}`).join("\n");
+      base.fullText = `${base.fullText}\n\nПолный материал из Notion:\n${material}`;
+    }
+    return base;
   }
 
   /**
@@ -8307,16 +9374,63 @@
    * повторится, — потерянный вопрос. Поэтому неудача складывается в очередь и
    * повторяется при следующей проверке вопросов.
    */
+  const questionIntents = () => {
+    const list = GM_getValue("cfn-question-intents", []);
+    return Array.isArray(list) ? list : [];
+  };
+  const questionQueueId = (item) => JSON.stringify([
+    norm(item?.q?.text || ""), String(item?.q?.fullText || ""), String(item?.ctx?.key || ""),
+  ]);
+  function rememberQuestionIntent(q, ctx) {
+    const item = { q, ctx: ctx || {}, at: Date.now() };
+    const id = questionQueueId(item);
+    if (!questionIntents().some((entry) => questionQueueId(entry) === id))
+      GM_setValue("cfn-question-intents", [...questionIntents(), item]);
+  }
+  function forgetQuestionIntent(q, ctx) {
+    const id = questionQueueId({ q, ctx });
+    GM_setValue("cfn-question-intents", questionIntents().filter((item) => questionQueueId(item) !== id));
+  }
+  // Не выдаём незавершённую строку за полный вопрос, пока POST или PATCH ещё
+  // нужно восстановить. Сопоставление повторяет правила дедупликации.
+  function questionQueuedForRow(row) {
+    const stored = GM_getValue(K.qQueue, []);
+    const pending = [...(Array.isArray(stored) ? stored : []), ...questionIntents()];
+    const title = rt(row?.properties?.["Вопрос"]);
+    const material = row?.properties?.["Материал"]?.url || "";
+    const got = norm(title);
+    const refs = adrRefsOf(`${title} ${material}`);
+    return pending.some(({ q }) => {
+      if (!q?.text) return false;
+      const wanted = norm(q.text);
+      if (got && (got === wanted || (got.length >= 60 && wanted.length >= 60 &&
+          (got.startsWith(wanted.slice(0, 60)) || wanted.startsWith(got.slice(0, 60)))))) return true;
+      const other = adrRefsOf(`${q.text} ${q.url || ""} ${q.fullText || ""}`);
+      return [...refs].some((ref) => other.has(ref));
+    });
+  }
+  function questionQueuedForAnswer(item) {
+    return questionQueuedForRow({ properties: {
+      "Вопрос": { title: [{ plain_text: item?.text || "" }] },
+      "Материал": { url: item?.url || "" },
+    } });
+  }
+
   function queueQuestion(q, ctx = {}) {
     const stored = GM_getValue(K.qQueue, []);
     const list = Array.isArray(stored) ? stored : [];
-    const sameText = norm(q?.text);
-    if (sameText && list.some((item) => norm(item?.q?.text) === sameText)) return;
-    list.push({ q, ctx, at: Date.now() });
+    const entry = { q, ctx, at: Date.now() };
+    if (q?.text && list.some((item) => questionQueueId(item) === questionQueueId(entry))) return;
+    list.push(entry);
     GM_setValue(K.qQueue, list);
   }
 
   async function flushQuestionQueue() {
+    // После перезапуска POST мог уже создать строку, не дождавшись ответа.
+    // Сначала переносим намерения в обычную очередь, затем ищем строку в Notion.
+    const intents = questionIntents();
+    for (const item of intents) if (item?.q?.text) queueQuestion(item.q, item.ctx || {});
+    if (intents.length) GM_setValue("cfn-question-intents", []);
     const stored = GM_getValue(K.qQueue, []);
     const list = Array.isArray(stored) ? [...stored] : [];
     if (!list.length) return 0;
@@ -8333,7 +9447,14 @@
             material: questionMaterial(item.q.url, item.q.fullText || item.q.text),
           });
           if (same) {
-            const handled = handWaitingRow(same.row, item.q, item.ctx || {});
+            let complete = item.q;
+            if (sel(same.row.properties?.["Статус"]) === Q.wait && !rt(same.row.properties?.["Ответ"]).trim()) {
+              const supplement = item.ctx?.allowSupplement ? item.q : supplementalQuestion(item.q, same.row);
+              const bodySaved = await appendQuestionBody(same.row, supplement, { ...(item.ctx || {}), allowSupplement: true });
+              if (bodySaved === false) return "body-pending";
+              complete = await questionFromRowComplete(same.row);
+            }
+            const handled = handWaitingRow(same.row, complete, item.ctx || {});
             log(
               handled
                 ? `Отложенный вопрос «${item.q.text}» уже есть в «Обратной связи» и ждёт без ответа — передаю приёмке, второй строки не пишу.`
@@ -8348,7 +9469,8 @@
             properties: questionProps(item.q, item.ctx || {}),
           });
           noteQuestionAsked(row, item.q);
-          await appendQuestionBody(row, item.q);
+          const bodySaved = await appendQuestionBody(row, item.q, item.ctx || {});
+          if (bodySaved === false) return "body-pending";
           queueAnswer(row, item.q, item.ctx || {});
           log(`Отложенный вопрос записался: «${item.q.text}» — отвечает приёмка.`, false, {
             ntfy: "quiet",
@@ -8365,9 +9487,9 @@
     }
     // В ходе сетевого запроса другая задача могла добавить новый вопрос.
     // Не затираем такие записи снимком очереди, сделанным до запроса.
-    const batch = new Set(list.map((item) => norm(item?.q?.text)).filter(Boolean));
+    const batch = new Set(list.map(questionQueueId));
     const latest = GM_getValue(K.qQueue, []);
-    const added = (Array.isArray(latest) ? latest : []).filter((item) => !batch.has(norm(item?.q?.text)));
+    const added = (Array.isArray(latest) ? latest : []).filter((item) => !batch.has(questionQueueId(item)));
     GM_setValue(K.qQueue, [...left, ...added]);
     if (left.length && saved === 0) {
       dbg("вопросы: очередь не ушла", left.length);
@@ -8440,6 +9562,7 @@
    */
   function handWaitingRow(row, q = null, ctx = {}) {
     if (!row || !row.id) return false;
+    if (typeof questionBodyPending === "function" && questionBodyPending(row.id)) return false;
     if (sel(row.properties?.["Статус"]) !== Q.wait) return false;
     if (rt(row.properties?.["Ответ"]).trim()) return false;
     GM_setValue(answerHandoffKey(row.id), Date.now());
@@ -8509,19 +9632,30 @@
           if (askedBefore && q.autoAdr) return same.row;
           const status = sel(same.row.properties?.["Статус"]);
           const answer = rt(same.row.properties?.["Ответ"]).replace(/\s+/g, " ").trim();
-          GM_setValue(key, Date.now());
           const where = same.why === "adr" ? `По решению «${String(same.ref).toUpperCase()}»` : "Такой вопрос уже задан:";
           // Строка «Ждёт» с пустым «Ответом» — это вопрос, который не дошёл до
           // приёмки. Раньше он считался «Мастер уже ответил» и второй раз не
           // записывался: 28.10 строка про NAR-5 висела с 15:41 до вечера, а скрипт
           // писал, что отвечать нечего. Теперь такая строка передаётся приёмке.
           if (status === Q.wait && !answer) {
-            handWaitingRow(same.row, q, ctx);
+            rememberQuestionIntent(q, ctx);
+            GM_setValue(key, Date.now());
+            const supplement = supplementalQuestion(q, same.row);
+            const bodySaved = await appendQuestionBody(same.row, supplement, { ...ctx, allowSupplement: true });
+            if (bodySaved === false) {
+              forgetQuestionIntent(q, ctx); // материал уже в очереди блоков
+              log(`Полный материал «${q.text}» отложен до записи в существующую строку Notion; приёмку пока не вызываю.`, true, { ntfy: "quiet" });
+              return same.row;
+            }
+            const complete = await questionFromRowComplete(same.row);
+            forgetQuestionIntent(q, ctx);
+            handWaitingRow(same.row, complete, ctx);
             log(`${where} строка есть, но она «Ждёт» без ответа: «${q.text}» — передаю приёмке, второй не пишу.`, false, {
               ntfy: false,
             });
             return same.row;
           }
+          GM_setValue(key, Date.now());
           log(
             `${where} приёмка уже ответила${answer ? `: «${answer.slice(0, 140)}»` : ""} — второй раз не записываю и не уведомляю.`,
             false,
@@ -8529,16 +9663,25 @@
           );
           return null;
         }
+        // До POST сохраняем намерение: при обрыве ответа и перезапуске
+        // сначала найдём созданную строку и допишем материал, не создавая дубль.
+        rememberQuestionIntent(q, ctx);
         const row = await notion("POST", "pages", {
           parent: { type: "data_source_id", data_source_id: C.questions },
           properties: questionProps(q, ctx),
         });
         GM_setValue(key, Date.now());
         noteQuestionAsked(row, q);
-        await appendQuestionBody(row, q);
+        const bodySaved = await appendQuestionBody(row, q, ctx);
+        if (bodySaved === false) {
+          forgetQuestionIntent(q, ctx); // материал уже сохранён в очереди блоков
+          log(`Полный материал вопроса «${q.text}» отложен до записи в Notion; приёмку пока не вызываю.`, true, { ntfy: "quiet" });
+          return row;
+        }
         // Вопрос сразу ставится в очередь приёмки: она отвечает вместо Мастера
         // (1.4.80). Громкого пуша нет — вопрос больше не требует человека.
         queueAnswer(row, q, ctx);
+        forgetQuestionIntent(q, ctx);
         log(`Вопрос записан: «${q.text}». По умолчанию: ${q.fallback} — отвечает приёмка.`, false, {
           ntfy: "quiet",
           title: "Narthex: вопрос приёмке",
@@ -8548,6 +9691,7 @@
         // Запись, которая уже не повторится, — потерянный вопрос: Мастер увидит
         // его только в маркере. Поэтому строка ждёт в очереди и повторяется.
         queueQuestion(q, ctx);
+        forgetQuestionIntent(q, ctx);
         log(
           `Вопрос к Мастеру в базу не записался (${e.message}). Строка отложена и повторится сама; ` +
             `пока агент идёт по варианту по умолчанию: ${q.fallback}.`,
@@ -8574,6 +9718,8 @@
     let closed = 0;
     for (const row of rows || []) {
       const title = rt(row.properties["Вопрос"]);
+      if ((typeof questionBodyPending === "function" && questionBodyPending(row.id)) ||
+          (typeof questionQueuedForRow === "function" && questionQueuedForRow(row))) continue;
       // ADR никогда не закрывается по сроку, даже если ссылка только в URL.
       if (!rt(row.properties["По умолчанию"]) ||
           /\bADR\b|docs\/decisions\//i.test(`${title} ${row.properties?.["Материал"]?.url || ""}`)) continue;
@@ -8594,6 +9740,8 @@
           const fallback = rt(props["По умолчанию"]);
           const due = props["Срок"]?.date?.start || "";
           if (rt(props["Ответ"]).trim() || !fallback || !due || !(Date.parse(due) < Date.now()) ||
+              (typeof questionBodyPending === "function" && questionBodyPending(row.id)) ||
+              (typeof questionQueuedForRow === "function" && questionQueuedForRow(latest)) ||
               /\bADR\b|docs\/decisions\//i.test(`${freshTitle} ${props["Материал"]?.url || ""}`)) return null;
           await patch(row.id, {
             "Статус": { select: { name: Q.byDefault } },
@@ -8753,13 +9901,13 @@
   function proposalQuestion(row, missionName = "") {
     const file = String(row?.file || "");
     const path = `${ADR_FOLDER}/${file}`;
-    const url = `https://github.com/${C.repo}/blob/main/${ADR_FOLDER}/${encodeURIComponent(file)}`;
+    const url = `https://github.com/${C.repo}/blob/${(C.branch || "main").split("/").map(encodeURIComponent).join("/")}/${ADR_FOLDER}/${encodeURIComponent(file)}`;
     return {
       text: `Предложение ${path}: принять, отклонить или оставить как есть?`,
       url,
       autoAdr: true,
       fullText: [
-        `Предложение лежит в репозитории: ${path} (main), статус «proposed».`,
+        `Предложение лежит в репозитории: ${path} (${C.branch || "main"}), статус «proposed».`,
         `Материал: ${url}`,
         missionName ? `Миссия: ${missionName}` : "",
         "",
@@ -8851,7 +9999,7 @@
     try {
       const list = await request(
         "GET",
-        `https://api.github.com/repos/${C.repo}/contents/${ADR_FOLDER}?ref=main`,
+        `https://api.github.com/repos/${C.repo}/contents/${ADR_FOLDER}?ref=${encodeURIComponent(C.branch || "main")}`,
         githubHeaders(token),
       );
       if (!Array.isArray(list)) throw new Error("GitHub вернул не список файлов");
@@ -8862,7 +10010,8 @@
         const cached = texts[item.name];
         let status = cached && cached.sha === item.sha ? cached.status : "";
         if (!status) {
-          const file = await request("GET", item.url, githubHeaders(token));
+          const fileUrl = `https://api.github.com/repos/${C.repo}/contents/${ADR_FOLDER}/${encodeURIComponent(item.name)}?ref=${encodeURIComponent(C.branch || "main")}`;
+          const file = await request("GET", fileUrl, githubHeaders(token));
           status = adrStatusOf(b64Text(file && file.content)) || "нет";
           texts[item.name] = { sha: item.sha, status };
         }
@@ -8901,8 +10050,11 @@
 
   let decisionsWatch = 0;
   function watchDecisions() {
+    if (typeof projectApproved === "function" && !projectApproved()) return;
     if (decisionsWatch) return;
-    decisionsWatch = window.setInterval(() => refreshDecisions().catch(() => {}), C.adrCheckMs);
+    decisionsWatch = window.setInterval(() => {
+      if (!document.getElementById("cfn-projects")) refreshDecisions().catch(() => {});
+    }, C.adrCheckMs);
     refreshDecisions().catch(() => {});
   }
 
@@ -9467,8 +10619,8 @@
           const ask = typeof rawAsk === "object" && rawAsk ? rawAsk : {};
           const asked = parseQuestion({
             ...ask,
-            text: askText,
-            default: oneLine(ask.default, C.questionDefaultMax) || "Ответ Мастера: цикл уже остановлен и ждёт его",
+            text: typeof rawAsk === "object" && rawAsk ? rawAsk.text : rawAsk,
+            default: questionFallback(ask.default) || "Ответ Мастера: цикл уже остановлен и ждёт его",
             hours: Number(ask.hours) || 168,
           });
           if (asked) {
@@ -9998,6 +11150,8 @@
     if (!row || !row.id) return null;
     const item = {
       id: row.id,
+      pageUrl: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(row.id))
+        ? `https://www.notion.so/${String(row.id).replace(/-/g, "")}` : "",
       text: q.text,
       fullText: q.fullText || q.text,
       fallback: q.fallback,
@@ -10028,6 +11182,7 @@
       `Миссия: ${name}`,
       `ТЗ и оракул: ${tz}`,
       `Вопрос задал: ${item.role || "агент"}${item.card ? ` · карточка «${item.card}»` : ""}`,
+      item.pageUrl ? `Страница вопроса в Notion: ${item.pageUrl}` : "",
       "",
       "ВОПРОС",
       item.fullText,
@@ -10040,6 +11195,7 @@
       "Ты — приёмка миссии и на вопросы агентов отвечаешь вместо Мастера. Решай по существу: что правильнее для миссии и её оракула, а не что проще согласовать.",
       "Ответ увидят исполнитель и Координатор на следующем ходе — пиши решение, а не рассуждение: что делать, где граница, по какому признаку считать сделанным.",
       "Твой ответ записывается в «Ответ» этой строки, статус становится «Решено», и на следующем ходе он уезжает агентам строкой «Ответы на вопросы». Поэтому ответ должен быть самодостаточным: агент увидит его без твоего чата.",
+      "Если вопрос про новое предложение в Notion (ADR:), читай полный материал страницы и решай по существу; одного срока или default недостаточно.",
       "Если вопрос про предложение (`docs/decisions/*.md`, статус `proposed`) — отвечай решением по существу: принять, отклонить или явно оставить как есть (отклонить изменение), и что именно сделать. Статус файла меняет исполнитель карточкой, не ты.",
       "Ничего не правь: ни карточки, ни код, ни документы. Твой выход — ответ или вызов Мастера.",
       "Мастера зовёшь только тогда, когда без него физически нельзя: нужен новый агент в Arena, доступ или решение, для которого по ТЗ необходимы полномочия Мастера. По ADR решай в пределах делегированных полномочий; сам оракул или файлы не меняй. «Так спокойнее» и «пусть подтвердит» — не повод.",
@@ -10060,6 +11216,8 @@
    * (вопрос остаётся «Ждёт»; обычный может закрыться сроком, ADR ждёт ответа).
    */
   async function startAnswer(mission, item) {
+    if (typeof questionBodyPending === "function" && questionBodyPending(item.id)) return false;
+    if (typeof questionQueuedForAnswer === "function" && questionQueuedForAnswer(item)) return false;
     const role = await reviewerRole();
     if (!role) {
       log(
@@ -10379,6 +11537,7 @@
    * причина, а не бесконечные прыжки.
    */
   function navigateTo(role, why) {
+    if (typeof projectRoleAllowed === "function" && !projectRoleAllowed(role)) return false;
     const from = location.pathname || "/";
     const last = GM_getValue("cfn-nav", null);
     const recent =
@@ -10513,6 +11672,24 @@
   }
 
   async function tick(fromToggle = false) {
+    if (typeof projectApproved === "function" && !projectApproved()) {
+      if (fromToggle) log("Проект ещё не разрешён к работе: проверьте его в управлении проектами.", true);
+      return;
+    }
+    if (typeof projectHeld === "function" && projectHeld()) {
+      // fromToggle используется и отложенными автоматическими шагами: право
+      // снять удержание есть только у явных кнопок «Шаг»/«Включить».
+      if (fromToggle) log("Проект ждёт ручного запуска после переключения.");
+      return;
+    }
+    if (typeof document !== "undefined" && document.getElementById?.("cfn-projects")) return;
+    // Асинхронное окно не блокирует event loop как прежние prompt. Пока оно
+    // открыто, не начинаем новые шаги со старыми подключениями; уже запущенные
+    // операции и независимые сторожа этим не отменяются.
+    if (typeof document !== "undefined" && document.getElementById?.("cfn-connections")) {
+      if (fromToggle) log("Шаг отложен: завершите настройку или закройте окно подключений.");
+      return;
+    }
     // Фоновая вкладка в журнале не отмечается: Мастер работает в другой
     // вкладке постоянно, и строка «браузер режет таймеры» превращалась в шум.
     // Растянутые ожидания (`patience`) от этого никуда не делись.
@@ -10556,6 +11733,8 @@
     } catch (e) {
       log(`Самопроверка последнего отказа не удалась: ${e.message}`, true);
     }
+    // Окно могли открыть во время асинхронной самопроверки выше.
+    if (typeof document !== "undefined" && document.getElementById?.("cfn-connections")) return;
     // Незавершённая отправка живёт в очереди и не зависит от автоцикла:
     // иначе после перехода на страницу адресата задание никто не досылал.
     const auto = autoOn();
@@ -10591,6 +11770,9 @@
       // Ошибка на экране важнее любого шага: сначала остановиться.
       if (monitorVisibleErrors()) return;
       await setup(false);
+      // Если параметр setup открыл окно из тика, выйти через finally и снять
+      // busy: ожидание закрытия здесь заблокировало бы само сохранение.
+      if (typeof document !== "undefined" && document.getElementById?.("cfn-connections")) return;
       // Новая миссия — новый ход: остатки прошлой снимаются до любых решений.
       try {
         if (await syncMissionState()) return;
@@ -10970,14 +12152,17 @@
       const raw = String((e && e.message) || e);
       // Причина называется по источнику: «Notion» и «шлюз Drive» — разные
       // поломки и разные действия Мастера.
-      const plain = /битый id|valid uuid|path failed validation/i.test(raw)
+      const plain = e && e.narthex === "question-too-long"
+        ? "Вопрос или вариант по умолчанию слишком длинный: ничего не усекал и приёмке не передал. " +
+          "Сохраните полный материал в Notion и разберите текущий ход вручную."
+        : /битый id|valid uuid|path failed validation/i.test(raw)
         ? "Notion не принял адрес записи: в нём оказался битый id — обычно это " +
           "опечатка в строке-маркере ответа."
         : e && e.narthex === "gateway"
           ? e.refused
             ? `Шлюз Drive ответил отказом: ${e.reason} Запись не сделана, в Диске ничего не менялось. ` +
               "Если отказ про папку — в карточке указан не журнал: «Output Drive File ID» должен " +
-              "указывать на файл из Arena/logs; скрипт вернёт его сам после обновления."
+              `указывать на файл из ${C.driveFolder ? `Arena/${C.driveFolder}/logs` : "Arena/logs"}; скрипт вернёт его сам после обновления.`
             : "Шлюз Drive не ответил, ответ агента в журнал не записан. Проверьте, что " +
               "развёртывание Apps Script открыто «любому, у кого есть ссылка», и что ссылка в ⚙ та же."
           : /HTTP (?:429|5\d\d)/i.test(raw)
@@ -11010,12 +12195,26 @@
   }
 
   // ───────────────────────────── старт ─────────────────────────────
+  // Счётчик охватывает также проход, который сторож busy уже освободил,
+  // и фоновые асинхронные операции. Переключение ждёт их завершения.
+  const originalProjectTick = tick;
+  tick = (...args) => trackProjectTask(originalProjectTick(...args));
+  const originalProjectQuestions = refreshQuestions;
+  refreshQuestions = (...args) => (!projectApproved() || projectHeld())
+    ? Promise.resolve(openQuestions().rows) : trackProjectTask(originalProjectQuestions(...args));
+  const originalProjectDecisions = refreshDecisions;
+  refreshDecisions = (...args) => (!projectApproved() || projectHeld())
+    ? Promise.resolve(openDecisions().rows) : trackProjectTask(originalProjectDecisions(...args));
+  const originalProjectPollFlush = flushPollJournal;
+  flushPollJournal = (...args) => trackProjectTask(originalProjectPollFlush(...args));
+
   entries = (GM_getValue(K.log, []) || []).slice(-C.maxLog);
   const boot = () => {
     migrateState();
     // Автоцикл не наследуется от прошлого запуска браузера: сначала — руками.
     autoForgetPersisted();
     mount();
+    if (ACTIVE_PROFILE.invalid) log("Проект вкладки недоступен. Проверьте sessionStorage и список профилей; Narthex автоматически не подставлен.", true);
     if (debugOn()) {
       installDebugApi();
       console.info(
@@ -11024,7 +12223,7 @@
       );
       dbg("boot", () => debugSnapshot());
     }
-    if (new URL(location.href).searchParams.has("cf-auto")) {
+    if (new URL(location.href).searchParams.has("cf-auto") && projectApproved() && !projectHeld()) {
       const clean = new URL(location.href);
       clean.searchParams.delete("cf-auto");
       history.replaceState(null, "", clean.toString());
@@ -11041,7 +12240,7 @@
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") tick(false);
     });
-    if (GM_getValue(K.step, false)) {
+    if (GM_getValue(K.step, false) && !projectHeld()) {
       GM_setValue(K.step, false);
       log("Открыл страницу роли — выполняю отложенный шаг.");
       tick(true);
@@ -11051,4 +12250,4 @@
   };
   if (document.readyState === "complete") boot();
   else window.addEventListener("load", boot, { once: true });
-})();
+})(GM_getValue, GM_setValue);

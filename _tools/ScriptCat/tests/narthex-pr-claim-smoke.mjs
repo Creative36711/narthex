@@ -26,7 +26,7 @@ const claimTo = src.indexOf('  /**\n   * PR закрыт.');
 assert.ok(claimFrom > 0 && claimTo > claimFrom, 'claimMerge на месте');
 const claimBlock = src.slice(claimFrom, claimTo);
 
-function make({ ui = false, createOnly = false, store = new Map() } = {}) {
+function make({ ui = false, createOnly = false, store = new Map(), branch = 'main' } = {}) {
   const logs = [];
   const calls = { finishMerge: 0, finishClosed: 0, create: 0, merge: 0 };
   const fn = new Function(
@@ -42,7 +42,7 @@ function make({ ui = false, createOnly = false, store = new Map() } = {}) {
     { merged: 'cfn-merged:' },
     (k, d) => (store.has(k) ? store.get(k) : d),
     (k, v) => store.set(k, v),
-    { prWaitMs: 5000, mergeGraceMs: 1000, prCardWaitMs: 30 },
+    { prWaitMs: 5000, mergeGraceMs: 1000, prCardWaitMs: 30, branch },
     (t, e) => logs.push({ t, e }),
     (r) => !!r && (r.merged === true || String(r.status || '').toLowerCase() === 'merged'),
     () => ui && false,
@@ -122,6 +122,14 @@ function make({ ui = false, createOnly = false, store = new Map() } = {}) {
   assert.equal(logs[0].e, true, 'в журнале это ошибка');
   assert.match(logs[0].t, /работа в main не попала/, 'сказано, чем это плохо');
   assert.equal(store.get('cfn-merged:card-3:run'), undefined, 'мерж не запомнен');
+}
+
+// Другой проект: диагностическая причина называет его базовую ветку.
+{
+  const { ensureMerged, logs } = make({ branch: 'release/next' });
+  assert.equal(await ensureMerged({ id: 'other-card' }, { status: 'submitted' }), 'unconfirmed');
+  assert.match(logs[0].t, /работа в release\/next не попала/);
+  assert.doesNotMatch(logs[0].t, /работа в main/);
 }
 
 // 4. Если Мастер открыл страницу PR, работает прежняя проверка бейджа ───────

@@ -58,6 +58,16 @@ assert.match(coord, /Notion/);
 assert.match(coord, /Drive/);
 assert.ok(!/git fetch|git merge-base|git reset|git switch/.test(coord), 'координатору не нужен git');
 assert.ok(!/gh pr /.test(coord), 'координатору не нужны команды PR');
+// Другой проект: те же полномочия, но его репозиторий, base и Drive.
+const otherC = {repo:'team/synapse', branch:'release/next', driveFolder:'synapse', projectName:'Synapse'};
+const other = new Function('C', `${src.slice(start, end)}\nreturn technicalInfo;`)(otherC);
+const otherExec = other(role('Executor', 'Builder')), otherCoord = other(role('Coordinator'));
+assert.match(otherExec, /team\/synapse/); assert.match(otherExec, /origin\/release\/next/);
+assert.doesNotMatch(otherExec, /origin\/main|46 файлов/, 'старый снимок Narthex не выдаётся за факт нового проекта');
+assert.match(otherCoord, /Arena\/synapse\/payloads/); assert.doesNotMatch(otherCoord, /Arena\/payloads/);
+assert.match(other(role('Reviewer', 'Warden')), /не правишь ни код, ни карточки/);
+assert.match(coord, /вопрос ADR в Notion и фактическое решение приёмки или Мастера/, 'изменение контракта по-прежнему требует фактического решения');
+assert.match(coord, /Существующие proposed-файлы сохраняются/, 'исторические предложения не удаляются');
 
 // ── 5. Неизвестная функция — безопасный fallback ────────────────────────────
 const unknown = technicalInfo(role('Молчит', 'Никто'));

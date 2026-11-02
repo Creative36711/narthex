@@ -30,9 +30,10 @@ const config = {
   questionTextFull: 12000, questionDefaultMax: 200, questionCheckMs: 600000, adrCheckMs: 600000,
 };
 const K = { qQueue: 'q-queue', answers: 'answers', expect: 'expect', ghToken: 'token' };
-const store = new Map(), db = [], posts = [], bodyWrites = [], patches = [], logs = [], plans = [];
+const store = new Map(), db = [], posts = [], bodyWrites = [], blocksByRow = new Map(), patches = [], logs = [], plans = [];
 let messages = [], failQuery = false, failGet = false, failPatch = false, pauseWaitQuery = null, pauseDedupeQuery = null;
-let pauseAnswerPatch = null;
+let pauseAnswerPatch = null, failBodyPatch = false, lostBodyResponse = false, lostPostResponse = false;
+const pagedBlockIds = new Set();
 const get = (key, fallback) => store.has(key) ? copy(store.get(key)) : fallback;
 const set = (key, value) => store.set(key, copy(value));
 const statusesOf = (filter) => (filter?.or || []).map((condition) => condition.select.equals);
@@ -63,10 +64,25 @@ const notion = async (method, path, body) => {
     };
     db.push(row);
     posts.push(copy(body));
+    if (lostPostResponse) { lostPostResponse = false; throw new Error('timeout after POST'); }
     return copy(row);
   }
-  if (method === 'POST' && /^blocks\/.+\/children$/.test(path)) {
+  if (method === 'GET' && /^blocks\/.+\/children\?/.test(path)) {
+    const id = path.split('/')[1];
+    const all = blocksByRow.get(id) || [];
+    if (pagedBlockIds.has(id)) {
+      const cursor = new URL(`https://example.test/${path}`).searchParams.get('start_cursor');
+      const offset = cursor ? Number(cursor) : 0;
+      const next = offset + 1;
+      return { results: copy(all.slice(offset, next)), has_more: next < all.length, next_cursor: next < all.length ? String(next) : null };
+    }
+    return { results: copy(all), has_more: false, next_cursor: null };
+  }
+  if (method === 'PATCH' && /^blocks\/.+\/children$/.test(path)) {
+    if (failBodyPatch) throw new Error('Notion body 503');
     bodyWrites.push({ path, body: copy(body) });
+    blocksByRow.set(path.split('/')[1], [...(blocksByRow.get(path.split('/')[1]) || []), ...copy(body.children)]);
+    if (lostBodyResponse) { lostBodyResponse = false; throw new Error('timeout after write'); }
     return {};
   }
   if (method === 'GET' && path.startsWith('pages/')) {
@@ -94,7 +110,7 @@ const request = async (_method, url) => {
   if (url.includes('/contents/docs/decisions?')) return [{
     type: 'file', name: adrFile, sha: 'sha1', url: 'https://api.github.com/content/adr', html_url: adrUrl,
   }];
-  assert.equal(url, 'https://api.github.com/content/adr');
+  assert.equal(url, `https://api.github.com/repos/${repo}/contents/docs/decisions/${adrFile}?ref=main`);
   return { content: Buffer.from('Статус: proposed\n# Предложение', 'utf8').toString('base64') };
 };
 const api = new Function(
@@ -104,7 +120,7 @@ const api = new Function(
   'markerMissing', 'pause', 'firstLine', 'roles', 'queueOf', 'requestPlan',
   `${questionBlock}\n${answerBlock}\nreturn { parseQuestion, questionInMarker, questionProps, askQuestion,\n` +
   'queueQuestion, flushQuestionQueue, refreshQuestions, refreshDecisions, deliverProposals, closeExpired, questionBriefing,\n' +
-  'markDelivered, answerQueue, queueAnswer, answerPrompt, answerStep, openQuestions, notifyNewQuestions, pruneQuestionSeen };',
+  'markDelivered, answerQueue, queueAnswer, answerPrompt, startAnswer, answerStep, openQuestions, notifyNewQuestions, pruneQuestionSeen, flushQuestionBodies, questionBodyPending };',
 )(
   config, K, rt, sel, norm, richText, get, set, query, notion, patch, request, () => ({}),
   async () => copy(mission), (a, b) => a === b,
@@ -117,6 +133,16 @@ const api = new Function(
   (text) => String(text || '').split('\n')[0], async () => [{ name: 'Coordinator', fn: 'Coordinator' }],
   async () => ({ summary: 'очередь' }), async (_m, _r, _q, note) => plans.push(note),
 );
+
+// Границы текста, сохранение переносов и полных вариантов без молчаливого усечения.
+const multiline = 'ADR: Новая идея?\nКонтекст и последствия на отдельной строке.';
+const parsedLines = api.parseQuestion({ text: multiline, default: 'оставить', options: ['x'.repeat(150), 'второй', 'третий', 'четвёртый', 'пятый'] });
+assert(parsedLines.fullText.startsWith(multiline)); assert.match(parsedLines.fullText, /5\. пятый/);
+assert.equal(parsedLines.options[0].length, 150); assert.equal(parsedLines.options.length, 4);
+assert.equal(api.parseQuestion({ text: 'x'.repeat(12000), default:'оставить' }).fullText.length, 12000);
+assert.throws(() => api.parseQuestion({ text: 'x'.repeat(12001), default:'оставить' }), /не записан и не передан/);
+assert.throws(() => api.questionInMarker('x'.repeat(12001), 'оставить'), /не записан и не передан/);
+assert.throws(() => api.parseQuestion({ text:'тест', default:'x'.repeat(201) }), /по умолчанию длиннее/);
 
 // Обычный вопрос — в прежний источник и старые поля, ссылка необязательна.
 const ordinary = api.parseQuestion({ text: 'Какой формат отчёта выбрать?', options: ['A', 'B'], default: 'A', hours: 24 });
@@ -258,6 +284,9 @@ assert.match(longQuestion.url, /LONG-1\.md$/);
 const foundLong = await api.askQuestion(longQuestion, { key: 'long-after-watcher', mission: 'TEST-1' });
 assert(foundLong?.id);
 assert.equal(posts.length, beforeLong, 'поле материала участвует в проверке дубля');
+const longBlocks = blocksByRow.get(foundLong.id) || [];
+assert(longBlocks.some((block) => block.type === 'paragraph' && block.paragraph.rich_text.map((x) => x.text.content).join('').includes(longQuestion.fullText)), 'если сторож был первым, полный маркер добавлен в ту же страницу Notion');
+assert(api.answerQueue().find((item) => item.id === foundLong.id).fullText.includes(longQuestion.fullText), 'приёмка получает дополненную страницу');
 const ambiguousMaterial = api.parseQuestion({
   text: 'Сравнить docs/decisions/A.md и docs/decisions/B.md?', default: 'не менять',
 });
@@ -489,4 +518,128 @@ assert.equal(opened[0][0], 'https://app.notion.com/p/e00d99c8b526461ea7e900b9e98
 panel.togglePanel();
 assert.match(elements.get('cfn-collapse').textContent, /💬2/);
 assert.doesNotMatch(elements.get('cfn-collapse').textContent, /⚖/);
+// Notion-first: до сохранения полного текста Reviewer не получает урезанный вопрос.
+const full = `ADR: новый материал. ${'Важный контекст и последствия. '.repeat(12)}`;
+failBodyPatch = true;
+const pendingBody = await api.askQuestion(api.parseQuestion({ text: full, default: 'оставить как есть', options: ['принять', 'отклонить', 'оставить как есть'] }),
+  { key: 'notion-body-failure', mission: 'TEST-1', roleName: 'Architect' });
+assert(api.questionBodyPending(pendingBody.id));
+assert(!api.answerQueue().some((item) => item.id === pendingBody.id), 'частичный материал не уходит Reviewer');
+await api.refreshQuestions({ force: true, quiet: true });
+assert(!api.answerQueue().some((item) => item.id === pendingBody.id), 'фоновый опрос не обходит задержку');
+failBodyPatch = false;
+await api.flushQuestionBodies();
+assert(!api.questionBodyPending(pendingBody.id));
+assert(api.answerQueue().find((item) => item.id === pendingBody.id).fullText.includes(full.trim()));
+assert(blocksByRow.get(pendingBody.id).some((block) => block.type === 'paragraph' && block.paragraph.rich_text.map((x) => x.text.content).join('') === full.trim()));
+
+// Ответ на PATCH мог потеряться уже после записи; повтор сначала читает блоки.
+lostBodyResponse = true;
+const responseLost = await api.askQuestion(api.parseQuestion({ text: `ADR: таймаут. ${'Существенный контекст. '.repeat(12)}`, default: 'оставить' }),
+  { key: 'notion-body-timeout', mission: 'TEST-1' });
+assert(api.questionBodyPending(responseLost.id));
+const patchCount = bodyWrites.length;
+await api.flushQuestionBodies();
+assert.equal(bodyWrites.length, patchCount, 'после потерянного ответа блоки не продублированы');
+assert(!api.questionBodyPending(responseLost.id));
+
+// Существующая строка старого watcher: ошибка дополнения блокирует даже ранее
+// поставленный в очередь неполный промпт, до восстановления Notion.
+await api.deliverProposals([{ file: 'SUPPLEMENT-1.md' }]);
+const oldProposal = db.at(-1);
+assert(api.answerQueue().some((item) => item.id === oldProposal.id));
+const supplementFull = `ADR: docs/decisions/SUPPLEMENT-1.md — ${'новый полный материал и последствия '.repeat(10)}`;
+failBodyPatch = true;
+const sameProposal = await api.askQuestion(api.parseQuestion({ text:supplementFull, default:'оставить как есть' }),
+  { key:'supplement-failure', mission:'TEST-1' });
+assert.equal(sameProposal.id, oldProposal.id);
+assert(api.questionBodyPending(oldProposal.id));
+assert.equal(await api.startAnswer(mission, api.answerQueue().find((item) => item.id === oldProposal.id)), false);
+await api.refreshQuestions({ force:true, quiet:true });
+assert(api.questionBodyPending(oldProposal.id));
+failBodyPatch = false;
+await api.flushQuestionBodies();
+assert(!api.questionBodyPending(oldProposal.id));
+assert(api.answerQueue().find((item) => item.id === oldProposal.id).fullText.includes(supplementFull.trim()));
+
+// Потерянный ответ POST: строка есть, но дубликат не создаём и приёмке
+// не передаём до восстановления полного текста.
+lostPostResponse = true;
+const postLostText = `ADR: после потерянного POST. ${'Сохраним весь материал. '.repeat(11)}`;
+const postsBeforeLost = posts.length;
+assert.equal(await api.askQuestion(api.parseQuestion({ text:postLostText, default:'оставить' }),
+  { key:'post-lost', mission:'TEST-1' }), null);
+const postLostRow = db.at(-1); assert.equal(posts.length, postsBeforeLost + 1);
+failBodyPatch = true;
+await api.refreshQuestions({ force:true, quiet:true });
+assert.equal(posts.length, postsBeforeLost + 1, 'после потерянного POST повторную строку не создаём');
+assert(api.questionBodyPending(postLostRow.id));
+assert(!api.answerQueue().some((item) => item.id === postLostRow.id));
+failBodyPatch = false; await api.flushQuestionBodies();
+assert(api.answerQueue().find((item) => item.id === postLostRow.id).fullText.includes(postLostText.trim()));
+
+// Перезапуск после POST до первой обработки ответа: намерение переживает вкладку.
+const restartQ = api.parseQuestion({ text:`ADR: перезапуск. ${'Полный текст до перезапуска. '.repeat(10)}`, default:'оставить' });
+const restartRow = { id:'restart-intent', properties:{ ...api.questionProps(restartQ, { mission:'TEST-1' }), 'Ответ':{rich_text:[]} } };
+db.push(restartRow);
+set('cfn-question-intents', [{ q:restartQ, ctx:{key:'restart',mission:'TEST-1'}, at:1 }]);
+const postsBeforeRestart = posts.length;
+await api.refreshQuestions({ force:true, quiet:true });
+assert.equal(posts.length, postsBeforeRestart);
+assert(api.answerQueue().find((item) => item.id === restartRow.id).fullText.includes(restartQ.fullText));
+assert.equal(get('cfn-question-intents', []).length, 0);
+
+// Потерянный PATCH, затем ручная правка: не восстанавливаем старый текст
+// и не создаём второй блок поверх исправления Мастера.
+lostBodyResponse = true;
+const editedAfterTimeout = await api.askQuestion(api.parseQuestion({ text:`ADR: ручная правка после таймаута. ${'контекст '.repeat(30)}`, default:'оставить' }),
+  { key:'edited-timeout', mission:'TEST-1' });
+const editedBlocks = blocksByRow.get(editedAfterTimeout.id);
+editedBlocks[1].paragraph.rich_text = richText('Отредактированный человеком текст.');
+const countBeforeEditedRetry = bodyWrites.length;
+await api.flushQuestionBodies();
+assert.equal(bodyWrites.length, countBeforeEditedRetry); assert(api.questionBodyPending(editedAfterTimeout.id));
+assert(!api.answerQueue().some((item) => item.id === editedAfterTimeout.id));
+
+// Ручная строка с телом после перезагрузки: приёмка получает и текст блоков.
+const manualRow = { id: 'manual-full', properties: {
+  'Вопрос': { title: [{ text: { content: 'ADR: создано в Notion' } }] },
+  'Статус': { select: { name: 'Ждёт' } }, 'Ответ': { rich_text: [] },
+  'По умолчанию': { rich_text: richText('оставить') }, 'Миссия': { rich_text: richText('TEST-1') },
+} };
+db.push(manualRow);
+blocksByRow.set(manualRow.id, [{ id: 'manual-paragraph', type: 'paragraph', paragraph: { rich_text: richText('Полный ручной контекст и варианты решения.') } }]);
+await api.refreshQuestions({ force: true, quiet: true });
+assert.match(api.answerQueue().find((item) => item.id === manualRow.id).fullText, /Полный ручной контекст/);
+
+// Вложенные страницы и пагинация блоков, таблица, подпись медиа и статус to-do.
+const nested = { id:'manual-nested', properties:{ ...copy(manualRow.properties),
+  'Вопрос':{ title:[{text:{content:'ADR: вложенный материал'}}] } } };
+db.push(nested);
+blocksByRow.set(nested.id, [
+  { id:'parent-a', type:'paragraph', paragraph:{rich_text:richText('Первая страница блоков')} },
+  { id:'table-a', type:'table', has_children:true, table:{} },
+  { id:'image-a', type:'image', image:{caption:richText('Подпись к схеме')} },
+  { id:'todo-a', type:'to_do', to_do:{checked:true, rich_text:richText('Проверить условие')} },
+]);
+blocksByRow.set('table-a', [
+  { id:'table-row-1', type:'table_row', table_row:{cells:[richText('Вариант A'), richText('Последствия')] } },
+  { id:'table-row-2', type:'table_row', table_row:{cells:[richText('Вариант B'), richText('Другое')] } },
+]);
+pagedBlockIds.add(nested.id); pagedBlockIds.add('table-a');
+await api.refreshQuestions({ force:true, quiet:true });
+const nestedFull = api.answerQueue().find((item) => item.id === nested.id).fullText;
+for (const expected of ['Первая страница блоков','Вариант A | Последствия','Вариант B | Другое','Подпись к схеме','[x] Проверить условие'])
+  assert(nestedFull.includes(expected), expected);
+
+// Неизвестный контейнер не маскируется наличием текста и детей.
+const unsupported = { id:'manual-unsupported', properties:{...copy(manualRow.properties),
+  'Вопрос':{title:[{text:{content:'ADR: неизвестный блок'}}]} } };
+db.push(unsupported);
+blocksByRow.set(unsupported.id, [{ id:'unknown-a', type:'mystery', has_children:true, mystery:{rich_text:richText('неполные данные')} }]);
+blocksByRow.set('unknown-a', [{ id:'hidden', type:'paragraph', paragraph:{rich_text:richText('скрытый контекст')} }]);
+await api.refreshQuestions({ force:true, quiet:true });
+assert(!api.answerQueue().some((item) => item.id === unsupported.id));
+assert.equal(sel(unsupported.properties['Статус']), 'Ждёт');
+
 console.log('OK: единая Notion-очередь, дедупликация, приёмка, повторы и счётчик без гонок');

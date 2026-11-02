@@ -11,6 +11,7 @@ function cut(a, b) {
 }
 const decisionBlock = cut('  function adrKeysOf(text) {', '  /** `Статус:` из шапки ADR');
 const expireBlock = cut('  async function closeExpired(rows, closedIds = null) {', '  /** Строки базы «Вопросы»');
+const intentBlock = cut('  const questionIntents = () => {', '  function queueQuestion(q, ctx = {}) {');
 const questionBlock = cut('  const adrRefsOf = (text) => {', '  /** Отметить ответы доставленными');
 const proposalBlock = cut('  function proposalQuestion(row, missionName = "") {', '  async function refreshDecisions');
 const Q = { wait: 'Ждёт', done: 'Решено', byDefault: 'Принят дефолт' };
@@ -124,7 +125,7 @@ const { askQuestion } = new Function(
   'norm', 'rt', 'sel', 'Q', 'questionRows', 'GM_getValue', 'GM_setValue', 'log', 'dbg',
   'notion', 'C', 'questionProps', 'noteQuestionAsked', 'appendQuestionBody', 'queueAnswer', 'queueQuestion',
   'withQuestionWriteLock', 'questionMaterial',
-  `${questionBlock}\nreturn { askQuestion };`,
+  `${intentBlock}\n${questionBlock}\nreturn { askQuestion };`,
 )(
   norm, rt, sel, Q, questionRows,
   (key, fallback) => store.has(key) ? store.get(key) : fallback,
