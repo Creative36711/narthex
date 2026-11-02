@@ -20,12 +20,12 @@
     if (requestedLoud && options.cycleStopped === true) {
       return {
         loud: true, priority: "5", tags: "warning,rotating_light",
-        title: options.title || "Narthex: цикл остановлен", cycleStopped: true, key: options.ntfyKey || "",
+        title: options.title || "Relay: цикл остановлен", cycleStopped: true, key: options.ntfyKey || "",
       };
     }
     if (requestedLoud || options.ntfy === "quiet" || QUIET_NTFY.some((re) => re.test(clean))) {
       return {
-        loud: false, priority: "2", tags: "memo", title: options.title || "Narthex",
+        loud: false, priority: "2", tags: "memo", title: options.title || "Relay",
         cycleStopped: options.cycleStopped === true, key: options.ntfyKey || "",
       };
     }
@@ -56,7 +56,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.5.0";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.6.0";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -97,7 +97,7 @@
    * ntfy отдаёт CORS-заголовки, так что второй путь работает без @connect.
    * Ошибки складываются в одно сообщение: по нему видно, где именно порвалось.
    */
-  async function ntfyPublish(topic, token, { message, title = "Narthex", priority = 2, tags = [] } = {}) {
+  async function ntfyPublish(topic, token, { message, title = "Relay", priority = 2, tags = [] } = {}) {
     const name = normalizeNtfyTopic(topic);
     if (!name) throw new Error("топик не задан или содержит недопустимые символы");
     const payload = JSON.stringify({

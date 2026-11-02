@@ -1,5 +1,5 @@
-// Склеивает части в одну общую closure. Имена @name/@namespace не менять:
-// тогда ScriptCat обновляет существующую установку и сохраняет legacy GM.
+// Склеивает части в одну closure. Изменение метаданных может создать новую
+// установку и новое хранилище; см. порядок переноса в INSTALL.md.
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,12 +19,12 @@ const read = (name) => readFile(join(here, 'src', name), 'utf8');
 const source = (await read(header)) + '\n((GM_getValue, GM_setValue) => {\n  "use strict";\n\n' +
   (await Promise.all(parts.map(read))).join('\n') + '})(GM_getValue, GM_setValue);\n';
 assertUserscriptVersionContract(source);
-const output = join(here, 'narthex.user.js');
+const output = join(here, 'relay.user.js');
 if (process.argv.slice(2).some((arg) => arg !== '--check')) throw new Error('Usage: node build.mjs [--check]');
 if (process.argv.includes('--check')) {
   const current = await readFile(output, 'utf8');
   if (source !== current) {
-    console.error('narthex.user.js устарел: выполните node _tools/ScriptCat/build.mjs');
+    console.error('relay.user.js устарел: выполните node _tools/ScriptCat/build.mjs');
     process.exitCode = 1;
   } else console.log(`ScriptCat bundle соответствует ${parts.length + 1} исходным файлам.`);
 } else {

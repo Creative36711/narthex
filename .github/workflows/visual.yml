@@ -38,8 +38,11 @@ jobs:
       # браузера; запускаем базовые пробы и отдельные регрессии. Раньше они
       # жили только в README, и 29.10 одна покраснела на зелёном коде (в ней «сейчас»
       # бралось из системных часов) — заметил это только Мастер.
-      - name: Проверить сборку ScriptCat из исходных файлов
-        run: npm run scriptcat:check
+      - name: Проверить сборку и переносимость ScriptCat
+        run: |
+          set -e
+          npm run scriptcat:check
+          npm run scriptcat:portability
 
       - name: Пробы транспорта ScriptCat
         run: |
@@ -72,7 +75,7 @@ jobs:
 
       - name: ScriptCat — браузерные сценарии на моках без сети
         env:
-          NARTHEX_PARITY_BROWSER_PREFIX: ${{ runner.temp }}/narthex-parity-browser
+          RELAY_BROWSER_PREFIX: ${{ runner.temp }}/narthex-parity-browser
           TMPDIR: ${{ runner.temp }}/narthex-parity-runtime
         run: |
           mkdir -p "$TMPDIR"

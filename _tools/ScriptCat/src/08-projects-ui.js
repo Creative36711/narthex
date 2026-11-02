@@ -41,7 +41,7 @@
         { "Функция": ["Coordinator", "Executor", "Auditor", "Reviewer"], "Статус": ["Активна"] }],
       ["Миссии", C.missions, { "Миссия": "title", "Состояние": "select", "Создана": "date", "Завершена": "date", "Возвращена": "date", "Круг": "number", "Замечания": "rich_text", "Итог": "rich_text", "ТЗ URL": "url" },
         { "Состояние": ["Активна", "Возвращена", "Завершена", "Провалена"] }],
-      ["Запросы", C.requests, { "Запрос": "title", "Миссия": "rich_text", "Кому": "select", "Sequence": "number", "Dispatch State": "select", "Run ID": "rich_text", "Recipient Agent ID": "rich_text", "Started At": "date", "Submitted At": "date", "PR": "url", "Check": "select", "Output Drive File ID": "rich_text", "Payload Drive File ID": "rich_text", "Намерение": "rich_text", "Инварианты": "rich_text", "Acceptance": "rich_text", "Свободно": "rich_text", "Scope": "rich_text", "Ответ": "rich_text", "Branch": "rich_text", "Report SHA": "rich_text" },
+      ["Запросы", C.requests, { "Запрос": "title", "Миссия": "rich_text", "Mission ID": "rich_text", "Dependency": "rich_text", "Кому": "select", "Sequence": "number", "Dispatch State": "select", "Run ID": "rich_text", "Recipient Agent ID": "rich_text", "Started At": "date", "Submitted At": "date", "PR": "url", "Check": "select", "Output Drive File ID": "rich_text", "Payload Drive File ID": "rich_text", "Намерение": "rich_text", "Инварианты": "rich_text", "Acceptance": "rich_text", "Свободно": "rich_text", "Scope": "rich_text", "Ответ": "rich_text", "Branch": "rich_text", "Report SHA": "rich_text" },
         { "Dispatch State": ["Draft", "Ready", "Running", "Submitted", "Accepted", "Rework", "Blocked"], "Check": ["pass", "fail"] }],
       ["Обратная связь", C.questions, { "Вопрос": "title", "Статус": "select", "По умолчанию": "rich_text", "Ответ": "rich_text", "Варианты": "rich_text", "Срок": "date", "Доставлено": "date", "Материал": "url", "Роль": "rich_text", "Карточка": "rich_text", "Миссия": "rich_text", "Что блокирует": "rich_text" },
         { "Статус": ["Ждёт", "Решено", "Принят дефолт", "Отменён"] }],
@@ -114,6 +114,66 @@
     } catch { return ""; }
   }
 
+  /** Read-only план миграции: никаких fuzzy-сопоставлений и молчаливых правок. */
+  async function inspectMissionMigration() {
+    const [missions, cards] = await Promise.all([query(C.missions), query(C.requests)]);
+    const active = missions.filter((row) => ["Активна", "Возвращена"].includes(sel(row.properties?.["Состояние"])));
+    const states = new Set(["Draft", "Ready", "Running", "Submitted", "Accepted", "Rework", "Blocked"]);
+    const mapped = [], existing = [], conflicts = [];
+    for (const row of cards) {
+      const label = rt(row.properties?.["Миссия"]).trim();
+      const current = cardMissionId(row);
+      const title = taskTitle(row) || "без названия";
+      const matches = label ? missions.filter((item) => rt(item.properties?.["Миссия"]).trim() === label ||
+        (isUuid(label) && norm(item.id) === norm(label))) : [];
+      if (!states.has(taskState(row))) { conflicts.push({ row, why: "пустое или неизвестное состояние" }); continue; }
+      if (current) {
+        const problem = cardBindingIssue(row, missions);
+        if (problem) conflicts.push({ row, why: problem });
+        else existing.push({ row, id: current });
+        continue;
+      }
+      if (matches.length !== 1) {
+        conflicts.push({ row, why: !label ? "пустое название миссии" :
+          matches.length ? "несколько миссий с таким названием" : "нет точного совпадения названия или ID" });
+        continue;
+      }
+      mapped.push({ row, mission: matches[0], id: matches[0].id, title, label });
+    }
+    if (active.length > 1) conflicts.push({ row: null, why: `активных или возвращённых миссий: ${active.length}` });
+    if (cards.some((row) => taskState(row) === "Running"))
+      conflicts.push({ row: null, why: "есть карточки Running: сначала завершите или разберите текущие ходы" });
+    return { mapped, existing, conflicts, count: cards.length };
+  }
+
+  function formatMissionMigration(plan) {
+    const lines = [`Карточек: ${plan.count}; уже привязано: ${plan.existing.length}; ` +
+      `точных предложений: ${plan.mapped.length}; требуют ручной проверки: ${plan.conflicts.length}.`];
+    for (const item of plan.mapped) lines.push(`ПРЕДЛОЖЕНИЕ ${item.row.id} · ${item.title} → ${item.id} · ${item.label}`);
+    for (const item of plan.conflicts) lines.push(`ПРОВЕРИТЬ ${item.row?.id || "общая проверка"} · ${item.row ? taskTitle(item.row) : ""}: ${item.why}`);
+    lines.push("Сверьте каждую строку с карточкой и миссией. Названия, состояния, ответы, Run ID и журналы не меняются.");
+    return lines.join("\n");
+  }
+
+  async function applyMissionMigration(plan) {
+    let written = 0;
+    for (const item of plan.mapped) {
+      // Не используем старый снимок, если карточку или миссию поправили после
+      // предпросмотра. Notion не поддерживает атомарный compare-and-set.
+      const [row, mission] = await Promise.all([
+        notion("GET", `pages/${item.row.id}`), notion("GET", `pages/${item.id}`),
+      ]);
+      if (row.last_edited_time !== item.row.last_edited_time || mission.last_edited_time !== item.mission.last_edited_time ||
+          cardMissionId(row) || rt(row.properties?.["Миссия"]).trim() !== item.label || taskState(row) === "Running" ||
+          norm(mission.id) !== norm(item.id)) {
+        throw new Error(`Изменение карточки или миссии ${item.row.id}; уже записано ${written}. Обновите предпросмотр.`);
+      }
+      await patch(item.row.id, { "Mission ID": { rich_text: richText(item.id) } });
+      written += 1;
+    }
+    return written;
+  }
+
   function projectsDialog() {
     if (document.getElementById("cfn-projects")) return;
     const box = document.createElement("div");
@@ -135,6 +195,12 @@
         </div>
         <div id="cfn-project-info" style="color:#aab4c3;white-space:pre-wrap"></div>
         <button id="cfn-project-enable" style="${action};margin-top:8px;background:#285638">Проверить подключения и разрешить работу</button>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px">
+          <button id="cfn-project-migration-preview" style="${action}">Проверить Mission ID карточек</button>
+          <button id="cfn-project-migration-apply" style="${action}">Записать проверенные Mission ID</button>
+          <button id="cfn-project-import" style="${action}">Перенести прежнее локальное состояние</button>
+          <button id="cfn-project-rejected" style="${action}">Посмотреть сохранённые ответы</button>
+        </div>
         <div style="margin:8px 0;color:#ffd479;font-size:12px">Для нового проекта необходим шлюз 1.6 с отдельным ключом. После разрешения фоновые сторожа вопросов и старых ADR могут создавать записи; сам автоцикл не запускается.</div>
         <div id="cfn-project-form" style="display:none;border-top:1px solid #343b48;margin-top:14px;padding-top:12px">
           <h3 id="cfn-project-form-title" style="margin:0 0 6px">Новый профиль</h3>
@@ -167,6 +233,7 @@
     const say = (message, error = false) => { note.textContent = message; note.style.color = error ? "#ffb4ad" : "#bfe6c4"; };
     let checking = false;
     let editingId = "";
+    let migrationPlan = null;
     let openingRevision = JSON.stringify(profileRegistry());
     const profiles = () => [LEGACY_PROFILE, ...profileRegistry().filter(validProfile)];
     const chosen = () => profiles().find((p) => p.id === list.value);
@@ -333,6 +400,79 @@
         sessionStorage.setItem(PROFILE_SESSION_KEY, target.id);
         location.reload();
       } catch { say("Не удалось сохранить выбор во вкладке; проект не переключён.", true); }
+    };
+    const migrationSafe = () => !ACTIVE_PROFILE.invalid && !ACTIVE_PROFILE.legacy &&
+      !autoOn() && !busy && projectAsyncWork === 0;
+    const migrationSignature = (plan) => JSON.stringify({
+      mapped: plan.mapped.map((item) => [item.row.id, item.row.last_edited_time, item.id, item.mission.last_edited_time, item.label]),
+      existing: plan.existing.map((item) => [item.row.id, item.row.last_edited_time, item.id]),
+      conflicts: plan.conflicts.map((item) => [item.row?.id || "", item.why]), count: plan.count,
+    });
+    find("rejected").onclick = () => {
+      const saved = GM_getValue("cfn-rejected-results-v1", []);
+      if (!Array.isArray(saved) || !saved.length) { say("Сохранённых отклонённых ответов в этом профиле нет."); return; }
+      say("Локальные копии могут содержать данные проекта; не публикуйте их и не отправляйте секреты в чат.\n\n" +
+        saved.map((item) => `${item.at} · ${item.kind} · ${item.ref} · run ${item.runId || "—"} · turn ${item.turnId || "—"}\n${item.raw}`).join("\n\n---\n\n"));
+    };
+    find("migration-preview").onclick = async () => {
+      if (checking || !migrationSafe()) { say("Откройте настроенный профиль, остановите цикл и дождитесь всех операций.", true); return; }
+      checking = true; migrationPlan = null;
+      try {
+        const source = await notion("GET", `data_sources/${C.requests}`);
+        if (source.properties?.["Mission ID"]?.type !== "rich_text")
+          throw new Error("В базе «Запросы» сначала создайте поле Mission ID типа text.");
+        migrationPlan = await inspectMissionMigration();
+        say(formatMissionMigration(migrationPlan), migrationPlan.conflicts.length > 0);
+      } catch (e) { say(`Предпросмотр не выполнен: ${connectionProblem(e, connectionSettings())}`, true); }
+      finally { checking = false; }
+    };
+    find("migration-apply").onclick = async () => {
+      if (checking || !migrationSafe() || !migrationPlan) { say("Сначала остановите цикл и выполните предпросмотр.", true); return; }
+      if (migrationPlan.conflicts.length) { say(formatMissionMigration(migrationPlan) + "\nСначала вручную разберите все строки ПРОВЕРИТЬ и обновите предпросмотр.", true); return; }
+      if (GM_getValue(K.pending, null) || GM_getValue(K.expect, null)) {
+        say("Сохранены незавершённая очередь или ожидание. Сначала разберите их и проверьте чат и журнал; миграция ничего не снимает.", true); return;
+      }
+      if (!migrationPlan.mapped.length) { say("Все карточки уже привязаны; записывать нечего."); return; }
+      if (migrationPlan.mapped.some((item) => !item.row.last_edited_time || !item.mission.last_edited_time)) {
+        say("Notion не вернул время последнего изменения. Без него автоматическую запись не выполняю.", true); return;
+      }
+      if (!confirm(`Записать Mission ID в ${migrationPlan.mapped.length} карточек?\n\nПроверьте ВСЕ строки предпросмотра. Запись только в пустые поля. Остановите другие вкладки и внешние изменения; атомарной блокировки Notion нет.`)) return;
+      checking = true;
+      try {
+        const fresh = await inspectMissionMigration();
+        if (!migrationSafe() || GM_getValue(K.pending, null) || GM_getValue(K.expect, null) ||
+            migrationSignature(fresh) !== migrationSignature(migrationPlan))
+          throw new Error("Данные или состояние цикла изменились после предпросмотра; запись отменена.");
+        const count = await applyMissionMigration(migrationPlan);
+        migrationPlan = null;
+        const verified = await inspectMissionMigration();
+        say(`Записано Mission ID: ${count}. Проверка после записи:\n${formatMissionMigration(verified)}`, verified.conflicts.length > 0 || verified.mapped.length > 0);
+      } catch (e) { migrationPlan = null; say(`Миграция прервана: ${connectionProblem(e, connectionSettings())}\nЧасть строк могла сохраниться. История не удалялась; выполните предпросмотр заново.`, true); }
+      finally { checking = false; }
+    };
+    find("import").onclick = async () => {
+      const target = chosen();
+      if (checking || autoOn() || busy || projectAsyncWork > 0 || !target || target.legacy || !validProfile(target)) {
+        say("Остановите все операции и выберите созданный, ещё не открытый новый профиль.", true); return;
+      }
+      if (target.id === ACTIVE_PROFILE.id) { say("Для переноса выберите ещё не открытый профиль, чтобы не смешать состояния.", true); return; }
+      checking = true;
+      try {
+        const keys = typeof GM_listValues === "function" ? await Promise.resolve(GM_listValues()) : [];
+        if (!Array.isArray(keys)) throw new Error("Менеджер скриптов не вернул список локальных ключей.");
+        const legacy = keys.filter((key) => key.startsWith("cfn-") && key !== PROFILE_REGISTRY_KEY &&
+          !["cfn-project-approved", "cfn-project-ever-approved", "cfn-auto-enabled", "cfn-step-request"].includes(key));
+        if (!legacy.length) throw new Error("Прежнее локальное хранилище не найдено. Возможно, установлена отдельная копия; не удаляйте старый скрипт.");
+        if (keys.some((key) => key.startsWith(`project:${target.id}:`))) throw new Error("В выбранном профиле уже есть локальное состояние; поверх него не копирую.");
+        if (!confirm(`Скопировать ${legacy.length} локальных ключей в «${target.name}»?\n\nПодтвердите, что профиль вручную указывает на ТОТ ЖЕ проект и что все другие вкладки остановлены. Секреты, очередь и ожидания будут скопированы локально; старые ключи останутся. Автозапуск и допуск не переносятся.`)) return;
+        const after = typeof GM_listValues === "function" ? await Promise.resolve(GM_listValues()) : [];
+        if (autoOn() || busy || projectAsyncWork > 0 || after.some((key) => key.startsWith(`project:${target.id}:`)))
+          throw new Error("Состояние изменилось во время подтверждения; копирование отменено.");
+        for (const key of legacy) rawSet(projectStorageKey(target.id, key), rawGet(key, null));
+        rawSet(projectStorageKey(target.id, "cfn-project-approved"), false);
+        say(`Скопировано ключей: ${legacy.length}. Старые ключи сохранены. Откройте профиль, проверьте ожидание и журнал, настройте проектный шлюз и выполните проверку подключений. Автоцикл не запущен.`);
+      } catch (e) { say(`Перенос не выполнен полностью: ${e.message}. Старые ключи не удалены; проверьте новый профиль.`, true); }
+      finally { checking = false; }
     };
     find("enable").onclick = async () => {
       if (checking || ACTIVE_PROFILE.invalid || ACTIVE_PROFILE.legacy) return;

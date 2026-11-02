@@ -113,6 +113,10 @@
       },
       [{ property: "Создана", direction: "descending" }],
     );
+    if (rows.length > 1) {
+      throw new Error(`Найдено несколько активных или возвращённых миссий (${rows.map((row) => row.id).join(", ")}). ` +
+        "Оставьте ровно одну активную миссию; автоматически выбирать по дате нельзя.");
+    }
     return rows[0] || null;
   }
 
@@ -187,13 +191,13 @@
       return false; // Notion не ответил — не выдумываем событие
     }
     if (!closed) return false;
-    if (expect?.kind === "dispatch" || (expect?.kind === "reminder" && expect.runId)) {
-      // Закрытие миссии извне не доказывает, что ответ этой карточки записан.
-      // Не теряем её Run ID и не принимаем остальные Running «за компанию».
+    if (expect?.kind === "dispatch" || expect?.kind === "answer" || expect?.kind === "review" || (expect?.kind === "reminder" && expect.runId)) {
+      // Закрытие извне не доказывает, что ответ карточки или вопроса записан.
+      // Не теряем его идентификаторы и не принимаем остальные ходы «за компанию».
       autoSet(false);
-      pause("Миссия уже закрыта, но есть незавершённое ожидание карточки. " +
-        "Ответ и Run ID сохраняю; проверьте карточку и журнал, прежде чем снимать ожидание.", {
-        kind: "closed-with-running", ref: expect.ref || "", runId: expect.runId || "",
+      pause("Миссия уже закрыта, но есть незавершённое ожидание карточки или вопроса. " +
+        "Ответ и ID сохраняю; проверьте чат, карточку и журнал, прежде чем снимать ожидание.", {
+        kind: "closed-with-running", ref: expect.ref || "", runId: expect.runId || "", turnId: expect.turnId || "",
       });
       return true;
     }
@@ -248,7 +252,7 @@
           kind: "closed-unreviewed",
           ref: closed.id,
           quiet: true,
-          notifyTitle: "Narthex: миссия закрыта без приёмки",
+          notifyTitle: "Relay: миссия закрыта без приёмки",
         },
       );
       return true;
@@ -280,7 +284,7 @@
         // незавершённый ход; на уже выключенном стенде достаточно тихо.
         ntfy: failed && (running || waited) ? "loud" : "quiet",
         cycleStopped: true,
-        title: failed ? "Narthex: миссия провалена" : "Narthex: миссия завершена",
+        title: failed ? "Relay: миссия провалена" : "Relay: миссия завершена",
       },
     );
     return true;
@@ -300,7 +304,7 @@
    * внутри миссии: снимать их сменой миссии нельзя. Всё остальное — остановки
    * конкретного хода, и к новой миссии они отношения не имеют.
    */
-  const PAUSE_BEYOND_MISSION = new Set(["captcha", "ui-error", "arena-error", "mission-change-running"]);
+  const PAUSE_BEYOND_MISSION = new Set(["captcha", "ui-error", "arena-error", "mission-change-running", "mission-change-answer", "marker-mismatch", "update-recovery"]);
 
   /** Пауза прошлого хода к новой миссии не относится. */
   function dropPauseOfMission(cleared = []) {
@@ -327,16 +331,17 @@
     const probe = await missionProbe();
     const live = GM_getValue(K.expect, null);
     const liveDispatch = live?.kind === "dispatch" || (live?.kind === "reminder" && !!live.runId);
+    const liveAnswer = live?.kind === "answer" || live?.kind === "review";
     if (!probe.mission) {
-      const missionId = liveDispatch && (live.missionId || probe.known);
+      const missionId = (liveDispatch || liveAnswer) && (live.missionId || probe.known);
       if (missionId) {
         const previous = await notion("GET", `pages/${missionId}`);
         const state = previous?.properties?.["Состояние"]?.select?.name || "";
         if (["Завершена", "Провалена"].includes(state)) {
           autoSet(false);
-          pause("Миссия уже закрыта, но есть незавершённое ожидание карточки. " +
-            "Ответ и Run ID сохраняю; проверьте карточку и журнал, прежде чем снимать ожидание.", {
-            kind: "closed-with-running", ref: live.ref || "", runId: live.runId || "",
+          pause("Миссия уже закрыта, но есть незавершённое ожидание карточки или вопроса. " +
+            "Ответ и ID сохраняю; проверьте чат и журнал, прежде чем снимать ожидание.", {
+            kind: "closed-with-running", ref: live.ref || "", runId: live.runId || "", turnId: live.turnId || "",
           });
           return true;
         }
@@ -344,12 +349,12 @@
       return;
     }
     const changed = probe.changed || (live?.missionId && norm(live.missionId) !== norm(probe.mission.id));
-    if (changed && liveDispatch) {
-      // Новая миссия не доказывает, что старая карточка сдана. Не стираем
-      // ожидание и не выдаём её ответ за ответ новой миссии.
-      pause("Появилась новая миссия, пока ждём ответ по карточке прошлой. " +
-        "Ожидание и Run ID сохранены: сначала сверьте старую карточку и журнал, затем продолжайте.", {
-        kind: "mission-change-running", ref: live.ref || "", runId: live.runId || "",
+    if (changed && (liveDispatch || liveAnswer)) {
+      // Новая миссия не доказывает, что старая карточка или вопрос обработаны.
+      pause("Появилась новая миссия, пока ждём ответ по карточке или вопросу прошлой. " +
+        "Ожидание и ID сохранены: сначала сверьте чат, старую карточку и журнал.", {
+        kind: liveAnswer ? "mission-change-answer" : "mission-change-running",
+        ref: live.ref || "", runId: live.runId || "", turnId: live.turnId || "",
       });
       return true;
     }
@@ -398,7 +403,7 @@
       const probe = await missionProbe();
       if (!probe.changed) return false;
       const live = GM_getValue(K.expect, null);
-      if (live?.kind === "dispatch" || (live?.kind === "reminder" && live.runId)) {
+      if (live?.kind === "dispatch" || live?.kind === "answer" || live?.kind === "review" || (live?.kind === "reminder" && live.runId)) {
         // И эта ранняя ветка не должна закрепить новую миссию до сверки
         // старой выдачи, иначе syncMissionState уже не увидит смену.
         const context = GM_getValue(K.pause, null);
@@ -532,8 +537,8 @@
   /**
    * Одна ли это миссия. Точное совпадение слов — да; перестановка слов и
    * лишнее слово — тоже да, если короткое название содержит не меньше трёх
-   * слов (иначе «NAR-2» цепляло бы карточки соседних миссий). Пустое поле
-   * «Миссия» в карточке — не чужая миссия: такие карточки считаются всегда.
+   * слов, чтобы короткое название не цепляло соседние миссии. Это сравнение
+   * используется для обратной связи; привязка карточек проверяется по Mission ID.
    */
   function missionSame(a, b) {
     const left = missionWords(a);
@@ -545,39 +550,64 @@
     return small.length >= 3 && small.every((w) => big.includes(w));
   }
 
-  /** Сказать про «потерянные» карточки — один раз на набор, а не на каждый план. */
+  /** Поле названия показывается человеку; граница очереди — только UUID миссии. */
+  const cardMissionId = (row) => rt(row?.properties?.["Mission ID"]).trim();
+  const cardInMission = (row, mission) => Boolean(mission?.id && isUuid(mission.id) &&
+    isUuid(cardMissionId(row)) && norm(cardMissionId(row)) === norm(mission.id));
+
+  function cardBindingIssue(row, missions) {
+    const id = cardMissionId(row);
+    const label = rt(row?.properties?.["Миссия"]).trim();
+    const named = label ? missions.filter((item) => rt(item.properties?.["Миссия"]).trim() === label ||
+      (isUuid(label) && norm(item.id) === norm(label))) : [];
+    if (!isUuid(id) || !missions.some((item) => norm(item.id) === norm(id))) return "Mission ID пуст, ошибочен или не найден";
+    if (named.length === 1 && norm(named[0].id) !== norm(id)) return "название и Mission ID указывают на разные миссии";
+    return "";
+  }
+
+  /** Не прячем записи с пустым состоянием или неизвестной привязкой. */
+  async function assertMissionBindings(mission) {
+    if (!mission || !isUuid(mission.id)) throw new Error("Нет однозначного UUID миссии.");
+    const [missions, cards] = await Promise.all([query(C.missions), query(C.requests)]);
+    const states = new Set(["Draft", "Ready", "Running", "Submitted", "Accepted", "Rework", "Blocked"]);
+    const problems = cards.filter((row) => cardBindingIssue(row, missions) || !states.has(taskState(row)));
+    if (problems.length) {
+      const examples = problems.slice(0, 8).map((row) => `${taskTitle(row) || "без названия"} (${row.id})`).join("; ");
+      throw new Error(`В «Запросах» ${problems.length} карточек с пустым/неизвестным Mission ID или состоянием: ${examples}. ` +
+        "Исправьте их по плану миграции; ни одну не скрываю и не изменяю.");
+    }
+    return cards;
+  }
+
+  /** Сказать про карточки другой миссии один раз на набор, а не на каждый план. */
   const missionSkipSeen = new Set();
 
   async function tasks(state, mission) {
+    if (!mission || !isUuid(mission.id)) throw new Error("Очередь нельзя прочитать без однозначного UUID миссии.");
     const rows = await query(
       C.requests,
       { property: "Dispatch State", select: { equals: state } },
       [{ property: "Sequence", direction: "ascending" }],
     );
-    if (!mission) return rows;
+    // Непривязанные записи нельзя молча исключить: среди них может быть и
+    // карточка текущей миссии, в том числе Accepted для приёмки.
+    const unresolved = rows.filter((row) => !isUuid(cardMissionId(row)));
+    if (unresolved.length) {
+      const examples = unresolved.slice(0, 8).map((row) => `${taskTitle(row) || "без названия"} (${row.id})`).join("; ");
+      throw new Error(`В «${state}» ${unresolved.length} карточек без корректного Mission ID: ${examples}. ` +
+        "Проверьте и перенесите привязки; историю и состояния карточек не меняю.");
+    }
     const wanted = rt(mission.properties["Миссия"]).trim();
-    const skipped = [];
-    const kept = rows.filter((row) => {
-      const value = rt(row.properties["Миссия"]).trim();
-      if (!value) return true;
-      if (norm(value) === norm(mission.id)) return true;
-      if (missionSame(value, wanted)) return true;
-      skipped.push({ row, value });
-      return false;
-    });
+    const skipped = rows.filter((row) => !cardInMission(row, mission));
+    const kept = rows.filter((row) => cardInMission(row, mission));
     if (skipped.length) {
-      const key = `${state}|${skipped.map((s) => s.row.id).join(",")}`;
+      const key = `${state}|${skipped.map((row) => row.id).join(",")}`;
       if (!missionSkipSeen.has(key)) {
         missionSkipSeen.add(key);
-        const list = skipped
-          .map((s) => `«${firstLine(taskTitle(s.row), 40)}» — «${firstLine(s.value, 60)}»`)
-          .join("; ");
-        log(
-          `В «${state}» есть карточки другой миссии, они не в очереди: ${list}. ` +
-            `Очередь миссии «${firstLine(wanted, 60)}».`,
-          false,
-          { tone: "warn", ntfy: "quiet", title: "Narthex: карточка вне миссии" },
-        );
+        const list = skipped.map((row) => `«${firstLine(taskTitle(row), 40)}» — ${cardMissionId(row)}`).join("; ");
+        log(`В «${state}» есть карточки другой миссии, они не в очереди: ${list}. ` +
+          `Очередь миссии «${firstLine(wanted, 60)}».`, false,
+          { tone: "warn", ntfy: "quiet", title: "Relay: карточка вне миссии" });
       }
     }
     return kept;

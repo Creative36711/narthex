@@ -20,6 +20,26 @@
   const nowIso = () => new Date().toISOString();
   const rt = (p) => (p?.rich_text || p?.title || []).map((x) => x.plain_text || x.text?.content || "").join("");
 
+  /** Локальный архив непригодных маркеров: не исправляем и не отправляем наружу. */
+  function retainRejectedResult(expect, kind, replies) {
+    try {
+      const key = "cfn-rejected-results-v1";
+      const prior = GM_getValue(key, []);
+      if (!Array.isArray(prior)) return false;
+      const raw = (replies || []).map((message) => String(message.raw || message.text || "")).filter(Boolean).join("\n\n");
+      if (!raw) return false;
+      const item = { kind, ref: String(expect?.ref || ""), runId: String(expect?.runId || ""),
+        turnId: String(expect?.turnId || ""), at: nowIso(), raw };
+      if (prior.some((old) => old.kind === kind && old.ref === item.ref && old.runId === item.runId &&
+          old.turnId === item.turnId && old.raw === raw)) return true;
+      // Не выбрасываем старые ответы при переполнении; предупредим, что
+      // остался только оригинал в чате и его нужно сохранить вручную.
+      if (prior.length >= 100) return false;
+      GM_setValue(key, [...prior, item]);
+      return true;
+    } catch { return false; }
+  }
+
   /**
    * `rich_text` для поля Notion: один объект — не больше 2000 знаков.
    *
@@ -107,7 +127,7 @@
   function clearLog() {
     entries = [];
     GM_setValue(K.log, []);
-    console.log("[Narthex] журнал очищен");
+    console.log("[Relay] журнал очищен");
     renderLog();
     setStatus();
     log("Журнал очищен.");
@@ -121,7 +141,7 @@
     entries.push({ t: `${new Date().toLocaleTimeString("ru-RU")} ${text}`, error, tone: options.tone || "" });
     entries = entries.slice(-C.maxLog);
     GM_setValue(K.log, entries);
-    console.log(`[Narthex] ${text}`);
+    console.log(`[Relay] ${text}`);
     renderLog();
     setStatus();
     const plan = classifyNtfy(text, error, options);

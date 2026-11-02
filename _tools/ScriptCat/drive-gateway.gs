@@ -1,4 +1,4 @@
-/** Narthex ScriptCat Drive gateway 1.6. Deploy as a web app executing as the owner. */
+/** Relay ScriptCat Drive gateway 1.6. Deploy as a web app executing as the owner. */
 const CF_KEY_PROPERTY = "CF_GATEWAY_KEY";
 const CF_PROJECTS_PROPERTY = "CF_GATEWAY_PROJECTS_V1";
 const CF_SETUP_PROJECT_ID = "CF_SETUP_PROJECT_ID";
@@ -6,9 +6,9 @@ const CF_SETUP_PROJECT_FOLDER = "CF_SETUP_PROJECT_FOLDER";
 const CF_ARENA_FOLDER_NAME = "Arena";
 const CF_LOGS_FOLDER_NAME = "logs";
 const CF_PAYLOADS_FOLDER_NAME = "payloads";
-const CF_LEGACY_LOG_FOLDER_NAME = "Narthex — логи";
-// Read-only compatibility for callers from gateway 1.2; writes still go to Arena/logs.
-const CF_LEGACY_RUN_LOG_FOLDER_ID = "19ljf2TgeDg6j-jIamGira8K8_2NjC1BT";
+// Optional explicit compatibility settings; never assume a previous project's folder.
+const CF_LEGACY_LOG_FOLDER_NAME_PROPERTY = "CF_LEGACY_LOG_FOLDER_NAME";
+const CF_LEGACY_RUN_LOG_FOLDER_ID_PROPERTY = "CF_LEGACY_RUN_LOG_FOLDER_ID";
 
 /** Run once in the Apps Script editor; copy the returned key into ScriptCat. */
 function setupGatewayKey() {
@@ -88,7 +88,7 @@ function projectLayout_(project) {
 function doGet() {
   return json_({
     ok: true,
-    service: "Narthex Drive gateway",
+    service: "Relay Drive gateway",
     version: "1.6",
   });
 }
@@ -111,7 +111,7 @@ function doPost(e) {
         const layout = layoutForRequest();
         return json_({
           ok: true,
-          service: "Narthex Drive gateway",
+          service: "Relay Drive gateway",
           version: "1.6",
           ...(project ? { projectScoped: true, projectId: project.id, project: folderInfo_(layout.project) } : {}),
           arena: folderInfo_(layout.arena),
@@ -123,8 +123,9 @@ function doPost(e) {
 
     if (request.action === "createLog") {
       const folderId = String(request.folderId || "");
-      if (folderId && (project || folderId !== CF_LEGACY_RUN_LOG_FOLDER_ID)) {
-        throw new Error("Прямой folderId запрещён: createLog сам выбирает Arena/logs.");
+      const oldFolder = PropertiesService.getScriptProperties().getProperty(CF_LEGACY_RUN_LOG_FOLDER_ID_PROPERTY) || "";
+      if (folderId && (project || !oldFolder || folderId !== oldFolder)) {
+        throw new Error("Прямой folderId не настроен: createLog сам выбирает Arena/logs.");
       }
       const dispatchId = String(request.dispatchId || "");
       const runId = String(request.runId || "");
@@ -234,7 +235,9 @@ function ensureLayout_() {
 
 /** Move and rename the v1.4 root folder only when Arena/logs does not exist. */
 function adoptLegacyLogs_(root, arena) {
-  const legacy = getFolderByName_(root, CF_LEGACY_LOG_FOLDER_NAME);
+  const name = String(PropertiesService.getScriptProperties().getProperty(CF_LEGACY_LOG_FOLDER_NAME_PROPERTY) || "").trim();
+  if (!name) return null;
+  const legacy = getFolderByName_(root, name);
   if (!legacy) return null;
   legacy.setName(CF_LOGS_FOLDER_NAME);
   legacy.moveTo(arena);

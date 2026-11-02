@@ -3,7 +3,7 @@
    * Отладка в консоль браузера (F12), а не только в панель.
    *
    * Включается тремя способами: `?cfn-debug` в адресе, кнопка 🐞 в панели и
-   * `__narthex.debug(true)` в консоли. Состояние хранится в ScriptCat, поэтому
+   * `__relay.debug(true)` в консоли. Состояние хранится в ScriptCat, поэтому
    * переживает переходы между страницами агентов — именно там всё и ломается.
    *
    * В консоль печатается не «шаг выполнен», а решение и его причина: какие
@@ -30,7 +30,7 @@
         payload = `снимок не удался: ${e.message}`;
       }
     }
-    const line = `[Narthex ${SCRIPT_VERSION}] ${step}`;
+    const line = `[Relay ${SCRIPT_VERSION}] ${step}`;
     try {
       if (payload === undefined) console.log(line);
       else console.log(line, payload);
@@ -100,13 +100,13 @@
     };
   }
 
-  /** `__narthex` — ручной пульт в консоли браузера. */
+  /** `__relay` — ручной пульт в консоли браузера. */
   const debugApi = {
     version: SCRIPT_VERSION,
     debug(on = true) {
       GM_setValue(K.debug, Boolean(on));
       if (on) installDebugApi();
-      console.info(`[Narthex] отладка ${on ? "включена: подробные сообщения пойдут в эту консоль" : "выключена"}.`);
+      console.info(`[Relay] отладка ${on ? "включена: подробные сообщения пойдут в эту консоль" : "выключена"}.`);
       return Boolean(on);
     },
     state: () => debugSnapshot(),
@@ -114,7 +114,7 @@
     /** Что скрипт видит вокруг поля ввода: кандидаты, кнопки, координаты. */
     dom: () => {
       const report = domReport();
-      console.info("[Narthex] снимок разметки:", report);
+      console.info("[Relay] снимок разметки:", report);
       return report;
     },
     /** Снимок, сохранённый при последнем отказе отправки. */
@@ -125,7 +125,7 @@
      *
      * Нужен, когда журнал говорит «отправлено», а глаза видят другое: в снимке
      * поле ввода, кнопка Send, ключ доставки, свои реплики с id и временем из
-     * id. В консоли: `copy(JSON.stringify(__narthex.send(), null, 2))`.
+     * id. В консоли: `copy(JSON.stringify(__relay.send(), null, 2))`.
      */
     send: () => {
       const pending = GM_getValue(K.pending, null);
@@ -199,7 +199,7 @@
   /** Пульт появляется в консоли только когда отладка включена. */
   function installDebugApi() {
     if (!debugOn()) return;
-    window.__narthex = debugApi;
+    window.__relay = debugApi;
   }
 
   // Повтор одной тихой вехи подавляется на 10 минут. Не больше восьми обычных
@@ -222,10 +222,10 @@
     return true;
   }
 
-  function notifyNtfy(text, { title = "Narthex", priority = "2", tags = "memo", cycleStopped = false, key = "" } = {}) {
+  function notifyNtfy(text, { title = "Relay", priority = "2", tags = "memo", cycleStopped = false, key = "" } = {}) {
     try {
-      if (typeof C !== "undefined" && C.projectName && C.projectName !== "Narthex")
-        title = String(title).replace(/^Narthex(?=[:\s]|$)/, C.projectName);
+      if (typeof C !== "undefined" && C.projectName && C.projectName !== "Relay")
+        title = String(title).replace(/^Relay(?=[:\s]|$)/, C.projectName);
       const topic = normalizeNtfyTopic(GM_getValue(K.ntfyTopic, ""));
       if (!topic) return;
       // Последняя защита: даже ошибочно помеченная «громкой» запись не звонит,
@@ -237,17 +237,17 @@
       }
       if (Number(priority) < 4 && !allowQuietNtfy(topic, key || `${title}:${text}`, stopped)) return;
       ntfyPublish(topic, GM_getValue(K.ntfyToken, ""), { message: text, title, priority, tags }).catch((e) => {
-        console.warn("[Narthex ntfy]", e.message);
+        console.warn("[Relay ntfy]", e.message);
         try {
           log(`ntfy: пуш не ушёл — ${e.message}`, true, { skip: true });
         } catch (logError) {
-          console.warn("[Narthex ntfy] не удалось записать ошибку:", logError);
+          console.warn("[Relay ntfy] не удалось записать ошибку:", logError);
         }
       });
     } catch (e) {
       // Уведомление не должно остановить живую выдачу, даже если хранилище
       // ScriptCat недоступно. В таком случае диагностика остаётся в консоли.
-      console.warn("[Narthex ntfy] уведомление пропущено:", e);
+      console.warn("[Relay ntfy] уведомление пропущено:", e);
     }
   }
 
@@ -278,6 +278,6 @@
       if (ctx.state === "suspended") ctx.resume().then(play).catch(() => {});
       else play();
     } catch (e) {
-      console.warn("[Narthex alert]", e);
+      console.warn("[Relay alert]", e);
     }
   }

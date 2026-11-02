@@ -1,4 +1,4 @@
-// Current Narthex userscript ↔ Drive Gateway 1.5 contract.
+// Current Relay userscript ↔ Drive Gateway 1.5 contract.
 // This is a local boundary probe with fake network responses; the Apps Script
 // implementation itself is exercised by drive-gateway-arena-smoke.mjs.
 
@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 
-const userScriptUrl = new URL('../narthex.user.js', import.meta.url);
+const userScriptUrl = new URL('../relay.user.js', import.meta.url);
 const legacyDispatchUrl = new URL('../dispatch.user.js', import.meta.url);
 assert.equal(await existsSync(legacyDispatchUrl), false, 'legacy dispatch.user.js is not restored');
 const source = await readFile(userScriptUrl, 'utf8');
@@ -14,7 +14,7 @@ const version = source.match(/^\/\/ @version\s+(\d+\.\d+\.\d+)\s*$/m)?.[1];
 assert.ok(version, 'active userscript has a semantic version');
 
 const gatewaySource = await readFile(new URL('../drive-gateway.gs', import.meta.url), 'utf8');
-assert.match(gatewaySource, /Narthex ScriptCat Drive gateway 1\.6/);
+assert.match(gatewaySource, /Relay ScriptCat Drive gateway 1\.6/);
 assert.match(gatewaySource, /version: "1\.6"/);
 assert.match(gatewaySource, /Same Dispatch\/Run pair|dispatchId.*runId/s, 'Gateway uses the dispatch/run identity');
 assert.match(gatewaySource, /CF_ARENA_FOLDER_NAME = "Arena"/);
@@ -127,7 +127,7 @@ const baseStore = () => new Map([
       assert.match(error.message, /шлюз Drive отказал/);
       assert.equal(error.refused, true);
       assert.equal(error.reason, 'Неверный ключ шлюза.');
-      assert.equal(error.narthex, 'gateway');
+      assert.equal(error.relay, 'gateway');
       return true;
     },
   );
@@ -171,10 +171,10 @@ const baseStore = () => new Map([
     (error) => {
       assert.match(error.message, /шлюз Drive не ответил/);
       assert.equal(error.refused, false);
-      assert.equal(error.narthex, 'gateway');
+      assert.equal(error.relay, 'gateway');
       return true;
     },
   );
 }
 
-console.log(`OK: narthex ${version} ↔ Drive Gateway 1.5 — bounded transport, explicit refusals, idempotent append`);
+console.log(`OK: relay ${version} ↔ Drive Gateway 1.5 — bounded transport, explicit refusals, idempotent append`);

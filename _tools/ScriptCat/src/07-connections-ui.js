@@ -150,7 +150,7 @@
       <div role="dialog" aria-modal="true" aria-labelledby="cfn-connections-title" tabindex="-1"
         style="width:min(680px,100%);max-height:calc(100vh - 28px);overflow:auto;background:#151922;border:1px solid #434c5c;border-radius:14px;box-shadow:0 18px 65px rgba(0,0,0,.55)">
         <header style="position:sticky;top:0;z-index:2;display:flex;align-items:flex-start;gap:14px;padding:16px 20px 12px;background:#151922;border-bottom:1px solid #343b48">
-          <div style="flex:1"><div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#93a5bf">ScriptCat · Narthex</div>
+          <div style="flex:1"><div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#93a5bf">ScriptCat · Relay</div>
             <h2 id="cfn-connections-title" style="font-size:20px;line-height:1.2;margin:5px 0 6px;color:#f6f8fb">Подключения</h2>
             <div style="${quiet}">Notion, Google Drive и GitHub — в одном месте. Сохранённые секреты не показываются.</div></div>
           <button id="cfn-connections-close" type="button" aria-label="Закрыть" style="${action}">✕</button>
@@ -176,7 +176,7 @@
             <input id="cfn-connection-key" type="password" autocomplete="off" spellcheck="false" style="${field}">
             <label style="display:block;margin-top:7px;${quiet}"><input id="cfn-connection-drive-remove" type="checkbox"> Удалить URL и ключ при сохранении</label>
             <label id="cfn-connection-trust-wrap" style="display:none;margin-top:7px;color:#ffd479;font-size:12px"><input id="cfn-connection-trust" type="checkbox"> Я доверяю указанному шлюзу: ему будет отправлен ключ, в том числе ранее сохранённый.</label>
-            <div style="${quiet};margin-top:8px">Ключ получает владелец указанного веб-приложения, даже на script.google.com. В старом Narthex проверка ping может создать Arena/logs и Arena/payloads или перенести старую папку логов; новому проекту нужен заранее зарегистрированный шлюз.</div>
+            <div style="${quiet};margin-top:8px">Ключ получает владелец указанного веб-приложения, даже на script.google.com. В старом Relay проверка ping может создать Arena/logs и Arena/payloads или перенести старую папку логов; новому проекту нужен заранее зарегистрированный шлюз.</div>
           </section>
           <section style="${card}" aria-labelledby="cfn-connection-github-title">
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><strong id="cfn-connection-github-title" style="font-size:15px;color:#fff">GitHub</strong><span style="${quiet}">проверка PR и ADR</span></div>
@@ -213,7 +213,7 @@
     const checkButton = box.querySelector("#cfn-connections-check"), saveButton = box.querySelector("#cfn-connections-save");
     const note = box.querySelector("#cfn-connections-note");
     find("repo").textContent = C.repo;
-    find("project-name").textContent = C.projectName || "Narthex";
+    find("project-name").textContent = C.projectName || "Relay";
     urlInput.value = saved.gwUrl;
 
     const say = (text, error = false) => {

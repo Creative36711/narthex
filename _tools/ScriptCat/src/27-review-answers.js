@@ -88,6 +88,28 @@
       .join("\n");
   }
 
+  /** Проверяем настоящий Git blob текста, а не один формальный маркер SHA. */
+  async function verifiedAdrMaterial(item) {
+    const shas = [...String(item?.fullText || "").matchAll(/\bCF_ADR_CONTENT\s+([0-9a-f]{40})\b/gi)].map((m) => m[1].toLowerCase());
+    if (!shas.length || !Array.isArray(item.adrBlocks) || !globalThis.crypto?.subtle) return false;
+    const candidates = [];
+    for (const raw of item.adrBlocks) {
+      candidates.push(String(raw)); // отдельно сохранённый исходный файл
+      const full = String(raw).match(/ПОЛНЫЙ НЕИЗМЕНЁННЫЙ ТЕКСТ ФАЙЛА:\n([\s\S]*?)\nКОНЕЦ ТЕКСТА CF_ADR_CONTENT_END [0-9a-f]{40}/i);
+      if (full) candidates.push(full[1]); // текст внутри дополнения watcher
+    }
+    for (const text of candidates) {
+      const body = new TextEncoder().encode(text);
+      const prefix = new TextEncoder().encode(`blob ${body.byteLength}\0`);
+      const data = new Uint8Array(prefix.length + body.length);
+      data.set(prefix); data.set(body, prefix.length);
+      const digest = await globalThis.crypto.subtle.digest("SHA-1", data);
+      const hash = [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, "0")).join("");
+      if (shas.includes(hash)) return true;
+    }
+    return false;
+  }
+
   /**
    * Передать вопрос приёмке. `true` — ход ушёл ей; `false` — отвечать некому
    * (вопрос остаётся «Ждёт»; обычный может закрыться сроком, ADR ждёт ответа).
@@ -95,12 +117,24 @@
   async function startAnswer(mission, item) {
     if (typeof questionBodyPending === "function" && questionBodyPending(item.id)) return false;
     if (typeof questionQueuedForAnswer === "function" && questionQueuedForAnswer(item)) return false;
+    if (/github\.com\/[^\s]+\/docs\/decisions\//i.test(String(item.url || ""))) {
+      try {
+        const page = await notion("GET", `pages/${item.id}`);
+        if (sel(page.properties?.["Статус"]) !== Q.wait) return false;
+        const complete = await questionFromRowComplete(page);
+        if (!(await verifiedAdrMaterial(complete))) throw new Error("полный текст не совпадает с Git blob SHA");
+        item = { ...item, fullText: complete.fullText, url: complete.url || item.url };
+      } catch (e) {
+        logThrottled(`adr-body:${item.id}`, `Предложение не передано приёмке: ${e.message}. Вопрос и ожидание сохранены; проверьте полный текст и SHA.`, true);
+        return false;
+      }
+    }
     const role = await reviewerRole();
     if (!role) {
       log(
         "Вопрос записан, но активной роли с функцией Reviewer нет: отвечать некому — вопрос ждёт Мастера.",
         false,
-        { ntfy: "quiet", title: "Narthex: отвечать на вопрос некому" },
+        { ntfy: "quiet", title: "Relay: отвечать на вопрос некому" },
       );
       dropAnswer(item.id);
       return false;
@@ -118,17 +152,28 @@
 
   /** Ход приёмки по вопросу: записать ответ или позвать Мастера. */
   async function answerStep(role, expect, manual = false) {
-    const decision = messagesAfter(expect.watermark)
-      .map((m) => parseMarker(m.raw, "CF_ANSWER_RESULT"))
+    const replies = messagesAfter(expect.watermark);
+    const decision = replies.map((m) => parseMarker(m.raw, "CF_ANSWER_RESULT"))
       .filter(Boolean)
       .at(-1);
     if (!decision) return markerMissing(role, expect, "CF_ANSWER_RESULT", manual);
-    GM_setValue(K.expect, null);
+    // Одного нового сообщения в чате недостаточно: оно может относиться к
+    // предыдущему вопросу или повторной попытке того же вопроса. Не очищаем
+    // ожидание и не записываем решение, пока обе границы не подтверждены.
     const qid = String(decision.question_id || "").trim();
-    if (qid && norm(qid) !== norm(expect.ref)) {
-      pause(`Маркер ответа относится к другому вопросу (${qid}), а ждём ${expect.ref}: ничего не меняю.`, {
-        kind: "marker-mismatch",
-        ref: expect.ref,
+    const turn = String(decision.turn_id || "").trim();
+    const live = GM_getValue(K.expect, null);
+    const matches = Boolean(isUuid(expect.ref) && isUuid(expect.turnId) && isUuid(qid) && isUuid(turn) && live && live.kind === "answer" &&
+      norm(qid) === norm(expect.ref) && norm(turn) === norm(expect.turnId) &&
+      norm(live.ref) === norm(expect.ref) && norm(live.turnId) === norm(expect.turnId) &&
+      (!expect.roleId || (role?.id && norm(role.id) === norm(expect.roleId))) &&
+      (!live.roleId || (expect.roleId && norm(live.roleId) === norm(expect.roleId))));
+    if (!matches) {
+      const retained = retainRejectedResult(expect, "answer-identity", replies);
+      pause("Ответ не подтверждён для текущего вопроса и хода (question_id / turn_id / адресат). " +
+        (retained ? "Ожидание и копия ответа сохранены локально; " : "Ожидание сохранено, локальная копия не записалась — сохраните ответ из чата вручную; ") +
+        "попросите приёмку повторить маркер с ID этой выдачи.", {
+        kind: "marker-mismatch", ref: expect.ref || "", turnId: expect.turnId || "",
       });
       return true;
     }
@@ -136,11 +181,12 @@
     const answer = String(decision.answer || "").trim();
     if (verdict === "master") {
       const reason = firstLine(String(decision.reason || answer || "").trim()) || "приёмка не назвала причину";
+      GM_setValue(K.expect, null);
       dropAnswer(expect.ref);
       pause(
         `Приёмка не может ответить на вопрос без Мастера: ${reason}. Вопрос остался в базе «Обратная связь» со статусом ` +
           "«Ждёт» — ответьте в поле «Ответ», поставьте «Решено» и нажмите «Продолжить».",
-        { kind: "answer-needs-master", ref: expect.ref, notifyTitle: "Narthex: вопрос ждёт Мастера" },
+        { kind: "answer-needs-master", ref: expect.ref, notifyTitle: "Relay: вопрос ждёт Мастера" },
       );
       return true;
     }
@@ -171,6 +217,12 @@
         const state = row?.properties?.["Статус"]?.select?.name || "";
         if (!state) throw new Error("статус строки не прочитан");
         if (state !== Q.wait) return { state, answerRecorded: false };
+        const current = GM_getValue(K.expect, null);
+        if (!current || current.kind !== "answer" || norm(current.ref) !== norm(expect.ref) ||
+            norm(current.turnId) !== norm(expect.turnId) ||
+            (expect.roleId && norm(current.roleId) !== norm(expect.roleId))) {
+          return { state, answerRecorded: false, changed: true };
+        }
         stage = "write";
         await patch(expect.ref, {
           "Статус": { select: { name: Q.done } },
@@ -179,12 +231,25 @@
         return { state, answerRecorded: true };
       });
     } catch (e) {
-      // Ответ и ожидание остаются в чате/хранилище; попробуем тот же ход позже.
-      GM_setValue(K.expect, expect);
-      logThrottled(`answer-${stage}:${expect.ref}`, `Не удалось ${stage === "read" ? "проверить строку" : "записать ответ"} обратной связи (${e.message}): ожидание сохранено, повторю проверку.`, true);
+      // Не восстанавливаем снимок поверх нового хода, возникшего во время сети.
+      const current = GM_getValue(K.expect, null);
+      const same = current?.kind === "answer" && norm(current.ref) === norm(expect.ref) &&
+        norm(current.turnId) === norm(expect.turnId);
+      logThrottled(`answer-${stage}:${expect.ref}`, `Не удалось ${stage === "read" ? "проверить строку" : "записать ответ"} обратной связи (${e.message}): ` +
+        (same ? "ожидание сохранено, повторю проверку." : "текущее ожидание изменилось; не перезаписываю, проверьте оба хода."), true);
       return true;
     }
     const { state, answerRecorded } = result;
+    // Не снимаем ожидание другого хода, если оно изменилось во время сети.
+    const afterWrite = GM_getValue(K.expect, null);
+    if (afterWrite && afterWrite.kind === "answer" && norm(afterWrite.ref) === norm(expect.ref) &&
+        norm(afterWrite.turnId) === norm(expect.turnId)) GM_setValue(K.expect, null);
+    else {
+      pause("Вопрос обработан, но ожидание изменилось во время записи. Проверьте обе попытки; новое ожидание сохранено.", {
+        kind: "answer-changed", ref: expect.ref, turnId: expect.turnId,
+      });
+      return true;
+    }
     dropAnswer(expect.ref);
     if (!answerRecorded) {
       log(
@@ -227,6 +292,35 @@
     return true;
   }
 
+  /** Проверка постановки и подтверждённых зависимостей, до изменения карточки. */
+  async function taskPreflight(card, mission) {
+    const active = await activeMission(); // откажет и при нескольких активных миссиях
+    if (!mission || !active || norm(active.id) !== norm(mission.id) || !cardInMission(card, active))
+      return "Mission ID карточки отсутствует или не совпадает с единственной активной миссией";
+    const bindingIssue = cardBindingIssue(card, await query(C.missions));
+    if (bindingIssue) return bindingIssue;
+    const props = card?.properties || {};
+    const empty = ["Намерение", "Инварианты", "Acceptance", "Scope"].filter((name) => !rt(props[name]).trim());
+    if (!taskTitle(card).trim()) empty.unshift("Запрос");
+    if (typeof props["Sequence"]?.number !== "number" || !Number.isFinite(props["Sequence"].number)) empty.push("Sequence");
+    if (empty.length) return `не заполнены обязательные поля: ${empty.join(", ")}`;
+    if (!props["Dependency"] || props["Dependency"].type && props["Dependency"].type !== "rich_text")
+      return "в схеме нет текстового поля Dependency";
+    const value = rt(props["Dependency"]).trim();
+    if (!value || /^(нет|none|n\/a|—|-)$/i.test(value)) return "";
+    const ids = value.split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean);
+    if (!ids.length || ids.some((id) => !isUuid(id)) || new Set(ids.map(norm)).size !== ids.length)
+      return "Dependency: перечисли UUID карточек через запятую или оставь поле пустым; названия и неоднозначные ссылки не проверяются";
+    for (const id of ids) {
+      if (norm(id) === norm(card.id)) return "Dependency ссылается на саму карточку";
+      const dependency = await notion("GET", `pages/${id}`);
+      if (!cardInMission(dependency, active)) return `Dependency ${id}: карточка другой миссии или без Mission ID`;
+      if (taskState(dependency) !== "Accepted") return `Dependency ${id}: карточка ещё не Accepted`;
+      if (dependency.properties?.["Check"]?.select?.name === "fail") return `Dependency ${id}: Check = fail, разберись с остатком`;
+    }
+    return "";
+  }
+
   async function dispatchTask(card, roleName, mission = null) {
     const role = (await roles()).find((r) => r.name === roleName);
     if (!role) throw new Error(`Роль «${roleName}» не найдена среди активных.`);
@@ -251,6 +345,8 @@
     // NAR-1.7 выдали второй раз с новым run — она была в списке Ready уже
     // отвеченной, и агент честно повторил ту же работу.
     const fresh = await notion("GET", `pages/${card.id}`);
+    const preflight = await taskPreflight(fresh, mission);
+    if (preflight) return `предварительная проверка: ${preflight}; карточку и историю не меняю`;
     const recipient = taskRole(fresh);
     if (!recipient || norm(recipient) !== norm(role.name))
       return `адресат карточки изменился на «${recipient || "не указан"}»; перечитай её и назови верную роль`;
@@ -302,7 +398,7 @@
           : `уже отвечена${prLink ? ` (${prLink})` : ""}`;
       log(`«${taskTitle(fresh)}» ${why} — повторно не выдаю.`, true, {
         ntfy: "quiet",
-        title: "Narthex: повторная выдача отменена",
+        title: "Relay: повторная выдача отменена",
       });
       // Карточка не в Ready — значит Координатор назвал работой ту, которую сам
       // же не вернул в очередь. Это его ход, а не сбой сети: пауза ставится
@@ -340,6 +436,13 @@
     const created = await gateway("createLog", "", { dispatchId: card.id, runId });
     const logId = String(created?.fileId || "").trim();
     if (!logId) throw new Error("Шлюз не вернул ID журнала новой выдачи.");
+    const beforeWrite = await notion("GET", `pages/${card.id}`);
+    const recheck = await taskPreflight(beforeWrite, mission);
+    if (recheck || taskState(beforeWrite) !== "Ready" || norm(taskRole(beforeWrite)) !== norm(role.name) ||
+        beforeWrite.properties?.["Submitted At"]?.date?.start || beforeWrite.properties?.["PR"]?.url) {
+      return `карточка изменилась перед выдачей (${recheck || "состояние, адресат или следы ответа"}); ` +
+        `статус не меняю, созданный пустой журнал ${logId} оставлен для проверки`;
+    }
     await patch(card.id, {
       "Dispatch State": { select: { name: "Running" } },
       "Run ID": { rich_text: [{ type: "text", text: { content: runId } }] },

@@ -18,23 +18,23 @@
     // Автоцикл не наследуется от прошлого запуска браузера: сначала — руками.
     autoForgetPersisted();
     mount();
-    if (ACTIVE_PROFILE.invalid) log("Проект вкладки недоступен. Проверьте sessionStorage и список профилей; Narthex автоматически не подставлен.", true);
+    if (ACTIVE_PROFILE.invalid) log("Проект вкладки недоступен. Проверьте sessionStorage и список профилей; Relay автоматически не подставлен.", true);
     if (debugOn()) {
       installDebugApi();
       console.info(
-        `[Narthex ${SCRIPT_VERSION}] отладка включена на ${location.pathname}. ` +
-          "Снимок: __narthex.state(); шаг: __narthex.step(); выключить: __narthex.debug(false) или кнопка 🐞.",
+        `[Relay ${SCRIPT_VERSION}] отладка включена на ${location.pathname}. ` +
+          "Снимок: __relay.state(); шаг: __relay.step(); выключить: __relay.debug(false) или кнопка 🐞.",
       );
       dbg("boot", () => debugSnapshot());
     }
-    if (new URL(location.href).searchParams.has("cf-auto") && projectApproved() && !projectHeld()) {
+    if (new URL(location.href).searchParams.has("cf-auto")) {
       const clean = new URL(location.href);
       clean.searchParams.delete("cf-auto");
       history.replaceState(null, "", clean.toString());
-      autoSet(true);
-      GM_setValue(K.paused, "");
-      GM_setValue(K.pause, null);
-      log("Автоцикл включён через ссылку — только для этой вкладки.");
+      if (projectApproved() && !projectHeld() && !GM_getValue(K.paused, "")) {
+        autoSet(true);
+        log("Автоцикл включён через ссылку — только для этой вкладки.");
+      } else log("Автозапуск по ссылке пропущен: проверьте допуск, удержание и сохранённую паузу.", true);
     }
     setStatus();
     setup(false);

@@ -146,13 +146,13 @@
       log(
         `Новая обратная связь: «${qText(row)}»${fallback ? ` — по умолчанию: ${fallback}` : ""}. Отвечает приёмка.`,
         false,
-        { ntfy: "quiet", title: "Narthex: обратная связь" },
+        { ntfy: "quiet", title: "Relay: обратная связь" },
       );
     }
     if (fresh.length > 3) {
       log(`И ещё ${fresh.length - 3} новых записей — откройте базу «Обратная связь».`, false, {
         ntfy: "quiet",
-        title: "Narthex: обратная связь",
+        title: "Relay: обратная связь",
       });
     }
     return fresh.length;
@@ -211,7 +211,12 @@
         for (const row of adopted) {
           try {
             const q = typeof questionFromRowComplete === "function" ? await questionFromRowComplete(row) : questionFromRow(row);
-            if (handWaitingRow(row, q, { roleName: "Narthex (транспорт)", mission: wanted })) handed += 1;
+            if (/github\.com\/[^\s]+\/docs\/decisions\//i.test(String(q.url || "")) &&
+                !/\bCF_ADR_CONTENT\s+[0-9a-f]{40}\b/i.test(String(q.fullText || ""))) {
+              logThrottled(`adr-body:${row.id}`, "Предложение из репозитория ещё не содержит полный текст с SHA. Не передаю его приёмке до безопасного дополнения страницы.", true);
+              continue;
+            }
+            if (handWaitingRow(row, q, { roleName: "Relay (транспорт)", mission: wanted })) handed += 1;
           } catch (e) {
             dbg("вопросы: полный материал не прочитан — приёмку не вызываю", e.message);
             logThrottled(`question-body:${row.id}`, `Не удалось полностью прочитать материал вопроса «${rt(row.properties["Вопрос"])}» в Notion: приёмке его пока не передаю. Проверьте страницу.`, true);
@@ -222,7 +227,7 @@
             `Вопросов «Ждёт» без ответа, которые не передавались приёмке: ${handed} — поставил в очередь, ` +
               "она ответит на ближайшем шаге.",
             false,
-            { ntfy: "quiet", title: "Narthex: вопрос передан приёмке" },
+            { ntfy: "quiet", title: "Relay: вопрос передан приёмке" },
           );
         }
       }
@@ -324,7 +329,7 @@
     const limit = Number(C.questionTextFull) || 12000;
     if (text.length > limit) {
       const error = new Error(`Полный вопрос превышает ${limit} знаков: не записан и не передан приёмке. Сохраните материал в Notion и разберите ход вручную.`);
-      error.narthex = "question-too-long";
+      error.relay = "question-too-long";
       throw error;
     }
     return text;
@@ -333,7 +338,7 @@
     const text = String(optionLabel(value) || "").replace(/\s+/g, " ").trim();
     if (text.length > C.questionDefaultMax) {
       const error = new Error(`Вариант по умолчанию длиннее ${C.questionDefaultMax} знаков: он не может быть применён без полного текста. Разберите ход вручную.`);
-      error.narthex = "question-too-long";
+      error.relay = "question-too-long";
       throw error;
     }
     return text;
@@ -607,7 +612,7 @@
   // перезапуска, приёмка получает тело страницы, а не только короткий заголовок.
   async function questionFromRowComplete(row) {
     const base = questionFromRow(row);
-    const output = [], seen = new Set();
+    const output = [], seen = new Set(), adrBlocks = [];
     let count = 0;
     async function visit(id, depth) {
       if (depth > 4 || seen.has(id)) throw new Error("Слишком глубокая или циклическая структура вопроса Notion.");
@@ -616,7 +621,9 @@
         count += 1;
         if (count > 300) throw new Error("В вопросе больше 300 блоков; нужна ручная проверка.");
         const type = block.type;
-        const text = blockText(block).trim();
+        const rawText = blockText(block);
+        const text = rawText.trim();
+        if ((type === "paragraph" || type === "code") && rawText) adrBlocks.push(rawText);
         const textual = ["paragraph", "heading_1", "heading_2", "heading_3", "bulleted_list_item", "numbered_list_item", "quote", "code", "callout", "to_do", "toggle"];
         const containers = ["table", "column_list", "column", "synced_block", "divider", "table_of_contents"];
         const attachments = ["image", "file", "pdf", "video", "audio", "embed", "bookmark", "child_page", "link_to_page"];
@@ -654,6 +661,8 @@
         base.fullText = base.fullText.split("\n").filter((line) => line !== `Материал: ${base.url}`).join("\n");
       base.fullText = `${base.fullText}\n\nПолный материал из Notion:\n${material}`;
     }
+    // Для ADR сохраняем сырые блоки до trim: Git blob включает конечные переводы строк.
+    if (/github\.com\/[^\s]+\/docs\/decisions\//i.test(String(base.url || ""))) base.adrBlocks = adrBlocks;
     return base;
   }
 
@@ -771,7 +780,7 @@
           queueAnswer(row, item.q, item.ctx || {});
           log(`Отложенный вопрос записался: «${item.q.text}» — отвечает приёмка.`, false, {
             ntfy: "quiet",
-            title: "Narthex: вопрос приёмке",
+            title: "Relay: вопрос приёмке",
           });
           return "saved";
         } catch (e) {
@@ -795,16 +804,15 @@
   }
 
   /**
-   * Ссылки на решения в тексте вопроса: `docs/decisions/NAR-2.14.md` и `NAR-2.14`.
-   *
-   * Номер миссии (`NAR-2`) сюда не попадает намеренно: по нему склеились бы
-   * разные вопросы одной миссии.
+   * Ссылки на решения в тексте вопроса: `docs/decisions/TEAM-2.14.md` и `TEAM-2.14`.
+   * Префикс проекта не фиксирован. Номер миссии (`TEAM-2`) не используется:
+   * по нему склеились бы разные вопросы одной миссии.
    */
   const adrRefsOf = (text) => {
     const out = new Set();
     const src = String(text || "");
     for (const m of src.matchAll(/docs\/decisions\/([\w.-]+?)\.md/gi)) out.add(`file:${m[1].toLowerCase()}`);
-    for (const m of src.matchAll(/\bNAR-\d+\.\d+(?:-[\wА-Яа-яЁё]+)?/gi)) out.add(`adr:${m[0].toLowerCase()}`);
+    for (const m of src.matchAll(/\b[A-Z][A-Z0-9_]*-\d+\.\d+(?:-[\wА-Яа-яЁё]+)?/gi)) out.add(`adr:${m[0].toLowerCase()}`);
     return out;
   };
 
@@ -935,6 +943,18 @@
           // записывался: 28.10 строка про NAR-5 висела с 15:41 до вечера, а скрипт
           // писал, что отвечать нечего. Теперь такая строка передаётся приёмке.
           if (status === Q.wait && !answer) {
+            // Страница могла быть подготовлена человеком или другим профилем.
+            // Не дублируем полный исходник: проверяем и SHA, и весь текст,
+            // а не только формальный маркер или ссылку на тот же файл.
+            if (q.autoAdr && /^[0-9a-f]{40}$/i.test(String(q.contentSha || "")) && q.contentText) {
+              const complete = await questionFromRowComplete(same.row);
+              if (complete.fullText.includes(`CF_ADR_CONTENT ${q.contentSha}`) && complete.fullText.includes(q.contentText)) {
+                GM_setValue(key, Date.now());
+                handWaitingRow(same.row, complete, ctx);
+                log(`${where} полный материал уже есть: передаю приёмке без дублирования.`, false, { ntfy: false });
+                return same.row;
+              }
+            }
             rememberQuestionIntent(q, ctx);
             GM_setValue(key, Date.now());
             const supplement = supplementalQuestion(q, same.row);
@@ -981,7 +1001,7 @@
         forgetQuestionIntent(q, ctx);
         log(`Вопрос записан: «${q.text}». По умолчанию: ${q.fallback} — отвечает приёмка.`, false, {
           ntfy: "quiet",
-          title: "Narthex: вопрос приёмке",
+          title: "Relay: вопрос приёмке",
         });
         return row;
       } catch (e) {
@@ -1053,7 +1073,7 @@
         log(
           `Вопрос «${result.freshTitle}» ждал дольше срока — принят вариант по умолчанию: ${result.fallback}.`,
           false,
-          { ntfy: "quiet", title: "Narthex: вопрос закрыт по умолчанию" },
+          { ntfy: "quiet", title: "Relay: вопрос закрыт по умолчанию" },
         );
       } catch (e) {
         log(`Вопрос «${title}» не закрылся по сроку: ${e.message}`, true);

@@ -100,7 +100,7 @@
         "Миссия готова к приёмке, но в базе «Роли» нет активной роли с функцией Reviewer: " +
           "принимать некому. Заведите роль (например, Warden с Agent URL) или закройте миссию сами — " +
           "без вердикта она не закроется.",
-        { kind: "no-reviewer", ref: mission.id, notifyTitle: "Narthex: приёмка не настроена" },
+        { kind: "no-reviewer", ref: mission.id, notifyTitle: "Relay: приёмка не настроена" },
       );
       return true;
     }
@@ -144,7 +144,7 @@
       `Миссия «${name}» принята «${reviewer.name}»: закрыта, автоцикл остановлен. ` +
         "Следующая работа — новым ТЗ и новой миссией, а не хвостом этой.",
       false,
-      { tone: "ok", ntfy: "loud", cycleStopped: true, title: "Narthex: миссия принята" },
+      { tone: "ok", ntfy: "loud", cycleStopped: true, title: "Relay: миссия принята" },
     );
     return true;
   }
@@ -169,7 +169,7 @@
         `Миссия прошла ${round} кругов доработки, и приёмка снова не приняла работу. Дальше решаете вы: ` +
           "сократить объём миссии, разделить её на две или принять как есть. Последние замечания:\n" +
           remarks,
-        { kind: "rework-limit", ref: mission.id, notifyTitle: "Narthex: миссия застряла в доработке" },
+        { kind: "rework-limit", ref: mission.id, notifyTitle: "Relay: миссия застряла в доработке" },
       );
       return true;
     }
@@ -185,7 +185,7 @@
       `«${reviewer.name}» не принял миссию (круг ${next} из ${C.reworkLimit}): ${firstLine(remarks)}. ` +
         "Замечания в карточке миссии, ход — Координатору.",
       false,
-      { tone: "warn", ntfy: "quiet", title: "Narthex: миссия возвращена" },
+      { tone: "warn", ntfy: "quiet", title: "Relay: миссия возвращена" },
     );
     const fresh = await notion("GET", `pages/${mission.id}`).catch(() => mission);
     const coord = (await roles().catch(() => [])).find((r) => r.fn === "Coordinator");
@@ -234,15 +234,17 @@
       });
       return true;
     }
-    const decision = messagesAfter(expect.watermark)
-      .map((m) => parseMarker(m.raw, "CF_REVIEW_RESULT"))
+    const replies = messagesAfter(expect.watermark);
+    const decision = replies.map((m) => parseMarker(m.raw, "CF_REVIEW_RESULT"))
       .filter(Boolean)
       .at(-1);
     if (!decision) return markerMissing(role, expect, "CF_REVIEW_RESULT", manual);
-    if (!decision.mission_id || norm(decision.mission_id) !== norm(mission.id) ||
-        (expect.turnId && (!decision.turn_id || norm(decision.turn_id) !== norm(expect.turnId))) ||
+    if (!isUuid(mission.id) || !isUuid(expect.turnId) || !isUuid(decision.mission_id) || !isUuid(decision.turn_id) ||
+        norm(decision.mission_id) !== norm(mission.id) || norm(decision.turn_id) !== norm(expect.turnId) ||
         decision.dispatch_id || decision.run_id) {
-      pause("Маркер не относится к этому ходу приёмки миссии (mission_id / turn_id / карточка): ничего не меняю.", {
+      const retained = retainRejectedResult(expect, "mission-review-identity", replies);
+      pause("Маркер не относится к этому ходу приёмки миссии (mission_id / turn_id / карточка): ничего не меняю. " +
+        (retained ? "Копия ответа сохранена локально." : "Локальная копия не записалась — сохраните ответ из чата вручную."), {
         kind: "marker-mismatch", ref: mission.id, turnId: expect.turnId || "",
       });
       return true;
@@ -252,7 +254,7 @@
       // Очередь могла измениться, пока Reviewer проверял миссию. Старый
       // вердикт не распространяется на новые или незакрытые карточки.
       const fresh = await queueOf(mission);
-      const open = fresh.submitted.length + fresh.running.length + fresh.ready.length + fresh.rework.length;
+      const open = fresh.submitted.length + fresh.running.length + fresh.ready.length + fresh.rework.length + (fresh.blocked || []).length;
       if (open) {
         if (currentReview()) GM_setValue(K.expect, null); // старое принятие нельзя повторить после обработки новой работы
         pause(`Пока шла приёмка, очередь изменилась: ${fresh.summary}. Миссия не закрыта; ` +

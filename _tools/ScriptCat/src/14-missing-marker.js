@@ -94,15 +94,18 @@
     if (role.fn === "Auditor") return null;
     const text = String(raw || "");
     const ref = String((expect && expect.ref) || "");
-    if (!text || !ref || !norm(text).includes(norm(ref))) return null;
+    const runId = String((expect && expect.runId) || "");
+    if (!text || !ref || !runId) return null;
     const pr = Number((text.match(/\bPR\s*#?\s*(\d+)/i) || text.match(/\/pull\/(\d+)/) || [])[1]) || null;
     if (!pr) return null;
     const merged = /\bmerged\b|слит|слито|слита|слиты|\bв main\b/i.test(text);
-    const run =
-      (text.match(/run[`\s]*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i) || [])[1] ||
-      String((expect && expect.runId) || "");
-    if (!run) return null;
-    return { dispatch_id: ref, run_id: run, status: "submitted", pr, merged };
+    // ID должны стоять именно после своих подписей, а не просто встречаться в
+    // произвольной цитате. Противоречивые повторные поля тоже недопустимы.
+    const dispatches = [...text.matchAll(/\bdispatch(?:[_\s-]*id)?[`"'\s:=]*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/gi)].map((m) => m[1]);
+    const runs = [...text.matchAll(/\brun(?:[_\s-]*id)?[`"'\s:=]*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/gi)].map((m) => m[1]);
+    if (!dispatches.length || !runs.length || dispatches.some((id) => norm(id) !== norm(ref)) ||
+        runs.some((id) => norm(id) !== norm(runId))) return null;
+    return { dispatch_id: dispatches[0], run_id: runs[0], status: "submitted", pr, merged };
   }
 
   /**
@@ -211,7 +214,7 @@
         `«прочитай карточку сам» (${text.length} символов вместо ${String(expect.text || "").length}). ` +
         "Второй отказ подряд — пауза. Новый ход Координатора не нужен.",
       true,
-      { ntfy: "quiet", title: "Narthex: повторяю задание" },
+      { ntfy: "quiet", title: "Relay: повторяю задание" },
     );
     return true;
   }
@@ -280,7 +283,7 @@
         "Это не ответ на задание — работы не было. Нажимаю Continue и отправляю задание заново, " +
         "в чистую ветку.",
       true,
-      { ntfy: "quiet", title: "Narthex: ветка слита, повторяю выдачу" },
+      { ntfy: "quiet", title: "Relay: ветка слита, повторяю выдачу" },
     );
     return true;
   }
@@ -409,7 +412,7 @@
           : `${role.name} ответил без маркера ${markerName} — напоминание ${sent + 1} из ${C.markerReminders}. ` +
               `Прочитан хвост: «${tail(last.text, 110)}»${reject}`,
         true,
-        { ntfy: "quiet", title: why === "thin" ? "Narthex: маркер без отчёта" : "Narthex: нет маркера" },
+        { ntfy: "quiet", title: why === "thin" ? "Relay: маркер без отчёта" : "Relay: нет маркера" },
       );
       await sendToRole(role, markerReminder(role, expect, sent + 1, markerName, why), expect.kind, expect.ref, {
         missionId: expect.missionId,
@@ -429,12 +432,15 @@
       return true;
     }
 
+    const retained = retainRejectedResult(expect, "missing-marker", replies);
+    const preservation = retained ? "Копия ответа сохранена локально; ожидание не снято." :
+      "Ожидание не снято; локальную копию записать не удалось, сохраните ответ из чата вручную.";
     pause(
-      why === "thin"
+      (why === "thin"
         ? `${role.name} присылает только маркер ${markerName}, без отчёта, после ${C.markerReminders} напоминаний. ` +
-            "Нужен Мастер: проверьте страницу агента."
+            "Нужен Мастер: проверьте страницу агента. "
         : `${role.name} ответил без маркера ${markerName} после ${C.markerReminders} напоминаний. ` +
-            `Нужен Мастер: проверьте страницу агента.${reject}`,
+            `Нужен Мастер: проверьте страницу агента.${reject} `) + preservation,
       { kind: "marker", ref: expect.ref, runId: expect.runId, turnId: expect.turnId, tries: sent },
     );
     return true;

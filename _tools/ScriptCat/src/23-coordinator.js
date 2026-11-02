@@ -61,7 +61,7 @@
         `«${taskTitle(card)}» висит в Running ${how} без хода скрипта — вернул в Ready: ` +
           "ожидания по ней нет, работа по ней не идёт.",
         false,
-        { tone: "warn", ntfy: "quiet", title: "Narthex: карточка возвращена в Ready" },
+        { tone: "warn", ntfy: "quiet", title: "Relay: карточка возвращена в Ready" },
       );
     }
     return swept;

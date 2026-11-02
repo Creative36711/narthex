@@ -21,7 +21,7 @@
   function adrKeysOf(text) {
     const out = new Set();
     const src = String(text || "");
-    for (const hit of src.matchAll(/NAR-\d+(?:\.\d+)?(?:-[\wа-яё]+)?/gi)) out.add(hit[0].toLowerCase());
+    for (const hit of src.matchAll(/\b[A-Z][A-Z0-9_]*-\d+(?:\.\d+)?(?:-[\wа-яё]+)?/gi)) out.add(hit[0].toLowerCase());
     for (const hit of src.matchAll(/([\w.-]+)\.md/gi)) out.add(hit[1].toLowerCase());
     return out;
   }
@@ -31,7 +31,7 @@
     const src = String(text || "");
     const files = new Set([...src.matchAll(/([\w.-]+)\.md/gi)].map((hit) => hit[1].toLowerCase()));
     if (files.size) return files.size === 1 ? files : new Set();
-    const numbers = new Set([...src.matchAll(/\b(?:NAR|STAB|GOLD)-\d+\.\d+(?:-[\wа-яё]+)?/gi)]
+    const numbers = new Set([...src.matchAll(/\b[A-Z][A-Z0-9_]*-\d+\.\d+(?:-[\wа-яё]+)?/gi)]
       .map((hit) => hit[0].toLowerCase()));
     return numbers.size === 1 ? numbers : new Set();
   }
@@ -99,13 +99,17 @@
    */
   function proposalQuestion(row, missionName = "") {
     const file = String(row?.file || "");
+    const content = String(row?.content || "");
+    if (!content.trim() || !/^[0-9a-f]{40}$/i.test(String(row?.sha || ""))) throw new Error(`Полный текст и SHA предложения ${file || "без имени"} не прочитаны.`);
     const path = `${ADR_FOLDER}/${file}`;
     const url = `https://github.com/${C.repo}/blob/${(C.branch || "main").split("/").map(encodeURIComponent).join("/")}/${ADR_FOLDER}/${encodeURIComponent(file)}`;
     return {
       text: `Предложение ${path}: принять, отклонить или оставить как есть?`,
       url,
       autoAdr: true,
-      fullText: [
+      contentSha: row.sha,
+      contentText: content.trim(),
+      fullText: fullQuestionText([
         `Предложение лежит в репозитории: ${path} (${C.branch || "main"}), статус «proposed».`,
         `Материал: ${url}`,
         missionName ? `Миссия: ${missionName}` : "",
@@ -114,10 +118,14 @@
         "Принять как есть, отклонить или оставить как есть (вариант по умолчанию). Если принимаешь с поправкой — назови её: что поменять в предложении и по какому признаку считать решение исполненным.",
         "Статус файла меняет исполнитель карточкой: приёмка решает по существу, агенты переводят предложение в accepted или rejected с датой.",
         "Вариант по умолчанию и истечение срока не являются фактическим решением по ADR и не разрешают менять оракул.",
-        "Файл не пересказан здесь намеренно: решение принимается по его тексту, а не по моему пересказу.",
+        "Если файл содержит несколько самостоятельных вопросов, дай отдельный выбор и обоснование по каждому; один общий verdict не заменяет отдельных ответов.",
+        `CF_ADR_CONTENT ${row.sha}`,
+        "ПОЛНЫЙ НЕИЗМЕНЁННЫЙ ТЕКСТ ФАЙЛА:",
+        content,
+        `КОНЕЦ ТЕКСТА CF_ADR_CONTENT_END ${row.sha}`,
       ]
         .filter(Boolean)
-        .join("\n"),
+        .join("\n")),
       fallback: "оставить как есть",
       options: ["принять", "отклонить", "оставить как есть"],
       hours: 168,
@@ -137,9 +145,11 @@
     let missionName = "";
     try {
       const mission = await activeMission();
-      missionName = mission ? rt(mission.properties["Миссия"]) : "";
+      if (!mission) return; // без активной миссии приёмке нечего передавать
+      missionName = rt(mission.properties["Миссия"]);
     } catch (e) {
-      missionName = "";
+      dbg("решения: активная миссия не определена", e.message);
+      return;
     }
     // Старые версии могли закрыть вопрос по сроку и принять дефолт за ответ.
     // Исходную строку не переписываем: для такого ADR создаём однократное
@@ -178,15 +188,16 @@
           question.fullText = "Предыдущий вопрос закрыт без фактического ответа (по сроку или с пустым полем): default не является решением. Нужен ответ по существу.\n\n" + question.fullText;
         }
         await askQuestion(question, {
-          roleName: "Narthex (транспорт)",
+          roleName: "Relay (транспорт)",
           card: "",
           mission: missionName,
           // Идентификаторы старых строк дают новому уточнению свой ключ, даже
           // если прежнее уточнение затем ошибочно закрыли без ответа.
-          key: needsReview ? `adr-confirm:${row.file}:${problems.join(":")}` : `adr:${row.file}`,
+          key: needsReview ? `adr-full-confirm:${row.file}:${row.sha}:${problems.join(":")}` : `adr-full:${row.file}:${row.sha}`,
         });
       } catch (e) {
         dbg("решения: предложение не передано приёмке", e.message);
+        logThrottled(`adr-material:${row.file}`, `Предложение ${row.file} не передано приёмке: ${e.message}. Полный текст не усекался; проверьте материал вручную.`, true);
       }
     }
   }
@@ -208,14 +219,17 @@
         if (!item || item.type !== "file" || !/\.md$/i.test(item.name || "")) continue;
         const cached = texts[item.name];
         let status = cached && cached.sha === item.sha ? cached.status : "";
-        if (!status) {
+        let content = cached && cached.sha === item.sha ? String(cached.content || "") : "";
+        if (!status || (status === ADR_PROPOSED && !content)) {
           const fileUrl = `https://api.github.com/repos/${C.repo}/contents/${ADR_FOLDER}/${encodeURIComponent(item.name)}?ref=${encodeURIComponent(C.branch || "main")}`;
           const file = await request("GET", fileUrl, githubHeaders(token));
-          status = adrStatusOf(b64Text(file && file.content)) || "нет";
-          texts[item.name] = { sha: item.sha, status };
+          content = b64Text(file && file.content);
+          if (!content || file.sha !== item.sha) throw new Error(`Не прочитан полный текст или изменился SHA ${item.name}.`);
+          status = adrStatusOf(content) || "нет";
+          texts[item.name] = { sha: item.sha, status, ...(status === ADR_PROPOSED ? { content } : {}) };
         }
         if (status === ADR_PROPOSED)
-          rows.push({ file: item.name, sha: item.sha, url: item.html_url || "" });
+          rows.push({ file: item.name, sha: item.sha, url: item.html_url || "", content });
       }
       GM_setValue("cfn-adr-text", texts);
       const answered = await decidedAdrNames();
@@ -259,12 +273,14 @@
 
   /** Свежие счётчики очереди: после решения Координатора старые уже неверны. */
   async function queueOf(mission) {
-    const [submitted, running, ready, rework, draft] = await Promise.all([
+    await assertMissionBindings(mission);
+    const [submitted, running, ready, rework, draft, blocked] = await Promise.all([
       tasks("Submitted", mission),
       tasks("Running", mission),
       tasks("Ready", mission),
       tasks("Rework", mission),
       tasks("Draft", mission),
+      tasks("Blocked", mission),
     ]);
     // Rework запоминается ради причины в журнале: право на повторную выдачу
     // даёт указание Координатора, а следы прошлого ответа снимает `dispatchTask`
@@ -276,9 +292,10 @@
       ready,
       rework,
       draft,
+      blocked,
       summary:
         `${submitted.length} Submitted, ${running.length} Running, ${ready.length} Ready, ` +
-        `${rework.length} Rework, ${draft.length} Draft`,
+        `${rework.length} Rework, ${draft.length} Draft, ${blocked.length} Blocked`,
     };
   }
 
@@ -561,7 +578,7 @@
           `Миссия возвращена Мастером: ${firstLine(remarks)}. Координатор получит замечания в плане хода.`,
           false,
           // Мастер вернул миссию сам — звонить ему об этом незачем (1.4.80).
-          { tone: "warn", ntfy: "quiet", title: "Narthex: миссия возвращена" },
+          { tone: "warn", ntfy: "quiet", title: "Relay: миссия возвращена" },
         );
       }
       if (dropStalePlan(mission, expect, epoch)) {
@@ -599,6 +616,7 @@
       return true;
     }
 
+    await assertMissionBindings(mission);
     await releaseStalled(mission);
     const submitted = await tasks("Submitted", mission);
     const running = await tasks("Running", mission);
@@ -662,7 +680,7 @@
             `Пока ждали план, очередь изменилась (${what}). Решение «${decision.next}» относится к прежней очереди — ` +
               "не применяю, прошу новый план: иначе уйдёт не та карточка.",
             true,
-            { ntfy: "quiet", title: "Narthex: план по устаревшей очереди" },
+            { ntfy: "quiet", title: "Relay: план по устаревшей очереди" },
           );
           await requestPlan(
             mission,
@@ -709,7 +727,7 @@
           `В маркере Координатора чужой turn_id «${gotTurn}» вместо «${expect.turnId}» — беру свой из выдачи, ` +
             `решение «${decision.next}» применяю: миссия та же, а id хода транспорт знает сам.`,
           true,
-          { ntfy: "quiet", title: "Narthex: чужой turn_id в маркере" },
+          { ntfy: "quiet", title: "Relay: чужой turn_id в маркере" },
         );
         decision.turn_id = expect.turnId;
       }
@@ -728,7 +746,7 @@
           log(
             `Вопрос Координатора пришёл без варианта по умолчанию — записан с вариантом «${asked.question.fallback}»: дальше идём по next.`,
             false,
-            { ntfy: "quiet", title: "Narthex: вопрос без варианта по умолчанию" },
+            { ntfy: "quiet", title: "Relay: вопрос без варианта по умолчанию" },
           );
         }
         if (asked.kind !== "none") {
@@ -839,7 +857,7 @@
           kind: "blocked-role",
           ref: mission.id,
           need,
-          notifyTitle: "Narthex: нужна роль",
+          notifyTitle: "Relay: нужна роль",
         });
         return true;
       }
@@ -848,7 +866,7 @@
         // на слово в автоцикле опасно: закрытая миссия с живыми карточками
         // останавливает весь процесс, и заметит это только человек.
         const fresh = await queueOf(mission);
-        const open = fresh.submitted.length + fresh.running.length + fresh.ready.length + fresh.rework.length;
+        const open = fresh.submitted.length + fresh.running.length + fresh.ready.length + fresh.rework.length + (fresh.blocked || []).length;
         if (open > 0) {
           pause(
             `Координатор объявил миссию завершённой, но в очереди ${fresh.summary}. ` +

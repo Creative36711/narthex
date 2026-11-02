@@ -9,10 +9,10 @@ const lineAt = (source, offset) => source.slice(0, offset).split('\n').length;
 
 export function readUserscriptVersionFields(source) {
   const metadataMatches = [...source.matchAll(METADATA_VERSION)];
-  assert.equal(metadataMatches.length, 1, 'narthex.user.js must declare exactly one @version metadata field');
+  assert.equal(metadataMatches.length, 1, 'relay.user.js must declare exactly one @version metadata field');
 
   const runtimeMatches = [...source.matchAll(RUNTIME_FALLBACK)];
-  assert.equal(runtimeMatches.length, 1, 'narthex.user.js must declare exactly one SCRIPT_VERSION runtime fallback');
+  assert.equal(runtimeMatches.length, 1, 'relay.user.js must declare exactly one SCRIPT_VERSION runtime fallback');
 
   const metadataMatch = metadataMatches[0];
   const runtimeMatch = runtimeMatches[0];
@@ -34,20 +34,20 @@ export function assertIndependentVersionSources(expectedSource, observedSource) 
 
 export function assertUserscriptVersionContract(source, { expectedVersion } = {}) {
   const fields = readUserscriptVersionFields(source);
-  const metadataSource = 'narthex.user.js @version metadata';
-  const runtimeSource = 'narthex.user.js SCRIPT_VERSION runtime fallback';
+  const metadataSource = 'relay.user.js @version metadata';
+  const runtimeSource = 'relay.user.js SCRIPT_VERSION runtime fallback';
   assertIndependentVersionSources(metadataSource, runtimeSource);
   assert.notEqual(fields.metadataLine, fields.runtimeLine, 'metadata and runtime fallback must be read from separate source lines');
 
   assert.match(
     fields.metadataVersion,
     SEMVER,
-    `narthex.user.js @version metadata at line ${fields.metadataLine} must be plain MAJOR.MINOR.PATCH`,
+    `relay.user.js @version metadata at line ${fields.metadataLine} must be plain MAJOR.MINOR.PATCH`,
   );
   assert.match(
     fields.runtimeFallback,
     SEMVER,
-    `narthex.user.js runtime fallback at line ${fields.runtimeLine} must be plain MAJOR.MINOR.PATCH`,
+    `relay.user.js runtime fallback at line ${fields.runtimeLine} must be plain MAJOR.MINOR.PATCH`,
   );
   assert.equal(
     fields.metadataVersion,

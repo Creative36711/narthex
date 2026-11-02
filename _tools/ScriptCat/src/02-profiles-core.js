@@ -1,17 +1,15 @@
   // ───────────────────────────── профили проекта ─────────────────────────────
-  // Метаданные не содержат секретов. Прежние ключи остаются эксклюзивным
-  // пространством Narthex; ВСЕ обращения GM других проектов (включая ключи,
-  // сформированные во время работы) получают неизменяемый префикс UUID.
+  // Метаданные не содержат секретов. Каждый рабочий профиль получает свой
+  // префикс UUID. Старые ключи остаются нетронутыми и копируются только явно.
   const rawGet = GM_getValue;
   const rawSet = GM_setValue;
   const PROFILE_REGISTRY_KEY = "cfn-project-profiles-v1";
   const PROFILE_SESSION_KEY = "cfn-active-project-v1";
-  const LEGACY_PROFILE_ID = "narthex";
+  const LEGACY_PROFILE_ID = "unconfigured";
   const PROJECT_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const LEGACY_PROFILE = Object.freeze({
-    id: LEGACY_PROFILE_ID, name: "Narthex", legacy: true,
-    roles: C.roles, missions: C.missions, requests: C.requests, questions: C.questions,
-    pageUrl: C.pageUrl, questionsUrl: C.questionsUrl, repo: C.repo,
+    id: LEGACY_PROFILE_ID, name: "Проект не настроен", legacy: true, invalid: true,
+    roles: "", missions: "", requests: "", questions: "", pageUrl: "", questionsUrl: "", repo: "",
     branch: "main", driveFolder: "",
   });
 
@@ -45,7 +43,7 @@
   function selectedProfileId() {
     try { return sessionStorage.getItem(PROFILE_SESSION_KEY) || LEGACY_PROFILE_ID; }
     catch {
-      // Профиль вкладки неизвестен: не подменяем его рабочим Narthex.
+      // Профиль вкладки неизвестен: не подменяем его рабочим Relay.
       return "session-storage-unavailable";
     }
   }
@@ -53,7 +51,7 @@
     if (id === LEGACY_PROFILE_ID) return LEGACY_PROFILE;
     const matches = profileRegistry().filter((p) => p && p.id === id);
     if (matches.length !== 1 || !validProfile(matches[0])) {
-      // Никогда не подменяем повреждённый/удалённый профиль на Narthex.
+      // Никогда не подменяем повреждённый/удалённый профиль на Relay.
       return Object.freeze({ id: String(id || "invalid"), name: "Профиль недоступен", invalid: true,
         roles: "", missions: "", requests: "", questions: "", pageUrl: "", questionsUrl: "",
         repo: "", branch: "main", driveFolder: "" });
@@ -62,8 +60,7 @@
     return Object.freeze({ ...matches[0], legacy: false, invalid: false });
   }
   const ACTIVE_PROFILE = resolveProfile(selectedProfileId());
-  const projectStorageKey = (id, key) => id === LEGACY_PROFILE_ID ? String(key) :
-    `project:${id}:${String(key)}`;
+  const projectStorageKey = (id, key) => `project:${id}:${String(key)}`;
   GM_getValue = (key, fallback) => rawGet(projectStorageKey(ACTIVE_PROFILE.id, key), fallback);
   GM_setValue = (key, value) => rawSet(projectStorageKey(ACTIVE_PROFILE.id, key), value);
   Object.assign(C, {
@@ -73,8 +70,8 @@
     driveFolder: ACTIVE_PROFILE.driveFolder,
   });
   Object.freeze(C);
-  const projectApproved = () => !ACTIVE_PROFILE.invalid &&
-    (ACTIVE_PROFILE.legacy || GM_getValue("cfn-project-approved", false) === true);
+  const projectApproved = () => !ACTIVE_PROFILE.invalid && !ACTIVE_PROFILE.legacy &&
+    GM_getValue("cfn-project-approved", false) === true;
 
   const K = {
     notion: "cfn-notion-token",

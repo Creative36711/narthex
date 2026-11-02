@@ -62,11 +62,12 @@
 
   /** Reviewer сдаёт именно свою выдачу; чужой вердикт нельзя «починить» подстановкой ID. */
   function reviewerDispatchEvidence(messages, hit, expect) {
-    const field = (obj, ...names) => names.map((name) => obj?.[name]).find((v) => v !== undefined && v !== null && v !== "") || "";
-    const match = (obj) =>
-      Boolean(expect.ref && expect.runId) &&
-      norm(field(obj, "dispatch_id", "dispatch", "dispatchId")) === norm(expect.ref) &&
-      norm(field(obj, "run_id", "run", "runId")) === norm(expect.runId);
+    const matchField = (obj, expected, names) => {
+      const values = names.map((name) => obj?.[name]).filter((v) => v !== undefined && v !== null && String(v).trim());
+      return isUuid(expected) && values.length > 0 && values.every((value) => isUuid(value) && norm(value) === norm(expected));
+    };
+    const match = (obj) => matchField(obj, expect.ref, ["dispatch_id", "dispatch", "dispatchId"]) &&
+      matchField(obj, expect.runId, ["run_id", "run", "runId"]);
     if (!match(hit.result)) return { error: "маркер сдачи относится к другой карточке или Run ID" };
     const agent = parseMarker(hit.raw, "CF_AGENT_RESULT");
     if (agent && String(agent.status || "").trim().toLowerCase() !== "submitted") {
@@ -97,6 +98,9 @@
     if (taskState(page) !== "Running") return "карточка уже не Running";
     const run = rt(page.properties?.["Run ID"]);
     if (!expect.runId || !run || norm(run) !== norm(expect.runId)) return "Run ID карточки изменился или отсутствует";
+    const missionId = rt(page.properties?.["Mission ID"]).trim();
+    if (!expect.missionId || !isUuid(expect.missionId) || !isUuid(missionId) || norm(missionId) !== norm(expect.missionId))
+      return "Mission ID карточки изменился, отсутствует или не совпадает с выдачей";
     const owner = rt(page.properties?.["Recipient Agent ID"]);
     if (expect.roleId && norm(expect.roleId) !== norm(role.id)) return "ожидание адресовано другому агенту";
     if (role.fn === "Reviewer" && !owner) return "в карточке не указан адресат выдачи";
@@ -136,8 +140,17 @@
     const candidates = replies
       .map((m) => ({ ...m, result: parseMarker(m.raw, "CF_AGENT_RESULT") || parseMarker(m.raw, "CF_REVIEW_RESULT") }))
       .filter((m) => m.result);
-    const exact = candidates.filter((m) => norm(m.result.dispatch_id) === norm(expect.ref));
-    let hit = (role.fn === "Reviewer" ? candidates : exact.length ? exact : candidates).at(-1);
+    // Синонимы допустимы, но ни один из них не может противоречить выдаче.
+    // Совпадение только карточки недостаточно: она могла быть перевыдана.
+    const matchesId = (result, names, expected) => {
+      const values = names.map((name) => result?.[name]).filter((value) => value !== undefined && value !== null && String(value).trim());
+      return Boolean(isUuid(expected) && values.length && values.every((value) => isUuid(value) && norm(value) === norm(expected)));
+    };
+    const matchesDispatch = (result) => matchesId(result, ["dispatch_id", "dispatch", "dispatchId"], expect.ref) &&
+      matchesId(result, ["run_id", "run", "runId"], expect.runId);
+    // Последний результат не заменяем более ранним подходящим: если новый
+    // прислан с чужими ID, нужно сохранить его и остановиться для разбора.
+    let hit = candidates.at(-1);
     if (!hit) {
       // Напоминания исчерпаны — дальше пауза не помогает: работа сделана, а
       // страдает только формат. Читаем ответ по тексту, но обязательно с id
@@ -152,7 +165,7 @@
           `${role.name} написал ответ без строки-маркера — разобрал по тексту: PR #${loose.pr}` +
             `${loose.merged ? ", слит" : ""}. Повторять работу не нужно.`,
           true,
-          { ntfy: "quiet", title: "Narthex: ответ без маркера" },
+          { ntfy: "quiet", title: "Relay: ответ без маркера" },
         );
         hit = { ...last, result: loose };
       }
@@ -183,20 +196,32 @@
       return markerMissing(role, expect, "CF_AGENT_RESULT", manual);
     }
 
+    if (!matchesDispatch(hit.result)) {
+      const retained = retainRejectedResult(expect, "dispatch-identity", replies);
+      pause("Ответ не подтверждён для текущей карточки и попытки (dispatch_id / run_id). " +
+        (retained ? "Карточка, ожидание и копия ответа сохранены локально; " : "Карточка и ожидание сохранены, локальная копия не записалась — сохраните ответ из чата вручную; ") +
+        "попросите агента повторить маркер с ID этой выдачи.", {
+        kind: "marker-mismatch", ref: expect.ref || "", runId: expect.runId || "",
+      });
+      return true;
+    }
     const review = role.fn === "Reviewer" ? reviewerDispatchEvidence(replies, hit, expect) : null;
     if (review?.error) {
-      pause(`Ответ Reviewer не привязан к текущей выдаче: ${review.error}. Карточку и миссию не меняю.`, {
+      const retained = retainRejectedResult(expect, "review-identity", replies);
+      pause(`Ответ Reviewer не привязан к текущей выдаче: ${review.error}. Карточку и миссию не меняю. ` +
+        (retained ? "Копия ответа сохранена локально." : "Локальная копия не записалась — сохраните ответ из чата вручную."), {
         kind: "marker-mismatch", ref: expect.ref, runId: expect.runId || "",
       });
       return true;
     }
     const { result, stray } = adoptIds(hit.result, expect);
     if (stray.length) {
-      log(
-        `В маркере чужой или битый id (${stray.join(", ")}) — беру свой из выдачи. Работа не потерялась.`,
-        false,
-        { ntfy: false },
-      );
+      const retained = retainRejectedResult(expect, "dispatch-identity", replies);
+      pause(`ID результата не прошли проверку (${stray.join(", ")}); ничего не подменяю. ` +
+        (retained ? "Ожидание и копия ответа сохранены." : "Ожидание сохранено; сохраните ответ из чата вручную."), {
+        kind: "marker-mismatch", ref: expect.ref, runId: expect.runId || "",
+      });
+      return true;
     }
     if (GM_getValue(`cfn-done:${result.dispatch_id}:${result.run_id}`, false)) {
       const waiting = GM_getValue(K.expect, null);
@@ -228,23 +253,20 @@
       });
       return true;
     }
+    // Сверяем единственную активную миссию не по названию, а по ID выдачи и
+    // карточки. Старые ожидания без missionId требуют ручного восстановления.
+    const mission = await activeMission();
+    if (!mission || norm(mission.id) !== norm(expect.missionId) || !cardInMission(page, mission)) {
+      pause("Mission ID карточки не совпадает с единственной активной миссией или выдачей. " +
+        "Ожидание и ответ сохранены; проверьте привязку и Run ID.", {
+        kind: "dispatch-mission", ref: expect.ref, runId: expect.runId || "",
+      });
+      return true;
+    }
     let reviewMission = null;
     if (role.fn === "Reviewer") {
-      // Старая версия ожидания могла не хранить missionId; тогда нужна именно
-      // текущая активная миссия и совпадение её названия с полем карточки.
-      const mission = expect.missionId
-        ? await notion("GET", `pages/${expect.missionId}`)
-        : await activeMission();
-      const state = mission?.properties?.["Состояние"]?.select?.name || "";
-      const cardMission = rt(page.properties?.["Миссия"]).trim();
-      const name = rt(mission?.properties?.["Миссия"]).trim();
-      const matches = mission && cardMission &&
-        (norm(cardMission) === norm(mission.id) || missionSame(cardMission, name));
-      if (!matches || !["Активна", "Возвращена"].includes(state) ||
-          (expect.missionId && norm(mission.id) !== norm(expect.missionId)) ||
-          (review?.decision?.mission_id && norm(review.decision.mission_id) !== norm(mission.id))) {
-        pause("Миссия карточки Reviewer не совпадает с активным ходом или уже закрыта: ничего не принимаю. " +
-          "Сверьте миссию, карточку и Run ID.", {
+      if (review?.decision?.mission_id && norm(review.decision.mission_id) !== norm(mission.id)) {
+        pause("Вердикт карточки Reviewer относится к другой миссии. Ожидание и ответ сохранены.", {
           kind: "dispatch-mission", ref: expect.ref, runId: expect.runId || "",
         });
         return true;
@@ -270,7 +292,7 @@
       log(
         `Вопрос исполнителя пришёл без варианта по умолчанию — записан с вариантом «${asked.question.fallback}»: ответ Мастера дойдёт следующим ходом.`,
         false,
-        { ntfy: "quiet", title: "Narthex: вопрос без варианта по умолчанию" },
+        { ntfy: "quiet", title: "Relay: вопрос без варианта по умолчанию" },
       );
       await askQuestion(asked.question, {
         roleName: role.name,
@@ -312,15 +334,9 @@
     // Ещё раз читаем состояние, run, владельца и миссию перед любой её правкой.
     const current = await notion("GET", `pages/${result.dispatch_id}`);
     const changed = dispatchGuard(current, expect, role);
-    let changedMission = false;
-    if (reviewMission) {
-      const latestMission = await notion("GET", `pages/${reviewMission.id}`);
-      const latestState = latestMission?.properties?.["Состояние"]?.select?.name || "";
-      const cardMission = rt(current.properties?.["Миссия"]).trim();
-      const missionName = rt(latestMission?.properties?.["Миссия"]).trim();
-      changedMission = !["Активна", "Возвращена"].includes(latestState) || !cardMission ||
-        !(norm(cardMission) === norm(latestMission.id) || missionSame(cardMission, missionName));
-    }
+    const latestMission = await activeMission();
+    const changedMission = !latestMission || norm(latestMission.id) !== norm(expect.missionId) ||
+      !cardInMission(current, latestMission);
     if (changed || changedMission || !currentDispatch(expect)) {
       pause(`Ответ записан в журнал, но карточка, миссия или ожидание успели измениться (${changed || (changedMission ? "миссия" : "ожидание")}). ` +
         "Статус не перезаписываю; сверить выдачу нужно вручную.", {
@@ -389,7 +405,7 @@
       log(`«${taskTitle(page)}» → Rework: заявка о мерже не подтвердилась (${why}).`, true, {
         tone: "warn",
         ntfy: "quiet",
-        title: "Narthex: карточка возвращена",
+        title: "Relay: карточка возвращена",
         ntfyText: executorNtfyText(page, role, expect, receivedAt, `мёрж не подтвердился, карточка в Rework (${why})`),
         ntfyKey: `dispatch-result:${result.dispatch_id}:${result.run_id}`,
       });
@@ -423,7 +439,7 @@
       GM_setValue(`cfn-done:${result.dispatch_id}:${result.run_id}`, true);
       log(`«${taskTitle(page)}» → Rework: PR закрыт без мержа.`, false, {
         ntfy: "quiet",
-        title: "Narthex: карточка возвращена",
+        title: "Relay: карточка возвращена",
         ntfyText: executorNtfyText(page, role, expect, receivedAt, "PR не слит, карточка в Rework"),
         ntfyKey: `dispatch-result:${result.dispatch_id}:${result.run_id}`,
       });
@@ -459,7 +475,7 @@
       false,
       {
         ntfy: "quiet",
-        title: "Narthex: ответ записан",
+        title: "Relay: ответ записан",
         ntfyText: executorNtfyText(page, role, expect, receivedAt, "ответ записан, карточка Submitted"),
         ntfyKey: `dispatch-result:${result.dispatch_id}:${result.run_id}`,
       },

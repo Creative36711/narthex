@@ -67,7 +67,7 @@
     // нет прав, предел доработок).
     if (context.quiet) {
       notifyNtfy(`Цикл остановлен: ${info.reason}`, {
-        title: context.notifyTitle || "Narthex: пауза",
+        title: context.notifyTitle || "Relay: пауза",
         priority: "2",
         tags: "memo",
         cycleStopped: true,
@@ -77,7 +77,7 @@
       return;
     }
     notifyNtfy(`Цикл остановлен и ждёт Мастера: ${info.reason}`, {
-      title: context.notifyTitle || "Narthex: пауза",
+      title: context.notifyTitle || "Relay: пауза",
       priority: "5",
       tags: "warning,rotating_light",
       cycleStopped: true,
@@ -299,7 +299,7 @@
       `«${taskTitle(card)}» возвращена в Ready: ${why}.` +
         (cause === "manual-reset" ? "" : " В Running она бы ждала 45 минут."),
       true,
-      { ntfy: "quiet", title: "Narthex: карточка возвращена в Ready" },
+      { ntfy: "quiet", title: "Relay: карточка возвращена в Ready" },
     );
     return true;
   }
@@ -398,7 +398,7 @@
         ? "Задание до агента не дошло: капча закрыла отправку, ответа нет. Карточка возвращена в Ready — выдаю заново."
         : "Ход Координатора до агента не дошёл: капча закрыла отправку. Запрошу план заново.",
       true,
-      { ntfy: "quiet", title: "Narthex: задание не дошло, выдаю заново" },
+      { ntfy: "quiet", title: "Relay: задание не дошло, выдаю заново" },
     );
     return true;
   }
@@ -491,7 +491,7 @@
     ].join(";");
     panel.innerHTML = `
       <div style="display:flex;align-items:center;gap:6px;padding:8px 10px;background:#1b1e25;border-bottom:1px solid #2b2f38;flex-wrap:wrap">
-        <strong id="cfn-panel-project" style="font-size:12px">Narthex</strong>
+        <strong id="cfn-panel-project" style="font-size:12px">Relay</strong>
         <span style="opacity:.45;font-size:10px" title="версия скрипта">v${SCRIPT_VERSION}</span>
         <span id="${ui.status}" style="opacity:.75;font-size:11px;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">…</span>
         <span id="${ui.count}" style="opacity:.45;font-size:10px">0/${C.maxLog}</span>
@@ -527,7 +527,7 @@
       installDebugApi();
       log(
         on
-          ? "Отладка включена: подробности идут в консоль браузера (F12), панель — только вехи. Команды: __narthex.state(), __narthex.step()."
+          ? "Отладка включена: подробности идут в консоль браузера (F12), панель — только вехи. Команды: __relay.state(), __relay.step()."
           : "Отладка выключена.",
       );
       paintDebugButton();
@@ -557,7 +557,7 @@
       return typeof trackProjectTask === "function" ? trackProjectTask(work) : work;
     };
     const projectLabel = document.getElementById("cfn-panel-project");
-    if (projectLabel) projectLabel.textContent = C.projectName || "Narthex";
+    if (projectLabel) projectLabel.textContent = C.projectName || "Relay";
     renderLog();
     setStatus();
     paintDebugButton();

@@ -1,4 +1,4 @@
-// Current visible-error → Master-pause contract in narthex.user.js.
+// Current visible-error → Master-pause contract in relay.user.js.
 // The former dispatch.user.js automation model is retired; recovery, Drive
 // logging, Coordinator markers, and send safety are exercised by their current
 // focused tests in the same 71-file suite.
@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 
-const userScript = new URL('../narthex.user.js', import.meta.url);
+const userScript = new URL('../relay.user.js', import.meta.url);
 assert.equal(existsSync(new URL('../dispatch.user.js', import.meta.url)), false, 'legacy dispatch.user.js stays absent');
 const source = readFileSync(userScript, 'utf8');
 const version = source.match(/^\/\/ @version\s+(\d+\.\d+\.\d+)\s*$/m)?.[1];
@@ -166,7 +166,7 @@ const pauseFn = new Function(
   const notifications = [];
   let alerts = 0;
   const pause = pauseFn(keys, (key, value) => store.set(key, value), () => false, () => {}, (...args) => notifications.push(args), () => { alerts += 1; }, () => {});
-  pause('Reviewer will decide this', { quiet: true, kind: 'reviewer', notifyTitle: 'Narthex: review' });
+  pause('Reviewer will decide this', { quiet: true, kind: 'reviewer', notifyTitle: 'Relay: review' });
   assert.equal(notifications[0][1].priority, '2', 'quiet pause does not become a loud Master alert');
   assert.equal(notifications[0][1].cycleStopped, true, 'quiet pause is still an essential stop');
   assert.equal(alerts, 0, 'quiet pause has no local alarm');
@@ -201,4 +201,4 @@ assert.equal(classifyNtfy('Напоминание', true, { ntfy: 'quiet' })?.pr
 assert.doesNotMatch(source, /chatTimeoutRecovery/, 'retired timeout recovery state is not consulted');
 assert.doesNotMatch(source, /function coordinatorMarkerResetEligible\(/, 'retired campaign/dispatch reset helper is not treated as current behavior');
 
-console.log(`OK: narthex ${version} — visible Arena errors dedupe, preserve the live run, and alert the Master`);
+console.log(`OK: relay ${version} — visible Arena errors dedupe, preserve the live run, and alert the Master`);
