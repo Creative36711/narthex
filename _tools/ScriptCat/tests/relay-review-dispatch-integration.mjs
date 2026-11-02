@@ -302,6 +302,18 @@ for (const [label, reviewOverrides, agentOverrides] of [
   }
 }
 
+// Поздний чужой результат нельзя обойти выбором более раннего совпавшего.
+{
+  const h = harness({ reviewRequired:false }), e = expectDispatch(); h.expect(e);
+  const worker = { id:AGENT, name:'Tools', fn:'Executor' };
+  h.replies = [message(`${longBody}\n${agentResult()}`, 'first'),
+    message(`${longBody}\n${agentResult({run_id:OTHER_RUN})}`, 'second')];
+  await h.submitExecutor(worker, e);
+  assert.equal(state(h.pages.get(CARD)), 'Running');
+  assert.equal(h.calls.writes, 0); assert.equal(h.pauses.at(-1).kind, 'marker-mismatch');
+  assert.deepEqual(h.getExpect(), e); assert.match(h.storage.get('cfn-rejected-results-v1')[0].raw, new RegExp(OTHER_RUN));
+}
+
 // Проверки именно карточки и миссии, а не только строк в маркере.
 for (const [label, change, expected] of [
   ['карточку перевыдали', (h) => h.pages.get(CARD).properties['Run ID'] = rich(OTHER_RUN), 'dispatch-changed'],

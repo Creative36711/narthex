@@ -2671,12 +2671,9 @@
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(value || "").trim());
 
   /**
-   * Id из строки-маркера не адресуют запись.
-   *
-   * 24.10 Kernel прислал «4036f0cf-5705-ba9f-79ed-59fe3b8e» вместо id карточки,
-   * и цикл встал на HTTP 400 «path.page_id should be a valid uuid» — работа была
-   * сделана, а ход потерялся в паузе. Истина — та выдача, которую движок сам
-   * поставил в Running: её id и run_id подставляются вместо чужих.
+   * Привести имена полей результата к каноническим только после проверки ID.
+   * Чужие и отсутствующие значения не подменяются значениями ожидания:
+   * вызывающий код оставляет ожидание и сохраняет отвергнутый результат.
    */
   function adoptIds(result, expect) {
     const fixed = { ...result };
@@ -3392,8 +3389,8 @@
   /**
    * Одна ли это миссия. Точное совпадение слов — да; перестановка слов и
    * лишнее слово — тоже да, если короткое название содержит не меньше трёх
-   * слов (иначе «NAR-2» цепляло бы карточки соседних миссий). Пустое поле
-   * «Миссия» в карточке — не чужая миссия: такие карточки считаются всегда.
+   * слов, чтобы короткое название не цепляло соседние миссии. Это сравнение
+   * используется для обратной связи; привязка карточек проверяется по Mission ID.
    */
   function missionSame(a, b) {
     const left = missionWords(a);
@@ -4129,15 +4126,18 @@
     if (role.fn === "Auditor") return null;
     const text = String(raw || "");
     const ref = String((expect && expect.ref) || "");
-    if (!text || !ref || !norm(text).includes(norm(ref))) return null;
+    const runId = String((expect && expect.runId) || "");
+    if (!text || !ref || !runId) return null;
     const pr = Number((text.match(/\bPR\s*#?\s*(\d+)/i) || text.match(/\/pull\/(\d+)/) || [])[1]) || null;
     if (!pr) return null;
     const merged = /\bmerged\b|слит|слито|слита|слиты|\bв main\b/i.test(text);
-    const run = (text.match(/run[`\s]*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i) || [])[1] || "";
-    // Не достраиваем отсутствующий Run из ожидания: старый ответ по той же
-    // карточке нельзя привязать к её новой попытке только по тексту.
-    if (!run || !expect?.runId || norm(run) !== norm(expect.runId)) return null;
-    return { dispatch_id: ref, run_id: run, status: "submitted", pr, merged };
+    // ID должны стоять именно после своих подписей, а не просто встречаться в
+    // произвольной цитате. Противоречивые повторные поля тоже недопустимы.
+    const dispatches = [...text.matchAll(/\bdispatch(?:[_\s-]*id)?[`"'\s:=]*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/gi)].map((m) => m[1]);
+    const runs = [...text.matchAll(/\brun(?:[_\s-]*id)?[`"'\s:=]*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/gi)].map((m) => m[1]);
+    if (!dispatches.length || !runs.length || dispatches.some((id) => norm(id) !== norm(ref)) ||
+        runs.some((id) => norm(id) !== norm(runId))) return null;
+    return { dispatch_id: dispatches[0], run_id: runs[0], status: "submitted", pr, merged };
   }
 
   /**
@@ -4464,12 +4464,15 @@
       return true;
     }
 
+    const retained = retainRejectedResult(expect, "missing-marker", replies);
+    const preservation = retained ? "Копия ответа сохранена локально; ожидание не снято." :
+      "Ожидание не снято; локальную копию записать не удалось, сохраните ответ из чата вручную.";
     pause(
-      why === "thin"
+      (why === "thin"
         ? `${role.name} присылает только маркер ${markerName}, без отчёта, после ${C.markerReminders} напоминаний. ` +
-            "Нужен Мастер: проверьте страницу агента."
+            "Нужен Мастер: проверьте страницу агента. "
         : `${role.name} ответил без маркера ${markerName} после ${C.markerReminders} напоминаний. ` +
-            `Нужен Мастер: проверьте страницу агента.${reject}`,
+            `Нужен Мастер: проверьте страницу агента.${reject} `) + preservation,
       { kind: "marker", ref: expect.ref, runId: expect.runId, turnId: expect.turnId, tries: sent },
     );
     return true;
@@ -8333,8 +8336,9 @@
     };
     const matchesDispatch = (result) => matchesId(result, ["dispatch_id", "dispatch", "dispatchId"], expect.ref) &&
       matchesId(result, ["run_id", "run", "runId"], expect.runId);
-    const exact = candidates.filter((m) => matchesDispatch(m.result));
-    let hit = (exact.length ? exact : candidates).at(-1);
+    // Последний результат не заменяем более ранним подходящим: если новый
+    // прислан с чужими ID, нужно сохранить его и остановиться для разбора.
+    let hit = candidates.at(-1);
     if (!hit) {
       // Напоминания исчерпаны — дальше пауза не помогает: работа сделана, а
       // страдает только формат. Читаем ответ по тексту, но обязательно с id

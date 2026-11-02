@@ -177,6 +177,18 @@ assert.equal(
   'чужая выдача не принимается',
 );
 assert.equal(looseResult(kernelText, { fn: 'Auditor' }, expect), null, 'аудитору мягкий разбор не нужен');
+const foreign = '11111111-1111-4111-8111-111111111111';
+assert.equal(looseResult(`dispatch ${foreign}; run ${expect.runId}; PR #31; в цитате ${expect.ref}`, executor, expect), null,
+  'упоминание ожидаемой карточки в цитате не подменяет чужой dispatch');
+assert.equal(looseResult(`Карточка ${expect.ref}; run ${expect.runId}; PR #31`, executor, expect), null,
+  'неподписанный UUID не является dispatch_id');
+assert.equal(looseResult(`${kernelText} dispatch ${foreign}`, executor, expect), null,
+  'противоречащий второй dispatch не игнорируется');
+assert.equal(looseResult(`${kernelText} run ${foreign}`, executor, expect), null,
+  'противоречащий второй run не игнорируется');
+assert.equal(looseResult(`dispatch ${expect.ref}; PR #31`, executor, expect), null, 'отсутствующий run не восстанавливается');
+assert.ok(looseResult(`dispatch_id: ${expect.ref}; run_id: ${expect.runId}; PR #31`, executor, expect),
+  'подписанные канонические имена с точными ID принимаются');
 
 const submitSrc = cut('  async function submitExecutor(', '  // ───────────────────────────── ход Координатора');
 assert.match(

@@ -11,7 +11,7 @@
 
 ## Локальные свидетельства
 
-- Сгенерированный userscript: `_tools/ScriptCat/relay.user.js`, SHA-256 `77e25149468f6126cee440770479eb61b1f3b9b74c2de74ef366767cd64a9c96`.
+- Сгенерированный userscript: `_tools/ScriptCat/relay.user.js`, SHA-256 `38e1be463db3fd20a751119714ed24bad89161ed0f95b71d5ba345312e89aea1`.
 - `npm run scriptcat:check`, `npm run scriptcat:portability`: успешно.
 - Все 85 файлов `_tools/ScriptCat/tests/*.mjs` и `regression-tests/*.mjs`: успешно на Node 22.22.3. Это локальные тесты и модели; проверка SHA исходного текста ADR также имеет положительные и отрицательные фикстуры.
 - Оба сценария `_tools/ScriptCat/browser-tests/{connections,profiles}.mjs` выполнены на Chromium с моками и заблокированными внешними запросами. Они не проверяют работающие сервисы.

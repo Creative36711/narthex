@@ -148,8 +148,9 @@
     };
     const matchesDispatch = (result) => matchesId(result, ["dispatch_id", "dispatch", "dispatchId"], expect.ref) &&
       matchesId(result, ["run_id", "run", "runId"], expect.runId);
-    const exact = candidates.filter((m) => matchesDispatch(m.result));
-    let hit = (exact.length ? exact : candidates).at(-1);
+    // Последний результат не заменяем более ранним подходящим: если новый
+    // прислан с чужими ID, нужно сохранить его и остановиться для разбора.
+    let hit = candidates.at(-1);
     if (!hit) {
       // Напоминания исчерпаны — дальше пауза не помогает: работа сделана, а
       // страдает только формат. Читаем ответ по тексту, но обязательно с id

@@ -90,12 +90,14 @@ assert.match(missingFn, /tries/, 'счётчик попыток хранится
   const calls = [];
   const missing = new Function(
     'stillWorking', 'pageReady', 'messagesAfter', 'dbg', 'tail', 'markerRejectHint', 'markerStep',
-    'log', 'sendToRole', 'markerReminder', 'C',
+    'log', 'sendToRole', 'markerReminder', 'C', 'retainRejectedResult', 'pause',
     `${missingFn}\nreturn markerMissing;`,
   )(
     () => false, () => ({ ok: true }), () => [{ id: 'm1', raw: 'отчёт', text: 'отчёт', ended: true }],
     () => {}, (text) => text, () => '', (sent) => sent < 2 ? 'remind' : 'pause',
     () => {}, async (...args) => calls.push(args), () => 'напоминание', { markerReminders: 2 },
+    (expect, kind, replies) => { calls.push({expect,kind,replies}); return true; },
+    (message, context) => calls.push({message,context}),
   );
   const role = { name: 'Tools' };
   const base = { kind: 'dispatch', ref: 'card', runId: 'run', sentAt: 10_000, tries: 0 };
@@ -111,6 +113,10 @@ assert.match(missingFn, /tries/, 'счётчик попыток хранится
   assert.equal(calls.at(-1)[4].dispatchSentAt, 0, 'неизвестная дата не заменяется вымышленной');
   await missing(role, { ...base, adopted: true }, 'CF_AGENT_RESULT');
   assert.equal(calls.at(-1)[4].dispatchSentAt, 0, 'время ручного поиска ответа не считается отправкой');
+  await missing(role, { ...base, tries: 2 }, 'CF_AGENT_RESULT');
+  assert.equal(calls.at(-2).kind, 'missing-marker', 'после лимита полный ответ сохраняется');
+  assert.equal(calls.at(-2).replies[0].raw, 'отчёт');
+  assert.match(calls.at(-1).message, /Копия ответа сохранена локально/);
 }
 assert.match(src, /const watermark = lastMessageId\(\);/, 'водяной знак снимается на странице адресата до отправки');
 assert.match(src, /const mark = delivery\.msgId \|\| watermark;\s*const sentAt = Date\.now\(\);\s*GM_setValue\(K\.expect, \{\s*\.\.\.expect, watermark: mark, sentAt, verified: true/, 'отметка ставится после успешной доставки');
