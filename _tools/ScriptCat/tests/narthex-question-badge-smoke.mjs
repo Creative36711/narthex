@@ -104,7 +104,7 @@ assert.match(src, /Координатор спрашивает: «\$\{ask\}»/, 
 
 // ── 4. Опрос идёт отдельно от тика и работает на паузе ─────────────────────
 assert.match(src, /function watchQuestions\(\)/, 'сторож вопросов есть');
-assert.match(src, /window\.setInterval\(\(\) => refreshQuestions\(\)/, 'опрос по таймеру');
+assert.match(src, /window\.setInterval\(\(\) => \{[\s\S]*?refreshQuestions\(\)/, 'опрос по таймеру');
 assert.match(src, /C\.questionCheckMs\)/, 'частота — та же, что у проверки сроков');
 assert.doesNotMatch(src, /cfn-q-check-at/, 'старый счётчик из тика убран');
 assert.match(src, /paintQuestions\(openQuestions\(\)\.rows\);\n\s+watchQuestions\(\);/, 'панель показывает число сразу при сборке');
@@ -112,7 +112,7 @@ assert.match(src, /paintQuestions\(openQuestions\(\)\.rows\);\n\s+watchQuestions
 // Вопрос задан — он уходит тихо: отвечает приёмка, а не человек (1.4.80).
 assert.match(
   src,
-  /queueAnswer\(row, q, ctx\);\s*\n\s*log\(`Вопрос записан:[\s\S]{0,260}?ntfy: "quiet"/,
+  /queueAnswer\(row, q, ctx\);\s*forgetQuestionIntent\(q, ctx\);\s*log\(`Вопрос записан:[\s\S]{0,260}?ntfy: "quiet"/,
   'создание вопроса не будит Мастера, а ставит его в очередь приёмки',
 );
 

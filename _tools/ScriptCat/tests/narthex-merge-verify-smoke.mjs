@@ -203,10 +203,10 @@ async function runClaim(check) {
   const { result, logged } = await runClaim({
     status: 'unknown',
     needsToken: true,
-    why: 'PR #37 анонимно не виден: Creative36711/narthex приватный — нужен токен GitHub (🐙)',
+    why: 'PR #37 анонимно не виден: Creative36711/narthex приватный — нужен токен GitHub в «⚙ Подключения»',
   });
   assert.equal(result, 'claimed', 'без токена заявка не отклоняется');
-  assert.ok(logged.some((l) => /вставьте токен в 🐙/.test(l.text)), 'сказано, как включить проверку');
+  assert.ok(logged.some((l) => /откройте «⚙ Подключения» и сохраните токен/.test(l.text)), 'сказано, как включить проверку');
 }
 
 // ── 5. Ложная заявка возвращает карточку в Rework ──────────────────────────

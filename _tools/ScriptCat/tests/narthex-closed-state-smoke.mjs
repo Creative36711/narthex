@@ -32,7 +32,8 @@ assert.match(src, /rect\.width > 0 && rect\.height > 0/, 'видимость с�
 const loop = src.slice(src.indexOf('async function ensureMerged'), src.indexOf('async function finishClosed'));
 const iMerged = loop.indexOf('if (mergedFlag())');
 const iClosed = loop.indexOf('if (closedFlag())');
-const iContinue = loop.indexOf('if (continueButton()) return finishMerge');
+const iContinue = loop.indexOf('if (continueButton()) {', iClosed);
+assert.match(loop.slice(iContinue, iContinue + 350), /return finishMerge\(task, key\)/, 'Continue после проверки всё ещё ведёт в finishMerge');
 assert.ok(iMerged > -1 && iClosed > iMerged && iContinue > iClosed, 'порядок проверок: Merged → Closed → Continue');
 
 // 4. Признак мержа берётся из маркера, а не из бейджа.
@@ -48,7 +49,7 @@ assert.ok(closedEnd > 0, 'конец ветки закрытого PR найде
 const block = closedPath.slice(0, closedEnd);
 assert.match(block, /:closed -->/, 'в лог пишется отдельный маркер закрытия');
 assert.match(block, /name: "Rework"/, 'карточка уходит в Rework');
-assert.match(block, /Работа в main не попала/, 'причина сформулирована в «Ответ»');
+assert.match(block, /Работа в \$\{\(typeof C[\s\S]*?C\.branch[\s\S]*?не попала/, 'причина называет базовую ветку проекта в «Ответе»');
 assert.match(block, /goTo\(coord\)/, 'ход возвращается Координатору');
 
 // 6. Continue нажимается и в закрытом состоянии — иначе цикл встанет.

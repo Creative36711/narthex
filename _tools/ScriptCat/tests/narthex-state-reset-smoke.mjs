@@ -127,7 +127,7 @@ const real = { ...ghost, sentAt: 2, verified: true };
 assert.match(src, /reset: "cfn-reset"/, 'id кнопки объявлен');
 assert.match(src, /id="\$\{ui\.reset\}" title="Снять ход: очередь, ожидание и карточки в Running/, 'кнопка ↺ в панели');
 assert.match(src, /getElementById\(ui\.reset\)\.onclick = \(\) => \{/, 'кнопка вызывает очистку');
-assert.match(src, /resetStateDialog\(\)\.catch\(/, 'отказ сети при снятии хода не теряется');
+assert.match(src, /const work = resetStateDialog\(\);[\s\S]*?trackProjectTask\(work\)[\s\S]*?\.catch\(/, 'отказ сети при снятии хода не теряется');
 assert.match(src, /Очистить журнал; очередь снимается кнопкой ↺/, 'у 🧹 понятная подсказка');
 assert.match(src, /reset: \(\) => resetStateDialog\(\)/, 'в консоли есть __narthex.reset()');
 assert.match(src, /const boot = \(\) => \{\s*migrateState\(\);/, 'миграция выполняется до первого шага');

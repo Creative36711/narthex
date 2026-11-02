@@ -45,10 +45,10 @@ const page = ({ state = 'Running', runId = 'r-1' } = {}) => ({
   },
 });
 
-const load = ({ append, createLog, freshPage = page() }) => {
+const load = ({ append, createLog, freshPage = page(), driveFolder = '' }) => {
   const calls = { append: [], createLog: 0, notion: [], patch: [], log: [] };
   const api = new Function(
-    'gateway', 'notion', 'patch', 'log',
+    'gateway', 'notion', 'patch', 'log', 'C',
     `${runtimeHelpers}\n${src.slice(from, to)}\nreturn appendToJournal;`,
   )(
     async (action, fileId, extra) => {
@@ -67,6 +67,7 @@ const load = ({ append, createLog, freshPage = page() }) => {
     },
     async (id, props) => { calls.patch.push({ id, props }); },
     (text) => { calls.log.push(String(text)); },
+    { driveFolder },
   );
   return { api, calls };
 };
@@ -93,6 +94,21 @@ const logCreated = () => ({ ok: true, fileId: 'log-1', name: 'd-1_r-1.md', resul
   assert.equal(calls.createLog, 0, 'журнал не переоткрывали');
   assert.equal(calls.notion.length, 0, 'свежую карточку читают только для восстановления ссылки');
   assert.equal(calls.patch.length, 0, 'карточку не трогали');
+}
+
+// Проектный отказ не направляет пользователя в legacy-папку Narthex.
+{
+  const { api, calls } = load({
+    driveFolder: 'synapse',
+    append: async (id) => {
+      if (id === 'report-1') throw refusal('Запись разрешена только в текстовые файлы logs этого проекта.');
+      return { ok: true, result: 'appended' };
+    },
+    createLog: logCreated,
+  });
+  await api('d-1', 'r-1', 'report-1', 'marker', 'entry');
+  assert.ok(calls.log.some((line) => line.includes('Arena/synapse/logs')));
+  assert.ok(calls.log.every((line) => !line.includes('только в Arena/logs')));
 }
 
 // 2. Поле переписано на отчёт: журнал берётся из выдачи, ссылка возвращается.

@@ -130,6 +130,7 @@ has('План Координатора не совпадает с очередь
 has('Ready-карточку с меньшим Sequence не обходи молча', 'правило записано в промпт Координатора');
 
 // ── 3. Дедупликация вопросов поведением ───────────────────────────────────
+const intentSrc = cut('  const questionIntents = () => {', '  function queueQuestion(q, ctx = {}) {');
 const dedupeSrc = cut('  const adrRefsOf = (text) => {', '  async function askQuestion(q, ctx = {}) {');
 const askSrc = cut('  async function askQuestion(q, ctx = {}) {', '  /** Отметить ответы доставленными');
 
@@ -142,8 +143,8 @@ function makeAsk({ rows = [], failQuery = false } = {}) {
   const fn = new Function(
     'GM_getValue', 'GM_setValue', 'K', 'C', 'Q', 'norm', 'rt', 'sel', 'query', 'questionRows',
     'noteQuestionAsked', 'appendQuestionBody', 'queueQuestion', 'queueAnswer', 'log', 'dbg', 'notion', 'questionProps',
-    'withQuestionWriteLock', 'questionMaterial',
-    `${dedupeSrc}\n${askSrc}\nreturn { askQuestion, sameQuestionRow };`,
+    'withQuestionWriteLock', 'questionMaterial', 'supplementalQuestion', 'questionFromRowComplete',
+    `${intentSrc}\n${dedupeSrc}\n${askSrc}\nreturn { askQuestion, sameQuestionRow };`,
   );
   const api = fn(
     (key, def) => (store.has(key) ? store.get(key) : def),
@@ -175,6 +176,7 @@ function makeAsk({ rows = [], failQuery = false } = {}) {
     (q) => ({ 'Вопрос': { title: [{ type: 'text', text: { content: q.text } }] } }),
     (work) => work(),
     (url) => url || '',
+    (q) => q, async (row) => ({ text: row.properties['Вопрос'].title[0].plain_text }),
   );
   return { ...api, store, logs, created, queued, deferred };
 }
@@ -327,7 +329,7 @@ has('return cache.rows;', 'при сбое история ADR не считае�
 assert.doesNotMatch(src, /announceDecisions\(/, 'нет отдельного уведомления предложений');
 assert.doesNotMatch(src, /ui\.adrBadge/, 'нет второго счётчика ADR');
 has('const same = await sameQuestionRow(item.q.text, {', 'отложенный вопрос сверяется с базой перед записью');
-has('if (sameText && list.some((item) => norm(item?.q?.text) === sameText)) return;', 'в очереди не копится один и тот же вопрос');
+has('if (q?.text && list.some((item) => questionQueueId(item) === questionQueueId(entry))) return;', 'точный повтор с тем же материалом и ходом не копится в очереди');
 has('const refs = adrRefsOf(`${text} ${material}`);', 'ссылки на ADR участвуют в поиске дубля');
 has('const followUpOf = (text) =>', 'уточнение по тому же ADR не глушится');
 has('статус файла меняет исполнитель карточкой', 'долг записи решения остаётся видимым в журнале');

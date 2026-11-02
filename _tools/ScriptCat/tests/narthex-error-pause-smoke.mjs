@@ -129,15 +129,17 @@ assert.equal(classifyNtfy('Цикл остановлен', true, { ntfy: 'loud',
 assert.equal(classifyNtfy('PR не слит, работа продолжается', true, { ntfy: 'loud' })?.priority, '2', 'нельзя сделать громким событие продолжающегося цикла');
 assert.equal(classifyNtfy('Ответ без маркера', true, { ntfy: 'quiet' })?.priority, '2', 'напоминание о маркере не будит ночью');
 
-// 8. Панель: кнопки очистки и ntfy, без автоперезагрузки страницы.
-assert.match(src, /ui\.ntfy\), onclick|getElementById\(ui\.ntfy\)\.onclick/, 'есть кнопка настроек ntfy');
+// 8. Панель: общие подключения ведут к ntfy, без автоперезагрузки страницы.
+assert.match(src, /id="cfn-connection-ntfy"/, 'есть настройка ntfy в общем окне');
+assert.match(src, /find\("ntfy"\)\.onclick[\s\S]*?ntfyDialog\(\)/, 'кнопка открывает прежний диалог ntfy');
 assert.match(src, /function ntfyDialog\(\)/, 'диалог ntfy с тестами');
 assert.match(src, /Тихий тест/, 'тихий тест доступен из панели');
 assert.match(src, /Громкий тест/, 'громкий тест доступен из панели');
 // Перезагрузки ограничены двумя конкретными recovery-путями: временный
 // отказ Arena «Something went wrong» и неотрисовавшаяся страница адресата.
 const reloadSites = src.split('\n').filter((line) => line.includes('location.reload()'));
-assert.equal(reloadSites.length, 2, 'перезагрузка есть только в двух ограниченных recovery-путях');
+assert.equal(reloadSites.length, 4, 'два recovery-пути, переключение и исправление ещё не допущенного профиля');
+assert.match(src, /if \(checking \|\| autoOn\(\) \|\| busy \|\| projectAsyncWork > 0\)[\s\S]*?location\.reload\(\)/, 'переключение требует остановки и завершения запросов');
 const markerMissingStart = src.indexOf('async function markerMissing(');
 const reloadableStart = src.indexOf('const isReloadable = /something went wrong|please try again/i.test(eaten.text || "");', markerMissingStart);
 const reloadableEnd = src.indexOf('        pause(\n          `Arena снова не приняла задание:', reloadableStart);
@@ -160,7 +162,7 @@ assert.ok(!monitor.includes('location.reload()'), 'видимая ошибка �
 // 28.10 HTTP 400 «content.length should be ≤ 2000» показывался как «сеть или
 // блокировка», и Мастер чинил сеть, которой ничего не было.
 const stepCatch = src.slice(
-  src.indexOf('      const plain = /битый id|valid uuid|path failed validation/i.test(raw)'),
+  src.indexOf('      const plain = e && e.narthex === "question-too-long"'),
   src.indexOf('      pause(\n        `Цикл остановлен.'),
 );
 assert.ok(stepCatch.length > 0, 'разбор причины паузы на месте');
